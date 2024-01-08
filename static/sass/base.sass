@@ -1,0 +1,788 @@
+*
+  -moz-box-sizing: border-box
+  box-sizing: border-box
+
+a
+  color: hsl(200, 25%, 70%)
+  text-decoration: none
+
+
+a:focus, a:active
+  outline: none
+
+
+html
+  height: 100%
+  width: 100%
+
+
+body
+  display: flex
+  margin: 0
+  font-family: sans-serif
+  background-color: #2d5373 //hsl(200, 25%, 60%)
+  background-image: url("../images/background.png")
+  min-height: 100%
+  width: 100%
+  color: white
+  align-items: stretch
+
+
+hr
+  margin: 1em 0
+  background-color: hsla(0,0%,0%,0.5)
+  box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05)
+  border: none
+
+
+/* == TABLE ENHANCMENT == */
+
+.styled
+  width: 100%
+  border-collapse: collapse
+  border: 1px solid hsla(0,0%,0%, 0.25)
+  background-color: hsla(0,0%,0%,0.1)
+  margin: 15px 0
+
+  thead
+    background-color: hsla(0,0%,0%,0.25)
+    border: 1px solid hsla(0,0%,0%, 0.50)
+    box-shadow: inset 0 1px 0px hsla(0,0%,100%, 0.075)
+  tr
+    border-bottom: 1px solid hsla(0,0%,0%, 0.25)
+    &:nth-child(2n)
+      background-color: hsla(0,0%,0%,0.05)
+    &:hover
+      background-color: hsla(0,0%,100%,0.025)
+  th
+    padding: 4px
+
+  td
+    padding: 4px
+    border-left: 1px dashed hsla(0,0%,0%, 0.35)
+
+    &:hover
+      background-color: hsla(0,0%,100%,0.030)
+      border-left: 1px solid hsl(200, 25%, 60%)
+
+  input
+    margin: 0px !important
+
+  button
+    width: 100%
+
+
+/* == FORM ENHANCMENT == */
+
+label
+  display: inline-block
+  padding: 0.25em 0.75em
+  background-color: hsla(0,0%,0%,0.1)
+  box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 1px hsla(0,0%,0%,0.5)
+
+
+input[type=text], input[type=url], input[type=password], input[type=file], input[type=number], input[type=datetime-local], textarea
+  width: 100%
+  background-color: hsla(0,0%,0%,0.2)
+  border: none
+  box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 1px black
+  font-size: 1em
+  padding: 0.5em 0.75em
+  color: hsl(0,0%,75%)
+  margin: 0
+  margin-bottom: 1em
+
+  &:focus
+    box-shadow: 0 0 0.15em #6EADEF
+
+
+textarea
+  font-size: 1.2em
+  min-height: 10em
+
+
+input[type=file]
+  cursor: pointer
+
+input[type=checkbox], input[type=radio]
+  display: none
+
+
+input[type=checkbox] + label, input[type=radio] + label
+  cursor: pointer
+  background-color: none
+  border: none
+  margin-bottom: 1em
+  width: 100%
+  padding: 0.5em 0.75em
+
+  &:before
+    content: "#"
+    color: transparent
+    text-shadow: none
+    display: inline-block
+    width: 1em
+    height: 100%
+    background-color: hsla(0,0%,0%,0.1)
+    margin: -0.5em -0.75em
+    padding: 0.5em 0.5em
+    margin-right: 0.75em
+    box-shadow: inset 0 0 1px hsla(0,0%,0%,0.5)
+    float: left
+
+
+input[type=radio] + label:before
+  border-radius: 1em
+  padding: 0em
+  vertical-align: middle
+  margin-top: 0.02em
+  margin-left: 0.02em
+
+
+input[type=radio]:checked + label:before
+  background-color: hsl(0,0%,75%)
+
+
+input[type=radio] + label
+  border-radius: 1em 0 0 1em
+
+
+input[type=checkbox]:checked + label:before
+  content: "✓"
+  color: white
+  text-align: center
+
+
+fieldset
+  padding: 0.5em
+  margin: 1em 0em
+  border: none
+  border: 3px solid hsla(0,0%,0%,0.4)
+  box-shadow: inset 0 0 0 1px hsla(0,0%,100%,0.075), 0 0 0 1px hsla(0,0%,100%,0.075)
+
+
+legend
+  padding: 0 0.5em
+  font-weight: bold
+  font-variant: small-caps
+  background-color: hsl(0, 0%, 15%)
+  background-image: url("../images/background.png")
+
+
+button, .button-emulator
+  display: inline-block
+  font-weight: bold
+  font-size: 0.8em
+  border: none
+  background: hsla(0,0%,0%,0.2)
+  padding: 0.75em 1.5em
+  box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 0 1px hsla(0,0%,0%,0.75), inset 0 0 0 2px hsla(0,0%,100%,0.05)
+  color: white
+  cursor: pointer
+
+  &:hover
+    background-color: hsla(0,0%,0%,0.15)
+    box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 0 1px hsla(0,0%,0%,0.75), inset 0 0 0 2px hsla(0,0%,100%,0.05),  0 0 0.15em #6EADEF
+
+
+.validation-button
+  display: inline-block
+  font-weight: bold
+  font-size: 0.8em
+  border: none
+  padding: 0.75em 1.5em
+  color: white
+  cursor: pointer
+  background-color: hsl(130,70%,30%)
+  //background-image: url("../images/background.png")
+  box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 0 1px hsla(0,0%,0%,0.9), inset 0 0 0 2px hsla(0,0%,100%,0.175)
+  text-shadow: 1px 1px hsla(0,0%,0%,0.35)
+  &:hover
+    background-color: hsl(130,80%,30%)
+    box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 0 1px hsla(0,0%,0%,0.9), inset 0 0 0 2px hsla(0,0%,100%,0.175),  0 0 0.2em hsl(130,80%,30%)
+
+
+.cancel-button
+  display: inline-block
+  font-weight: bold
+  font-size: 0.8em
+  border: none
+  padding: 0.75em 1.5em
+  color: white
+  cursor: pointer
+  background-color: hsl(0,65%,45%)
+  //background-image: url("../images/background.png")
+  box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 0 1px hsla(0,0%,0%,0.9), inset 0 0 0 2px hsla(0,0%,100%,0.175)
+  text-shadow: 1px 1px hsla(0,0%,0%,0.35)
+  &:hover
+    background-color: hsl(0,75%,45%)
+    box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 0 1px hsla(0,0%,0%,0.9), inset 0 0 0 2px hsla(0,0%,100%,0.175),  0 0 0.2em hsl(0,75%,45%)
+
+
+select
+  color: white
+  border-radius: 2px
+  background: linear-gradient(hsl(135, 0%, 33%), hsl(135, 0%, 24%) )
+  box-shadow: 0 0 1px black, inset 0 1px 0px 0px hsla(0,0%,100%,0.15)
+  cursor: pointer
+  font-weight: bold
+
+  border: none
+  padding: 0 0.50em
+  margin-right: -10%
+  margin-bottom: -0.75em
+
+  text-shadow: 0 0 0 white, 1px 1px black
+  margin: -0.2em 0
+
+
+label + select
+  display: block
+  width: 100%
+  background-image: none
+  background-color: hsla(0,0%,0%,0.2)
+  border: none
+  box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 1px black
+  font-size: 1em
+  margin: 0
+  margin-bottom: 1em
+  font-weight: normal
+
+  option
+    padding: 0.5em 0.75em
+
+
+option
+  padding: 0.25em
+  color: white
+  display: hidden
+  border: 1px solid red
+  border: none
+  background: none
+
+
+/* == GENERIC CLASSES == */
+
+.flex-container
+  display: flex
+  flex-direction: row
+
+
+.flex1-3
+  display: block
+  width: 33.33%
+
+
+.flex2-3
+  display: block
+  width: 66.66%
+  padding-right: 2em
+
+
+.flex1-2
+  display: block
+  flex: 0 0 50%
+
+
+.fancy-list
+  list-style: none
+
+  li
+    border-bottom: 1px solid hsla(0,0%,0%,0.3)
+    padding: 10px 5px
+    vertical-align: middle
+
+    &:first-child:hover
+      margin-top: -1px
+      border-top: 1px solid hsla(0,0%,0%,0.3)
+
+    &:hover
+      box-shadow: inset 0 1px 0px hsla(0,0%,100%,0.075)
+      background-color: hsla(0,0%,100%,0.025)
+
+
+ul.nostyle
+  list-style: none
+  padding: 0px
+
+
+.float-right
+  float: right
+
+
+.center
+  text-align: center
+
+
+.center-box
+  margin: auto
+
+
+
+.half-size
+  width: 50%
+
+
+.quarter-size
+  width: 25%
+
+
+.dual-column
+  -moz-column-count: 2
+  -webkit-column-count: 2
+  column-count: 2
+
+
+
+
+/* == NAVIGATION MENU == */
+
+#navigation
+  flex: 0 1 200px
+  min-width: 200px
+  max-width: 200px
+  min-height: 100%
+  vertical-align: top
+
+  a
+    display: block
+    font-size: 14px
+    padding: 8px
+    width: 100%
+    font-weight: bold
+
+    &.selected, &:hover
+      background-color: hsla(0, 0%, 0%, 0.30)
+      color: white
+
+    &.selected:after
+      content: ""
+      display: block
+      float: right
+      position: relative
+      top: -7.5px
+      left: 8px
+
+      /* triangle with borders */
+      border-top: 15px solid transparent
+      border-right: 15px solid black
+      border-bottom: 15px solid transparent
+
+
+  .separator
+    padding: 0
+
+    &:after
+      content: ""
+      display: block
+      background-color: hsl(0, 0%, 15%)
+      height: 2px
+      margin: 8px
+
+
+/* == MAIN CONTAINER == */
+
+#main-container
+  flex: 1 1 auto
+  min-height: 100%
+  border-left: 10px solid black
+  background-color: #12202c
+  background-image: url("../images/background.png")
+  box-shadow: 0 0 5px hsla(0, 0%, 0%, 0.5), inset 0 0 0 1px hsla(0,0%,100%,0.15)
+  text-shadow: 1px 1px hsla(0,0%,0%,0.25)
+  padding: 0 1em
+  max-width: calc(100% - 200px)
+
+
+#main
+  section
+    margin-bottom: 2em
+
+    h1, h2, h3, h4, h5, h6
+      padding: 0.2em 0
+      margin: 0.25em 0
+
+h1
+  /*border-bottom: 2px solid hsla(0,0%,0%, 0.3)*/
+  font-size: 2em
+
+h2
+  /*border-bottom: 2px solid hsla(0,0%,0%, 0.25)*/
+  font-size: 1.8em
+
+h3
+  /*border-bottom: 2px solid hsla(0,0%,0%, 0.2)*/
+  font-size: 1.6em
+
+h4
+  /*border-bottom: 2px solid hsla(0,0%,0%, 0.15)*/
+  font-size: 1.4em
+
+h5
+  /*border-bottom: 2px solid hsla(0,0%,0%, 0.1)*/
+  font-size: 1.2em
+
+h6
+  /*border-bottom: 2px solid hsla(0,0%,0%, 0.05)*/
+  font-size: 1em
+
+/* == MODULE MENU == */
+
+#module-menu
+  -moz-box-sizing: content-box
+  box-sizing: content-box
+  list-style: none
+  box-shadow: 0 1px 0px 0px hsla(0,0%,100%,0.15)
+  background-color: black
+  margin: 0 -1em
+  margin-bottom: 1em
+  padding: 0.5em 1.5em 0 0
+  display: flex
+
+  a
+    display: inline-block
+    font-size: 0.925em
+    font-weight: bold
+    /*font-variant: small-caps*/
+    text-transform: uppercase
+    color: white
+    padding: 0.35em 1em
+    margin: 0 2px 0 0
+    background-color: #1c252c
+    background-image: url("../images/background.png")
+    box-shadow: inset 0 -1px 0px hsla(0,0%,0%,0.75)
+    border-top: 1px solid hsla(0,0%,100%,0.08)
+    border-bottom: none
+    border-left: 1px solid hsla(0,0%,100%,0.08)
+    border-right: 1px solid hsla(0,0%,100%,0.08)
+    color: hsl(0,0%,75%)
+    /*border-radius: 3px 3px 0 0*/
+
+    &.selected, &.selected:hover
+      background-color: #12202c
+      box-shadow: 0 1px 0px 0 hsla(0,0%,0%, 0.35)
+      color: hsl(0,0%,95%)
+      border-top: 1px solid hsla(0,0%,100%,0.15)
+      border-bottom: none
+      border-left: 1px solid hsla(0,0%,100%,0.15)
+      border-right: 1px solid hsla(0,0%,100%,0.15)
+
+    &:hover
+      color: hsl(0,0%,95%)
+      background-color: #202a33
+
+
+/* == STANDALONE LOGIN PAGE == */
+
+#standalone-login
+  display: block
+  width: 300px
+  padding-top: 1em
+  margin: auto
+
+  h1
+    font-variant: small-caps
+    position: relative
+    font-size: 1.5em
+
+  input
+    margin-bottom: 0.75em
+
+  div
+    background-color: hsl(0, 0% ,15%)
+    background-image: url("../images/background.png")
+    padding: 15px
+    border: 4px solid black
+    box-shadow: 0 0 4px hsla(0, 0%, 0%, 0.5), inset 0 0 0 1px hsla(0, 0%, 100%, 0.15)
+    margin: auto
+
+  label
+    text-shadow: 1px 1px black
+    font-weight: bold
+    font-size: 14px
+
+
+  button
+    margin-top: 10px
+    width: 100%
+    border: none
+    padding: 3px
+    font-weight: bold
+    color: white
+    text-shadow: 1px 1px black
+    cursor: pointer
+    background: linear-gradient(hsl(135, 0%, 33%), hsl(135, 0%, 24%) )
+    border-radius: 2px
+    box-shadow: 0 0 1px black, inset 0 1px 0px 0px hsla(0,0%,100%,0.15)
+
+    &:hover
+      background: linear-gradient(hsl(135, 0%, 34%), hsl(135, 0%, 26%) )
+
+
+/* == ERROR BOX == */
+
+.error
+  background-color: hsl(0,75%,50%) !important
+  background-image: url("../images/background.png")
+  padding: 0.5em
+  box-shadow: inset 0 0 0 1px hsla(0,0%,100%,0.2), 0 0 0 1px hsl(0,75%,20%)
+  font-weight: bold !important
+  color: hsl(0,100%,95%) !important
+  text-shadow: 1px 1px black !important
+  margin: 1em 0
+
+
+
+/* == Confirmation box == */
+
+.confirm
+  background-color: hsl(125,50%,40%) !important
+  background-image: url("../images/background.png") !important
+  padding: 0.5em
+  box-shadow: inset 0 0 0 1px hsla(0,0%,100%,0.25), 0 0 0 1px hsl(125,50%,5%)
+  font-weight: bold !important
+  color: hsl(125,100%,95%) !important
+  text-shadow: 1px 1px black
+  margin: 1em 0
+
+
+
+/* == GROUP SELECTOR == */
+
+.standalone-group-selector
+  width: 100%
+  border: none
+  color: white
+  border-radius: 2px
+  background: linear-gradient(hsl(135, 0%, 33%), hsl(135, 0%, 24%) )
+  box-shadow: 0 0 1px black, inset 0 1px 0px 0px hsla(0,0%,100%,0.15)
+
+  select
+    cursor: pointer
+    display: inline-block
+    font-weight: bold
+    text-shadow: 1px 1px black
+
+    background: none
+    border: none
+    color: white
+    width: 100%
+    padding: -0.25em
+    padding: 0 0.50em
+    margin: 0
+    margin-right: -10%
+    margin-bottom: -0.75em
+
+    text-shadow: 0 0 0 white, 1px 1px black
+    box-shadow: none
+
+  option
+    padding: 0.25em
+    background-color: hsl(0,0%,15%)
+    color: white
+
+  button
+    width: 10%
+    display: inline-block
+    padding: 0.50em
+    background-color: hsl(200,30%,60%)
+    background-image: url("../images/background.png")
+    border: none
+    cursor: pointer
+    color: white
+    text-shadow: 0 1px black
+    background: linear-gradient(hsl(135, 0%, 33%), hsl(135, 0%, 24%) )
+    box-shadow: inset 0 1px 0px 0px hsla(0,0%,100%,0.15), -1px 0 0 0 black
+    border-radius: 0 2px 2px 0
+
+    &:hover
+      background: linear-gradient(hsl(135, 0%, 40%), hsl(135, 0%, 30%) )
+
+
+@media screen and (max-width:1024px)
+  .flex-container
+    display: block
+
+  .flex1-3, .flex1-2, .flex2-3
+    width: 100%
+    margin: 0
+    padding: 0
+
+
+
+@media screen and (max-width:768px)
+  #navigation
+    max-width: 3em
+    min-width: 3em
+    flex: 0 1 3em
+  #navigation span
+    display: none
+  #main-container
+    max-width: calc(100% - 3em)
+
+
+/* ==== TASKS ==== */
+.taskresult
+  padding-top: 0.6em
+  padding-bottom: 0.6em
+  padding-left: 0.5em
+  margin-left: 1em
+  margin-right: 0.2em
+
+.task-failed
+  background-color: red
+
+.task-completed
+  background-color: green
+
+.task-pending
+  background-color: orange
+
+.task-exception
+  background-color: yellow
+
+.task-running
+  background-color: blue
+
+.commit-range
+  margin-left: auto
+  margin-right: 1em
+  text-overflow: ellipsis
+  overflow: hidden
+
+article
+  header
+    display: flex
+    align-items: center
+    background-color: hsla(0,0%,0%,0.3)
+    margin-bottom: 2px
+
+  h4
+    padding: 0.25em
+    font-size: 1em
+    margin: 0
+    text-overflow: ellipsis
+    overflow: hidden
+
+  time
+    padding: 0.25em
+    font-size: 0.9em
+    margin: 0
+    text-overflow: ellipsis
+    overflow: hidden
+    color: rgba(255, 255, 255, 0.7)
+
+  main
+    padding: 0.5em
+
+.subtask
+  display: flex
+  margin-left: 15px
+  align-items: center
+  border-bottom: 1px solid rgba(255,255,255,0.1)
+  padding: 5px
+
+.repo_tr
+  cursor: pointer
+
+.hidden
+  display: none
+
+.git_ref td:first-child
+  padding-left: 30px
+
+.repo_list_table
+  width: 100%
+  border-collapse: collapse
+  border: 1px solid hsla(0,0%,0%, 0.25)
+  background-color: hsla(0,0%,0%,0.1)
+  margin: 15px 0
+
+  thead
+    background-color: hsla(0,0%,0%,0.25)
+    border: 1px solid hsla(0,0%,0%, 0.50)
+    box-shadow: inset 0 1px 0px hsla(0,0%,100%, 0.075)
+
+  tbody
+    font-weight: bold
+    &:hover
+      background-color: hsla(0,0%,100%,0.05)
+    .git_ref
+      font-weight: normal
+      td:last-child
+        text-align: right
+      &:nth-child(2n)
+        background-color: hsla(0,0%,0%,0.075)
+      &:hover
+        background-color: hsla(0,0%,100%,0.025)
+    box-shadow: 0 1px 0 0 rgba(0,0,0,0.5)
+
+  th
+    padding: 4px
+
+  td
+    padding: 4px
+    border-left: 1px dashed hsla(0,0%,0%, 0.35)
+
+    &:hover
+      background-color: hsla(0,0%,100%,0.030)
+      border-left: 1px solid hsl(200, 25%, 60%)
+
+  input
+    margin: 0px !important
+
+  button
+    width: 100%
+
+#messages
+  position: sticky
+  top: 0
+  z-index: 2
+  height: auto
+
+  @keyframes slideDown
+  from
+    height: 0
+
+  to
+    height: auto
+
+.message
+  padding: 0.5em 1em
+  font-weight: bold
+  color: white
+
+  animation-delay: 0.2s
+  animation-timing-function: ease-out
+  animation-duration: 5s
+  animation-iteration-count: 1
+
+
+  i
+    vertical-align: middle
+    font-size: 1.5em
+
+  span
+    margin-left: 1em
+    vertical-align: middle
+
+  &.error
+    background-color: #E06060
+    i
+      color: #FFABAB
+
+  &.warning
+    background-color: #FFC06E
+    i
+      color: #FEE5B3
+
+  &.success
+    background-color: #63C56B
+    i
+      color: #A4EAA4
+
+  &.info
+    background-color: #FFC06E
+    i
+      color: #FEE5B3
+

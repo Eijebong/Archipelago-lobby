@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% import "menu.html.tera" as menu %}
+{% block menu %}
+{% endblock %}
+{% block main %}
+
+List of rooms:
+<table class="styled">
+    <tbody>
+{% for room in rooms %}
+    <tr>
+        <td><a href="/room/{{room.id}}">{{ room.name }}</a></td>
+        <td>{{ room.id }}</td>
+        <td>{{room.close_date}}</td> <!-- TODO: JS that to localtime -->
+    </tr>
+{% endfor %}
+    </tbody>
+</table>
+{%endblock%}

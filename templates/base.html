@@ -1,0 +1,45 @@
+{% import "menu.html.tera" as menu %}
+
+<!DOCTYPE html >
+<html lang="en">
+    <head>
+        <title>{% block title %}Archipelago lobby{% endblock title %}</title>
+        <meta charset="UTF-8" />
+        <link rel="stylesheet" href="/static/css/base.css" />
+        <link rel="stylesheet" href="/static/contrib/font-awesome/css/all.min.css" />
+
+        {% block styles %}
+        {% endblock styles %}
+    </head>
+    <body>
+        <nav id="navigation">
+            {% call menu::app_menu_item("Index", "fa-brands fa-buffer", "/", "index", base.cur_module) %}
+            <li class="separator"></li>
+            {% if base.is_admin %}
+            {% call menu::app_menu_item("List rooms", "fa fa-list", "/admin/rooms", "rooms", base.cur_module) %}
+            {% call menu::app_menu_item("Create new room", "fa fa-plus", "/admin/create-room", "create-room", base.cur_module) %}
+            {% call menu::app_menu_item("Logout", "fa fa-sign-out", "/auth/logout", "logout", base.cur_module) %}
+            {% else %}
+            {% call menu::app_menu_item("Login", "fa fa-sign-in", "/auth/login", "login", base.cur_module) %}
+            {% endif %}
+        </nav>
+
+        <div id="main-container">
+            <main id="main" >
+                <nav id="module-menu">
+                    {% block menu %}{% endblock menu %}
+                </nav>
+                <div id="messages">
+                    {% if base.err_msg.is_some() %}
+                        <p class="error">{{ base.err_msg.as_ref().unwrap() }}</p>
+                    {% endif %}
+                </div>
+                {% block main %}{% endblock main %}
+            </main>
+        </div>
+        {% block scripts %}
+        {% endblock scripts %}
+    </body>
+</html>
+
+

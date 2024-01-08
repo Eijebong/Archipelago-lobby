@@ -1,0 +1,15 @@
+{% macro app_menu_item(name, icon, url, module, cur_module) %}
+    {% if module == cur_module %}
+        <a href="{{ url }}" class="selected" id="{{ name }}"><i class="{{ icon }}"></i> <span>{{ name }}</span></a>
+    {% else %}
+        <a href="{{ url }}" id="{{ name }}"><i class="{{ icon }}"></i> <span>{{ name }}</span></a>
+    {% endif %}
+{% endmacro %}
+
+{% macro menu_item(name, icon, url, selected, id) %}
+    {% if selected %}
+        <a href="{{ url }}" class="selected" id="{{ id }}"><i class="{{ icon }}"></i> <span>{{ name }}</span></a>
+    {% else %}
+        <a href="{{ url }}" id="{{ id }}"><i class="{{ icon }}"></i> <span>{{ name }}</span></a>
+    {% endif %}
+{% endmacro %}

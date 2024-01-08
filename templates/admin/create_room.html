@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% import "menu.html.tera" as menu %}
+{% block menu %}
+{% endblock %}
+{% block main %}
+
+<form method="POST">
+    <label for="room_name">Room name:</label>
+    <input type="text" name="room_name" id="room_name"/>
+
+    <label for="close_date">Date:</label>
+    <input type="datetime-local" id="close_date" name="close_date"/>
+
+    <input type="hidden" name="tz_offset" id="tz_offset"/>
+
+    <button>Create room</button>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const tzOffset = (new Date()).getTimezoneOffset();
+document.getElementById("tz_offset").value = tzOffset;
+</script>
+{% endblock %}

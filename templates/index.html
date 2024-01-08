@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% import "menu.html.tera" as menu %}
+{% block menu %}
+{% endblock %}
+{% block main %}
+<div>
+    <form type="GET">
+        <label for="room-id">Room ID:</label><input type="text" name="room"/>
+        <button>Go</button>
+    </form>
+</div>
+{%endblock%}
