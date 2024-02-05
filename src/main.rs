@@ -60,6 +60,7 @@ struct RoomTpl<'a> {
     room: Room,
     yamls: Vec<Yaml>,
     player_count: usize,
+    is_closed: bool,
 }
 
 #[derive(Template)]
@@ -90,12 +91,14 @@ fn room<'a>(
     session: Session,
     cookies: &CookieJar,
 ) -> Result<RoomTpl<'a>> {
+    let room = api::get_room(uuid, ctx)?;
     let mut yamls = api::get_yamls_for_room(uuid, ctx)?;
     yamls.sort_by(|a, b| a.game.cmp(&b.game));
     Ok(RoomTpl {
         base: TplContext::from_session("index", session, cookies),
-        room: api::get_room(uuid, ctx)?,
         player_count: yamls.len(),
+        is_closed: room.is_closed(),
+        room,
         yamls,
     })
 }
@@ -111,7 +114,7 @@ fn upload_yaml(
     redirect_to.set(&format!("/room/{}", uuid));
 
     let room = api::get_room(uuid, ctx).context("Unknown room")?;
-    if room.close_date < chrono::offset::Utc::now().naive_utc() {
+    if room.is_closed() {
         return Err(anyhow::anyhow!("This room is closed, you're late").into());
     }
     let (yaml, _encoding, has_errors) = encoding_rs::UTF_8.decode(&yaml);
@@ -177,7 +180,7 @@ fn delete_yaml(
     redirect_to.set(&format!("/room/{}", room_id));
 
     let room = api::get_room(room_id, ctx).context("Unknown room")?;
-    if room.close_date < chrono::offset::Utc::now().naive_utc() {
+    if room.is_closed() {
         return Err(anyhow::anyhow!("This room is closed, you're late").into());
     }
 

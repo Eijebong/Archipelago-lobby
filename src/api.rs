@@ -34,6 +34,12 @@ pub struct Room {
     pub close_date: NaiveDateTime,
 }
 
+impl Room {
+    pub fn is_closed(&self) -> bool {
+        return self.close_date < chrono::offset::Utc::now().naive_utc();
+    }
+}
+
 #[derive(Debug, diesel::Queryable)]
 pub struct Yaml {
     pub id: DieselUuid,
