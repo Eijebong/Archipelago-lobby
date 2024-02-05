@@ -238,10 +238,7 @@ fn rocket() -> _ {
 
     let limits = Limits::default().limit("bytes", 2.megabytes());
 
-    let figment = rocket::Config {
-        limits,
-        ..Default::default()
-    };
+    let figment = rocket::Config::figment().merge(("limits", limits));
 
     rocket::custom(figment)
         .mount(
