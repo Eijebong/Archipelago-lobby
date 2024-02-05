@@ -176,6 +176,11 @@ fn delete_yaml(
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/room/{}", room_id));
 
+    let room = api::get_room(room_id, ctx).context("Unknown room")?;
+    if room.close_date < chrono::offset::Utc::now().naive_utc() {
+        return Err(anyhow::anyhow!("This room is closed, you're late").into());
+    }
+
     let yaml = api::get_yaml_by_id(yaml_id, ctx)?;
 
     if yaml.owner_id.0 != session.user_id && !session.is_admin {
