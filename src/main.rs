@@ -5,7 +5,9 @@ use api::{Yaml, YamlFile};
 use askama::Template;
 use auth::{AdminSession, Session};
 use diesel::r2d2::Pool;
+use diesel::sqlite::Sqlite;
 use diesel::{r2d2::ConnectionManager, SqliteConnection};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use rocket::data::{Limits, ToByteUnit};
 use rocket::form::Form;
 use rocket::fs::FileServer;
@@ -233,6 +235,16 @@ fn download_yamls<'a>(
     })
 }
 
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
+
+fn run_migrations(
+    connection: &mut impl MigrationHarness<Sqlite>,
+) -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    connection.run_pending_migrations(MIGRATIONS)?;
+
+    Ok(())
+}
+
 #[launch]
 fn rocket() -> _ {
     let db_url = std::env::var("DATABASE_URL").expect("Plox provide a DATABASE_URL env variable");
@@ -241,6 +253,12 @@ fn rocket() -> _ {
 
     let manager = ConnectionManager::<SqliteConnection>::new(db_url);
     let db_pool = Pool::new(manager).expect("Failed to create database pool, aborting");
+    {
+        let mut connection = db_pool
+            .get()
+            .expect("Failed to get database connection to run migrations");
+        run_migrations(&mut connection).expect("Failed to run migrations");
+    }
 
     let ctx = Context { db_pool };
 
