@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::diesel_uuid::Uuid as DieselUuid;
 use crate::error::Result;
 use crate::schema::{rooms, yamls};
@@ -50,9 +52,16 @@ pub struct Yaml {
     pub game: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
+#[serde(untagged)]
+pub enum YamlGame {
+    Name(String),
+    Map(HashMap<String, f64>),
+}
+
+#[derive(serde::Deserialize, Debug)]
 pub struct YamlFile {
-    pub game: String,
+    pub game: YamlGame,
     pub name: String,
 }
 
@@ -111,6 +120,16 @@ pub fn add_yaml_to_room(
     ctx: &State<Context>,
 ) -> Result<()> {
     let mut conn = ctx.db_pool.get()?;
+    let game_name = match &parsed.game {
+        YamlGame::Name(name) => name.clone(),
+        YamlGame::Map(map) => {
+            if map.len() == 1 {
+                map.keys().next().unwrap().clone()
+            } else {
+                "Unknown".to_string()
+            }
+        }
+    };
 
     let new_yaml = NewYaml {
         id: DieselUuid::random(),
@@ -118,7 +137,7 @@ pub fn add_yaml_to_room(
         room_id: DieselUuid(uuid),
         content,
         player_name: &parsed.name,
-        game: &parsed.game,
+        game: &game_name,
     };
     diesel::insert_into(yamls::table)
         .values(new_yaml)
