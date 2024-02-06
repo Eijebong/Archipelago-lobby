@@ -1,5 +1,8 @@
+use std::borrow::Cow;
 use std::collections::HashSet;
+use std::ffi::OsStr;
 use std::io::{BufReader, Cursor, Write};
+use std::path::PathBuf;
 
 use api::{Yaml, YamlFile};
 use askama::Template;
@@ -10,9 +13,8 @@ use diesel::{r2d2::ConnectionManager, SqliteConnection};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use rocket::data::{Limits, ToByteUnit};
 use rocket::form::Form;
-use rocket::fs::FileServer;
 use rocket::http::hyper::header::CONTENT_DISPOSITION;
-use rocket::http::{CookieJar, Header};
+use rocket::http::{ContentType, CookieJar, Header};
 use rocket::response::Redirect;
 use rocket::{get, launch, post, routes, uri, State};
 use uuid::Uuid;
@@ -245,6 +247,23 @@ fn run_migrations(
     Ok(())
 }
 
+#[get("/static/<file..>")]
+fn dist(file: PathBuf) -> Option<(ContentType, Cow<'static, [u8]>)> {
+    let filename = file.display().to_string();
+    let asset = Asset::get(&filename)?;
+    let content_type = file
+        .extension()
+        .and_then(OsStr::to_str)
+        .and_then(ContentType::from_extension)
+        .unwrap_or(ContentType::Bytes);
+
+    Some((content_type, asset.data))
+}
+
+#[derive(rust_embed::RustEmbed)]
+#[folder = "./static/"]
+struct Asset;
+
 #[launch]
 fn rocket() -> _ {
     let db_url = std::env::var("DATABASE_URL").expect("Plox provide a DATABASE_URL env variable");
@@ -269,10 +288,9 @@ fn rocket() -> _ {
     rocket::custom(figment)
         .mount(
             "/",
-            routes![root, room, upload_yaml, delete_yaml, download_yamls],
+            routes![root, room, upload_yaml, delete_yaml, download_yamls, dist],
         )
         .mount("/admin/", admin::routes())
-        .mount("/static", FileServer::from("static"))
         .mount("/auth/", auth::routes())
         .manage(ctx)
 }
