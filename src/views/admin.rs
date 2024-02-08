@@ -1,7 +1,7 @@
 #![allow(clippy::blocks_in_conditions)]
 
-use crate::auth::AdminSession;
 use crate::error::{RedirectTo, Result};
+use crate::views::auth::AdminSession;
 use askama::Template;
 use chrono::TimeZone;
 use rocket::form::Form;

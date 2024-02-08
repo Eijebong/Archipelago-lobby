@@ -38,7 +38,7 @@ pub struct Room {
 
 impl Room {
     pub fn is_closed(&self) -> bool {
-        return self.close_date < chrono::offset::Utc::now().naive_utc();
+        self.close_date < chrono::offset::Utc::now().naive_utc()
     }
 }
 

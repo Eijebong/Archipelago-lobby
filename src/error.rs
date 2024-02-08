@@ -4,7 +4,7 @@ use rocket::request::{FromRequest, Outcome};
 use rocket::response::{self, Responder};
 use rocket::Request;
 
-use crate::auth::Session;
+use crate::views::auth::Session;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
