@@ -4,7 +4,7 @@ use std::ffi::OsStr;
 use std::io::{BufReader, Cursor, Write};
 use std::path::PathBuf;
 
-use crate::api::{Yaml, YamlFile};
+use crate::db::{Yaml, YamlFile};
 use crate::{Context, TplContext};
 use askama::Template;
 use auth::{AdminSession, Session};
@@ -16,7 +16,7 @@ use rocket::routes;
 use rocket::{get, post, uri, State};
 use uuid::Uuid;
 
-use crate::api::{self, Room};
+use crate::db::{self, Room};
 use crate::error::{Error, RedirectTo, Result, WithContext};
 
 pub mod admin;
@@ -60,8 +60,8 @@ fn room<'a>(
     session: Session,
     cookies: &CookieJar,
 ) -> Result<RoomTpl<'a>> {
-    let room = api::get_room(uuid, ctx)?;
-    let mut yamls = api::get_yamls_for_room(uuid, ctx)?;
+    let room = db::get_room(uuid, ctx)?;
+    let mut yamls = db::get_yamls_for_room(uuid, ctx)?;
     yamls.sort_by(|a, b| a.game.cmp(&b.game));
     Ok(RoomTpl {
         base: TplContext::from_session("index", session, cookies),
@@ -82,7 +82,7 @@ fn upload_yaml(
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/room/{}", uuid));
 
-    let room = api::get_room(uuid, ctx).context("Unknown room")?;
+    let room = db::get_room(uuid, ctx).context("Unknown room")?;
     if room.is_closed() {
         return Err(anyhow::anyhow!("This room is closed, you're late").into());
     }
@@ -107,7 +107,7 @@ fn upload_yaml(
         })
         .collect::<anyhow::Result<Vec<(String, YamlFile)>>>()?;
 
-    let yamls_in_room = api::get_yamls_for_room(uuid, ctx).context("Couldn't get room yamls")?;
+    let yamls_in_room = db::get_yamls_for_room(uuid, ctx).context("Couldn't get room yamls")?;
     let mut players_in_room = yamls_in_room
         .iter()
         .map(|yaml| yaml.player_name.clone())
@@ -132,7 +132,7 @@ fn upload_yaml(
     // TODO: Check supported game
 
     for (document, parsed) in documents {
-        api::add_yaml_to_room(uuid, session.user_id, &document, &parsed, ctx).unwrap();
+        db::add_yaml_to_room(uuid, session.user_id, &document, &parsed, ctx).unwrap();
     }
 
     Ok(Redirect::to(uri!(room(uuid))))
@@ -148,18 +148,18 @@ fn delete_yaml(
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/room/{}", room_id));
 
-    let room = api::get_room(room_id, ctx).context("Unknown room")?;
+    let room = db::get_room(room_id, ctx).context("Unknown room")?;
     if room.is_closed() {
         return Err(anyhow::anyhow!("This room is closed, you're late").into());
     }
 
-    let yaml = api::get_yaml_by_id(yaml_id, ctx)?;
+    let yaml = db::get_yaml_by_id(yaml_id, ctx)?;
 
     if yaml.owner_id.0 != session.user_id && !session.is_admin {
         Err(anyhow::anyhow!("Can't delete a yaml file that isn't yours"))?
     }
 
-    api::remove_yaml(yaml_id, ctx)?;
+    db::remove_yaml(yaml_id, ctx)?;
 
     Ok(Redirect::to(format!("/room/{}", room_id)))
 }
@@ -180,8 +180,8 @@ fn download_yamls<'a>(
 ) -> Result<ZipFile<'a>> {
     redirect_to.set(&format!("/room/{}", room_id));
 
-    let room = api::get_room(room_id, ctx)?;
-    let yamls = api::get_yamls_for_room(room_id, ctx)?;
+    let room = db::get_room(room_id, ctx)?;
+    let yamls = db::get_yamls_for_room(room_id, ctx)?;
     let mut writer = zip::ZipWriter::new(Cursor::new(vec![]));
 
     let options =

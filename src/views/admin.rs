@@ -9,7 +9,7 @@ use rocket::http::CookieJar;
 use rocket::response::Redirect;
 use rocket::{get, post, FromForm};
 
-use crate::api::{self, Room};
+use crate::db::{self, Room};
 use crate::{Context, TplContext};
 use rocket::State;
 
@@ -41,7 +41,7 @@ fn rooms<'a>(
 ) -> Result<ListRoomsTpl<'a>> {
     Ok(ListRoomsTpl {
         base: TplContext::from_session("rooms", session.0, cookies),
-        rooms: api::list_rooms(ctx)?,
+        rooms: db::list_rooms(ctx)?,
     })
 }
 #[get("/create-room")]
@@ -70,7 +70,7 @@ fn create_room_submit(
         .from_local_datetime(&datetime)
         .single()
         .ok_or_else(|| crate::error::Error(anyhow::anyhow!("Cannot parse passed datetime")))?;
-    let new_room = api::create_room(room_form.room_name, &close_date.into(), ctx)?;
+    let new_room = db::create_room(room_form.room_name, &close_date.into(), ctx)?;
 
     Ok(Redirect::to(format!("/room/{}", new_room.id)))
 }

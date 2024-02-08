@@ -8,7 +8,7 @@ use rocket::launch;
 use uuid::Uuid;
 use views::auth::Session;
 
-mod api;
+mod db;
 mod diesel_uuid;
 mod error;
 mod schema;
