@@ -187,7 +187,7 @@ fn download_yamls<'a>(
     let options =
         zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
     for yaml in yamls {
-        writer.start_file(&format!("{}.yaml", yaml.id), options)?;
+        writer.start_file(&format!("{}.yaml", yaml.sanitized_name()), options)?;
         writer.write_all(yaml.content.as_bytes())?;
     }
 
