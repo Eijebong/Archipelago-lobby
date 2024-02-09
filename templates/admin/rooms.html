@@ -4,15 +4,33 @@
 {% endblock %}
 {% block main %}
 
-List of rooms:
+<div>
 <table class="styled">
+    <caption>List of rooms</caption>
     <tbody>
 {% for room in rooms %}
-    <tr>
-        <td><a href="/room/{{room.id}}">{{ room.name }}</a></td>
-        <td>{{ room.id }}</td>
-        <td>{{room.close_date}}</td> <!-- TODO: JS that to localtime -->
-    </tr>
+    {% if !room.is_closed() %}
+        <tr>
+            <td><a href="/room/{{room.id}}">{{ room.name }}</a></td>
+            <td>{{ room.id }}</td>
+            <td>{{room.close_date}}</td> <!-- TODO: JS that to localtime -->
+        </tr>
+    {% endif %}
+{% endfor %}
+    </tbody>
+</table>
+
+<table class="styled">
+    <caption>Closed rooms</caption>
+    <tbody>
+{% for room in rooms %}
+    {% if room.is_closed() %}
+        <tr>
+            <td><a href="/room/{{room.id}}">{{ room.name }}</a></td>
+            <td>{{ room.id }}</td>
+            <td>{{room.close_date}}</td> <!-- TODO: JS that to localtime -->
+        </tr>
+    {% endif %}
 {% endfor %}
     </tbody>
 </table>

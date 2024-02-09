@@ -67,7 +67,9 @@ pub struct YamlFile {
 
 pub fn list_rooms(ctx: &State<Context>) -> Result<Vec<Room>> {
     let mut conn = ctx.db_pool.get()?;
-    Ok(rooms::table.load::<Room>(&mut conn)?)
+    Ok(rooms::table
+        .order(rooms::close_date.asc())
+        .load::<Room>(&mut conn)?)
 }
 
 pub fn create_room(
