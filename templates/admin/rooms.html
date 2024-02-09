@@ -23,7 +23,7 @@
 <table class="styled">
     <caption>Closed rooms</caption>
     <tbody>
-{% for room in rooms %}
+{% for room in rooms.iter().rev() %}
     {% if room.is_closed() %}
         <tr>
             <td><a href="/room/{{room.id}}">{{ room.name }}</a></td>
