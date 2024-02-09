@@ -202,6 +202,31 @@ fn download_yamls<'a>(
     })
 }
 
+#[derive(rocket::Responder)]
+#[response(status = 200, content_type = "application/yaml")]
+struct YamlContent<'a> {
+    content: String,
+    headers: Header<'a>,
+}
+#[get("/room/<room_id>/download/<yaml_id>")]
+fn download_yaml<'a>(
+    redirect_to: &RedirectTo,
+    room_id: Uuid,
+    yaml_id: Uuid,
+    ctx: &State<Context>,
+) -> Result<YamlContent<'a>> {
+    redirect_to.set("/");
+    let _room = db::get_room(room_id, ctx).context("Couldn't find the room")?;
+    let yaml = db::get_yaml_by_id(yaml_id, ctx)?;
+
+    let value = format!("attachment; filename=\"{}.yaml\"", yaml.sanitized_name());
+
+    Ok(YamlContent {
+        content: yaml.content,
+        headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
+    })
+}
+
 #[get("/static/<file..>")]
 fn dist(file: PathBuf) -> Option<(ContentType, Cow<'static, [u8]>)> {
     let filename = file.display().to_string();
@@ -220,5 +245,13 @@ fn dist(file: PathBuf) -> Option<(ContentType, Cow<'static, [u8]>)> {
 struct Asset;
 
 pub fn routes() -> Vec<rocket::Route> {
-    routes![root, room, upload_yaml, delete_yaml, download_yamls, dist]
+    routes![
+        root,
+        room,
+        upload_yaml,
+        delete_yaml,
+        download_yamls,
+        download_yaml,
+        dist
+    ]
 }

@@ -47,9 +47,9 @@
             <td>{{yaml.player_name}}</td>
             <td>{{yaml.game}}</td>
             {% if (yaml.owner_id.0 == base.user_id || base.is_admin) && !is_closed %}
-            <td><a href="/room/{{room.id}}/delete/{{yaml.id}}">Delete</a></td>
+            <td><a href="/room/{{room.id}}/download/{{yaml.id}}" />View</a> | <a href="/room/{{room.id}}/delete/{{yaml.id}}">Delete</a></td>
             {% else %}
-            <td> - </td>
+            <td><a href="/room/{{room.id}}/download/{{yaml.id}}" />View</a></td>
             {% endif %}
         </tr>
         {% endfor %}

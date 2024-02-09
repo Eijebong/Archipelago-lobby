@@ -159,3 +159,9 @@ pub fn get_yaml_by_id(yaml_id: Uuid, ctx: &State<Context>) -> Result<Yaml> {
         .find(DieselUuid(yaml_id))
         .first::<Yaml>(&mut conn)?)
 }
+
+impl Yaml {
+    pub fn sanitized_name(&self) -> String {
+        self.player_name.replace(['/', '\\'], "_")
+    }
+}
