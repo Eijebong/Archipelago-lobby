@@ -4,16 +4,32 @@
 {% endblock %}
 {% block main %}
 
-<form method="POST">
+{%- match room %}
+{%- when Some with (room) %}
+    <form method="POST" action="/admin/edit-room/{{room.id}}">
+{%- when None %}
+    <form method="POST">
+{%- endmatch %}
+
     <label for="room_name">Room name:</label>
-    <input type="text" name="room_name" id="room_name"/>
+    {% match room %}
+    {% when Some with (room) %}
+        <input type="text" name="room_name" id="room_name" value="{{room.name}}"/>
+    {% when None %}
+        <input type="text" name="room_name" id="room_name" />
+    {% endmatch %}
 
     <label for="close_date">Date:</label>
     <input type="datetime-local" id="close_date" name="close_date"/>
 
     <input type="hidden" name="tz_offset" id="tz_offset"/>
 
+{%- match room %}
+{%- when Some with (room) %}
+    <button>Save room</button>
+{%- when None %}
     <button>Create room</button>
+{%- endmatch %}
 </form>
 {% endblock %}
 
@@ -21,5 +37,21 @@
 <script>
 const tzOffset = (new Date()).getTimezoneOffset();
 document.getElementById("tz_offset").value = tzOffset;
+
+{%- if let Some(room) = room %}
+const closeDateEl = document.getElementById("close_date");
+
+function dateToISOLikeButLocal(date) {
+    const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+    const msLocal =  date.getTime() - offsetMs;
+    const dateLocal = new Date(msLocal);
+    const iso = dateLocal.toISOString();
+    const isoLocal = iso.slice(0, 19);
+    return isoLocal;
+}
+
+const closeDate = new Date("{{room.close_date}}Z");
+closeDateEl.value = dateToISOLikeButLocal(closeDate);
+{%- endif %}
 </script>
 {% endblock %}

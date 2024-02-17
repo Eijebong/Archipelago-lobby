@@ -6,6 +6,10 @@
     {% if !is_closed %}
         {% call menu::menu_item("Upload yaml", "", "#upload", false, "uploadButton") %}
     {% endif %}
+    {% if base.is_admin %}
+        {% let edit_url = format!("/admin/edit-room/{}", self.room.id) %}
+        {% call menu::menu_item("Edit room", "", edit_url, false, "uploadButton") %}
+    {% endif %}
 {% endblock %}
 {% block main %}
 

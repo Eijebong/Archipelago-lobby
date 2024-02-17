@@ -10,7 +10,7 @@ use diesel::prelude::*;
 use rocket::State;
 use uuid::Uuid;
 
-#[derive(diesel::Insertable)]
+#[derive(diesel::Insertable, diesel::AsChangeset)]
 #[diesel(table_name=rooms)]
 pub struct NewRoom<'a> {
     pub id: DieselUuid,
@@ -93,6 +93,17 @@ pub fn create_room(
         name: new_room.name.to_string(),
         close_date: close_date.naive_utc(),
     })
+}
+
+pub fn update_room(new_room: &NewRoom, ctx: &State<Context>) -> Result<()> {
+    let mut conn = ctx.db_pool.get()?;
+
+    diesel::update(rooms::table)
+        .filter(rooms::id.eq(new_room.id))
+        .set(new_room)
+        .execute(&mut conn)?;
+
+    Ok(())
 }
 
 pub fn get_yamls_for_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Vec<Yaml>> {
