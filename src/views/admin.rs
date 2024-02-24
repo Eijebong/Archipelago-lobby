@@ -75,6 +75,7 @@ fn create_room_submit(
     redirect_to: &RedirectTo,
     ctx: &State<Context>,
     room_form: Form<CreateRoomForm>,
+    _session: AdminSession,
 ) -> Result<Redirect> {
     redirect_to.set("/admin/create_room");
 
@@ -105,6 +106,7 @@ fn edit_room_submit(
     room_id: Uuid,
     room_form: Form<CreateRoomForm>,
     ctx: &State<Context>,
+    _session: AdminSession,
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/room/{}", room_id));
 

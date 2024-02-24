@@ -19,6 +19,8 @@ use uuid::Uuid;
 use crate::db::{self, Room};
 use crate::error::{Error, RedirectTo, Result, WithContext};
 
+use self::auth::LoggedInSession;
+
 pub mod admin;
 pub mod auth;
 
@@ -77,7 +79,7 @@ fn upload_yaml(
     redirect_to: &RedirectTo,
     uuid: Uuid,
     yaml: Form<&[u8]>,
-    session: Session,
+    session: LoggedInSession,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/room/{}", uuid));
@@ -132,7 +134,7 @@ fn upload_yaml(
     // TODO: Check supported game
 
     for (document, parsed) in documents {
-        db::add_yaml_to_room(uuid, session.user_id, &document, &parsed, ctx).unwrap();
+        db::add_yaml_to_room(uuid, session.0.user_id.unwrap(), &document, &parsed, ctx).unwrap();
     }
 
     Ok(Redirect::to(uri!(room(uuid))))
@@ -143,7 +145,7 @@ fn delete_yaml(
     redirect_to: &RedirectTo,
     room_id: Uuid,
     yaml_id: Uuid,
-    session: Session,
+    session: LoggedInSession,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/room/{}", room_id));
@@ -155,7 +157,7 @@ fn delete_yaml(
 
     let yaml = db::get_yaml_by_id(yaml_id, ctx)?;
 
-    if yaml.owner_id.0 != session.user_id && !session.is_admin {
+    if yaml.owner_id != session.0.user_id.unwrap() && !session.0.is_admin {
         Err(anyhow::anyhow!("Can't delete a yaml file that isn't yours"))?
     }
 
@@ -208,6 +210,7 @@ struct YamlContent<'a> {
     content: String,
     headers: Header<'a>,
 }
+
 #[get("/room/<room_id>/download/<yaml_id>")]
 fn download_yaml<'a>(
     redirect_to: &RedirectTo,

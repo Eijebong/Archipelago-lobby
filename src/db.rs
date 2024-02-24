@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::diesel_uuid::Uuid as DieselUuid;
 use crate::error::Result;
-use crate::schema::{rooms, yamls};
+use crate::schema::{discord_users, rooms, yamls};
 use crate::Context;
 
 use chrono::{NaiveDateTime, Utc};
@@ -10,7 +10,7 @@ use diesel::prelude::*;
 use rocket::State;
 use uuid::Uuid;
 
-#[derive(diesel::Insertable, diesel::AsChangeset)]
+#[derive(Insertable, diesel::AsChangeset)]
 #[diesel(table_name=rooms)]
 pub struct NewRoom<'a> {
     pub id: DieselUuid,
@@ -18,12 +18,12 @@ pub struct NewRoom<'a> {
     pub close_date: NaiveDateTime,
 }
 
-#[derive(diesel::Insertable)]
+#[derive(Insertable)]
 #[diesel(table_name=yamls)]
 pub struct NewYaml<'a> {
     id: DieselUuid,
     room_id: DieselUuid,
-    owner_id: DieselUuid,
+    owner_id: i64,
     content: &'a str,
     player_name: &'a str,
     game: &'a str,
@@ -46,10 +46,10 @@ impl Room {
 pub struct Yaml {
     pub id: DieselUuid,
     pub room_id: DieselUuid,
-    pub owner_id: DieselUuid,
     pub content: String,
     pub player_name: String,
     pub game: String,
+    pub owner_id: i64,
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -127,7 +127,7 @@ pub fn get_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Room> {
 
 pub fn add_yaml_to_room(
     uuid: uuid::Uuid,
-    owner_id: uuid::Uuid,
+    owner_id: i64,
     content: &str,
     parsed: &YamlFile,
     ctx: &State<Context>,
@@ -146,7 +146,7 @@ pub fn add_yaml_to_room(
 
     let new_yaml = NewYaml {
         id: DieselUuid::random(),
-        owner_id: DieselUuid(owner_id),
+        owner_id,
         room_id: DieselUuid(uuid),
         content,
         player_name: &parsed.name,
@@ -177,4 +177,29 @@ impl Yaml {
     pub fn sanitized_name(&self) -> String {
         self.player_name.replace(['/', '\\'], "_")
     }
+}
+
+#[derive(Insertable, Queryable)]
+#[diesel(table_name=discord_users)]
+pub struct DiscordUser {
+    pub id: i64,
+    pub username: String,
+}
+
+pub fn upsert_discord_user(discord_id: i64, username: &str, ctx: &State<Context>) -> Result<()> {
+    let mut conn = ctx.db_pool.get()?;
+
+    let discord_user = DiscordUser {
+        id: discord_id,
+        username: username.to_string(),
+    };
+
+    diesel::insert_into(discord_users::table)
+        .values(&discord_user)
+        .on_conflict(discord_users::id)
+        .do_update()
+        .set(discord_users::username.eq(username))
+        .execute(&mut conn)?;
+
+    Ok(())
 }

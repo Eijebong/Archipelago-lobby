@@ -18,6 +18,8 @@
             {% if base.is_admin %}
             {% call menu::app_menu_item("List rooms", "fa fa-list", "/admin/rooms", "rooms", base.cur_module) %}
             {% call menu::app_menu_item("Create new room", "fa fa-plus", "/admin/create-room", "create-room", base.cur_module) %}
+            {% endif %}
+            {% if base.is_logged_in %}
             {% call menu::app_menu_item("Logout", "fa fa-sign-out", "/auth/logout", "logout", base.cur_module) %}
             {% else %}
             {% call menu::app_menu_item("Login", "fa fa-sign-in", "/auth/login", "login", base.cur_module) %}

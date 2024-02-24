@@ -4,8 +4,9 @@ use diesel::{r2d2::ConnectionManager, SqliteConnection};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use rocket::data::{Limits, ToByteUnit};
 use rocket::http::CookieJar;
-use rocket::launch;
-use uuid::Uuid;
+use rocket::response::Redirect;
+use rocket::{catch, catchers, launch, Request};
+use rocket_oauth2::OAuth2;
 use views::auth::Session;
 
 mod db;
@@ -14,14 +15,17 @@ mod error;
 mod schema;
 mod views;
 
+pub struct Discord;
+
 pub struct Context {
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 }
 
 struct TplContext<'a> {
     is_admin: bool,
+    is_logged_in: bool,
     cur_module: &'a str,
-    user_id: Uuid,
+    user_id: Option<i64>,
     err_msg: Option<String>,
 }
 
@@ -30,6 +34,7 @@ impl<'a> TplContext<'a> {
         let tpl = Self {
             cur_module: module,
             is_admin: session.is_admin,
+            is_logged_in: session.is_logged_in,
             user_id: session.user_id,
             err_msg: session.err_msg.take(),
         };
@@ -50,6 +55,22 @@ fn run_migrations(
     connection.run_pending_migrations(MIGRATIONS)?;
 
     Ok(())
+}
+
+#[catch(401)]
+fn unauthorized(req: &Request) -> crate::error::Result<Redirect> {
+    let mut session = Session::from_request_sync(req);
+    if session.is_logged_in {
+        let cookies = req.cookies();
+        session.err_msg = Some("You don't have the rights to see this page".into());
+        session.save(cookies)?;
+        return Ok(Redirect::to("/"));
+    }
+
+    Ok(Redirect::to(format!(
+        "/auth/login?redirect={}",
+        req.uri().path()
+    )))
 }
 
 #[launch]
@@ -73,9 +94,12 @@ fn rocket() -> _ {
 
     let figment = rocket::Config::figment().merge(("limits", limits));
 
-    rocket::custom(figment)
+    rocket::custom(figment.clone())
         .mount("/", views::routes())
         .mount("/admin/", views::admin::routes())
         .mount("/auth/", views::auth::routes())
+        .register("/", catchers![unauthorized])
         .manage(ctx)
+        .manage(figment)
+        .attach(OAuth2::<Discord>::fairing("discord"))
 }

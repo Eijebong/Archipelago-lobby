@@ -3,12 +3,16 @@
 {% block menu %}
     {% let room_url = format!("/room/{}", self.room.id) %}
     {% call menu::menu_item("Room", "", room_url, true, "") %}
-    {% if !is_closed %}
+    {% if !is_closed && base.is_logged_in %}
         {% call menu::menu_item("Upload yaml", "", "#upload", false, "uploadButton") %}
+    {% endif %}
+    {% if !is_closed && !base.is_logged_in %}
+        {% let login_url = format!("/auth/login?redirect={}", room_url) %}
+        {% call menu::menu_item("Upload yaml", "", login_url, false, "") %}
     {% endif %}
     {% if base.is_admin %}
         {% let edit_url = format!("/admin/edit-room/{}", self.room.id) %}
-        {% call menu::menu_item("Edit room", "", edit_url, false, "uploadButton") %}
+        {% call menu::menu_item("Edit room", "", edit_url, false, "editButton") %}
     {% endif %}
 {% endblock %}
 {% block main %}
@@ -50,7 +54,7 @@
         <tr>
             <td>{{yaml.player_name}}</td>
             <td>{{yaml.game}}</td>
-            {% if (yaml.owner_id.0 == base.user_id || base.is_admin) && !is_closed %}
+            {% if (Some(yaml.owner_id) == base.user_id.as_ref() || base.is_admin) && !is_closed %}
             <td><a href="/room/{{room.id}}/download/{{yaml.id}}" />View</a> | <a href="/room/{{room.id}}/delete/{{yaml.id}}">Delete</a></td>
             {% else %}
             <td><a href="/room/{{room.id}}/download/{{yaml.id}}" />View</a></td>
@@ -72,8 +76,10 @@
     const yamlUploadButton = document.getElementById("uploadButton");
     const yamlFormButton = document.getElementById("yamlFormButton");
 
-    yamlUploadButton.onclick = function() {
-        yamlUpload.click();
+    if (yamlUploadButton) {
+        yamlUploadButton.onclick = function() {
+            yamlUpload.click();
+        }
     }
 
     yamlUpload.onchange = function() {
