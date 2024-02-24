@@ -27,5 +27,23 @@
         <tr><td colspan=2>There's no open room at the moment</td></tr>
         {% endif %}
     </table>
+
+    {% if your_rooms.len() != 0 %}
+        <h6 style="margin: 0;">List of rooms you previously participated in</h6>
+        <table class="styled">
+            <thead>
+                <tr>
+                    <td>Room name</td>
+                </tr>
+            </thead>
+                {% for room in your_rooms %}
+                <tr>
+                    <td>
+                        <a href="/room/{{room.id}}">{{ room.name }}</a>
+                    </td>
+                </tr>
+                {% endfor %}
+        </table>
+    {% endif %}
 </div>
 {%endblock%}

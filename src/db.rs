@@ -6,8 +6,9 @@ use crate::schema::{discord_users, rooms, yamls};
 use crate::Context;
 
 use chrono::{NaiveDateTime, Utc};
-use diesel::dsl::now;
+use diesel::dsl::{exists, now};
 use diesel::prelude::*;
+use diesel::sqlite::Sqlite;
 use rocket::State;
 use uuid::Uuid;
 
@@ -68,7 +69,7 @@ pub struct YamlFile {
 
 pub enum RoomStatus {
     Open,
-    // Closed,
+    Closed,
     Any,
 }
 
@@ -81,7 +82,33 @@ pub fn list_rooms(status: RoomStatus, max: i64, ctx: &State<Context>) -> Result<
 
     let query = match status {
         RoomStatus::Open => query.filter(rooms::close_date.gt(now)),
-        // RoomStatus::Closed => query.filter(rooms::close_date.lt(now)),
+        RoomStatus::Closed => query.filter(rooms::close_date.lt(now)),
+        RoomStatus::Any => query,
+    };
+
+    Ok(query.load::<Room>(&mut conn)?)
+}
+
+pub fn list_room_with_yaml_from(
+    player_id: i64,
+    status: RoomStatus,
+    max: i64,
+    ctx: &State<Context>,
+) -> Result<Vec<Room>> {
+    let mut conn = ctx.db_pool.get()?;
+    let query = rooms::table
+        .filter(exists(
+            yamls::table.filter(
+                yamls::room_id
+                    .eq(rooms::id)
+                    .and(yamls::owner_id.eq(player_id)),
+            ),
+        ))
+        .limit(max)
+        .into_boxed();
+    let query = match status {
+        RoomStatus::Open => query.filter(rooms::close_date.gt(now)),
+        RoomStatus::Closed => query.filter(rooms::close_date.lt(now)),
         RoomStatus::Any => query,
     };
 

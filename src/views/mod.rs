@@ -4,7 +4,7 @@ use std::ffi::OsStr;
 use std::io::{BufReader, Cursor, Write};
 use std::path::PathBuf;
 
-use crate::db::{Yaml, YamlFile};
+use crate::db::{RoomStatus, Yaml, YamlFile};
 use crate::{Context, TplContext};
 use askama::Template;
 use auth::{AdminSession, Session};
@@ -39,14 +39,22 @@ struct RoomTpl<'a> {
 struct IndexTpl<'a> {
     base: TplContext<'a>,
     open_rooms: Vec<Room>,
+    your_rooms: Vec<Room>,
 }
 
 #[get("/")]
 fn root<'a>(cookies: &CookieJar, session: Session, ctx: &State<Context>) -> Result<IndexTpl<'a>> {
     let open_rooms = db::list_rooms(db::RoomStatus::Open, 10, ctx)?;
+    let your_rooms = if let Some(player_id) = session.user_id {
+        db::list_room_with_yaml_from(player_id, RoomStatus::Closed, 10, ctx)?
+    } else {
+        vec![]
+    };
+
     Ok(IndexTpl {
         base: TplContext::from_session("index", session, cookies),
         open_rooms,
+        your_rooms,
     })
 }
 
