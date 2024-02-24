@@ -38,21 +38,16 @@ struct RoomTpl<'a> {
 #[template(path = "index.html")]
 struct IndexTpl<'a> {
     base: TplContext<'a>,
+    open_rooms: Vec<Room>,
 }
 
-#[get("/?<room>")]
-fn root<'a>(
-    room: Option<Uuid>,
-    session: Session,
-    cookies: &CookieJar,
-) -> Result<either::Either<IndexTpl<'a>, Redirect>> {
-    if let Some(room_id) = room {
-        return Ok(either::Right(Redirect::to(uri!(room(room_id)))));
-    }
-
-    Ok(either::Left(IndexTpl {
+#[get("/")]
+fn root<'a>(cookies: &CookieJar, session: Session, ctx: &State<Context>) -> Result<IndexTpl<'a>> {
+    let open_rooms = db::list_rooms(db::RoomStatus::Open, 10, ctx)?;
+    Ok(IndexTpl {
         base: TplContext::from_session("index", session, cookies),
-    }))
+        open_rooms,
+    })
 }
 
 #[get("/room/<uuid>")]

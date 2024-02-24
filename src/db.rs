@@ -6,6 +6,7 @@ use crate::schema::{discord_users, rooms, yamls};
 use crate::Context;
 
 use chrono::{NaiveDateTime, Utc};
+use diesel::dsl::now;
 use diesel::prelude::*;
 use rocket::State;
 use uuid::Uuid;
@@ -65,11 +66,26 @@ pub struct YamlFile {
     pub name: String,
 }
 
-pub fn list_rooms(ctx: &State<Context>) -> Result<Vec<Room>> {
+pub enum RoomStatus {
+    Open,
+    // Closed,
+    Any,
+}
+
+pub fn list_rooms(status: RoomStatus, max: i64, ctx: &State<Context>) -> Result<Vec<Room>> {
     let mut conn = ctx.db_pool.get()?;
-    Ok(rooms::table
+    let query = rooms::table
         .order(rooms::close_date.asc())
-        .load::<Room>(&mut conn)?)
+        .limit(max)
+        .into_boxed();
+
+    let query = match status {
+        RoomStatus::Open => query.filter(rooms::close_date.gt(now)),
+        // RoomStatus::Closed => query.filter(rooms::close_date.lt(now)),
+        RoomStatus::Any => query,
+    };
+
+    Ok(query.load::<Room>(&mut conn)?)
 }
 
 pub fn create_room(

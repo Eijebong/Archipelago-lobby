@@ -43,15 +43,11 @@ fn rooms<'a>(
 ) -> Result<ListRoomsTpl<'a>> {
     Ok(ListRoomsTpl {
         base: TplContext::from_session("rooms", session.0, cookies),
-        rooms: db::list_rooms(ctx)?,
+        rooms: db::list_rooms(db::RoomStatus::Any, 50, ctx)?,
     })
 }
 #[get("/create-room")]
-fn create_room<'a>(
-    _ctx: &State<Context>,
-    session: AdminSession,
-    cookies: &CookieJar,
-) -> Result<EditRoom<'a>> {
+fn create_room<'a>(session: AdminSession, cookies: &CookieJar) -> Result<EditRoom<'a>> {
     Ok(EditRoom {
         base: TplContext::from_session("create-room", session.0, cookies),
         room: None,
