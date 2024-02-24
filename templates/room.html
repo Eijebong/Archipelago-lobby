@@ -28,7 +28,7 @@
     </tr>
     <tr>
         <td>Closing time</td>
-        <td id="close-date">{{ room.close_date }}</td>
+        <td id="close-date" class="time long-time">{{ room.close_date }}</td>
     </tr>
     <tr>
         <td>Players</td>
@@ -87,12 +87,5 @@
             yamlFormButton.click();
         }
     }
-
-    const closeDateEl = document.getElementById("close-date")
-    const time = closeDateEl.innerText + "Z";
-    const parsedTime = Date.parse(time);
-    closeDateEl.innerText = new Intl.DateTimeFormat('default',
-        {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'longGeneric'}
-    ).format(parsedTime);
 </script>
 {% endblock %}
