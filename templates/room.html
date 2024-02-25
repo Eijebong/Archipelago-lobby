@@ -38,7 +38,7 @@
     {% if !room.description.is_empty() %}
     <tr>
         <td>Description</td>
-        <td>{{ room.description }}</td>
+        <td>{{ room.description|markdown }}</td>
     </tr>
     {% endif %}
     {% if base.is_admin %}

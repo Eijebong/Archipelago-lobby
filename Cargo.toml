@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.79"
-askama = { version = "0.12.1", features = ["with-rocket"] }
+askama = { version = "0.12.1", features = ["with-rocket", "markdown"] }
 askama_rocket = "0.12.0"
 chrono = "0.4.31"
 diesel = { version = "2.1.4", features = ["sqlite", "r2d2", "uuid", "chrono"] }
