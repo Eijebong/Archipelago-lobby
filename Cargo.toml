@@ -26,3 +26,6 @@ toml = "0.8.10"
 uuid = { version = "1.6.1", features = ["v4"] }
 yaml-split = "0.4.0"
 zip = "0.6.6"
+
+[profile.dev.package.askama_derive]
+opt-level = 3
