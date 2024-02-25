@@ -17,6 +17,7 @@ pub struct NewRoom<'a> {
     pub id: DieselUuid,
     pub name: &'a str,
     pub close_date: NaiveDateTime,
+    pub description: &'a str,
 }
 
 #[derive(Insertable)]
@@ -35,6 +36,7 @@ pub struct Room {
     pub id: DieselUuid,
     pub name: String,
     pub close_date: NaiveDateTime,
+    pub description: String,
 }
 
 impl Room {
@@ -120,6 +122,7 @@ pub fn list_room_with_yaml_from(
 
 pub fn create_room(
     name: &str,
+    description: &str,
     close_date: &chrono::DateTime<Utc>,
     ctx: &State<Context>,
 ) -> Result<Room> {
@@ -129,6 +132,7 @@ pub fn create_room(
         id: DieselUuid::random(),
         close_date: close_date.naive_utc(),
         name,
+        description,
     };
     diesel::insert_into(rooms::table)
         .values(&new_room)
@@ -138,6 +142,7 @@ pub fn create_room(
         id: new_room.id,
         name: new_room.name.to_string(),
         close_date: close_date.naive_utc(),
+        description: new_room.description.to_string(),
     })
 }
 

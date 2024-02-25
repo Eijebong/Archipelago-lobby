@@ -22,6 +22,15 @@
     <label for="close_date">Date:</label>
     <input type="datetime-local" id="close_date" name="close_date"/>
 
+    <label for="room_description">Description:</label>
+    <textarea name="room_description" id="room_description">
+    {%- match room -%}
+    {%- when Some with (room) -%}
+        {{- room.description -}}
+    {%- when None -%}
+    {%- endmatch -%}
+    </textarea>
+
     <input type="hidden" name="tz_offset" id="tz_offset"/>
 
 {%- match room %}

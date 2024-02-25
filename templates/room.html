@@ -34,12 +34,19 @@
         <td>Players</td>
         <td>{{ player_count }}</td>
     </tr>
+    <tr>
+    {% if !room.description.is_empty() %}
+    <tr>
+        <td>Description</td>
+        <td>{{ room.description }}</td>
+    </tr>
+    {% endif %}
     {% if base.is_admin %}
     <tr>
         <td colspan="2"><a href="/room/{{room.id}}/yamls">Download YAMLs</a></td>
     </tr>
     {% endif %}
-</div>
+</table>
 
 <table class="styled">
     <thead>

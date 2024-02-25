@@ -24,6 +24,7 @@ struct EditRoom<'a> {
 #[derive(FromForm, Debug)]
 struct CreateRoomForm<'a> {
     room_name: &'a str,
+    room_description: &'a str,
     close_date: &'a str,
     tz_offset: i32,
 }
@@ -76,7 +77,12 @@ fn create_room_submit(
     redirect_to.set("/admin/create_room");
 
     let close_date = parse_date(room_form.close_date, room_form.tz_offset)?;
-    let new_room = db::create_room(room_form.room_name, &close_date, ctx)?;
+    let new_room = db::create_room(
+        room_form.room_name,
+        &room_form.room_description.trim(),
+        &close_date,
+        ctx,
+    )?;
 
     Ok(Redirect::to(format!("/room/{}", new_room.id)))
 }
@@ -109,6 +115,7 @@ fn edit_room_submit(
     let new_room = NewRoom {
         id: crate::diesel_uuid::Uuid(room_id),
         name: room_form.room_name,
+        description: &room_form.room_description.trim(),
         close_date: parse_date(room_form.close_date, room_form.tz_offset)?.naive_utc(),
     };
     crate::db::update_room(&new_room, ctx)?;

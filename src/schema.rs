@@ -12,6 +12,7 @@ diesel::table! {
         id -> Binary,
         name -> Text,
         close_date -> Timestamp,
+        description -> Text,
     }
 }
 
