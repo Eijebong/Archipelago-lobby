@@ -8,7 +8,6 @@ use crate::Context;
 use chrono::{NaiveDateTime, Utc};
 use diesel::dsl::{exists, now};
 use diesel::prelude::*;
-use diesel::sqlite::Sqlite;
 use rocket::State;
 use uuid::Uuid;
 
@@ -107,9 +106,13 @@ pub fn list_room_with_yaml_from(
         .limit(max)
         .into_boxed();
     let query = match status {
-        RoomStatus::Open => query.filter(rooms::close_date.gt(now)),
-        RoomStatus::Closed => query.filter(rooms::close_date.lt(now)),
-        RoomStatus::Any => query,
+        RoomStatus::Open => query
+            .filter(rooms::close_date.gt(now))
+            .order(rooms::close_date.asc()),
+        RoomStatus::Closed => query
+            .filter(rooms::close_date.lt(now))
+            .order(rooms::close_date.desc()),
+        RoomStatus::Any => query.order(rooms::close_date.asc()),
     };
 
     Ok(query.load::<Room>(&mut conn)?)
