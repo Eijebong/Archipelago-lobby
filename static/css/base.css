@@ -404,6 +404,10 @@ ul.nostyle {
   margin: 0;
 }
 
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+}
+
 h1 {
   /*border-bottom: 2px solid hsla(0,0%,0%, 0.3)*/
   font-size: 2em;
