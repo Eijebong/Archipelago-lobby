@@ -401,7 +401,7 @@ ul.nostyle {
 }
 #main section h1, #main section h2, #main section h3, #main section h4, #main section h5, #main section h6 {
   padding: 0.2em 0;
-  margin: 0.25em 0;
+  margin: 0;
 }
 
 h1 {
