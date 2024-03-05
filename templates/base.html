@@ -35,6 +35,7 @@
                     {% if base.err_msg.is_some() %}
                         <p class="error">{{ base.err_msg.as_ref().unwrap() }}</p>
                     {% endif %}
+                    {% block messages %}{% endblock messages %}
                 </div>
                 {% block main %}{% endblock main %}
             </main>

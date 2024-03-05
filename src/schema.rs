@@ -13,6 +13,7 @@ diesel::table! {
         name -> Text,
         close_date -> Timestamp,
         description -> Text,
+        room_url -> Text,
     }
 }
 

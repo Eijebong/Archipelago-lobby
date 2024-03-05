@@ -5,7 +5,8 @@ use crate::views::auth::AdminSession;
 use askama::Template;
 use chrono::{DateTime, TimeZone, Utc};
 use rocket::form::Form;
-use rocket::http::CookieJar;
+use rocket::http::uri::Absolute;
+use rocket::http::{self, CookieJar};
 use rocket::response::Redirect;
 use rocket::{get, post, FromForm};
 use uuid::Uuid;
@@ -27,6 +28,7 @@ struct CreateRoomForm<'a> {
     room_description: &'a str,
     close_date: &'a str,
     tz_offset: i32,
+    room_url: &'a str,
 }
 
 #[derive(Template)]
@@ -110,13 +112,19 @@ fn edit_room_submit(
     ctx: &State<Context>,
     _session: AdminSession,
 ) -> Result<Redirect> {
-    redirect_to.set(&format!("/room/{}", room_id));
+    redirect_to.set(&format!("/admin/edit-room/{}", room_id));
+    let room_url = room_form.room_url.trim();
+
+    if let Err(e) = http::uri::Uri::parse::<Absolute>(room_url) {
+        return Err(anyhow::anyhow!("Error while parsing room URL: {}", e).into());
+    }
 
     let new_room = NewRoom {
         id: crate::diesel_uuid::Uuid(room_id),
         name: room_form.room_name,
         description: &room_form.room_description.trim(),
         close_date: parse_date(room_form.close_date, room_form.tz_offset)?.naive_utc(),
+        room_url,
     };
     crate::db::update_room(&new_room, ctx)?;
 

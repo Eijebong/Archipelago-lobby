@@ -32,6 +32,7 @@ struct RoomTpl<'a> {
     yamls: Vec<Yaml>,
     player_count: usize,
     is_closed: bool,
+    has_room_url: bool,
 }
 
 #[derive(Template)]
@@ -68,10 +69,16 @@ fn room<'a>(
     let room = db::get_room(uuid, ctx)?;
     let mut yamls = db::get_yamls_for_room(uuid, ctx)?;
     yamls.sort_by(|a, b| a.game.cmp(&b.game));
+
+    let current_user_has_yaml_in_room = yamls
+        .iter()
+        .any(|yaml| Some(yaml.owner_id) == session.user_id)
+        || session.is_admin;
     Ok(RoomTpl {
         base: TplContext::from_session("index", session, cookies),
         player_count: yamls.len(),
         is_closed: room.is_closed(),
+        has_room_url: !room.room_url.is_empty() && current_user_has_yaml_in_room,
         room,
         yamls,
     })

@@ -11,13 +11,15 @@ use diesel::prelude::*;
 use rocket::State;
 use uuid::Uuid;
 
-#[derive(Insertable, diesel::AsChangeset)]
+#[derive(Insertable, diesel::AsChangeset, Debug)]
+#[diesel(treat_none_as_null = true)]
 #[diesel(table_name=rooms)]
 pub struct NewRoom<'a> {
     pub id: DieselUuid,
     pub name: &'a str,
     pub close_date: NaiveDateTime,
     pub description: &'a str,
+    pub room_url: &'a str,
 }
 
 #[derive(Insertable)]
@@ -37,6 +39,7 @@ pub struct Room {
     pub name: String,
     pub close_date: NaiveDateTime,
     pub description: String,
+    pub room_url: String,
 }
 
 impl Room {
@@ -133,6 +136,7 @@ pub fn create_room(
         close_date: close_date.naive_utc(),
         name,
         description,
+        room_url: "",
     };
     diesel::insert_into(rooms::table)
         .values(&new_room)
@@ -143,6 +147,7 @@ pub fn create_room(
         name: new_room.name.to_string(),
         close_date: close_date.naive_utc(),
         description: new_room.description.to_string(),
+        room_url: "".into(),
     })
 }
 

@@ -15,6 +15,13 @@
         {% call menu::menu_item("Edit room", "", edit_url, false, "editButton") %}
     {% endif %}
 {% endblock %}
+
+{% block messages %}
+    {% if has_room_url %}
+        <p class="message info">Room URL: <a href="{{ room.room_url }}">{{ room.room_url }}</a></p>
+    {% endif %}
+{% endblock %}
+
 {% block main %}
 
 <noscript>

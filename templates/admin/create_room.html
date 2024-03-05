@@ -31,6 +31,14 @@
     {%- endmatch -%}
     </textarea>
 
+    {% match room %}
+    {% when Some with (room) %}
+        <label for="room_url">Room URL:</label>
+        <input type="text" id="room_url" name="room_url" value="{{room.room_url}}"/>
+    {%- when None -%}
+        <input type="hidden" id="room_url" name="room_url" value=""/>
+    {%- endmatch -%}
+
     <input type="hidden" name="tz_offset" id="tz_offset"/>
 
 {%- match room %}
