@@ -29,3 +29,8 @@ zip = "0.6.6"
 
 [profile.dev.package.askama_derive]
 opt-level = 3
+
+[build-dependencies]
+anyhow = "1.0.79"
+sha2 = "0.10.8"
+walkdir = "2.5.0"

@@ -21,12 +21,15 @@ pub struct Context {
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 }
 
+const CSS_VERSION: &'static str = std::env!("CSS_VERSION");
+
 struct TplContext<'a> {
     is_admin: bool,
     is_logged_in: bool,
     cur_module: &'a str,
     user_id: Option<i64>,
     err_msg: Option<String>,
+    css_version: &'a str,
 }
 
 impl<'a> TplContext<'a> {
@@ -37,6 +40,7 @@ impl<'a> TplContext<'a> {
             is_logged_in: session.is_logged_in,
             user_id: session.user_id,
             err_msg: session.err_msg.take(),
+            css_version: CSS_VERSION,
         };
 
         session
