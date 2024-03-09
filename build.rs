@@ -1,5 +1,5 @@
-use walkdir::WalkDir;
 use sha2::{Digest, Sha256};
+use walkdir::WalkDir;
 
 fn main() -> anyhow::Result<()> {
     let mut hasher = Sha256::new();

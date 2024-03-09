@@ -115,8 +115,10 @@ fn edit_room_submit(
     redirect_to.set(&format!("/admin/edit-room/{}", room_id));
     let room_url = room_form.room_url.trim();
 
-    if let Err(e) = http::uri::Uri::parse::<Absolute>(room_url) {
-        return Err(anyhow::anyhow!("Error while parsing room URL: {}", e).into());
+    if !room_url.is_empty() {
+        if let Err(e) = http::uri::Uri::parse::<Absolute>(room_url) {
+            return Err(anyhow::anyhow!("Error while parsing room URL: {}", e).into());
+        }
     }
 
     let new_room = NewRoom {
