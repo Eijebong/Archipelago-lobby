@@ -74,8 +74,9 @@ fn room<'a>(
         .iter()
         .any(|yaml| Some(yaml.owner_id) == session.user_id)
         || session.is_admin;
+
     Ok(RoomTpl {
-        base: TplContext::from_session("index", session, cookies),
+        base: TplContext::from_session("room", session, cookies),
         player_count: yamls.len(),
         is_closed: room.is_closed(),
         has_room_url: !room.room_url.is_empty() && current_user_has_yaml_in_room,

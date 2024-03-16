@@ -16,7 +16,9 @@
     {% endif %}
 {% endblock %}
 
-{% block messages %}
+{% block room_navigation %}
+    {% let room_url = format!("/room/{}", self.room.id) %}
+    {% call menu::app_menu_item(room.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}
 {% endblock %}
 
 {% block main %}

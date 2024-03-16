@@ -353,29 +353,38 @@ ul.nostyle
   vertical-align: top
 
   a
-    display: block
+    display: flex
     font-size: 14px
-    padding: 8px
+    padding: 4px
     width: 100%
     font-weight: bold
+    align-items: center
 
     &.selected, &:hover
       background-color: hsla(0, 0%, 0%, 0.30)
       color: white
 
-    &.selected:after
-      content: ""
-      display: block
-      float: right
-      position: relative
-      top: -7.5px
-      left: 8px
 
-      /* triangle with borders */
-      border-top: 15px solid transparent
-      border-right: 15px solid black
-      border-bottom: 15px solid transparent
+    .menu-indented
+      padding-left: 1.2em
 
+    span:first-of-type
+      flex-grow: 1
+
+  .arrow:after
+    content: ""
+    display: block
+    float: right
+    position: relative
+    left: 8px
+
+    /* triangle with borders */
+    border-top: 15px solid transparent
+    border-right: 15px solid black
+    border-bottom: 15px solid transparent
+
+  i
+    padding: 8px
 
   .separator
     padding: 0
@@ -631,120 +640,6 @@ h6
     display: none
   #main-container
     max-width: calc(100% - 3em)
-
-
-/* ==== TASKS ==== */
-.taskresult
-  padding-top: 0.6em
-  padding-bottom: 0.6em
-  padding-left: 0.5em
-  margin-left: 1em
-  margin-right: 0.2em
-
-.task-failed
-  background-color: red
-
-.task-completed
-  background-color: green
-
-.task-pending
-  background-color: orange
-
-.task-exception
-  background-color: yellow
-
-.task-running
-  background-color: blue
-
-.commit-range
-  margin-left: auto
-  margin-right: 1em
-  text-overflow: ellipsis
-  overflow: hidden
-
-article
-  header
-    display: flex
-    align-items: center
-    background-color: hsla(0,0%,0%,0.3)
-    margin-bottom: 2px
-
-  h4
-    padding: 0.25em
-    font-size: 1em
-    margin: 0
-    text-overflow: ellipsis
-    overflow: hidden
-
-  time
-    padding: 0.25em
-    font-size: 0.9em
-    margin: 0
-    text-overflow: ellipsis
-    overflow: hidden
-    color: rgba(255, 255, 255, 0.7)
-
-  main
-    padding: 0.5em
-
-.subtask
-  display: flex
-  margin-left: 15px
-  align-items: center
-  border-bottom: 1px solid rgba(255,255,255,0.1)
-  padding: 5px
-
-.repo_tr
-  cursor: pointer
-
-.hidden
-  display: none
-
-.git_ref td:first-child
-  padding-left: 30px
-
-.repo_list_table
-  width: 100%
-  border-collapse: collapse
-  border: 1px solid hsla(0,0%,0%, 0.25)
-  background-color: hsla(0,0%,0%,0.1)
-  margin: 15px 0
-
-  thead
-    background-color: hsla(0,0%,0%,0.25)
-    border: 1px solid hsla(0,0%,0%, 0.50)
-    box-shadow: inset 0 1px 0px hsla(0,0%,100%, 0.075)
-
-  tbody
-    font-weight: bold
-    &:hover
-      background-color: hsla(0,0%,100%,0.05)
-    .git_ref
-      font-weight: normal
-      td:last-child
-        text-align: right
-      &:nth-child(2n)
-        background-color: hsla(0,0%,0%,0.075)
-      &:hover
-        background-color: hsla(0,0%,100%,0.025)
-    box-shadow: 0 1px 0 0 rgba(0,0,0,0.5)
-
-  th
-    padding: 4px
-
-  td
-    padding: 4px
-    border-left: 1px dashed hsla(0,0%,0%, 0.35)
-
-    &:hover
-      background-color: hsla(0,0%,100%,0.030)
-      border-left: 1px solid hsl(200, 25%, 60%)
-
-  input
-    margin: 0px !important
-
-  button
-    width: 100%
 
 #messages
   position: sticky

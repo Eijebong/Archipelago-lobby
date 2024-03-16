@@ -13,7 +13,9 @@
     </head>
     <body>
         <nav id="navigation">
-            {% call menu::app_menu_item("Index", "fa-brands fa-buffer", "/", "index", base.cur_module) %}
+            {% call menu::app_menu_item("Rooms", "fa-brands fa-buffer", "/", "index", base.cur_module) %}
+            {% block room_navigation %}
+            {% endblock %}
             <li class="separator"></li>
             {% if base.is_admin %}
             {% call menu::app_menu_item("List rooms", "fa fa-list", "/admin/rooms", "rooms", base.cur_module) %}
