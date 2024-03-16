@@ -112,12 +112,6 @@ impl<'r> FromRequest<'r> for AdminSession {
     }
 }
 
-#[derive(Template)]
-#[template(path = "login.html")]
-struct LoginTpl<'a> {
-    base: TplContext<'a>,
-}
-
 #[get("/login?<redirect>")]
 fn login_discord(
     oauth2: OAuth2<Discord>,
