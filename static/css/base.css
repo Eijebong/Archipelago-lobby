@@ -349,6 +349,7 @@ ul.nostyle {
   max-width: 200px;
   min-height: 100%;
   vertical-align: top;
+  position: fixed;
 }
 #navigation a {
   display: flex;
@@ -405,6 +406,7 @@ ul.nostyle {
   text-shadow: 1px 1px hsla(0, 0%, 0%, 0.25);
   padding: 0 1em;
   max-width: calc(100% - 200px);
+  margin-left: 200px;
 }
 
 #main section {
@@ -633,6 +635,7 @@ h6 {
   }
   #main-container {
     max-width: calc(100% - 3em);
+    margin-left: 3em;
   }
 }
 #messages {
