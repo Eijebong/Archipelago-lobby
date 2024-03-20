@@ -2,7 +2,6 @@ use std::str::FromStr;
 
 use crate::error::Result;
 use anyhow::anyhow;
-use askama::Template;
 use reqwest::header::HeaderValue;
 use reqwest::Url;
 use rocket::figment::{Figment, Profile, Provider};
@@ -12,7 +11,7 @@ use rocket::response::Redirect;
 use rocket::{get, Request, State};
 use rocket_oauth2::{OAuth2, TokenResponse};
 
-use crate::{Context, Discord, TplContext};
+use crate::{Context, Discord};
 
 #[derive(serde::Serialize, serde::Deserialize, Default, Debug)]
 pub struct Session {
