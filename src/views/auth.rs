@@ -26,6 +26,13 @@ pub struct AdminSession(pub Session);
 
 pub struct LoggedInSession(pub Session);
 
+impl LoggedInSession {
+    pub fn user_id(&self) -> i64 {
+        // Since we're taking from a logged in session, user_id can't be None here.
+        self.0.user_id.unwrap()
+    }
+}
+
 impl Session {
     pub fn from_request_sync(request: &Request) -> Self {
         let cookies = request.cookies();
@@ -60,6 +67,15 @@ impl<'r> FromRequest<'r> for Session {
     type Error = crate::error::Error;
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let x_api_key = request.headers().get("X-Api-Key").next();
+        if x_api_key == std::env::var("ADMIN_TOKEN").ok().as_deref() {
+            return Outcome::Success(Session {
+                is_admin: true,
+                is_logged_in: true,
+                ..Default::default()
+            });
+        }
+
         let new_session = Session::from_request_sync(request);
         Outcome::Success(new_session)
     }
@@ -83,15 +99,6 @@ impl<'r> FromRequest<'r> for AdminSession {
     type Error = crate::error::Error;
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        let x_api_key = request.headers().get("X-Api-Key").next();
-        if x_api_key == std::env::var("ADMIN_TOKEN").ok().as_deref() {
-            return Outcome::Success(AdminSession(Session {
-                is_admin: true,
-                is_logged_in: true,
-                ..Default::default()
-            }));
-        }
-
         let session = Session::from_request(request).await;
         let Outcome::Success(session) = session else {
             return Outcome::Error((

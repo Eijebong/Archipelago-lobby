@@ -10,8 +10,8 @@
         {% let login_url = format!("/auth/login?redirect={}", room_url) %}
         {% call menu::menu_item("Upload yaml", "", login_url, false, "") %}
     {% endif %}
-    {% if base.is_admin %}
-        {% let edit_url = format!("/admin/edit-room/{}", self.room.id) %}
+    {% if is_my_room %}
+        {% let edit_url = format!("/edit-room/{}", self.room.id) %}
         {% call menu::menu_item("Edit room", "", edit_url, false, "editButton") %}
     {% endif %}
 {% endblock %}
@@ -33,7 +33,7 @@
 <table class="styled" id="room-info">
     <tr>
         <td>Room name</td>
-        <td>{{ room.name }}</td>
+        <td><span title="Organized by @{{author_name}}">{{ room.name }}</span></td>
     </tr>
     <tr>
         <td>Closing time</td>
@@ -48,11 +48,6 @@
     <tr>
         <td>Description</td>
         <td>{{ room.description|markdown }}</td>
-    </tr>
-    {% endif %}
-    {% if base.is_admin %}
-    <tr>
-        <td colspan="2"><a href="/room/{{room.id}}/yamls">Download YAMLs</a></td>
     </tr>
     {% endif %}
 </table>
@@ -70,13 +65,19 @@
         <tr>
             <td>{{yaml.player_name}}</td>
             <td>{{yaml.game}}</td>
-            {% if (Some(yaml.owner_id) == base.user_id.as_ref() || base.is_admin) && !is_closed %}
+            {% if (Some(yaml.owner_id) == base.user_id.as_ref() || is_my_room) && !is_closed %}
             <td><a href="/room/{{room.id}}/download/{{yaml.id}}" />View</a> | <a href="/room/{{room.id}}/delete/{{yaml.id}}">Delete</a></td>
             {% else %}
             <td><a href="/room/{{room.id}}/download/{{yaml.id}}" />View</a></td>
             {% endif %}
         </tr>
         {% endfor %}
+        {% if is_my_room && !yamls.is_empty() %}
+        <hr>
+        <tr>
+            <td colspan="2"></td><td><a class="validation-button" href="/room/{{room.id}}/yamls">Download all YAMLs</a></td>
+        </tr>
+        {% endif %}
     </tbody>
 </table>
 

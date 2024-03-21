@@ -2,24 +2,31 @@
 {% import "menu.html.tera" as menu %}
 {% block menu %}
 {% endblock %}
+{% block room_navigation %}
+    {%- match room %}
+    {%- when Some with (room) %}
+        {% let room_url = format!("/room/{}", room.id) %}
+        {% call menu::app_menu_item(room.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}
+    {% when None %}
+    {% endmatch %}
+{% endblock %}
 {% block main %}
 
 {%- match room %}
 {%- when Some with (room) %}
-    <form method="POST" action="/admin/edit-room/{{room.id}}">
+    <form method="POST" action="/edit-room/{{room.id}}">
 {%- when None %}
     <form method="POST">
 {%- endmatch %}
-
     <label for="room_name">Room name:</label>
     {% match room %}
     {% when Some with (room) %}
-        <input type="text" name="room_name" id="room_name" value="{{room.name}}"/>
+        <input type="text" name="room_name" id="room_name" value="{{room.name}}" minlength="1" required />
     {% when None %}
-        <input type="text" name="room_name" id="room_name" />
+        <input type="text" name="room_name" id="room_name" minlength="1" required />
     {% endmatch %}
 
-    <label for="close_date">Date:</label>
+    <label for="close_date">Submission limit:</label>
     <input type="datetime-local" id="close_date" name="close_date"/>
 
     <label for="room_description">Description:</label>
@@ -55,8 +62,6 @@
 const tzOffset = (new Date()).getTimezoneOffset();
 document.getElementById("tz_offset").value = tzOffset;
 
-{%- if let Some(room) = room %}
-const closeDateEl = document.getElementById("close_date");
 
 function dateToISOLikeButLocal(date) {
     const offsetMs = date.getTimezoneOffset() * 60 * 1000;
@@ -66,8 +71,14 @@ function dateToISOLikeButLocal(date) {
     const isoLocal = iso.slice(0, 19);
     return isoLocal;
 }
+const closeDateEl = document.getElementById("close_date");
 
+{%- if let Some(room) = room %}
 const closeDate = new Date("{{room.close_date}}Z");
+closeDateEl.value = dateToISOLikeButLocal(closeDate);
+{% else %}
+const closeDate = new Date();
+closeDate.setSeconds(0)
 closeDateEl.value = dateToISOLikeButLocal(closeDate);
 {%- endif %}
 </script>

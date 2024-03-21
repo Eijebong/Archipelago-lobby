@@ -14,6 +14,7 @@ diesel::table! {
         close_date -> Timestamp,
         description -> Text,
         room_url -> Text,
+        author_id -> BigInt,
     }
 }
 
@@ -27,5 +28,7 @@ diesel::table! {
         owner_id -> BigInt,
     }
 }
+
+diesel::joinable!(rooms -> discord_users (author_id));
 
 diesel::allow_tables_to_appear_in_same_query!(discord_users, rooms, yamls,);

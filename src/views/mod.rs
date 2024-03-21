@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use crate::db::{RoomStatus, Yaml, YamlFile};
 use crate::{Context, TplContext};
 use askama::Template;
-use auth::{AdminSession, Session};
+use auth::{LoggedInSession, Session};
 use rocket::form::Form;
 use rocket::http::hyper::header::CONTENT_DISPOSITION;
 use rocket::http::{ContentType, CookieJar, Header};
@@ -19,20 +19,20 @@ use uuid::Uuid;
 use crate::db::{self, Room};
 use crate::error::{Error, RedirectTo, Result, WithContext};
 
-use self::auth::LoggedInSession;
-
-pub mod admin;
 pub mod auth;
+pub mod room_manager;
 
 #[derive(Template)]
 #[template(path = "room.html")]
 struct RoomTpl<'a> {
     base: TplContext<'a>,
     room: Room,
+    author_name: String,
     yamls: Vec<Yaml>,
     player_count: usize,
     is_closed: bool,
     has_room_url: bool,
+    is_my_room: bool,
 }
 
 #[derive(Template)]
@@ -45,7 +45,7 @@ struct IndexTpl<'a> {
 
 #[get("/")]
 fn root<'a>(cookies: &CookieJar, session: Session, ctx: &State<Context>) -> Result<IndexTpl<'a>> {
-    let open_rooms = db::list_rooms(db::RoomStatus::Open, 10, ctx)?;
+    let open_rooms = db::list_rooms(db::RoomStatus::Open, db::Author::Any, 10, ctx)?;
     let your_rooms = if let Some(player_id) = session.user_id {
         db::list_room_with_yaml_from(player_id, RoomStatus::Closed, 10, ctx)?
     } else {
@@ -66,22 +66,25 @@ fn room<'a>(
     session: Session,
     cookies: &CookieJar,
 ) -> Result<RoomTpl<'a>> {
-    let room = db::get_room(uuid, ctx)?;
+    let (room, author_name) = db::get_room_and_author(uuid, ctx)?;
     let mut yamls = db::get_yamls_for_room(uuid, ctx)?;
     yamls.sort_by(|a, b| a.game.cmp(&b.game));
 
+    let is_my_room = session.is_admin || session.user_id == Some(room.author_id);
     let current_user_has_yaml_in_room = yamls
         .iter()
         .any(|yaml| Some(yaml.owner_id) == session.user_id)
-        || session.is_admin;
+        || is_my_room;
 
     Ok(RoomTpl {
         base: TplContext::from_session("room", session, cookies),
         player_count: yamls.len(),
         is_closed: room.is_closed(),
         has_room_url: !room.room_url.is_empty() && current_user_has_yaml_in_room,
+        author_name,
         room,
         yamls,
+        is_my_room,
     })
 }
 
@@ -168,7 +171,8 @@ fn delete_yaml(
 
     let yaml = db::get_yaml_by_id(yaml_id, ctx)?;
 
-    if yaml.owner_id != session.0.user_id.unwrap() && !session.0.is_admin {
+    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
+    if yaml.owner_id != session.user_id() && !is_my_room {
         Err(anyhow::anyhow!("Can't delete a yaml file that isn't yours"))?
     }
 
@@ -189,7 +193,7 @@ fn download_yamls<'a>(
     redirect_to: &RedirectTo,
     room_id: Uuid,
     ctx: &State<Context>,
-    _session: AdminSession,
+    _session: LoggedInSession,
 ) -> Result<ZipFile<'a>> {
     redirect_to.set(&format!("/room/{}", room_id));
 
