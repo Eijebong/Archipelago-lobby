@@ -12,7 +12,6 @@ use rocket::State;
 use uuid::Uuid;
 
 #[derive(Insertable, diesel::AsChangeset, Debug)]
-#[diesel(treat_none_as_null = true)]
 #[diesel(table_name=rooms)]
 pub struct NewRoom<'a> {
     pub id: DieselUuid,
@@ -20,6 +19,7 @@ pub struct NewRoom<'a> {
     pub close_date: NaiveDateTime,
     pub description: &'a str,
     pub room_url: &'a str,
+    pub author_id: Option<i64>,
 }
 
 #[derive(Insertable)]
@@ -40,6 +40,7 @@ pub struct Room {
     pub close_date: NaiveDateTime,
     pub description: String,
     pub room_url: String,
+    pub author_id: i64,
 }
 
 impl Room {
@@ -71,13 +72,25 @@ pub struct YamlFile {
     pub name: String,
 }
 
+#[derive(Clone, Copy)]
 pub enum RoomStatus {
     Open,
     Closed,
-    Any,
+    //Any,
 }
 
-pub fn list_rooms(status: RoomStatus, max: i64, ctx: &State<Context>) -> Result<Vec<Room>> {
+#[derive(Clone, Copy)]
+pub enum Author {
+    Any,
+    User(i64),
+}
+
+pub fn list_rooms(
+    status: RoomStatus,
+    author: Author,
+    max: i64,
+    ctx: &State<Context>,
+) -> Result<Vec<Room>> {
     let mut conn = ctx.db_pool.get()?;
     let query = rooms::table
         .order(rooms::close_date.asc())
@@ -87,7 +100,12 @@ pub fn list_rooms(status: RoomStatus, max: i64, ctx: &State<Context>) -> Result<
     let query = match status {
         RoomStatus::Open => query.filter(rooms::close_date.gt(now)),
         RoomStatus::Closed => query.filter(rooms::close_date.lt(now)),
-        RoomStatus::Any => query,
+        //RoomStatus::Any => query,
+    };
+
+    let query = match author {
+        Author::User(user_id) => query.filter(rooms::author_id.eq(user_id)),
+        Author::Any => query,
     };
 
     Ok(query.load::<Room>(&mut conn)?)
@@ -117,7 +135,7 @@ pub fn list_room_with_yaml_from(
         RoomStatus::Closed => query
             .filter(rooms::close_date.lt(now))
             .order(rooms::close_date.desc()),
-        RoomStatus::Any => query.order(rooms::close_date.asc()),
+        //RoomStatus::Any => query.order(rooms::close_date.asc()),
     };
 
     Ok(query.load::<Room>(&mut conn)?)
@@ -127,6 +145,7 @@ pub fn create_room(
     name: &str,
     description: &str,
     close_date: &chrono::DateTime<Utc>,
+    author_id: i64,
     ctx: &State<Context>,
 ) -> Result<Room> {
     let mut conn = ctx.db_pool.get()?;
@@ -137,6 +156,7 @@ pub fn create_room(
         name,
         description,
         room_url: "",
+        author_id: Some(author_id),
     };
     diesel::insert_into(rooms::table)
         .values(&new_room)
@@ -148,6 +168,7 @@ pub fn create_room(
         close_date: close_date.naive_utc(),
         description: new_room.description.to_string(),
         room_url: "".into(),
+        author_id,
     })
 }
 

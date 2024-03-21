@@ -100,7 +100,7 @@ fn rocket() -> _ {
 
     rocket::custom(figment.clone())
         .mount("/", views::routes())
-        .mount("/admin/", views::admin::routes())
+        .mount("/", views::room_manager::routes())
         .mount("/auth/", views::auth::routes())
         .register("/", catchers![unauthorized])
         .manage(ctx)

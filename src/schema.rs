@@ -14,6 +14,7 @@ diesel::table! {
         close_date -> Timestamp,
         description -> Text,
         room_url -> Text,
+        author_id -> BigInt,
     }
 }
 

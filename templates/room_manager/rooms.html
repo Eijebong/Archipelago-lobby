@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "menu.html.tera" as menu %}
+{% block menu %}
+{% endblock %}
+{% block main %}
+
+{% if open_rooms.len() != 0 %}
+    <h6 style="margin: 0;">List of open rooms</h6>
+    <table class="styled">
+        <thead>
+            <tr>
+                <td>Room name</td>
+                <td>Closing date</td>
+            </tr>
+        </thead>
+        <tbody>
+    {% for room in open_rooms %}
+        {% if !room.is_closed() %}
+            <tr>
+                <td><a href="/room/{{room.id}}">{{ room.name }}</a></td>
+                <td><span class="time long-time">{{room.close_date}}</span></td>
+            </tr>
+        {% endif %}
+    {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+{% if closed_rooms.len() != 0 %}
+    <h6 style="margin: 0;">List of closed rooms</h6>
+    <table class="styled">
+        <thead>
+            <tr>
+                <td>Room name</td>
+                <td>Closing date</td>
+            </tr>
+        </thead>
+        <tbody>
+    {% for room in closed_rooms.iter().rev() %}
+        {% if room.is_closed() %}
+            <tr>
+                <td><a href="/room/{{room.id}}">{{ room.name }}</a></td>
+                <td><span class="time long-time">{{room.close_date}}</span></td>
+            </tr>
+        {% endif %}
+    {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+{%endblock%}
