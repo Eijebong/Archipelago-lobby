@@ -8,7 +8,6 @@ use crate::Context;
 use chrono::{NaiveDateTime, Utc};
 use diesel::dsl::{exists, now};
 use diesel::prelude::*;
-use diesel::query_dsl::JoinOnDsl;
 use rocket::State;
 use uuid::Uuid;
 
