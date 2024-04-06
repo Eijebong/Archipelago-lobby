@@ -35,6 +35,15 @@ impl LoggedInSession {
 
 impl Session {
     pub fn from_request_sync(request: &Request) -> Self {
+        let x_api_key = request.headers().get("X-Api-Key").next();
+        if x_api_key == std::env::var("ADMIN_TOKEN").ok().as_deref() {
+            return Session {
+                is_admin: true,
+                is_logged_in: true,
+                ..Default::default()
+            };
+        }
+
         let cookies = request.cookies();
         if let Some(session) = cookies.get_private("session") {
             let session = serde_json::from_str::<Session>(session.value());
@@ -67,15 +76,6 @@ impl<'r> FromRequest<'r> for Session {
     type Error = crate::error::Error;
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        let x_api_key = request.headers().get("X-Api-Key").next();
-        if x_api_key == std::env::var("ADMIN_TOKEN").ok().as_deref() {
-            return Outcome::Success(Session {
-                is_admin: true,
-                is_logged_in: true,
-                ..Default::default()
-            });
-        }
-
         let new_session = Session::from_request_sync(request);
         Outcome::Success(new_session)
     }
@@ -87,6 +87,11 @@ impl<'r> FromRequest<'r> for LoggedInSession {
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let new_session = Session::from_request_sync(request);
+
+        if new_session.is_admin {
+            return Outcome::Success(LoggedInSession(new_session));
+        }
+
         match new_session.user_id {
             Some(_) => Outcome::Success(LoggedInSession(new_session)),
             None => Outcome::Error((Status::new(401), anyhow!("Not logged in").into())),
