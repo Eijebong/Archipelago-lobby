@@ -141,6 +141,10 @@ fn upload_yaml(
             continue;
         }
 
+        if parsed.name == "meta" {
+            return Err(Error(anyhow::anyhow!("meta is a reserved name")));
+        }
+
         if players_in_room.contains(&parsed.name) {
             return Err(Error(anyhow::anyhow!(
                 "Adding this yaml would duplicate a player name"
