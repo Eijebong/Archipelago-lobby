@@ -8,6 +8,7 @@ use crate::db::{RoomStatus, Yaml, YamlFile};
 use crate::{Context, TplContext};
 use askama::Template;
 use auth::{LoggedInSession, Session};
+use itertools::Itertools;
 use rocket::form::Form;
 use rocket::http::hyper::header::CONTENT_DISPOSITION;
 use rocket::http::{ContentType, CookieJar, Header};
@@ -30,6 +31,7 @@ struct RoomTpl<'a> {
     author_name: String,
     yamls: Vec<Yaml>,
     player_count: usize,
+    unique_player_count: usize,
     is_closed: bool,
     has_room_url: bool,
     is_my_room: bool,
@@ -69,6 +71,7 @@ fn room<'a>(
     let (room, author_name) = db::get_room_and_author(uuid, ctx)?;
     let mut yamls = db::get_yamls_for_room(uuid, ctx)?;
     yamls.sort_by(|a, b| a.game.cmp(&b.game));
+    let unique_player_count = yamls.iter().unique_by(|yaml| yaml.owner_id).count();
 
     let is_my_room = session.is_admin || session.user_id == Some(room.author_id);
     let current_user_has_yaml_in_room = yamls
@@ -79,6 +82,7 @@ fn room<'a>(
     Ok(RoomTpl {
         base: TplContext::from_session("room", session, cookies),
         player_count: yamls.len(),
+        unique_player_count,
         is_closed: room.is_closed(),
         has_room_url: !room.room_url.is_empty() && current_user_has_yaml_in_room,
         author_name,
