@@ -29,7 +29,7 @@ struct RoomTpl<'a> {
     base: TplContext<'a>,
     room: Room,
     author_name: String,
-    yamls: Vec<Yaml>,
+    yamls: Vec<(Yaml, String)>,
     player_count: usize,
     unique_player_count: usize,
     is_closed: bool,
@@ -69,14 +69,14 @@ fn room<'a>(
     cookies: &CookieJar,
 ) -> Result<RoomTpl<'a>> {
     let (room, author_name) = db::get_room_and_author(uuid, ctx)?;
-    let mut yamls = db::get_yamls_for_room(uuid, ctx)?;
-    yamls.sort_by(|a, b| a.game.cmp(&b.game));
-    let unique_player_count = yamls.iter().unique_by(|yaml| yaml.owner_id).count();
+    let mut yamls = db::get_yamls_for_room_with_author_names(uuid, ctx)?;
+    yamls.sort_by(|a, b| a.0.game.cmp(&b.0.game));
+    let unique_player_count = yamls.iter().unique_by(|yaml| yaml.0.owner_id).count();
 
     let is_my_room = session.is_admin || session.user_id == Some(room.author_id);
     let current_user_has_yaml_in_room = yamls
         .iter()
-        .any(|yaml| Some(yaml.owner_id) == session.user_id)
+        .any(|yaml| Some(yaml.0.owner_id) == session.user_id)
         || is_my_room;
 
     Ok(RoomTpl {

@@ -30,5 +30,7 @@ diesel::table! {
 }
 
 diesel::joinable!(rooms -> discord_users (author_id));
+diesel::joinable!(yamls -> discord_users (owner_id));
+diesel::joinable!(yamls -> rooms (room_id));
 
 diesel::allow_tables_to_appear_in_same_query!(discord_users, rooms, yamls,);

@@ -63,12 +63,16 @@
     <tbody>
         {% for yaml in yamls %}
         <tr>
-            <td>{{yaml.player_name}}</td>
-            <td>{{yaml.game}}</td>
-            {% if (Some(yaml.owner_id) == base.user_id.as_ref() || is_my_room) && !is_closed %}
-            <td><a href="/room/{{room.id}}/download/{{yaml.id}}" />View</a> | <a href="/room/{{room.id}}/delete/{{yaml.id}}">Delete</a></td>
+            {% if base.is_logged_in %}
+                <td><span title="@{{yaml.1}}">{{yaml.0.player_name}}</span></td>
             {% else %}
-            <td><a href="/room/{{room.id}}/download/{{yaml.id}}" />View</a></td>
+                <td>{{yaml.0.player_name}}</td>
+            {% endif %}
+            <td>{{yaml.0.game}}</td>
+            {% if (Some(yaml.0.owner_id) == base.user_id.as_ref() || is_my_room) && !is_closed %}
+            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" />View</a> | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}">Delete</a></td>
+            {% else %}
+            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" />View</a></td>
             {% endif %}
         </tr>
         {% endfor %}

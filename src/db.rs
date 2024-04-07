@@ -49,7 +49,7 @@ impl Room {
     }
 }
 
-#[derive(Debug, diesel::Queryable)]
+#[derive(Debug, diesel::Selectable, diesel::Queryable)]
 pub struct Yaml {
     pub id: DieselUuid,
     pub room_id: DieselUuid,
@@ -181,6 +181,23 @@ pub fn update_room(new_room: &NewRoom, ctx: &State<Context>) -> Result<()> {
         .execute(&mut conn)?;
 
     Ok(())
+}
+
+pub fn get_yamls_for_room_with_author_names(
+    uuid: uuid::Uuid,
+    ctx: &State<Context>,
+) -> Result<Vec<(Yaml, String)>> {
+    let mut conn = ctx.db_pool.get()?;
+    let room = rooms::table.find(DieselUuid(uuid)).first::<Room>(&mut conn);
+    let Ok(_room) = room else {
+        Err(anyhow::anyhow!("Couldn't get room"))?
+    };
+
+    Ok(yamls::table
+        .filter(yamls::room_id.eq(DieselUuid(uuid)))
+        .inner_join(discord_users::table)
+        .select((Yaml::as_select(), discord_users::username))
+        .get_results(&mut conn)?)
 }
 
 pub fn get_yamls_for_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Vec<Yaml>> {
