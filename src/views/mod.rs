@@ -32,6 +32,7 @@ struct RoomTpl<'a> {
     yamls: Vec<(Yaml, String)>,
     player_count: usize,
     unique_player_count: usize,
+    unique_game_count: usize,
     is_closed: bool,
     has_room_url: bool,
     is_my_room: bool,
@@ -72,6 +73,7 @@ fn room<'a>(
     let mut yamls = db::get_yamls_for_room_with_author_names(uuid, ctx)?;
     yamls.sort_by(|a, b| a.0.game.cmp(&b.0.game));
     let unique_player_count = yamls.iter().unique_by(|yaml| yaml.0.owner_id).count();
+    let unique_game_count = yamls.iter().unique_by(|yaml| &yaml.0.game).count();
 
     let is_my_room = session.is_admin || session.user_id == Some(room.author_id);
     let current_user_has_yaml_in_room = yamls
@@ -83,6 +85,7 @@ fn room<'a>(
         base: TplContext::from_session("room", session, cookies),
         player_count: yamls.len(),
         unique_player_count,
+        unique_game_count,
         is_closed: room.is_closed(),
         has_room_url: !room.room_url.is_empty() && current_user_has_yaml_in_room,
         author_name,
@@ -238,6 +241,7 @@ fn download_yamls<'a>(
         "attachment; filename=\"yamls-{}.zip\"",
         room.close_date.format("%Y-%m-%d_%H_%M_%S")
     );
+
     Ok(ZipFile {
         content: res.into_inner(),
         headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
