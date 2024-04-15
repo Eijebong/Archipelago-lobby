@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use crate::error::Result;
+use crate::{Context, Discord};
 use anyhow::anyhow;
 use reqwest::header::HeaderValue;
 use reqwest::Url;
@@ -8,10 +9,10 @@ use rocket::figment::{Figment, Profile, Provider};
 use rocket::http::{Cookie, CookieJar, SameSite, Status};
 use rocket::request::{FromRequest, Outcome};
 use rocket::response::Redirect;
+use rocket::time::ext::NumericalDuration;
+use rocket::time::OffsetDateTime;
 use rocket::{get, Request, State};
 use rocket_oauth2::{OAuth2, TokenResponse};
-
-use crate::{Context, Discord};
 
 #[derive(serde::Serialize, serde::Deserialize, Default, Debug)]
 pub struct Session {
@@ -62,6 +63,7 @@ impl Session {
         let serialized = serde_json::to_string(&self).unwrap();
 
         let cookie = Cookie::build(("session", serialized))
+            .expires(OffsetDateTime::now_utc() + 31.days())
             .same_site(SameSite::Lax)
             .build();
 
