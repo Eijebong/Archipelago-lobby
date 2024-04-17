@@ -2,6 +2,7 @@ use diesel::r2d2::Pool;
 use diesel::sqlite::Sqlite;
 use diesel::{r2d2::ConnectionManager, SqliteConnection};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use dotenvy::dotenv;
 use rocket::data::{Limits, ToByteUnit};
 use rocket::http::CookieJar;
 use rocket::response::Redirect;
@@ -79,6 +80,7 @@ fn unauthorized(req: &Request) -> crate::error::Result<Redirect> {
 
 #[launch]
 fn rocket() -> _ {
+    dotenv().ok();
     let db_url = std::env::var("DATABASE_URL").expect("Plox provide a DATABASE_URL env variable");
     let _admin_token =
         std::env::var("ADMIN_TOKEN").expect("Plox provide a ADMIN_TOKEN env variable");
