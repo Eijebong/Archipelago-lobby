@@ -2,7 +2,7 @@ use diesel::r2d2::Pool;
 use diesel::sqlite::Sqlite;
 use diesel::{r2d2::ConnectionManager, SqliteConnection};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use rocket::data::{Limits, ToByteUnit};
 use rocket::http::CookieJar;
 use rocket::response::Redirect;
