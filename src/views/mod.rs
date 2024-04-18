@@ -151,8 +151,11 @@ fn upload_yaml(
             continue;
         }
 
-        if player_name == "meta" {
-            return Err(Error(anyhow::anyhow!("meta is a reserved name")));
+        if player_name == "meta" || player_name == "Archipelago" {
+            return Err(Error(anyhow::anyhow!(format!(
+                "{} is a reserved name",
+                player_name
+            ))));
         }
 
         if players_in_room.contains(&player_name) {
