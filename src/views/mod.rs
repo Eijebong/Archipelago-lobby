@@ -133,27 +133,34 @@ fn upload_yaml(
     let yamls_in_room = db::get_yamls_for_room(uuid, ctx).context("Couldn't get room yamls")?;
     let mut players_in_room = yamls_in_room
         .iter()
-        .map(|yaml| yaml.player_name.clone())
+        .map(|yaml| {
+            let mut player_name = yaml.player_name.clone();
+            player_name.truncate(16);
+            player_name
+        })
         .collect::<HashSet<String>>();
 
     for (_document, parsed) in documents.iter() {
-        if parsed.name.contains("{NUMBER}") || parsed.name.contains("{number}") {
+        let mut player_name = parsed.name.clone();
+        player_name.truncate(16);
+
+        if player_name.contains("{NUMBER}") || player_name.contains("{number}") {
             continue;
         }
-        if parsed.name.contains("{PLAYER}") || parsed.name.contains("{player}") {
+        if player_name.contains("{PLAYER}") || player_name.contains("{player}") {
             continue;
         }
 
-        if parsed.name == "meta" {
+        if player_name == "meta" {
             return Err(Error(anyhow::anyhow!("meta is a reserved name")));
         }
 
-        if players_in_room.contains(&parsed.name) {
+        if players_in_room.contains(&player_name) {
             return Err(Error(anyhow::anyhow!(
                 "Adding this yaml would duplicate a player name"
             )));
         }
-        players_in_room.insert(parsed.name.clone());
+        players_in_room.insert(player_name);
     }
 
     // TODO: Check supported game
