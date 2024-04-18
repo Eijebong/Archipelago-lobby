@@ -4,7 +4,7 @@ use std::ffi::OsStr;
 use std::io::{BufReader, Cursor, Write};
 use std::path::PathBuf;
 
-use crate::db::{RoomStatus, Yaml, YamlFile};
+use crate::db::{RoomFilter, RoomStatus, Yaml, YamlFile};
 use crate::{Context, TplContext};
 use askama::Template;
 use auth::{LoggedInSession, Session};
@@ -48,9 +48,21 @@ struct IndexTpl<'a> {
 
 #[get("/")]
 fn root<'a>(cookies: &CookieJar, session: Session, ctx: &State<Context>) -> Result<IndexTpl<'a>> {
-    let open_rooms = db::list_rooms(db::RoomStatus::Open, db::Author::Any, 10, ctx)?;
+    let open_rooms_filter = RoomFilter::new().with_status(RoomStatus::Open).with_max(10);
+    let open_rooms_filter = if let Some(player_id) = session.user_id {
+        open_rooms_filter.with_yamls_from(db::WithYaml::AndFor(player_id))
+    } else {
+        open_rooms_filter
+    };
+    let open_rooms = db::list_rooms(open_rooms_filter, ctx)?;
+
     let your_rooms = if let Some(player_id) = session.user_id {
-        db::list_room_with_yaml_from(player_id, RoomStatus::Closed, 10, ctx)?
+        let your_rooms_filter = RoomFilter::new()
+            .with_status(RoomStatus::Closed)
+            .with_max(10)
+            .with_yamls_from(db::WithYaml::OnlyFor(player_id))
+            .with_private(true);
+        db::list_rooms(your_rooms_filter, ctx)?
     } else {
         vec![]
     };

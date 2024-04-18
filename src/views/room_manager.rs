@@ -10,7 +10,7 @@ use rocket::response::Redirect;
 use rocket::{get, post, FromForm};
 use uuid::Uuid;
 
-use crate::db::{self, Author, NewRoom, Room};
+use crate::db::{self, Author, NewRoom, Room, RoomFilter, RoomPrivacy};
 use crate::{Context, TplContext};
 use rocket::State;
 
@@ -30,6 +30,7 @@ struct CreateRoomForm<'a> {
     close_date: &'a str,
     tz_offset: i32,
     room_url: &'a str,
+    private: bool,
 }
 
 #[derive(Template)]
@@ -54,8 +55,20 @@ fn my_rooms<'a>(
 
     Ok(ListRoomsTpl {
         base: TplContext::from_session("rooms", session.0, cookies),
-        open_rooms: db::list_rooms(db::RoomStatus::Open, author_filter, 50, ctx)?,
-        closed_rooms: db::list_rooms(db::RoomStatus::Closed, author_filter, 50, ctx)?,
+        open_rooms: db::list_rooms(
+            RoomFilter::new()
+                .with_status(db::RoomStatus::Open)
+                .with_author(author_filter)
+                .with_private(true),
+            ctx,
+        )?,
+        closed_rooms: db::list_rooms(
+            RoomFilter::new()
+                .with_status(db::RoomStatus::Closed)
+                .with_author(author_filter)
+                .with_private(true),
+            ctx,
+        )?,
     })
 }
 #[get("/create-room")]
@@ -95,9 +108,14 @@ fn create_room_submit(
     let close_date = parse_date(room_form.close_date, room_form.tz_offset)?;
     let new_room = db::create_room(
         room_form.room_name,
-        &room_form.room_description.trim(),
+        room_form.room_description.trim(),
         &close_date,
         author_id,
+        if room_form.private {
+            RoomPrivacy::Private
+        } else {
+            RoomPrivacy::Public
+        },
         ctx,
     )?;
 
@@ -150,11 +168,13 @@ fn edit_room_submit(
     let new_room = NewRoom {
         id: crate::diesel_uuid::Uuid(room_id),
         name: room_form.room_name,
-        description: &room_form.room_description.trim(),
+        description: room_form.room_description.trim(),
         close_date: parse_date(room_form.close_date, room_form.tz_offset)?.naive_utc(),
         room_url,
         author_id: None, // (Skips updating that field)
+        private: room_form.private,
     };
+
     crate::db::update_room(&new_room, ctx)?;
 
     Ok(Redirect::to(format!("/room/{}", room_id)))

@@ -40,6 +40,14 @@
 
     {% match room %}
     {% when Some with (room) %}
+    <input type="checkbox" name="private" id="private" {% if room.private %} checked {% endif %}/>
+    {%- when None -%}
+    <input type="checkbox" name="private" id="private"/>
+    {%- endmatch -%}
+    <label for="private">Private room</label>
+
+    {% match room %}
+    {% when Some with (room) %}
         <label for="room_url">Room URL:</label>
         <input type="text" id="room_url" name="room_url" value="{{room.room_url}}"/>
     {%- when None -%}

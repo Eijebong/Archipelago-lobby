@@ -6,8 +6,9 @@ use crate::schema::{discord_users, rooms, yamls};
 use crate::Context;
 
 use chrono::{NaiveDateTime, Utc};
-use diesel::dsl::{exists, now};
+use diesel::dsl::{exists, now, AsSelect, SqlTypeOf};
 use diesel::prelude::*;
+use diesel::sqlite::Sqlite;
 use rocket::State;
 use uuid::Uuid;
 
@@ -20,6 +21,7 @@ pub struct NewRoom<'a> {
     pub description: &'a str,
     pub room_url: &'a str,
     pub author_id: Option<i64>,
+    pub private: bool,
 }
 
 #[derive(Insertable)]
@@ -41,6 +43,13 @@ pub struct Room {
     pub description: String,
     pub room_url: String,
     pub author_id: i64,
+    pub private: bool,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum RoomPrivacy {
+    Public,
+    Private,
 }
 
 impl Room {
@@ -76,7 +85,7 @@ pub struct YamlFile {
 pub enum RoomStatus {
     Open,
     Closed,
-    //Any,
+    Any,
 }
 
 #[derive(Clone, Copy)]
@@ -85,58 +94,16 @@ pub enum Author {
     User(i64),
 }
 
-pub fn list_rooms(
-    status: RoomStatus,
-    author: Author,
-    max: i64,
-    ctx: &State<Context>,
-) -> Result<Vec<Room>> {
-    let mut conn = ctx.db_pool.get()?;
-    let query = rooms::table
-        .order(rooms::close_date.asc())
-        .limit(max)
-        .into_boxed();
-
-    let query = match status {
-        RoomStatus::Open => query.filter(rooms::close_date.gt(now)),
-        RoomStatus::Closed => query.filter(rooms::close_date.lt(now)),
-        //RoomStatus::Any => query,
-    };
-
-    let query = match author {
-        Author::User(user_id) => query.filter(rooms::author_id.eq(user_id)),
-        Author::Any => query,
-    };
-
-    Ok(query.load::<Room>(&mut conn)?)
+#[derive(Clone, Copy)]
+pub enum WithYaml {
+    Any,
+    OnlyFor(i64),
+    AndFor(i64),
 }
 
-pub fn list_room_with_yaml_from(
-    player_id: i64,
-    status: RoomStatus,
-    max: i64,
-    ctx: &State<Context>,
-) -> Result<Vec<Room>> {
+pub fn list_rooms(room_filter: RoomFilter, ctx: &State<Context>) -> Result<Vec<Room>> {
     let mut conn = ctx.db_pool.get()?;
-    let query = rooms::table
-        .filter(exists(
-            yamls::table.filter(
-                yamls::room_id
-                    .eq(rooms::id)
-                    .and(yamls::owner_id.eq(player_id)),
-            ),
-        ))
-        .limit(max)
-        .into_boxed();
-    let query = match status {
-        RoomStatus::Open => query
-            .filter(rooms::close_date.gt(now))
-            .order(rooms::close_date.asc()),
-        RoomStatus::Closed => query
-            .filter(rooms::close_date.lt(now))
-            .order(rooms::close_date.desc()),
-        //RoomStatus::Any => query.order(rooms::close_date.asc()),
-    };
+    let query = room_filter.as_query();
 
     Ok(query.load::<Room>(&mut conn)?)
 }
@@ -146,6 +113,7 @@ pub fn create_room(
     description: &str,
     close_date: &chrono::DateTime<Utc>,
     author_id: i64,
+    private: RoomPrivacy,
     ctx: &State<Context>,
 ) -> Result<Room> {
     let mut conn = ctx.db_pool.get()?;
@@ -157,7 +125,9 @@ pub fn create_room(
         description,
         room_url: "",
         author_id: Some(author_id),
+        private: private == RoomPrivacy::Private,
     };
+
     diesel::insert_into(rooms::table)
         .values(&new_room)
         .execute(&mut conn)?;
@@ -169,6 +139,7 @@ pub fn create_room(
         description: new_room.description.to_string(),
         room_url: "".into(),
         author_id,
+        private: private == RoomPrivacy::Private,
     })
 }
 
@@ -306,4 +277,95 @@ pub fn upsert_discord_user(discord_id: i64, username: &str, ctx: &State<Context>
         .execute(&mut conn)?;
 
     Ok(())
+}
+
+pub struct RoomFilter {
+    pub show_private: bool,
+    pub with_yaml_from: WithYaml,
+    pub author: Author,
+    pub room_status: RoomStatus,
+    pub max: i64,
+}
+
+impl RoomFilter {
+    pub fn new() -> Self {
+        RoomFilter {
+            show_private: false,
+            with_yaml_from: WithYaml::Any,
+            author: Author::Any,
+            room_status: RoomStatus::Any,
+            max: 50,
+        }
+    }
+
+    pub fn as_query<'f>(&self) -> rooms::BoxedQuery<'f, Sqlite, SqlTypeOf<AsSelect<Room, Sqlite>>> {
+        let query = rooms::table
+            .select(Room::as_select())
+            .limit(self.max)
+            .into_boxed();
+
+        let query = match self.author {
+            Author::User(user_id) => query.filter(rooms::author_id.eq(user_id)),
+            Author::Any => query,
+        };
+
+        let query = if !self.show_private {
+            query.filter(rooms::private.eq(false))
+        } else {
+            query
+        };
+
+        let query = match self.with_yaml_from {
+            WithYaml::OnlyFor(user_id) => query.filter(exists(
+                yamls::table.filter(
+                    yamls::room_id
+                        .eq(rooms::id)
+                        .and(yamls::owner_id.eq(user_id)),
+                ),
+            )),
+            WithYaml::AndFor(user_id) => query.or_filter(exists(
+                yamls::table.filter(
+                    yamls::room_id
+                        .eq(rooms::id)
+                        .and(yamls::owner_id.eq(user_id)),
+                ),
+            )),
+            WithYaml::Any => query,
+        };
+
+        match self.room_status {
+            RoomStatus::Open => query
+                .filter(rooms::close_date.gt(now))
+                .order(rooms::close_date.asc()),
+            RoomStatus::Closed => query
+                .filter(rooms::close_date.lt(now))
+                .order(rooms::close_date.desc()),
+            RoomStatus::Any => query.order(rooms::close_date.asc()),
+        }
+    }
+
+    pub fn with_status(mut self, status: RoomStatus) -> Self {
+        self.room_status = status;
+        self
+    }
+
+    pub fn with_max(mut self, max: i64) -> Self {
+        self.max = max;
+        self
+    }
+
+    pub fn with_yamls_from(mut self, with_yaml_from: WithYaml) -> Self {
+        self.with_yaml_from = with_yaml_from;
+        self
+    }
+
+    pub fn with_author(mut self, author: Author) -> Self {
+        self.author = author;
+        self
+    }
+
+    pub fn with_private(mut self, private: bool) -> Self {
+        self.show_private = private;
+        self
+    }
 }
