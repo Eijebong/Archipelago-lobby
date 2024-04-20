@@ -23,8 +23,6 @@ pub struct Session {
     pub redirect_on_login: Option<String>,
 }
 
-pub struct AdminSession(pub Session);
-
 pub struct LoggedInSession(pub Session);
 
 impl LoggedInSession {
@@ -98,30 +96,6 @@ impl<'r> FromRequest<'r> for LoggedInSession {
             Some(_) => Outcome::Success(LoggedInSession(new_session)),
             None => Outcome::Error((Status::new(401), anyhow!("Not logged in").into())),
         }
-    }
-}
-
-#[rocket::async_trait]
-impl<'r> FromRequest<'r> for AdminSession {
-    type Error = crate::error::Error;
-
-    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        let session = Session::from_request(request).await;
-        let Outcome::Success(session) = session else {
-            return Outcome::Error((
-                Status::Unauthorized,
-                crate::error::Error(anyhow!("You need to be admin")),
-            ));
-        };
-
-        if session.is_admin {
-            return Outcome::Success(AdminSession(session));
-        }
-
-        Outcome::Error((
-            Status::Unauthorized,
-            crate::error::Error(anyhow!("You need to be admin")),
-        ))
     }
 }
 
