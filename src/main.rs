@@ -22,7 +22,7 @@ pub struct Context {
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 }
 
-const CSS_VERSION: &'static str = std::env!("CSS_VERSION");
+const CSS_VERSION: &str = std::env!("CSS_VERSION");
 
 struct TplContext<'a> {
     is_admin: bool,
