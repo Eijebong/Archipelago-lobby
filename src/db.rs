@@ -92,6 +92,7 @@ pub enum RoomStatus {
 pub enum Author {
     Any,
     User(i64),
+    IncludeUser(i64),
 }
 
 #[derive(Clone, Copy)]
@@ -304,15 +305,16 @@ impl RoomFilter {
             .limit(self.max)
             .into_boxed();
 
-        let query = match self.author {
-            Author::User(user_id) => query.filter(rooms::author_id.eq(user_id)),
-            Author::Any => query,
-        };
-
         let query = if !self.show_private {
             query.filter(rooms::private.eq(false))
         } else {
             query
+        };
+
+        let query = match self.author {
+            Author::User(user_id) => query.filter(rooms::author_id.eq(user_id)),
+            Author::IncludeUser(user_id) => query.or_filter(rooms::author_id.eq(user_id)),
+            Author::Any => query,
         };
 
         let query = match self.with_yaml_from {
