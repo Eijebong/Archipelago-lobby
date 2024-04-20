@@ -61,7 +61,6 @@ impl Room {
 #[derive(Debug, diesel::Selectable, diesel::Queryable)]
 pub struct Yaml {
     pub id: DieselUuid,
-    pub room_id: DieselUuid,
     pub content: String,
     pub player_name: String,
     pub game: String,
@@ -181,6 +180,7 @@ pub fn get_yamls_for_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Vec<
 
     Ok(yamls::table
         .filter(yamls::room_id.eq(DieselUuid(uuid)))
+        .select(Yaml::as_select())
         .get_results::<Yaml>(&mut conn)?)
 }
 
@@ -246,6 +246,7 @@ pub fn get_yaml_by_id(yaml_id: Uuid, ctx: &State<Context>) -> Result<Yaml> {
     let mut conn = ctx.db_pool.get()?;
     Ok(yamls::table
         .find(DieselUuid(yaml_id))
+        .select(Yaml::as_select())
         .first::<Yaml>(&mut conn)?)
 }
 
