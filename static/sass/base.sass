@@ -202,6 +202,7 @@ button, .button-emulator
 .validation-button
   display: inline-block
   font-weight: bold
+  font-family: sans-serif
   font-size: 0.8em
   border: none
   padding: 0.5em 0.5em
@@ -219,9 +220,10 @@ button, .button-emulator
 .cancel-button
   display: inline-block
   font-weight: bold
+  font-family: sans-serif
   font-size: 0.8em
   border: none
-  padding: 0.75em 1.5em
+  padding: 0.5em 0.5em
   color: white
   cursor: pointer
   background-color: hsl(0,65%,45%)
@@ -710,3 +712,43 @@ h6
 
 .room-lock
   float: right
+
+.popup
+  @keyframes fadeIn
+    from
+      opacity: 0
+    to
+      opacity: 1
+
+  background-color: #272822
+  color: #fff
+  display: flex
+  flex-direction: column
+  min-width: 50%
+  animation: fadeIn 0.3s
+
+  .title
+    text-align: center
+    padding: 0.5em
+    border-bottom: 1px solid black
+
+  pre
+    display: block
+    max-height: 90%
+    overflow: scroll
+
+  .button-container
+    padding: 0.5em
+    border-top: 1px solid black
+    text-align: right
+
+    button
+      margin-left: 0.5em
+
+dialog::backdrop
+  background-color: hsl(0, 0%, 0%, 0.45)
+
+// https://github.com/whatwg/html/issues/7732
+body:has(dialog[open])
+  overflow: hidden
+  scrollbar-gutter: stable

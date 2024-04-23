@@ -70,9 +70,9 @@
             {% endif %}
             <td>{{yaml.0.game}}</td>
             {% if (Some(yaml.0.owner_id) == base.user_id.as_ref() || is_my_room) && !is_closed %}
-            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" />View</a> | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}">Delete</a></td>
+            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}", "{{yaml.0.player_name}}", "{{yaml.0.game}}")' />View</a> | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}">Delete</a></td>
             {% else %}
-            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" />View</a></td>
+            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}", "{{yaml.0.player_name}}", "{{yaml.0.game}}")' />View</a></td>
             {% endif %}
         </tr>
         {% endfor %}
@@ -109,4 +109,11 @@
         }
     }
 </script>
+<script src="/static/contrib/highlight.js/highlight.min.js" defer></script>
+<script src="/static/contrib/highlight.js/yaml.min.js" defer></script>
+<script src="/static/js/viewer.js" defer></script>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="/static/contrib/highlight.js/monokai.min.css">
 {% endblock %}
