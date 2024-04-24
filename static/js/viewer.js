@@ -28,7 +28,7 @@ function showError(msg) {
 function openYamlPopup(title, yaml, roomId, yamlId) {
     const popup = document.createElement("dialog");
     popup.classList = "popup";
-    popup.onclick = (event) => event.target == popup && popup.close();
+    popup.onclick = (event) => { event.target == popup && popup.close(); return true; }
 
     const popupTitle = document.createElement("span");
     popupTitle.classList = "title"
