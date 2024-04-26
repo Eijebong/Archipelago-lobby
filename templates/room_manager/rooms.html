@@ -43,7 +43,7 @@
             </tr>
         </thead>
         <tbody>
-    {% for room in closed_rooms.iter().rev() %}
+    {% for room in closed_rooms.iter() %}
         {% if room.is_closed() %}
             <tr>
                 <td><a href="/room/{{room.id}}">{{ room.name }}</a></td>
