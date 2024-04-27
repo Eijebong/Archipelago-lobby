@@ -5,7 +5,7 @@ use crate::error::Result;
 use crate::schema::{discord_users, rooms, yamls};
 use crate::Context;
 
-use chrono::{NaiveDateTime, Utc};
+use chrono::NaiveDateTime;
 use diesel::dsl::{exists, now, AsSelect, SqlTypeOf};
 use diesel::prelude::*;
 use diesel::sqlite::Sqlite;
@@ -22,6 +22,7 @@ pub struct NewRoom<'a> {
     pub room_url: &'a str,
     pub author_id: Option<i64>,
     pub private: bool,
+    pub yaml_validation: bool,
 }
 
 #[derive(Insertable)]
@@ -44,12 +45,7 @@ pub struct Room {
     pub room_url: String,
     pub author_id: i64,
     pub private: bool,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum RoomPrivacy {
-    Public,
-    Private,
+    pub yaml_validation: bool,
 }
 
 impl Room {
@@ -108,39 +104,13 @@ pub fn list_rooms(room_filter: RoomFilter, ctx: &State<Context>) -> Result<Vec<R
     Ok(query.load::<Room>(&mut conn)?)
 }
 
-pub fn create_room(
-    name: &str,
-    description: &str,
-    close_date: &chrono::DateTime<Utc>,
-    author_id: i64,
-    private: RoomPrivacy,
-    ctx: &State<Context>,
-) -> Result<Room> {
+pub fn create_room(new_room: &NewRoom, ctx: &State<Context>) -> Result<Room> {
     let mut conn = ctx.db_pool.get()?;
 
-    let new_room = NewRoom {
-        id: DieselUuid::random(),
-        close_date: close_date.naive_utc(),
-        name,
-        description,
-        room_url: "",
-        author_id: Some(author_id),
-        private: private == RoomPrivacy::Private,
-    };
-
-    diesel::insert_into(rooms::table)
-        .values(&new_room)
-        .execute(&mut conn)?;
-
-    Ok(Room {
-        id: new_room.id,
-        name: new_room.name.to_string(),
-        close_date: close_date.naive_utc(),
-        description: new_room.description.to_string(),
-        room_url: "".into(),
-        author_id,
-        private: private == RoomPrivacy::Private,
-    })
+    Ok(diesel::insert_into(rooms::table)
+        .values(new_room)
+        .returning(Room::as_returning())
+        .get_result(&mut conn)?)
 }
 
 pub fn update_room(new_room: &NewRoom, ctx: &State<Context>) -> Result<()> {

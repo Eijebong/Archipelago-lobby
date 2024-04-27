@@ -18,7 +18,7 @@ use rocket_oauth2::{OAuth2, TokenResponse};
 pub struct Session {
     pub is_admin: bool,
     pub is_logged_in: bool,
-    pub err_msg: Option<String>,
+    pub err_msg: Vec<String>,
     pub user_id: Option<i64>,
     pub redirect_on_login: Option<String>,
 }

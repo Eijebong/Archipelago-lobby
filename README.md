@@ -31,3 +31,9 @@ client_secret="<your_client_secret>"
 redirect_uri="http://127.0.0.1:8000/auth/oauth" # Switch this to your redirect URI
 admins = [<discord_id_of_admin>, ...]
 ```
+## YAML checking
+
+When uploading a YAML to a lobby, you can opt-in to validate YAMLs. It will use
+this service, https://github.com/Eijebong/Archipelago-yaml-checker, just point `YAML_VALIDATOR_URL` to it.
+
+`export YAML_VALIDATOR_URL="http://127.0.0.1:5000/check_yaml"`

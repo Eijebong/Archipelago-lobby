@@ -60,7 +60,7 @@ impl<'r> Responder<'r, 'static> for Error {
         let error_message = self.0.to_string();
 
         let mut session = Session::from_request_sync(request);
-        session.err_msg = Some(error_message);
+        session.err_msg.push(error_message);
         session.save(request.cookies()).unwrap();
 
         response::Redirect::to(redirect.0.get().unwrap().to_owned()).respond_to(request)

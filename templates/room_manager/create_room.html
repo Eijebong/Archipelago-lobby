@@ -48,6 +48,14 @@
 
     {% match room %}
     {% when Some with (room) %}
+    <input type="checkbox" name="yaml_validation" id="yaml_validation" {% if room.yaml_validation %} checked {% endif %}/>
+    {%- when None -%}
+    <input type="checkbox" name="yaml_validation" id="yaml_validation"/>
+    {%- endmatch -%}
+    <label for="yaml_validation">Validate uploaded YAML files</label>
+
+    {% match room %}
+    {% when Some with (room) %}
         <label for="room_url">Room URL:</label>
         <input type="text" id="room_url" name="room_url" value="{{room.room_url}}"/>
     {%- when None -%}

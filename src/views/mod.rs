@@ -110,11 +110,12 @@ fn room<'a>(
 }
 
 #[post("/room/<uuid>/upload", data = "<yaml>")]
-fn upload_yaml(
+async fn upload_yaml(
     redirect_to: &RedirectTo,
     uuid: Uuid,
     yaml: Form<&[u8]>,
-    session: LoggedInSession,
+    mut session: LoggedInSession,
+    cookies: &CookieJar<'_>,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/room/{}", uuid));
@@ -154,7 +155,7 @@ fn upload_yaml(
         })
         .collect::<HashSet<String>>();
 
-    for (_document, parsed) in documents.iter() {
+    for (document, parsed) in documents.iter() {
         let mut player_name = parsed.name.clone();
         player_name.truncate(16);
 
@@ -177,16 +178,52 @@ fn upload_yaml(
                 "Adding this yaml would duplicate a player name"
             )));
         }
+
+        if room.yaml_validation {
+            let validation = validate_yaml(document, ctx).await;
+            if let Err(error) = validation {
+                session.0.err_msg.push(error.0.to_string());
+                session.0.save(cookies)?;
+            }
+        }
+
         players_in_room.insert(player_name);
     }
-
-    // TODO: Check supported game
 
     for (document, parsed) in documents {
         db::add_yaml_to_room(uuid, session.0.user_id.unwrap(), &document, &parsed, ctx).unwrap();
     }
 
     Ok(Redirect::to(uri!(room(uuid))))
+}
+
+async fn validate_yaml(yaml: &str, ctx: &State<Context>) -> Result<()> {
+    if ctx.yaml_validator_url.is_none() {
+        return Ok(());
+    }
+
+    #[derive(serde::Deserialize)]
+    struct ValidationResponse {
+        error: Option<String>,
+    }
+
+    let client = reqwest::Client::new();
+    let form = reqwest::multipart::Form::new().text("data", yaml.to_string());
+
+    let response = client
+        .post(ctx.yaml_validator_url.clone().unwrap())
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|_| anyhow::anyhow!("Error while communicating with the YAML validator."))?
+        .json::<ValidationResponse>()
+        .await?;
+
+    if let Some(error) = response.error {
+        return Err(anyhow::anyhow!(error).into());
+    }
+
+    Ok(())
 }
 
 #[get("/room/<room_id>/delete/<yaml_id>")]

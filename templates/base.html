@@ -39,9 +39,9 @@
                     {% block menu %}{% endblock menu %}
                 </nav>
                 <div id="messages">
-                    {% if base.err_msg.is_some() %}
-                        <p class="error">{{ base.err_msg.as_ref().unwrap() }}</p>
-                    {% endif %}
+                    {% for error in base.err_msg %}
+                        <p class="error">{{ error }}</p>
+                    {% endfor %}
                     {% block messages %}{% endblock messages %}
                 </div>
                 {% block main %}{% endblock main %}

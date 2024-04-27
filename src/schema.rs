@@ -16,6 +16,7 @@ diesel::table! {
         room_url -> Text,
         author_id -> BigInt,
         private -> Bool,
+        yaml_validation -> Bool,
     }
 }
 

@@ -3,6 +3,7 @@ use diesel::sqlite::Sqlite;
 use diesel::{r2d2::ConnectionManager, SqliteConnection};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use dotenvy::dotenv;
+use reqwest::Url;
 use rocket::data::{Limits, ToByteUnit};
 use rocket::http::CookieJar;
 use rocket::response::Redirect;
@@ -20,6 +21,7 @@ pub struct Discord;
 
 pub struct Context {
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
+    yaml_validator_url: Option<Url>,
 }
 
 const CSS_VERSION: &str = std::env!("CSS_VERSION");
@@ -29,7 +31,7 @@ struct TplContext<'a> {
     is_logged_in: bool,
     cur_module: &'a str,
     user_id: Option<i64>,
-    err_msg: Option<String>,
+    err_msg: Vec<String>,
     css_version: &'a str,
 }
 
@@ -40,7 +42,7 @@ impl<'a> TplContext<'a> {
             is_admin: session.is_admin,
             is_logged_in: session.is_logged_in,
             user_id: session.user_id,
-            err_msg: session.err_msg.take(),
+            err_msg: session.err_msg.drain(..).collect(),
             css_version: CSS_VERSION,
         };
 
@@ -67,7 +69,9 @@ fn unauthorized(req: &Request) -> crate::error::Result<Redirect> {
     let mut session = Session::from_request_sync(req);
     if session.is_logged_in {
         let cookies = req.cookies();
-        session.err_msg = Some("You don't have the rights to see this page".into());
+        session
+            .err_msg
+            .push("You don't have the rights to see this page".into());
         session.save(cookies)?;
         return Ok(Redirect::to("/"));
     }
@@ -94,7 +98,20 @@ fn rocket() -> _ {
         run_migrations(&mut connection).expect("Failed to run migrations");
     }
 
-    let ctx = Context { db_pool };
+    let yaml_validator_url = if let Ok(yaml_validator_url) = std::env::var("YAML_VALIDATOR_URL") {
+        Some(
+            yaml_validator_url
+                .parse()
+                .expect("Failed to parse YAML_VALIDATOR_URL"),
+        )
+    } else {
+        None
+    };
+
+    let ctx = Context {
+        db_pool,
+        yaml_validator_url,
+    };
 
     let limits = Limits::default().limit("bytes", 2.megabytes());
 

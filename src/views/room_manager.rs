@@ -10,7 +10,7 @@ use rocket::response::Redirect;
 use rocket::{get, post, FromForm};
 use uuid::Uuid;
 
-use crate::db::{self, Author, NewRoom, Room, RoomFilter, RoomPrivacy};
+use crate::db::{self, Author, NewRoom, Room, RoomFilter};
 use crate::{Context, TplContext};
 use rocket::State;
 
@@ -31,6 +31,7 @@ struct CreateRoomForm<'a> {
     tz_offset: i32,
     room_url: &'a str,
     private: bool,
+    yaml_validation: bool,
 }
 
 #[derive(Template)]
@@ -106,18 +107,17 @@ fn create_room_submit(
 
     let author_id = session.user_id();
     let close_date = parse_date(room_form.close_date, room_form.tz_offset)?;
-    let new_room = db::create_room(
-        room_form.room_name,
-        room_form.room_description.trim(),
-        &close_date,
-        author_id,
-        if room_form.private {
-            RoomPrivacy::Private
-        } else {
-            RoomPrivacy::Public
-        },
-        ctx,
-    )?;
+    let new_room = NewRoom {
+        id: crate::diesel_uuid::Uuid::random(),
+        name: room_form.room_name,
+        close_date: close_date.naive_utc(),
+        description: room_form.room_description.trim(),
+        room_url: "",
+        author_id: Some(author_id),
+        private: room_form.private,
+        yaml_validation: room_form.yaml_validation,
+    };
+    let new_room = db::create_room(&new_room, ctx)?;
 
     Ok(Redirect::to(format!("/room/{}", new_room.id)))
 }
@@ -173,6 +173,7 @@ fn edit_room_submit(
         room_url,
         author_id: None, // (Skips updating that field)
         private: room_form.private,
+        yaml_validation: room_form.yaml_validation,
     };
 
     crate::db::update_room(&new_room, ctx)?;
