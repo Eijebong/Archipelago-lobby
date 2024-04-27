@@ -155,6 +155,7 @@ async fn upload_yaml(
         })
         .collect::<HashSet<String>>();
 
+    let mut has_validation_errors = false;
     for (document, parsed) in documents.iter() {
         let mut player_name = parsed.name.clone();
         player_name.truncate(16);
@@ -183,8 +184,13 @@ async fn upload_yaml(
             let validation = validate_yaml(document, ctx).await;
             if let Err(error) = validation {
                 session.0.err_msg.push(error.0.to_string());
-                session.0.save(cookies)?;
+                has_validation_errors = true;
             }
+        }
+
+        if has_validation_errors {
+            session.0.err_msg.push("Uploaded anyway, if you think this is an error with the validation and not your YAML, DM the room author".into());
+            session.0.save(cookies)?;
         }
 
         players_in_room.insert(player_name);
