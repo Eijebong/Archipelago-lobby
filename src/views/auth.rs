@@ -23,6 +23,25 @@ pub struct Session {
     pub redirect_on_login: Option<String>,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Default, Debug)]
+pub struct SessionRecovery {
+    pub is_admin: bool,
+    pub is_logged_in: bool,
+    pub user_id: Option<i64>,
+}
+
+impl Into<Session> for SessionRecovery {
+    fn into(self) -> Session {
+        Session {
+            is_admin: self.is_admin,
+            is_logged_in: self.is_logged_in,
+            err_msg: vec![],
+            user_id: self.user_id,
+            redirect_on_login: None,
+        }
+    }
+}
+
 pub struct LoggedInSession(pub Session);
 
 impl LoggedInSession {
@@ -44,9 +63,15 @@ impl Session {
         }
 
         let cookies = request.cookies();
-        if let Some(session) = cookies.get_private("session") {
-            let session = serde_json::from_str::<Session>(session.value());
+        if let Some(session_str) = cookies.get_private("session") {
+            let session = serde_json::from_str::<Session>(session_str.value());
             if let Ok(session) = session {
+                return session;
+            }
+            let session_recovery = serde_json::from_str::<SessionRecovery>(session_str.value());
+            if let Ok(session_recovery) = session_recovery {
+                let session: Session = session_recovery.into();
+                session.save(cookies).unwrap();
                 return session;
             }
         }
