@@ -23,7 +23,7 @@ pub struct Session {
     pub redirect_on_login: Option<String>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Default, Debug)]
+#[derive(serde::Deserialize, Default, Debug)]
 pub struct SessionRecovery {
     pub is_admin: bool,
     pub is_logged_in: bool,
