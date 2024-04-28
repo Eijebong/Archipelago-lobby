@@ -114,8 +114,7 @@ async fn upload_yaml(
     redirect_to: &RedirectTo,
     uuid: Uuid,
     yaml: Form<&[u8]>,
-    mut session: LoggedInSession,
-    cookies: &CookieJar<'_>,
+    session: LoggedInSession,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/room/{}", uuid));
@@ -155,7 +154,6 @@ async fn upload_yaml(
         })
         .collect::<HashSet<String>>();
 
-    let mut has_validation_errors = false;
     for (document, parsed) in documents.iter() {
         let mut player_name = parsed.name.clone();
         player_name.truncate(16);
@@ -181,16 +179,7 @@ async fn upload_yaml(
         }
 
         if room.yaml_validation {
-            let validation = validate_yaml(document, ctx).await;
-            if let Err(error) = validation {
-                session.0.err_msg.push(error.0.to_string());
-                has_validation_errors = true;
-            }
-        }
-
-        if has_validation_errors {
-            session.0.err_msg.push("Uploaded anyway, if you think this is an error with the validation and not your YAML, DM the room author".into());
-            session.0.save(cookies)?;
+            validate_yaml(document, ctx).await?;
         }
 
         players_in_room.insert(player_name);
