@@ -50,7 +50,7 @@
     {% when Some with (room) %}
     <input type="checkbox" name="yaml_validation" id="yaml_validation" {% if room.yaml_validation %} checked {% endif %}/>
     {%- when None -%}
-    <input type="checkbox" name="yaml_validation" id="yaml_validation"/>
+    <input type="checkbox" name="yaml_validation" id="yaml_validation" checked/>
     {%- endmatch -%}
     <label for="yaml_validation">Validate uploaded YAML files</label>
 
