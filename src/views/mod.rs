@@ -135,10 +135,10 @@ async fn upload_yaml(
         .into_iter()
         .map(|doc| {
             let Ok(doc) = doc else {
-                anyhow::bail!("Invalid yaml file")
+                anyhow::bail!("Invalid yaml file. Syntax error.")
             };
             let Ok(parsed) = serde_yaml::from_str(&doc) else {
-                anyhow::bail!("Invalid yaml file")
+                anyhow::bail!("Invalid yaml file. This does not look like an archipelago game YAML.")
             };
             Ok((doc, parsed))
         })
