@@ -52,24 +52,25 @@
     {% endif %}
 </table>
 
-<table class="styled yamls">
+<table class="styled yamls" id="yamls">
     <thead>
         <tr>
-            <th>Player</th>
+            <th>Player {% if base.is_logged_in  %}(<input type="checkbox" id="my-yamls"/><label for="my-yamls">My files only</label>){% endif %}</th>
             <th>Game</th>
             <th>Action</th>
         </tr>
     </thead>
     <tbody>
         {% for yaml in yamls %}
-        <tr>
+        {% let is_my_yaml = (Some(yaml.0.owner_id) == base.user_id.as_ref()) %}
+        <tr {% if is_my_yaml %} data-my-yaml=true {% endif %}>
             {% if base.is_logged_in %}
                 <td><span title="@{{yaml.1}}">{{yaml.0.player_name}}</span></td>
             {% else %}
                 <td>{{yaml.0.player_name}}</td>
             {% endif %}
             <td>{{yaml.0.game}}</td>
-            {% if (Some(yaml.0.owner_id) == base.user_id.as_ref() || is_my_room) && !is_closed %}
+            {% if (is_my_yaml || is_my_room) && !is_closed %}
             <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}", "{{yaml.0.player_name}}", "{{yaml.0.game}}")' />View</a> | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}">Delete</a></td>
             {% else %}
             <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}", "{{yaml.0.player_name}}", "{{yaml.0.game}}")' />View</a></td>
@@ -106,6 +107,25 @@
     yamlUpload.onchange = function() {
         if (yamlUpload.files.length == 1) {
             yamlFormButton.click();
+        }
+    }
+
+    const filter_yamls = document.getElementById("my-yamls");
+    if (filter_yamls !== null) {
+        filter_yamls.checked = false;
+        filter_yamls.onchange = function() {
+            const yamlTable = document.getElementById("yamls").getElementsByTagName("tbody")[0];
+            for(let row of yamlTable.getElementsByTagName("tr")) {
+                if (filter_yamls.checked) {
+                    if (row.dataset.myYaml) {
+                        row.style.display = "table-row"
+                    } else {
+                        row.style.display = "none"
+                    }
+                } else {
+                    row.style.display = "table-row"
+                }
+            }
         }
     }
 </script>
