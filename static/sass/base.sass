@@ -167,13 +167,14 @@ form
     color: white
     text-align: center
 
+  formset
+    input + label
+      margin-left: 2em
+      width: calc(100% - 2em) !important
 
-fieldset
-  padding: 0.5em
-  margin: 1em 0em
-  border: none
-  border: 3px solid hsla(0,0%,0%,0.4)
-  box-shadow: inset 0 0 0 1px hsla(0,0%,100%,0.075), 0 0 0 1px hsla(0,0%,100%,0.075)
+      &:first-of-type
+        margin-left: 0em
+        width: 100% !important
 
 
 legend
@@ -557,8 +558,6 @@ h6
       background: linear-gradient(hsl(135, 0%, 34%), hsl(135, 0%, 26%) )
 
 
-/* == ERROR BOX == */
-
 .error
   background-color: hsl(0,75%,50%) !important
   background-image: url("../images/background.png")
@@ -569,9 +568,15 @@ h6
   text-shadow: 1px 1px black !important
   margin: 1em 0
 
-
-
-/* == Confirmation box == */
+.warning
+  background-color: hsl(30,95%,40%) !important
+  background-image: url("../images/background.png")
+  padding: 0.5em
+  box-shadow: inset 0 0 0 1px hsla(30,0%,100%,0.2), 0 0 0 1px hsl(3,75%,20%)
+  font-weight: bold !important
+  color: hsl(0,100%,95%) !important
+  text-shadow: 1px 1px black !important
+  margin: 1em 0
 
 .confirm
   background-color: hsl(125,50%,40%) !important

@@ -32,6 +32,7 @@ struct TplContext<'a> {
     cur_module: &'a str,
     user_id: Option<i64>,
     err_msg: Vec<String>,
+    warning_msg: Vec<String>,
     css_version: &'a str,
 }
 
@@ -43,6 +44,7 @@ impl<'a> TplContext<'a> {
             is_logged_in: session.is_logged_in,
             user_id: session.user_id,
             err_msg: session.err_msg.drain(..).collect(),
+            warning_msg: session.warning_msg.drain(..).collect(),
             css_version: CSS_VERSION,
         };
 

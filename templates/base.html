@@ -42,6 +42,9 @@
                     {% for error in base.err_msg %}
                         <p class="error">{{ error }}</p>
                     {% endfor %}
+                    {% for warning in base.warning_msg %}
+                        <p class="warning">{{ warning }}</p>
+                    {% endfor %}
                     {% block messages %}{% endblock messages %}
                 </div>
                 {% block main %}{% endblock main %}

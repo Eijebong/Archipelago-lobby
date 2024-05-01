@@ -114,7 +114,8 @@ async fn upload_yaml(
     redirect_to: &RedirectTo,
     uuid: Uuid,
     yaml: Form<&[u8]>,
-    session: LoggedInSession,
+    mut session: LoggedInSession,
+    cookies: &CookieJar<'_>,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/room/{}", uuid));
@@ -138,7 +139,9 @@ async fn upload_yaml(
                 anyhow::bail!("Invalid yaml file. Syntax error.")
             };
             let Ok(parsed) = serde_yaml::from_str(&doc) else {
-                anyhow::bail!("Invalid yaml file. This does not look like an archipelago game YAML.")
+                anyhow::bail!(
+                    "Invalid yaml file. This does not look like an archipelago game YAML."
+                )
             };
             Ok((doc, parsed))
         })
@@ -156,14 +159,12 @@ async fn upload_yaml(
 
     for (document, parsed) in documents.iter() {
         let mut player_name = parsed.name.clone();
-        player_name.truncate(16);
 
-        if player_name.contains("{NUMBER}") || player_name.contains("{number}") {
-            continue;
-        }
-        if player_name.contains("{PLAYER}") || player_name.contains("{player}") {
-            continue;
-        }
+        let ignore_dupe = player_name.contains("{NUMBER}")
+            || player_name.contains("{number}")
+            || player_name.contains("{PLAYER}")
+            || player_name.contains("{player}");
+        player_name.truncate(16);
 
         if player_name == "meta" || player_name == "Archipelago" {
             return Err(Error(anyhow::anyhow!(format!(
@@ -172,14 +173,27 @@ async fn upload_yaml(
             ))));
         }
 
-        if players_in_room.contains(&player_name) {
+        if !ignore_dupe && players_in_room.contains(&player_name) {
             return Err(Error(anyhow::anyhow!(
                 "Adding this yaml would duplicate a player name"
             )));
         }
 
         if room.yaml_validation {
-            validate_yaml(document, ctx).await?;
+            let unsupported_games = validate_yaml(document, ctx).await?;
+            if room.allow_unsupported {
+                session.0.warning_msg.push(format!(
+                    "Uploaded a YAML with unsupported games: {}. Couldn't verify it.",
+                    unsupported_games.iter().join("; ")
+                ));
+                session.0.save(cookies)?;
+            } else {
+                return Err(anyhow::anyhow!(format!(
+                    "Your YAML contains the following unsupported games: {}. Can't upload.",
+                    unsupported_games.iter().join("; ")
+                ))
+                .into());
+            }
         }
 
         players_in_room.insert(player_name);
@@ -192,14 +206,15 @@ async fn upload_yaml(
     Ok(Redirect::to(uri!(room(uuid))))
 }
 
-async fn validate_yaml(yaml: &str, ctx: &State<Context>) -> Result<()> {
+async fn validate_yaml(yaml: &str, ctx: &State<Context>) -> Result<Vec<String>> {
     if ctx.yaml_validator_url.is_none() {
-        return Ok(());
+        return Ok(vec![]);
     }
 
     #[derive(serde::Deserialize)]
     struct ValidationResponse {
         error: Option<String>,
+        unsupported: Vec<String>,
     }
 
     let client = reqwest::Client::new();
@@ -218,7 +233,7 @@ async fn validate_yaml(yaml: &str, ctx: &State<Context>) -> Result<()> {
         return Err(anyhow::anyhow!(error).into());
     }
 
-    Ok(())
+    Ok(response.unsupported)
 }
 
 #[get("/room/<room_id>/delete/<yaml_id>")]

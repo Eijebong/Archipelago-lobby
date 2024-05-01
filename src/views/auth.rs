@@ -19,6 +19,7 @@ pub struct Session {
     pub is_admin: bool,
     pub is_logged_in: bool,
     pub err_msg: Vec<String>,
+    pub warning_msg: Vec<String>,
     pub user_id: Option<i64>,
     pub redirect_on_login: Option<String>,
 }
@@ -36,6 +37,7 @@ impl Into<Session> for SessionRecovery {
             is_admin: self.is_admin,
             is_logged_in: self.is_logged_in,
             err_msg: vec![],
+            warning_msg: vec![],
             user_id: self.user_id,
             redirect_on_login: None,
         }

@@ -23,6 +23,7 @@ pub struct NewRoom<'a> {
     pub author_id: Option<i64>,
     pub private: bool,
     pub yaml_validation: bool,
+    pub allow_unsupported: bool,
 }
 
 #[derive(Insertable)]
@@ -46,6 +47,7 @@ pub struct Room {
     pub author_id: i64,
     pub private: bool,
     pub yaml_validation: bool,
+    pub allow_unsupported: bool,
 }
 
 impl Room {

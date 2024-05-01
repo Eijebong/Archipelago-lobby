@@ -17,6 +17,7 @@ diesel::table! {
         author_id -> BigInt,
         private -> Bool,
         yaml_validation -> Bool,
+        allow_unsupported -> Bool,
     }
 }
 

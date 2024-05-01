@@ -32,6 +32,7 @@ struct CreateRoomForm<'a> {
     room_url: &'a str,
     private: bool,
     yaml_validation: bool,
+    allow_unsupported: bool,
 }
 
 #[derive(Template)]
@@ -116,6 +117,7 @@ fn create_room_submit(
         author_id: Some(author_id),
         private: room_form.private,
         yaml_validation: room_form.yaml_validation,
+        allow_unsupported: room_form.allow_unsupported,
     };
     let new_room = db::create_room(&new_room, ctx)?;
 
@@ -174,6 +176,7 @@ fn edit_room_submit(
         author_id: None, // (Skips updating that field)
         private: room_form.private,
         yaml_validation: room_form.yaml_validation,
+        allow_unsupported: room_form.allow_unsupported,
     };
 
     crate::db::update_room(&new_room, ctx)?;

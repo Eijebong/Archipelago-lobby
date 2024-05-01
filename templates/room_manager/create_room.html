@@ -46,13 +46,23 @@
     {%- endmatch -%}
     <label for="private">Private room</label>
 
-    {% match room %}
-    {% when Some with (room) %}
-    <input type="checkbox" name="yaml_validation" id="yaml_validation" {% if room.yaml_validation %} checked {% endif %}/>
-    {%- when None -%}
-    <input type="checkbox" name="yaml_validation" id="yaml_validation" checked/>
-    {%- endmatch -%}
-    <label for="yaml_validation">Validate uploaded YAML files</label>
+    <formset>
+        {% match room %}
+        {% when Some with (room) %}
+        <input type="checkbox" name="yaml_validation" id="yaml_validation" {% if room.yaml_validation %} checked {% endif %}/>
+        {%- when None -%}
+        <input type="checkbox" name="yaml_validation" id="yaml_validation" checked/>
+        {%- endmatch -%}
+        <label for="yaml_validation">Validate uploaded YAML files</label>
+
+        {% match room %}
+        {% when Some with (room) %}
+        <input type="checkbox" name="allow_unsupported" id="allow_unsupported" {% if room.allow_unsupported%} checked {% endif %}/>
+        {%- when None -%}
+        <input type="checkbox" name="allow_unsupported" id="allow_unsupported"/>
+        {%- endmatch -%}
+        <label for="allow_unsupported">Allow bypassing validation for unsupported games</label>
+    </formset>
 
     {% match room %}
     {% when Some with (room) %}
@@ -97,5 +107,40 @@ const closeDate = new Date();
 closeDate.setSeconds(0)
 closeDateEl.value = dateToISOLikeButLocal(closeDate);
 {%- endif %}
+
+function updateFormset(formset) {
+    const inputs = Array.from(formset.getElementsByTagName("input"));
+    if (!inputs) {
+        return;
+    }
+
+    const first_input = inputs[0];
+    if (first_input.type != "checkbox") {
+        return;
+    }
+
+    inputs.splice(0, 1);
+    const display = first_input.checked ? "inline-block" : "none";
+    for (const input of inputs) {
+        if (input.type != "checkbox") {
+            input.style.display = display;
+        }
+
+        for (const label of input.labels) {
+            label.style.display = display;
+        }
+    }
+
+    return first_input;
+}
+
+const formsets = document.getElementsByTagName("formset");
+for (const formset of formsets) {
+    const first_input = updateFormset(formset);
+    if (first_input) {
+        first_input.onchange = () => updateFormset(formset);
+    }
+}
+
 </script>
 {% endblock %}
