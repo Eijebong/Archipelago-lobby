@@ -181,18 +181,20 @@ async fn upload_yaml(
 
         if room.yaml_validation {
             let unsupported_games = validate_yaml(document, ctx).await?;
-            if room.allow_unsupported {
-                session.0.warning_msg.push(format!(
-                    "Uploaded a YAML with unsupported games: {}. Couldn't verify it.",
-                    unsupported_games.iter().join("; ")
-                ));
-                session.0.save(cookies)?;
-            } else {
-                return Err(anyhow::anyhow!(format!(
-                    "Your YAML contains the following unsupported games: {}. Can't upload.",
-                    unsupported_games.iter().join("; ")
-                ))
-                .into());
+            if !unsupported_games.is_empty() {
+                if room.allow_unsupported {
+                    session.0.warning_msg.push(format!(
+                        "Uploaded a YAML with unsupported games: {}. Couldn't verify it.",
+                        unsupported_games.iter().join("; ")
+                    ));
+                    session.0.save(cookies)?;
+                } else {
+                    return Err(anyhow::anyhow!(format!(
+                        "Your YAML contains the following unsupported games: {}. Can't upload.",
+                        unsupported_games.iter().join("; ")
+                    ))
+                    .into());
+                }
             }
         }
 
