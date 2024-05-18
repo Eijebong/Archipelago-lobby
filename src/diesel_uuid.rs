@@ -1,6 +1,7 @@
 use diesel::backend::Backend;
 use diesel::deserialize::FromSqlRow;
 use diesel::expression::AsExpression;
+use diesel::serialize::ToSql;
 use diesel::sql_types::{Binary, SqlType};
 use std::fmt;
 use std::fmt::{Display, Formatter};
@@ -48,6 +49,6 @@ where
         out: &mut diesel::serialize::Output<'b, '_, DB>,
     ) -> diesel::serialize::Result {
         // XXX: This is probably wrong
-        self.0.as_bytes().to_sql(out)
+        <[u8; 16] as ToSql<Binary, DB>>::to_sql(self.0.as_bytes(), out)
     }
 }

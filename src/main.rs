@@ -1,3 +1,4 @@
+use db::{DbInstrumentation, QUERY_HISTOGRAM};
 use diesel::r2d2::Pool;
 use diesel::sqlite::Sqlite;
 use diesel::{r2d2::ConnectionManager, SqliteConnection};
@@ -116,6 +117,11 @@ fn rocket() -> _ {
     let admin_token =
         AdminToken(std::env::var("ADMIN_TOKEN").expect("Plox provide a ADMIN_TOKEN env variable"));
 
+    diesel::connection::set_default_instrumentation(|| {
+        Some(Box::new(DbInstrumentation::default()))
+    })
+    .expect("Failed to set diesel instrumentation");
+
     let manager = ConnectionManager::<SqliteConnection>::new(db_url);
     let db_pool = Pool::new(manager).expect("Failed to create database pool, aborting");
     {
@@ -145,6 +151,10 @@ fn rocket() -> _ {
     let figment = rocket::Config::figment().merge(("limits", limits));
     let prometheus =
         PrometheusMetrics::new().with_request_filter(|request| request.uri().path() != "/metrics");
+    prometheus
+        .registry()
+        .register(Box::new(QUERY_HISTOGRAM.clone()))
+        .expect("Failed to register query histogram");
 
     rocket::custom(figment.clone())
         .attach(prometheus.clone())

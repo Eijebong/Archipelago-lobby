@@ -3,6 +3,7 @@ use std::str::FromStr;
 use crate::error::Result;
 use crate::{AdminToken, Context, Discord};
 use anyhow::anyhow;
+use headers::authorization::{Basic, Credentials};
 use reqwest::header::HeaderValue;
 use reqwest::Url;
 use rocket::figment::{Figment, Profile, Provider};
@@ -57,8 +58,24 @@ impl LoggedInSession {
 impl Session {
     pub fn from_request_sync(request: &Request) -> Self {
         let admin_token = request.rocket().state::<AdminToken>();
-        let x_api_key = request.headers().get("X-Api-Key").next();
-        if x_api_key == admin_token.map(|t| t.0.as_str()) {
+        let admin_token = admin_token.map(|t| t.0.as_str());
+
+        let authorization = request.headers().get_one("Authorization");
+        if let Some(authorization) = authorization {
+            let creds = Basic::decode(&HeaderValue::from_str(authorization).unwrap());
+            if let Some(creds) = creds {
+                if creds.username() == "admin" && Some(creds.password()) == admin_token {
+                    return Session {
+                        is_admin: true,
+                        is_logged_in: true,
+                        ..Default::default()
+                    };
+                }
+            }
+        }
+
+        let x_api_key = request.headers().get_one("X-Api-Key");
+        if x_api_key == admin_token {
             return Session {
                 is_admin: true,
                 is_logged_in: true,
