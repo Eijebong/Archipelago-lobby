@@ -31,14 +31,14 @@ pub struct SessionRecovery {
     pub user_id: Option<i64>,
 }
 
-impl Into<Session> for SessionRecovery {
-    fn into(self) -> Session {
+impl From<SessionRecovery> for Session {
+    fn from(val: SessionRecovery) -> Self {
         Session {
-            is_admin: self.is_admin,
-            is_logged_in: self.is_logged_in,
+            is_admin: val.is_admin,
+            is_logged_in: val.is_logged_in,
             err_msg: vec![],
             warning_msg: vec![],
-            user_id: self.user_id,
+            user_id: val.user_id,
             redirect_on_login: None,
         }
     }

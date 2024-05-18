@@ -101,9 +101,9 @@ impl<R: Handler + Clone> Handler for AdminOnlyRoute<R> {
     }
 }
 
-impl<R: Handler + Clone> Into<Vec<Route>> for AdminOnlyRoute<R> {
-    fn into(self) -> Vec<Route> {
-        vec![Route::new(Method::Get, "/", self)]
+impl<R: Handler + Clone> From<AdminOnlyRoute<R>> for Vec<Route> {
+    fn from(val: AdminOnlyRoute<R>) -> Self {
+        vec![Route::new(Method::Get, "/", val)]
     }
 }
 
