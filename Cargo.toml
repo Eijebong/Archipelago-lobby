@@ -19,6 +19,7 @@ itertools = "0.12.1"
 reqwest = { version = "0.11.24", features = ["multipart", "json"] }
 rocket = { version = "0.5.0", features = ["uuid", "secrets"] }
 rocket_oauth2 = "0.5.0"
+rocket_prometheus = "0.10.0"
 # rusqlite = { version = "0.30.0", features = ["bundled"] }  # required on windows
 rust-embed = { version = "8.2.0", features = ["rocket"] }
 serde = { version = "1.0.195", features = ["derive"] }
@@ -37,3 +38,6 @@ opt-level = 3
 anyhow = "1.0.79"
 sha2 = "0.10.8"
 walkdir = "2.5.0"
+
+[patch.crates-io]
+rocket_prometheus = { git = "https://github.com/Eijebong/rocket_prometheus.git", branch = "add-request-filter" }

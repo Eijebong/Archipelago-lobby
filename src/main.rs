@@ -5,11 +5,14 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use dotenvy::dotenv;
 use reqwest::Url;
 use rocket::data::{Limits, ToByteUnit};
-use rocket::http::CookieJar;
+use rocket::http::{CookieJar, Method, Status};
 use rocket::response::Redirect;
+use rocket::route::{Handler, Outcome};
 use rocket::{catch, catchers, launch, Request};
+use rocket::{Data, Route};
 use rocket_oauth2::OAuth2;
-use views::auth::Session;
+use rocket_prometheus::PrometheusMetrics;
+use views::auth::{AdminSession, Session};
 
 mod db;
 mod diesel_uuid;
@@ -84,12 +87,34 @@ fn unauthorized(req: &Request) -> crate::error::Result<Redirect> {
     )))
 }
 
+#[derive(Clone)]
+struct AdminOnlyRoute<R: Handler + Clone>(R);
+
+#[rocket::async_trait]
+impl<R: Handler + Clone> Handler for AdminOnlyRoute<R> {
+    async fn handle<'r>(&self, req: &'r Request<'_>, data: Data<'r>) -> Outcome<'r> {
+        let guard = req.guard::<AdminSession>().await;
+        match guard {
+            rocket::request::Outcome::Success(..) => self.0.handle(req, data).await,
+            _ => Outcome::Error(Status::Forbidden),
+        }
+    }
+}
+
+impl<R: Handler + Clone> Into<Vec<Route>> for AdminOnlyRoute<R> {
+    fn into(self) -> Vec<Route> {
+        vec![Route::new(Method::Get, "/", self)]
+    }
+}
+
+struct AdminToken(String);
+
 #[launch]
 fn rocket() -> _ {
     dotenv().ok();
     let db_url = std::env::var("DATABASE_URL").expect("Plox provide a DATABASE_URL env variable");
-    let _admin_token =
-        std::env::var("ADMIN_TOKEN").expect("Plox provide a ADMIN_TOKEN env variable");
+    let admin_token =
+        AdminToken(std::env::var("ADMIN_TOKEN").expect("Plox provide a ADMIN_TOKEN env variable"));
 
     let manager = ConnectionManager::<SqliteConnection>::new(db_url);
     let db_pool = Pool::new(manager).expect("Failed to create database pool, aborting");
@@ -118,13 +143,18 @@ fn rocket() -> _ {
     let limits = Limits::default().limit("bytes", 2.megabytes());
 
     let figment = rocket::Config::figment().merge(("limits", limits));
+    let prometheus =
+        PrometheusMetrics::new().with_request_filter(|request| request.uri().path() != "/metrics");
 
     rocket::custom(figment.clone())
+        .attach(prometheus.clone())
         .mount("/", views::routes())
         .mount("/", views::room_manager::routes())
         .mount("/auth/", views::auth::routes())
+        .mount("/metrics", AdminOnlyRoute(prometheus))
         .register("/", catchers![unauthorized])
         .manage(ctx)
         .manage(figment)
+        .manage(admin_token)
         .attach(OAuth2::<Discord>::fairing("discord"))
 }

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::error::Result;
-use crate::{Context, Discord};
+use crate::{AdminToken, Context, Discord};
 use anyhow::anyhow;
 use reqwest::header::HeaderValue;
 use reqwest::Url;
@@ -45,6 +45,7 @@ impl Into<Session> for SessionRecovery {
 }
 
 pub struct LoggedInSession(pub Session);
+pub struct AdminSession(());
 
 impl LoggedInSession {
     pub fn user_id(&self) -> i64 {
@@ -55,8 +56,9 @@ impl LoggedInSession {
 
 impl Session {
     pub fn from_request_sync(request: &Request) -> Self {
+        let admin_token = request.rocket().state::<AdminToken>();
         let x_api_key = request.headers().get("X-Api-Key").next();
-        if x_api_key == std::env::var("ADMIN_TOKEN").ok().as_deref() {
+        if x_api_key == admin_token.map(|t| t.0.as_str()) {
             return Session {
                 is_admin: true,
                 is_logged_in: true,
@@ -123,6 +125,30 @@ impl<'r> FromRequest<'r> for LoggedInSession {
             Some(_) => Outcome::Success(LoggedInSession(new_session)),
             None => Outcome::Error((Status::new(401), anyhow!("Not logged in").into())),
         }
+    }
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for AdminSession {
+    type Error = crate::error::Error;
+
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let session = Session::from_request(request).await;
+        let Outcome::Success(session) = session else {
+            return Outcome::Error((
+                Status::Unauthorized,
+                crate::error::Error(anyhow!("You need to be admin")),
+            ));
+        };
+
+        if session.is_admin {
+            return Outcome::Success(AdminSession(()));
+        }
+
+        Outcome::Error((
+            Status::Unauthorized,
+            crate::error::Error(anyhow!("You need to be admin")),
+        ))
     }
 }
 

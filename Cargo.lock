@@ -99,6 +99,7 @@ dependencies = [
  "reqwest",
  "rocket",
  "rocket_oauth2",
+ "rocket_prometheus",
  "rust-embed",
  "serde",
  "serde_json",
@@ -1493,6 +1494,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "prometheus"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d33c28a30771f7f96db69893f78b857f7450d7e0237e9c8fc6427a81bae7ed1"
+dependencies = [
+ "cfg-if",
+ "fnv",
+ "lazy_static",
+ "memchr",
+ "parking_lot",
+ "thiserror",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1770,6 +1785,15 @@ dependencies = [
  "serde",
  "serde_json",
  "url",
+]
+
+[[package]]
+name = "rocket_prometheus"
+version = "0.10.0"
+source = "git+https://github.com/Eijebong/rocket_prometheus.git?branch=add-request-filter#04be8f5313a3e5c2ae6cabeb976a50b499ed1a97"
+dependencies = [
+ "prometheus",
+ "rocket",
 ]
 
 [[package]]
