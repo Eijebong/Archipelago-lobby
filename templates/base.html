@@ -17,6 +17,7 @@
             {% call menu::app_menu_item("Rooms", "fa-brands fa-buffer", "/", "index", base.cur_module) %}
             {% block room_navigation %}
             {% endblock %}
+            {% call menu::app_menu_item("Apworlds", "fa fa-globe", "/worlds", "apworlds", base.cur_module) %}
             <span class="separator"></span>
             {% if base.is_logged_in %}
             {% if base.is_admin %}

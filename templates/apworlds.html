@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% import "menu.html.tera" as menu %}
+{% block menu %}
+{% endblock %}
+
+{% macro apworlds_table(apworlds) %}
+
+<table class="styled yamls">
+    <thead>
+        <tr>
+            <td>World</td>
+            <td>Version</td>
+            <td>Download</td>
+        </tr>
+    </thead>
+    <tbody>
+        {% for (id, world) in apworlds.iter() %}
+            <tr>
+                <td>
+                    {% match world.home %}
+                    {% when Some(home) %}
+                        <a href="{{home}}">{{ world.name }}</a>
+                    {% when None %}
+                        {{ world.name }}
+                    {% endmatch %}
+                </td>
+                <td>{{ world.version() }}</td>
+                <td>
+                    {% if world.has_patches() %}
+                    <i class="fa fa-wrench" title="This apworld contains custom patches made by the index author"></i>
+                    {% endif %}
+
+                    {% if world.has_patches() || !world.is_supported() %}
+                    <a href="/worlds/download/{{id}}">Download</a>
+                {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endmacro %}
+
+{% block main %}
+<table class="styled" id="room-info">
+    <tr>
+        <td colspan="2">
+            This page lists all the apworlds used by this lobby to validate YAMLs. It also provides a convenient way of downloading them all so people in this community can generate games containing unsupported games more easily.<br>
+        </td>
+    </tr>
+    <tr>
+        <td>Index homepage</td>
+        <td><a href="{{ index.common.homepage }}">{{ index.common.homepage }}</a></td>
+    </tr>
+    {% if base.is_logged_in %}
+    <tr>
+        <td>Download</td>
+        <td><a class="validation-button" href="/worlds/download_all">Download all apworlds</a></td>
+    </tr>
+
+    {% endif %}
+</table>
+<h6><a href="{{ index.common.archipelago_repo }}">Official apworlds</a></h6>
+{% call apworlds_table(supported_apworlds) %}
+<h6>Unofficial apworlds <i class="fa fa-warning" title="Those are unsupported apworlds, please always be careful when generating with them"></i></h6>
+{% call apworlds_table(unsupported_apworlds) %}
+{%endblock%}
+
+{% block scripts %}
+{% endblock %}
+
+{% block styles %}
+{% endblock %}
+

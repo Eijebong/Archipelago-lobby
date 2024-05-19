@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use db::{DbInstrumentation, QUERY_HISTOGRAM};
 use diesel::r2d2::Pool;
 use diesel::sqlite::Sqlite;
@@ -9,7 +11,7 @@ use rocket::data::{Limits, ToByteUnit};
 use rocket::http::{CookieJar, Method, Status};
 use rocket::response::Redirect;
 use rocket::route::{Handler, Outcome};
-use rocket::{catch, catchers, launch, Request};
+use rocket::{catch, catchers, Request};
 use rocket::{Data, Route};
 use rocket_oauth2::OAuth2;
 use rocket_prometheus::PrometheusMetrics;
@@ -19,6 +21,7 @@ mod db;
 mod diesel_uuid;
 mod error;
 mod schema;
+mod utils;
 mod views;
 
 pub struct Discord;
@@ -109,9 +112,10 @@ impl<R: Handler + Clone> From<AdminOnlyRoute<R>> for Vec<Route> {
 }
 
 struct AdminToken(String);
+struct APWorldPath(PathBuf);
 
-#[launch]
-fn rocket() -> _ {
+#[rocket::main]
+async fn main() -> anyhow::Result<()> {
     dotenv().ok();
     let db_url = std::env::var("DATABASE_URL").expect("Plox provide a DATABASE_URL env variable");
     let admin_token =
@@ -156,15 +160,32 @@ fn rocket() -> _ {
         .register(Box::new(QUERY_HISTOGRAM.clone()))
         .expect("Failed to register query histogram");
 
+    let apworlds_index_path = std::path::PathBuf::from(
+        std::env::var("APWORLDS_INDEX_PATH").expect("Provide a `APWORLDS_INDEX_PATH` env variable"),
+    );
+    let index_file = apworlds_index_path.join("index.toml");
+    let index = apwm::Index::new(&index_file)?;
+
+    let apworlds_path = APWorldPath(std::path::PathBuf::from(
+        std::env::var("APWORLDS_PATH").expect("Provide a `APWORLDS_PATH` env variable"),
+    ));
+
     rocket::custom(figment.clone())
         .attach(prometheus.clone())
         .mount("/", views::routes())
         .mount("/", views::room_manager::routes())
+        .mount("/", views::apworlds::routes())
         .mount("/auth/", views::auth::routes())
         .mount("/metrics", AdminOnlyRoute(prometheus))
         .register("/", catchers![unauthorized])
         .manage(ctx)
         .manage(figment)
         .manage(admin_token)
+        .manage(apworlds_path)
+        .manage(index)
         .attach(OAuth2::<Discord>::fairing("discord"))
+        .launch()
+        .await?;
+
+    Ok(())
 }

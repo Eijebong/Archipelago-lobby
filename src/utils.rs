@@ -1,0 +1,8 @@
+use rocket::http::Header;
+
+#[derive(rocket::Responder)]
+#[response(status = 200, content_type = "application/zip")]
+pub struct ZipFile<'a> {
+    pub content: Vec<u8>,
+    pub headers: Header<'a>,
+}

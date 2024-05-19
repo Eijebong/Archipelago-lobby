@@ -4,7 +4,7 @@ use crate::error::Result;
 use crate::{AdminToken, Context, Discord};
 use anyhow::anyhow;
 use headers::authorization::{Basic, Credentials};
-use reqwest::header::HeaderValue;
+use headers::HeaderValue;
 use reqwest::Url;
 use rocket::figment::{Figment, Profile, Provider};
 use rocket::http::{Cookie, CookieJar, SameSite, Status};

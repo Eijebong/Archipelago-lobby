@@ -5,6 +5,7 @@ use std::io::{BufReader, Cursor, Write};
 use std::path::PathBuf;
 
 use crate::db::{RoomFilter, RoomStatus, Yaml, YamlFile};
+use crate::utils::ZipFile;
 use crate::{Context, TplContext};
 use askama::Template;
 use auth::{LoggedInSession, Session};
@@ -20,6 +21,7 @@ use uuid::Uuid;
 use crate::db::{self, Room};
 use crate::error::{Error, RedirectTo, Result, WithContext};
 
+pub mod apworlds;
 pub mod auth;
 pub mod room_manager;
 
@@ -263,13 +265,6 @@ fn delete_yaml(
     db::remove_yaml(yaml_id, ctx)?;
 
     Ok(Redirect::to(format!("/room/{}", room_id)))
-}
-
-#[derive(rocket::Responder)]
-#[response(status = 200, content_type = "application/zip")]
-struct ZipFile<'a> {
-    content: Vec<u8>,
-    headers: Header<'a>,
 }
 
 #[get("/room/<room_id>/yamls")]
