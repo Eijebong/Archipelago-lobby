@@ -33,7 +33,7 @@ fn delete_file_or_dir(path: &Path) -> Result<()> {
 pub struct Common {
     #[serde(with = "http_serde::uri")]
     pub archipelago_repo: Uri,
-    archipelago_version: String,
+    pub archipelago_version: String,
     pub homepage: String,
     pub required_global_files: Vec<String>,
 }
