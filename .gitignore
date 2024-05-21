@@ -1,5 +1,5 @@
 /target
-/db.sqlite
+/db.sqlite*
 /Rocket.toml
 /.env
 /apworlds

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use db::{DbInstrumentation, QUERY_HISTOGRAM};
+use diesel::connection::SimpleConnection;
 use diesel::r2d2::Pool;
 use diesel::sqlite::Sqlite;
 use diesel::{r2d2::ConnectionManager, SqliteConnection};
@@ -114,6 +115,19 @@ impl<R: Handler + Clone> From<AdminOnlyRoute<R>> for Vec<Route> {
 struct AdminToken(String);
 struct APWorldPath(PathBuf);
 
+#[derive(Debug)]
+struct SqliteCustomizer;
+
+impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error> for SqliteCustomizer {
+    fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), diesel::r2d2::Error> {
+        conn.batch_execute(
+            "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 1000;",
+        )
+        .map_err(diesel::r2d2::Error::QueryError)?;
+        Ok(())
+    }
+}
+
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
@@ -127,7 +141,10 @@ async fn main() -> anyhow::Result<()> {
     .expect("Failed to set diesel instrumentation");
 
     let manager = ConnectionManager::<SqliteConnection>::new(db_url);
-    let db_pool = Pool::new(manager).expect("Failed to create database pool, aborting");
+    let db_pool = Pool::builder()
+        .connection_customizer(Box::new(SqliteCustomizer))
+        .build(manager)
+        .expect("Failed to create database pool, aborting");
     {
         let mut connection = db_pool
             .get()
