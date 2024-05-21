@@ -3,9 +3,8 @@
 {% block menu %}
 {% endblock %}
 
-{% macro apworlds_table(apworlds) %}
-
-<table class="styled yamls">
+{% macro apworlds_table(apworlds, id) %}
+<table class="styled yamls" id="{{id}}">
     <thead>
         <tr>
             <td>World</td>
@@ -59,13 +58,36 @@
 
     {% endif %}
 </table>
-<h6><a href="{{ index.common.archipelago_repo }}">Official apworlds</a></h6>
-{% call apworlds_table(supported_apworlds) %}
-<h6>Unofficial apworlds <i class="fa fa-warning" title="Those are unsupported apworlds, please always be careful when generating with them"></i></h6>
-{% call apworlds_table(unsupported_apworlds) %}
+<h6 style="margin-bottom: 1em;"><a href="{{ index.common.archipelago_repo }}">Official apworlds ({{index.common.archipelago_version}})</a> <span id="official-visibility" class="clickable">(Hide)</span></h6>
+{% call apworlds_table(supported_apworlds, "official") %}
+
+<h6 style="margin-bottom: 1em;">Unofficial apworlds <i class="fa fa-warning" title="Those are unsupported apworlds, please always be careful when generating with them"></i> <span id="unsupported-visibility" class="clickable">(Hide)</span></h6>
+{% call apworlds_table(unsupported_apworlds, "unsupported") %}
 {%endblock%}
 
 {% block scripts %}
+<script>
+function setupHideableTable(spanId, tableId) {
+    const span = document.getElementById(spanId);
+    const table = document.getElementById(tableId);
+
+    span.onclick = () => {
+        if (table.className.includes("hidden-table")) {
+            span.innerText = "(Hide)";
+            table.className = "styled yamls visible-table";
+        } else {
+            span.innerText = "(Show)";
+            table.className = "styled yamls hidden-table";
+        }
+    }
+}
+
+setupHideableTable("official-visibility", "official");
+setupHideableTable("unsupported-visibility", "unsupported");
+
+const officialSpan = document.getElementById("official-visibility").click()
+</script>
+
 {% endblock %}
 
 {% block styles %}
