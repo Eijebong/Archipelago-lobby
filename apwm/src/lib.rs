@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fs::OpenOptions, path::{Path, PathBuf}};
+use std::{collections::BTreeMap, fs::{remove_dir_all, OpenOptions}, path::{Path, PathBuf}};
 use anyhow::Result;
 use serde::Deserialize;
 use http::Uri;
@@ -177,8 +177,6 @@ impl Index {
     }
 
     pub async fn refresh_into(&self, destination: &Path) -> Result<()> {
-        std::fs::create_dir_all(destination)?;
-
         let ap_tmp_dir = tempfile::tempdir()?;
         let ap_tmp_dir = ap_tmp_dir.path();
 
@@ -194,6 +192,9 @@ impl Index {
 
             repo.checkout_tree(&tag.as_object(), None)?;
         }
+
+        remove_dir_all(destination)?;
+        std::fs::create_dir_all(destination)?;
 
         let index_dir = self.path.parent().ok_or_else(|| anyhow::anyhow!("Index file doesn't have a parent dir"))?;
         for (name, world) in &self.worlds {
