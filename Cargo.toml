@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-apwm = { path = "../apwm" }
+apwm = { git = "https://github.com/Eijebong/APWM.git" }
 anyhow = "1.0.79"
 askama = { version = "0.12.1", features = ["with-rocket", "markdown"] }
 askama_rocket = "0.12.0"
