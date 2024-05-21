@@ -1,0 +1,25 @@
+[package]
+name = "apwm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { version = "1.0.86", features = ["backtrace"] }
+clap = { version = "4.5.4", optional = true, features = ["derive"] }
+git2 = "0.18.3"
+http = "1.1.0"
+http-serde = "2.1.0"
+reqwest = "0.12.4"
+serde = { version = "1.0.202", features = ["derive"] }
+serde_path_to_error = "0.1.16"
+tempfile = "3.10.1"
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+toml = "0.8.13"
+
+[features]
+cli = ["dep:clap"]
+
+[[bin]]
+name = "apwm"
+required-features = ["cli"]
+path = "src/bin/apwm.rs"
