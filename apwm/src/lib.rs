@@ -193,7 +193,9 @@ impl Index {
             repo.checkout_tree(&tag.as_object(), None)?;
         }
 
-        remove_dir_all(destination)?;
+        if destination.exists() {
+            remove_dir_all(destination)?;
+        }
         std::fs::create_dir_all(destination)?;
 
         let index_dir = self.path.parent().ok_or_else(|| anyhow::anyhow!("Index file doesn't have a parent dir"))?;
