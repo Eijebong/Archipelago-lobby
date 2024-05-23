@@ -22,7 +22,6 @@ use walkdir::WalkDir;
 use crate::error::Result;
 use crate::utils::ZipFile;
 use crate::APWorldPath;
-use crate::Session;
 use crate::TplContext;
 
 use super::auth::LoggedInSession;
@@ -46,21 +45,18 @@ enum APWorldResponse<'a> {
 #[rocket::get("/worlds")]
 fn list_worlds<'a>(
     index: &'a State<Index>,
-    session: Session,
+    session: LoggedInSession,
     cookies: &CookieJar,
 ) -> Result<WorldsListTpl<'a>> {
+    let (supported_apworlds, unsupported_apworlds): (BTreeMap<_, _>, BTreeMap<_, _>) = index
+        .worlds
+        .iter()
+        .partition(|(_, world)| world.is_supported());
+
     Ok(WorldsListTpl {
-        base: TplContext::from_session("apworlds", session, cookies),
-        supported_apworlds: index
-            .worlds
-            .iter()
-            .filter(|(_, world)| world.is_supported())
-            .collect(),
-        unsupported_apworlds: index
-            .worlds
-            .iter()
-            .filter(|(_, world)| !world.is_supported())
-            .collect(),
+        base: TplContext::from_session("apworlds", session.0, cookies),
+        supported_apworlds,
+        unsupported_apworlds,
         index,
     })
 }
