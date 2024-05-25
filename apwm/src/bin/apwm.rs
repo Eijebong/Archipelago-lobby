@@ -1,6 +1,6 @@
-use std::path::{Path, PathBuf};
 use anyhow::Result;
 use clap::Parser;
+use std::path::{Path, PathBuf};
 
 #[derive(clap::Subcommand)]
 enum Command {
@@ -9,7 +9,7 @@ enum Command {
         index_path: PathBuf,
         #[clap(short = 'd')]
         apworlds_path: PathBuf,
-    }
+    },
 }
 
 #[derive(clap::Parser)]
@@ -22,7 +22,10 @@ struct Args {
 async fn main() -> Result<()> {
     let cli = Args::parse();
     match cli.command {
-        Command::Refresh { index_path, apworlds_path } => {
+        Command::Refresh {
+            index_path,
+            apworlds_path,
+        } => {
             refresh(&index_path, &apworlds_path).await?;
         }
     }
@@ -36,7 +39,7 @@ async fn refresh(index_path: &Path, destination: &Path) -> Result<()> {
 
     if !index.should_refresh(&destination) {
         println!("The index hasn't been changed since the last refresh, nothing to do.");
-        return Ok(())
+        return Ok(());
     }
 
     println!("Refreshing apworlds into {}", destination.to_string_lossy());

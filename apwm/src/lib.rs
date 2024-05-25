@@ -1,8 +1,12 @@
-use std::{collections::BTreeMap, fs::{remove_dir_all, OpenOptions}, path::{Path, PathBuf}};
 use anyhow::{anyhow, Result};
-use serde::{Deserialize, Deserializer};
-use http::Uri;
 use git2::{build::RepoBuilder, AutotagOption, FetchOptions};
+use http::Uri;
+use serde::{Deserialize, Deserializer};
+use std::{
+    collections::BTreeMap,
+    fs::{remove_dir_all, OpenOptions},
+    path::{Path, PathBuf},
+};
 
 fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
     std::fs::create_dir_all(&dst)?;
@@ -32,7 +36,6 @@ fn copy_file_or_dir(destination: &Path, index_dir: &Path, local_path: &Path) -> 
 
     Ok(())
 }
-
 
 fn delete_file_or_dir(path: &Path) -> Result<()> {
     if path.is_dir() {
@@ -72,7 +75,9 @@ impl World {
     async fn download_to(&self, destination: &Path, ap_dir: &Path, index_dir: &Path) -> Result<()> {
         match &self.origin {
             WorldOrigin::Url(uri) => self.download_uri(uri, destination).await,
-            WorldOrigin::Supported(apworld) => self.download_supported(destination, ap_dir, &apworld).await,
+            WorldOrigin::Supported(apworld) => {
+                self.download_supported(destination, ap_dir, &apworld).await
+            }
             WorldOrigin::Local(path) => copy_file_or_dir(destination, index_dir, &path),
         }
     }
@@ -89,7 +94,12 @@ impl World {
         Ok(())
     }
 
-    async fn download_supported(&self, destination: &Path, ap_dir: &Path, dir_name: &str) -> Result<()> {
+    async fn download_supported(
+        &self,
+        destination: &Path,
+        ap_dir: &Path,
+        dir_name: &str,
+    ) -> Result<()> {
         let world_destination = destination.join(dir_name);
         if world_destination.exists() {
             std::fs::remove_dir_all(&world_destination)?;
@@ -117,7 +127,10 @@ impl World {
     }
 
     pub fn version(&self) -> &str {
-        self.version.as_ref().map(String::as_str).unwrap_or("Unknown")
+        self.version
+            .as_ref()
+            .map(String::as_str)
+            .unwrap_or("Unknown")
     }
 
     pub fn url(&self) -> String {
@@ -144,7 +157,7 @@ pub struct World {
     version: Option<String>,
     #[serde(default)]
     patches: Vec<String>,
-    #[serde(deserialize_with="empty_string_as_none", default)]
+    #[serde(deserialize_with = "empty_string_as_none", default)]
     pub home: Option<String>,
     #[serde(default)]
     pub dependencies: Vec<String>,
@@ -171,7 +184,7 @@ impl Index {
         let mut index: Index = serde_path_to_error::deserialize(deser)?;
         index.path = index_path.into();
 
-        for (_, world) in index.worlds.iter_mut(){
+        for (_, world) in index.worlds.iter_mut() {
             if world.origin.is_supported() {
                 world.version = Some(index.common.archipelago_version.clone());
             }
@@ -191,7 +204,8 @@ impl Index {
             let repo = RepoBuilder::new()
                 .fetch_options(fetch_opts)
                 .clone(&self.common.archipelago_repo.to_string(), &ap_tmp_dir)?;
-            let git_ref = repo.resolve_reference_from_short_name(&self.common.archipelago_version)?;
+            let git_ref =
+                repo.resolve_reference_from_short_name(&self.common.archipelago_version)?;
             let tag = git_ref.peel_to_commit()?;
 
             repo.checkout_tree(&tag.as_object(), None)?;
@@ -202,25 +216,37 @@ impl Index {
         }
         std::fs::create_dir_all(destination)?;
 
-        let index_dir = self.path.parent().ok_or_else(|| anyhow::anyhow!("Index file doesn't have a parent dir"))?;
+        let index_dir = self
+            .path
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("Index file doesn't have a parent dir"))?;
         for (name, world) in &self.worlds {
             let world_dest = match &world.origin {
                 WorldOrigin::Local(path) => destination.join(path.file_name().unwrap()),
                 WorldOrigin::Supported(_) => destination.into(),
-                WorldOrigin::Url(_) => destination.join(&format!("{}.apworld", name))
+                WorldOrigin::Url(_) => destination.join(&format!("{}.apworld", name)),
             };
 
-            world.download_to(&world_dest, &ap_tmp_dir, &index_dir).await?
+            world
+                .download_to(&world_dest, &ap_tmp_dir, &index_dir)
+                .await?
         }
 
         for path in &self.common.required_global_files {
             let file_path = Path::new("worlds").join(path);
-            let file_destination = destination.join(Path::new(path).file_name().ok_or_else(|| anyhow!("Error while getting filename"))?);
+            let file_destination = destination.join(
+                Path::new(path)
+                    .file_name()
+                    .ok_or_else(|| anyhow!("Error while getting filename"))?,
+            );
             copy_file_or_dir(&file_destination, ap_tmp_dir, &file_path)?;
         }
 
         let last_refreshed = destination.join(".last_refresh");
-        OpenOptions::new().create(true).write(true).open(last_refreshed)?;
+        OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(last_refreshed)?;
 
         Ok(())
     }
@@ -228,13 +254,20 @@ impl Index {
     pub fn should_refresh(&self, destination: &Path) -> bool {
         let last_refreshed = destination.join(".last_refresh");
 
-        let Ok(last_refreshed_metadata) = std::fs::metadata(last_refreshed) else { return true };
-        let Ok(index_metadata) = std::fs::metadata(&self.path) else { return true };
+        let Ok(last_refreshed_metadata) = std::fs::metadata(last_refreshed) else {
+            return true;
+        };
+        let Ok(index_metadata) = std::fs::metadata(&self.path) else {
+            return true;
+        };
 
-        let Ok(last_refreshed_mtime) = last_refreshed_metadata.modified() else { return true };
-        let Ok(index_mtime) = index_metadata.modified() else { return true };
+        let Ok(last_refreshed_mtime) = last_refreshed_metadata.modified() else {
+            return true;
+        };
+        let Ok(index_mtime) = index_metadata.modified() else {
+            return true;
+        };
 
         index_mtime > last_refreshed_mtime
     }
 }
-
