@@ -1,10 +1,8 @@
 use std::{collections::BTreeMap, fs::{remove_dir_all, OpenOptions}, path::{Path, PathBuf}};
 use anyhow::Result;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use http::Uri;
 use git2::{build::RepoBuilder, AutotagOption, FetchOptions};
-
-
 
 fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
     std::fs::create_dir_all(&dst)?;
@@ -145,11 +143,16 @@ pub struct World {
     version: Option<String>,
     #[serde(default)]
     patches: Vec<String>,
+    #[serde(deserialize_with="empty_string_as_none", default)]
     pub home: Option<String>,
     #[serde(default)]
     pub dependencies: Vec<String>,
 }
 
+fn empty_string_as_none<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>, D::Error> {
+    let o: Option<String> = Option::deserialize(d)?;
+    Ok(o.filter(|s| !s.is_empty()))
+}
 
 #[derive(Deserialize, Debug)]
 pub struct Index {
