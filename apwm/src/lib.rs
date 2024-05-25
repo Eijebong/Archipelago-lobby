@@ -1,5 +1,5 @@
 use std::{collections::BTreeMap, fs::{remove_dir_all, OpenOptions}, path::{Path, PathBuf}};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Deserializer};
 use http::Uri;
 use git2::{build::RepoBuilder, AutotagOption, FetchOptions};
@@ -17,6 +17,22 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
     }
     Ok(())
 }
+
+fn copy_file_or_dir(destination: &Path, index_dir: &Path, local_path: &Path) -> Result<()> {
+    if destination.exists() {
+        delete_file_or_dir(destination)?;
+    }
+
+    let path = index_dir.join(local_path);
+    if path.is_dir() {
+        copy_dir_all(&path, &destination)?;
+    } else if path.is_file() {
+        std::fs::copy(&path, &destination)?;
+    }
+
+    Ok(())
+}
+
 
 fn delete_file_or_dir(path: &Path) -> Result<()> {
     if path.is_dir() {
@@ -57,23 +73,8 @@ impl World {
         match &self.origin {
             WorldOrigin::Url(uri) => self.download_uri(uri, destination).await,
             WorldOrigin::Supported(apworld) => self.download_supported(destination, ap_dir, &apworld).await,
-            WorldOrigin::Local(path) => self.copy_local(destination, index_dir, &path),
+            WorldOrigin::Local(path) => copy_file_or_dir(destination, index_dir, &path),
         }
-    }
-
-    fn copy_local(&self, destination: &Path, index_dir: &Path, local_path: &Path) -> Result<()> {
-        if destination.exists() {
-            delete_file_or_dir(destination)?;
-        }
-
-        let path = index_dir.join(local_path);
-        if path.is_dir() {
-            copy_dir_all(&path, &destination)?;
-        } else if path.is_file() {
-            std::fs::copy(&path, &destination)?;
-        }
-
-        Ok(())
     }
 
     async fn download_uri(&self, uri: &Uri, destination: &Path) -> Result<()> {
@@ -213,18 +214,9 @@ impl Index {
         }
 
         for path in &self.common.required_global_files {
-            let file_path = ap_tmp_dir.join("worlds").join(path);
-            let file_destination = destination.join(path);
-
-            if file_destination.exists() {
-                delete_file_or_dir(&file_destination)?;
-            }
-
-            if file_path.is_dir() {
-                copy_dir_all(&file_path, &file_destination)?;
-            } else if file_path.is_file() {
-                std::fs::copy(&file_path, &file_destination)?;
-            }
+            let file_path = Path::new("worlds").join(path);
+            let file_destination = destination.join(Path::new(path).file_name().ok_or_else(|| anyhow!("Error while getting filename"))?);
+            copy_file_or_dir(&file_destination, ap_tmp_dir, &file_path)?;
         }
 
         let last_refreshed = destination.join(".last_refresh");
