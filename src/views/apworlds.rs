@@ -117,7 +117,14 @@ fn download_all<'a>(
             .worlds
             .values()
             .any(|world| world.dependencies.contains(&file_name));
-        let is_required_file = index.common.required_global_files.contains(&file_name);
+        let is_required_file = index
+            .common
+            .required_global_files
+            .iter()
+            .filter_map(|dep| Path::new(dep).file_name())
+            .map(|s| s.to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .contains(&file_name);
 
         is_world || is_dependency || is_required_file
     })?;
