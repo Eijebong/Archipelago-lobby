@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% import "menu.html.tera" as menu %}
+{% import "utils.html.tera" as utils %}
+
 {% block menu %}
 {% endblock %}
 {% block room_navigation %}
@@ -44,7 +46,7 @@
     {%- when None -%}
     <input type="checkbox" name="private" id="private"/>
     {%- endmatch -%}
-    <label for="private">Private room</label>
+    <label for="private">Private room | {% call utils::hint_text("A private room will not be displayed on the index page unless you already have a YAML file uploaded to it. The link to the room will need to be shared to other participants manually.") %}</label>
 
     <formset>
         {% match room %}

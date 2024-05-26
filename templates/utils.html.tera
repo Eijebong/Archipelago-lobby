@@ -1,0 +1,3 @@
+{% macro hint_text(text) %}
+<span class="help" title="{{text}}">?</span>
+{% endmacro %}
