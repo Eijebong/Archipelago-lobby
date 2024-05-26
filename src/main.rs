@@ -33,6 +33,7 @@ pub struct Context {
 }
 
 const CSS_VERSION: &str = std::env!("CSS_VERSION");
+const JS_VERSION: &str = std::env!("JS_VERSION");
 
 struct TplContext<'a> {
     is_admin: bool,
@@ -42,6 +43,7 @@ struct TplContext<'a> {
     err_msg: Vec<String>,
     warning_msg: Vec<String>,
     css_version: &'a str,
+    js_version: &'a str,
 }
 
 impl<'a> TplContext<'a> {
@@ -54,6 +56,7 @@ impl<'a> TplContext<'a> {
             err_msg: session.err_msg.drain(..).collect(),
             warning_msg: session.warning_msg.drain(..).collect(),
             css_version: CSS_VERSION,
+            js_version: JS_VERSION,
         };
 
         session
