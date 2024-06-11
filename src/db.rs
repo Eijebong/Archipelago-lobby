@@ -374,7 +374,7 @@ impl Instrumentation for DbInstrumentation {
                 let Some(query_start) = self.query_start else {
                     return;
                 };
-                let elapsed = Instant::now().duration_since(query_start);
+                let elapsed = query_start.elapsed();
                 let query = query.to_string().replace('\n', " ");
                 let query = query.split("--").next().unwrap().trim();
                 QUERY_HISTOGRAM
