@@ -181,6 +181,20 @@ async fn download_world<'a>(
         }
         // This is an unpatched unsupported apworld, redirect to the original download link
         (false, false) => {
+            if world.origin.is_local() {
+                let apworld_path = apworld_path.0.join(format!("{}.apworld", world_name));
+                if !apworld_path.exists() {
+                    return Err(anyhow::anyhow!(
+                        "This apworld seems to be in the host's index but not in their apworld folder."
+                    )
+                    .into());
+                }
+
+                return Ok(APWorldResponse::NamedFile(
+                    NamedFile::open(&apworld_path).await?,
+                ));
+            }
+
             return Ok(APWorldResponse::Redirect(Redirect::to(
                 world.url().to_string(),
             )));
