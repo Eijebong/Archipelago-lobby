@@ -69,6 +69,10 @@ impl WorldOrigin {
     pub fn is_supported(&self) -> bool {
         matches!(self, WorldOrigin::Supported(_))
     }
+
+    pub fn is_local(&self) -> bool {
+        matches!(self, WorldOrigin::Local(_))
+    }
 }
 
 impl World {
