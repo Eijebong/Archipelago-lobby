@@ -15,6 +15,7 @@ serde_path_to_error = "0.1.16"
 tempfile = "3.10.1"
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
 toml = "0.8.13"
+zip = "2.1.1"
 
 [features]
 cli = ["dep:clap"]

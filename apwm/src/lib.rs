@@ -1,13 +1,14 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use git2::{build::RepoBuilder, AutotagOption, FetchOptions};
 use http::Uri;
 use serde::{Deserialize, Deserializer};
+use tempfile::TempDir;
 use std::{
-    collections::BTreeMap,
-    fs::{remove_dir_all, OpenOptions},
-    path::{Path, PathBuf},
+    collections::BTreeMap, fs::{remove_dir_all, File, OpenOptions}, io::Write, path::{Path, PathBuf}, process::{Command, Stdio}
 };
 
+
+/// Copy the content of a directory `src` into `dst`. `dst` must be a directory.
 fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
     std::fs::create_dir_all(&dst)?;
     for entry in std::fs::read_dir(src)? {
@@ -22,16 +23,17 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
-fn copy_file_or_dir(destination: &Path, index_dir: &Path, local_path: &Path) -> Result<()> {
-    if destination.exists() {
-        delete_file_or_dir(destination)?;
+
+/// Copy a file or directory from `src` to `dst`. This will replace `dst` if it exists.
+fn copy_file_or_dir(src: &Path, dst: &Path) -> Result<()> {
+    if dst.exists() {
+        delete_file_or_dir(dst)?;
     }
 
-    let path = index_dir.join(local_path);
-    if path.is_dir() {
-        copy_dir_all(&path, &destination)?;
-    } else if path.is_file() {
-        std::fs::copy(&path, &destination)?;
+    if src.is_dir() {
+        copy_dir_all(&src, &dst)?;
+    } else if src.is_file() {
+        std::fs::copy(&src, &dst)?;
     }
 
     Ok(())
@@ -82,8 +84,44 @@ impl World {
             WorldOrigin::Supported(apworld) => {
                 self.download_supported(destination, ap_dir, &apworld).await
             }
-            WorldOrigin::Local(path) => copy_file_or_dir(destination, index_dir, &path),
+            WorldOrigin::Local(path) => copy_file_or_dir(&index_dir.join(path), destination),
+        }?;
+
+        for patch in &self.patches {
+            self.patch(&index_dir.join(Path::new(patch)), destination)?;
         }
+
+        Ok(())
+    }
+
+    fn patch(&self, patch: &Path, apworld_path: &Path) -> Result<()> {
+        let tmpdir = TempDir::new()?;
+        let apworld_tmpdir = match &self.origin {
+            WorldOrigin::Url(_) | WorldOrigin::Local(_) => {
+                // Unzip apworld in tempdir
+                let mut archive = zip::ZipArchive::new(File::open(apworld_path)?)?;
+                archive.extract(&tmpdir)?;
+
+                tmpdir.path().join(apworld_path.file_stem().unwrap())
+            },
+            WorldOrigin::Supported(apworld) => {
+                // Copy apworld in tempdir
+                copy_file_or_dir(&apworld_path.join(apworld), tmpdir.path())?;
+                tmpdir.path().join(apworld)
+            }
+        };
+
+        let mut patch_cmd = Command::new("/usr/bin/patch");
+        patch_cmd.arg("-p1").current_dir(&apworld_tmpdir).stdin(Stdio::piped());
+        let mut cmd = patch_cmd.spawn()?;
+        {
+            let mut stdin = cmd.stdin.take().context("Failed to write to stdin for patch")?;
+            stdin.write_all(std::fs::read_to_string(patch)?.as_bytes())?;
+        }
+
+        cmd.wait()?;
+
+        Ok(())
     }
 
     async fn download_uri(&self, uri: &Uri, destination: &Path) -> Result<()> {
@@ -194,6 +232,7 @@ impl Index {
             }
         }
 
+
         Ok(index)
     }
 
@@ -243,7 +282,7 @@ impl Index {
                     .file_name()
                     .ok_or_else(|| anyhow!("Error while getting filename"))?,
             );
-            copy_file_or_dir(&file_destination, ap_tmp_dir, &file_path)?;
+            copy_file_or_dir(&ap_tmp_dir.join(file_path), &file_destination)?;
         }
 
         let last_refreshed = destination.join(".last_refresh");
