@@ -42,3 +42,11 @@ pub(crate) fn delete_file_or_dir(path: &Path) -> Result<()> {
     Ok(())
 }
 
+pub(crate) mod de {
+    use serde::{Deserialize, Deserializer};
+
+    pub fn empty_string_as_none<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>, D::Error> {
+        let o: Option<String> = Option::deserialize(d)?;
+        Ok(o.filter(|s| !s.is_empty()))
+    }
+}

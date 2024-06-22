@@ -1,14 +1,14 @@
 use anyhow::{anyhow, Context, Result};
 use git2::{build::RepoBuilder, AutotagOption, FetchOptions};
 use http::Uri;
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 use tempfile::TempDir;
 use std::{
     collections::BTreeMap, fs::{remove_dir_all, File, OpenOptions}, io::Write, path::{Path, PathBuf}, process::{Command, Stdio}
 };
 
 mod utils;
-use utils::{copy_dir_all, copy_file_or_dir};
+use utils::{copy_dir_all, copy_file_or_dir, de};
 
 #[derive(Deserialize, Debug)]
 pub struct Common {
@@ -161,15 +161,10 @@ pub struct World {
     version: Option<String>,
     #[serde(default)]
     patches: Vec<String>,
-    #[serde(deserialize_with = "empty_string_as_none", default)]
+    #[serde(deserialize_with = "de::empty_string_as_none", default)]
     pub home: Option<String>,
     #[serde(default)]
     pub dependencies: Vec<String>,
-}
-
-fn empty_string_as_none<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>, D::Error> {
-    let o: Option<String> = Option::deserialize(d)?;
-    Ok(o.filter(|s| !s.is_empty()))
 }
 
 #[derive(Deserialize, Debug)]
