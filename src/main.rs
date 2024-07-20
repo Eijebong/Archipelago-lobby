@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use db::{DbInstrumentation, QUERY_HISTOGRAM};
-use diesel::r2d2::Pool;
 use diesel::pg::Pg;
+use diesel::r2d2::Pool;
 use diesel::{r2d2::ConnectionManager, PgConnection};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use dotenvy::dotenv;
@@ -127,7 +127,6 @@ async fn main() -> anyhow::Result<()> {
         Some(Box::new(DbInstrumentation::default()))
     })
     .expect("Failed to set diesel instrumentation");
-
 
     let manager = ConnectionManager::<PgConnection>::new(db_url);
     let db_pool = Pool::builder()

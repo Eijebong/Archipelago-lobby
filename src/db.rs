@@ -8,8 +8,8 @@ use crate::Context;
 use chrono::NaiveDateTime;
 use diesel::connection::Instrumentation;
 use diesel::dsl::{exists, now, AsSelect, SqlTypeOf};
-use diesel::prelude::*;
 use diesel::pg::Pg;
+use diesel::prelude::*;
 use once_cell::sync::Lazy;
 use prometheus::{HistogramOpts, HistogramVec};
 use rocket::State;
@@ -161,9 +161,7 @@ pub fn get_yamls_for_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Vec<
 
 pub fn get_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Room> {
     let mut conn = ctx.db_pool.get()?;
-    Ok(rooms::table
-        .find(uuid)
-        .first::<Room>(&mut conn)?)
+    Ok(rooms::table.find(uuid).first::<Room>(&mut conn)?)
 }
 
 pub fn get_room_and_author(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<(Room, String)> {
