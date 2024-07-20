@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
-use crate::diesel_uuid::Uuid as DieselUuid;
 use crate::error::Result;
 use crate::schema::{discord_users, rooms, yamls};
 use crate::Context;
@@ -10,7 +9,7 @@ use chrono::NaiveDateTime;
 use diesel::connection::Instrumentation;
 use diesel::dsl::{exists, now, AsSelect, SqlTypeOf};
 use diesel::prelude::*;
-use diesel::sqlite::Sqlite;
+use diesel::pg::Pg;
 use once_cell::sync::Lazy;
 use prometheus::{HistogramOpts, HistogramVec};
 use rocket::State;
@@ -19,7 +18,7 @@ use uuid::Uuid;
 #[derive(Insertable, diesel::AsChangeset, Debug)]
 #[diesel(table_name=rooms)]
 pub struct NewRoom<'a> {
-    pub id: DieselUuid,
+    pub id: Uuid,
     pub name: &'a str,
     pub close_date: NaiveDateTime,
     pub description: &'a str,
@@ -33,8 +32,8 @@ pub struct NewRoom<'a> {
 #[derive(Insertable)]
 #[diesel(table_name=yamls)]
 pub struct NewYaml<'a> {
-    id: DieselUuid,
-    room_id: DieselUuid,
+    id: Uuid,
+    room_id: Uuid,
     owner_id: i64,
     content: &'a str,
     player_name: &'a str,
@@ -43,7 +42,7 @@ pub struct NewYaml<'a> {
 
 #[derive(Debug, diesel::Queryable, diesel::Selectable)]
 pub struct Room {
-    pub id: DieselUuid,
+    pub id: Uuid,
     pub name: String,
     pub close_date: NaiveDateTime,
     pub description: String,
@@ -62,7 +61,7 @@ impl Room {
 
 #[derive(Debug, diesel::Selectable, diesel::Queryable)]
 pub struct Yaml {
-    pub id: DieselUuid,
+    pub id: Uuid,
     pub content: String,
     pub player_name: String,
     pub game: String,
@@ -135,13 +134,13 @@ pub fn get_yamls_for_room_with_author_names(
     ctx: &State<Context>,
 ) -> Result<Vec<(Yaml, String)>> {
     let mut conn = ctx.db_pool.get()?;
-    let room = rooms::table.find(DieselUuid(uuid)).first::<Room>(&mut conn);
+    let room = rooms::table.find(uuid).first::<Room>(&mut conn);
     let Ok(_room) = room else {
         Err(anyhow::anyhow!("Couldn't get room"))?
     };
 
     Ok(yamls::table
-        .filter(yamls::room_id.eq(DieselUuid(uuid)))
+        .filter(yamls::room_id.eq(uuid))
         .inner_join(discord_users::table)
         .select((Yaml::as_select(), discord_users::username))
         .get_results(&mut conn)?)
@@ -149,13 +148,13 @@ pub fn get_yamls_for_room_with_author_names(
 
 pub fn get_yamls_for_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Vec<Yaml>> {
     let mut conn = ctx.db_pool.get()?;
-    let room = rooms::table.find(DieselUuid(uuid)).first::<Room>(&mut conn);
+    let room = rooms::table.find(uuid).first::<Room>(&mut conn);
     let Ok(_room) = room else {
         Err(anyhow::anyhow!("Couldn't get room"))?
     };
 
     Ok(yamls::table
-        .filter(yamls::room_id.eq(DieselUuid(uuid)))
+        .filter(yamls::room_id.eq(uuid))
         .select(Yaml::as_select())
         .get_results::<Yaml>(&mut conn)?)
 }
@@ -163,7 +162,7 @@ pub fn get_yamls_for_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Vec<
 pub fn get_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Room> {
     let mut conn = ctx.db_pool.get()?;
     Ok(rooms::table
-        .find(DieselUuid(uuid))
+        .find(uuid)
         .first::<Room>(&mut conn)?)
 }
 
@@ -171,14 +170,14 @@ pub fn get_room_and_author(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<(Ro
     let mut conn = ctx.db_pool.get()?;
 
     Ok(rooms::table
-        .find(DieselUuid(uuid))
+        .find(uuid)
         .inner_join(discord_users::table)
         .select((Room::as_select(), discord_users::username))
         .first(&mut conn)?)
 }
 
 pub fn add_yaml_to_room(
-    uuid: uuid::Uuid,
+    room_id: uuid::Uuid,
     owner_id: i64,
     content: &str,
     parsed: &YamlFile,
@@ -197,9 +196,9 @@ pub fn add_yaml_to_room(
     };
 
     let new_yaml = NewYaml {
-        id: DieselUuid::random(),
+        id: Uuid::new_v4(),
         owner_id,
-        room_id: DieselUuid(uuid),
+        room_id,
         content,
         player_name: &parsed.name,
         game: &game_name,
@@ -213,7 +212,7 @@ pub fn add_yaml_to_room(
 
 pub fn remove_yaml(yaml_id: uuid::Uuid, ctx: &State<Context>) -> Result<()> {
     let mut conn = ctx.db_pool.get()?;
-    diesel::delete(yamls::table.find(DieselUuid(yaml_id))).execute(&mut conn)?;
+    diesel::delete(yamls::table.find(yaml_id)).execute(&mut conn)?;
 
     Ok(())
 }
@@ -221,7 +220,7 @@ pub fn remove_yaml(yaml_id: uuid::Uuid, ctx: &State<Context>) -> Result<()> {
 pub fn get_yaml_by_id(yaml_id: Uuid, ctx: &State<Context>) -> Result<Yaml> {
     let mut conn = ctx.db_pool.get()?;
     Ok(yamls::table
-        .find(DieselUuid(yaml_id))
+        .find(yaml_id)
         .select(Yaml::as_select())
         .first::<Yaml>(&mut conn)?)
 }
@@ -276,7 +275,7 @@ impl RoomFilter {
         }
     }
 
-    pub fn as_query<'f>(&self) -> rooms::BoxedQuery<'f, Sqlite, SqlTypeOf<AsSelect<Room, Sqlite>>> {
+    pub fn as_query<'f>(&self) -> rooms::BoxedQuery<'f, Pg, SqlTypeOf<AsSelect<Room, Pg>>> {
         let query = rooms::table
             .select(Room::as_select())
             .limit(self.max)

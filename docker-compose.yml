@@ -1,0 +1,8 @@
+services:
+  profile-postgres:
+    image: postgres
+    ports:
+      - "25432:5432"
+    environment:
+      POSTGRES_DB: aplobby
+      POSTGRES_PASSWORD: postgres

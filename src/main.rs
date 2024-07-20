@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
 use db::{DbInstrumentation, QUERY_HISTOGRAM};
-use diesel::connection::SimpleConnection;
 use diesel::r2d2::Pool;
-use diesel::sqlite::Sqlite;
-use diesel::{r2d2::ConnectionManager, SqliteConnection};
+use diesel::pg::Pg;
+use diesel::{r2d2::ConnectionManager, PgConnection};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use dotenvy::dotenv;
 use reqwest::Url;
@@ -19,7 +18,6 @@ use rocket_prometheus::PrometheusMetrics;
 use views::auth::{AdminSession, Session};
 
 mod db;
-mod diesel_uuid;
 mod error;
 mod schema;
 mod utils;
@@ -28,7 +26,7 @@ mod views;
 pub struct Discord;
 
 pub struct Context {
-    db_pool: Pool<ConnectionManager<SqliteConnection>>,
+    db_pool: Pool<ConnectionManager<PgConnection>>,
     yaml_validator_url: Option<Url>,
 }
 
@@ -70,7 +68,7 @@ impl<'a> TplContext<'a> {
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
 
 fn run_migrations(
-    connection: &mut impl MigrationHarness<Sqlite>,
+    connection: &mut impl MigrationHarness<Pg>,
 ) -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     connection.run_pending_migrations(MIGRATIONS)?;
 
@@ -118,19 +116,6 @@ impl<R: Handler + Clone> From<AdminOnlyRoute<R>> for Vec<Route> {
 struct AdminToken(String);
 struct APWorldPath(PathBuf);
 
-#[derive(Debug)]
-struct SqliteCustomizer;
-
-impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error> for SqliteCustomizer {
-    fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), diesel::r2d2::Error> {
-        conn.batch_execute(
-            "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 1000;",
-        )
-        .map_err(diesel::r2d2::Error::QueryError)?;
-        Ok(())
-    }
-}
-
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
@@ -143,11 +128,12 @@ async fn main() -> anyhow::Result<()> {
     })
     .expect("Failed to set diesel instrumentation");
 
-    let manager = ConnectionManager::<SqliteConnection>::new(db_url);
+
+    let manager = ConnectionManager::<PgConnection>::new(db_url);
     let db_pool = Pool::builder()
-        .connection_customizer(Box::new(SqliteCustomizer))
         .build(manager)
         .expect("Failed to create database pool, aborting");
+    dbg!("hello");
     {
         let mut connection = db_pool
             .get()

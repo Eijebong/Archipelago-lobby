@@ -109,7 +109,7 @@ fn create_room_submit(
     let author_id = session.user_id();
     let close_date = parse_date(room_form.close_date, room_form.tz_offset)?;
     let new_room = NewRoom {
-        id: crate::diesel_uuid::Uuid::random(),
+        id: Uuid::new_v4(),
         name: room_form.room_name,
         close_date: close_date.naive_utc(),
         description: room_form.room_description.trim(),
@@ -168,7 +168,7 @@ fn edit_room_submit(
     }
 
     let new_room = NewRoom {
-        id: crate::diesel_uuid::Uuid(room_id),
+        id: room_id,
         name: room_form.room_name,
         description: room_form.room_description.trim(),
         close_date: parse_date(room_form.close_date, room_form.tz_offset)?.naive_utc(),

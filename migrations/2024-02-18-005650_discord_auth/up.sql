@@ -8,4 +8,4 @@ CREATE TABLE discord_users(
     username VARCHAR NOT NULL
 );
 
-INSERT INTO discord_users(id, username) VALUES(-1, "Unknown user");
+INSERT INTO discord_users(id, username) VALUES(-1, 'Unknown user');

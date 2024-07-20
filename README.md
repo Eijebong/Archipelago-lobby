@@ -6,8 +6,15 @@ host archipelagoes easily.
 
 # Running this project
 
+
+## Start the database
+
 ```
-export DATABASE_URL="sqlite:///path/to/your/db.sqlite"
+docker compose up -d
+```
+
+```
+export DATABASE_URL="postgres:///postgres:postgres@127.0.0.1:25432/aplobby"
 export ADMIN_TOKEN="theadmintoken"
 cargo run
 ```

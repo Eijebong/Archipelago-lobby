@@ -4,8 +4,8 @@ CREATE TEMPORARY TABLE temp AS SELECT * FROM yamls;
 DROP TABLE yamls;
 
 CREATE TABLE yamls(
-    id BINARY PRIMARY KEY NOT NULL,
-    room_id BINARY NOT NULL REFERENCES rooms(id),
+    id UUID PRIMARY KEY NOT NULL,
+    room_id UUID NOT NULL REFERENCES rooms(id),
     content TEXT NOT NULL,
     player_name VARCHAR NOT NULL,
     game VARCHAR NOT NULL,
