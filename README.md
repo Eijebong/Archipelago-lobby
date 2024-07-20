@@ -16,6 +16,8 @@ docker compose up -d
 ```
 export DATABASE_URL="postgres:///postgres:postgres@127.0.0.1:25432/aplobby"
 export ADMIN_TOKEN="theadmintoken"
+export APWORLDS_INDEX_PATH="../apworlds_index"
+export APWORLDS_PATH="../apworlds_index/worlds"
 cargo run
 ```
 
