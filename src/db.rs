@@ -191,10 +191,8 @@ pub async fn add_yaml_to_room(
     let game_name = match &parsed.game {
         YamlGame::Name(name) => name.clone(),
         YamlGame::Map(map) => {
-            let weighted_map: HashMap<&String, &f64> = map
-                .iter()
-                .filter(|(_, &weight)| weight >= 1.0)
-                .collect();
+            let weighted_map: HashMap<&String, &f64> =
+                map.iter().filter(|(_, &weight)| weight >= 1.0).collect();
 
             if weighted_map.len() == 1 {
                 weighted_map.keys().next().unwrap().to_string()

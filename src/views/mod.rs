@@ -96,7 +96,8 @@ async fn room<'a>(
     let unique_game_count = yamls
         .iter()
         .filter(|yaml| !&yaml.0.game.starts_with("Random"))
-        .unique_by(|yaml| &yaml.0.game).count();
+        .unique_by(|yaml| &yaml.0.game)
+        .count();
 
     let is_my_room = session.is_admin || session.user_id == Some(room.author_id);
     let current_user_has_yaml_in_room = yamls
