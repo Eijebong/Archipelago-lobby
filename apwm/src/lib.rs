@@ -2,10 +2,14 @@ use anyhow::{anyhow, Context, Result};
 use git2::{build::RepoBuilder, AutotagOption, FetchOptions};
 use http::Uri;
 use serde::Deserialize;
-use tempfile::TempDir;
 use std::{
-    collections::BTreeMap, fs::{remove_dir_all, File, OpenOptions}, io::Write, path::{Path, PathBuf}, process::{Command, Stdio}
+    collections::BTreeMap,
+    fs::{remove_dir_all, File, OpenOptions},
+    io::Write,
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
 };
+use tempfile::TempDir;
 
 mod utils;
 use utils::{copy_dir_all, copy_file_or_dir, de};
@@ -65,7 +69,7 @@ impl World {
                 archive.extract(&tmpdir)?;
 
                 tmpdir.path().join(apworld_path.file_stem().unwrap())
-            },
+            }
             WorldOrigin::Supported(apworld) => {
                 // Copy apworld in tempdir
                 copy_file_or_dir(&apworld_path.join(apworld), tmpdir.path())?;
@@ -74,10 +78,16 @@ impl World {
         };
 
         let mut patch_cmd = Command::new("/usr/bin/patch");
-        patch_cmd.arg("-p1").current_dir(&apworld_tmpdir).stdin(Stdio::piped());
+        patch_cmd
+            .arg("-p1")
+            .current_dir(&apworld_tmpdir)
+            .stdin(Stdio::piped());
         let mut cmd = patch_cmd.spawn()?;
         {
-            let mut stdin = cmd.stdin.take().context("Failed to write to stdin for patch")?;
+            let mut stdin = cmd
+                .stdin
+                .take()
+                .context("Failed to write to stdin for patch")?;
             stdin.write_all(std::fs::read_to_string(patch)?.as_bytes())?;
         }
 
@@ -188,7 +198,6 @@ impl Index {
                 world.version = Some(index.common.archipelago_version.clone());
             }
         }
-
 
         Ok(index)
     }

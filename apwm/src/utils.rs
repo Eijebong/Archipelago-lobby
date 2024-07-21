@@ -16,7 +16,6 @@ pub(crate) fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
-
 /// Copy a file or directory from `src` to `dst`. This will replace `dst` if it exists.
 pub(crate) fn copy_file_or_dir(src: &Path, dst: &Path) -> Result<()> {
     if dst.exists() {
@@ -45,7 +44,9 @@ pub(crate) fn delete_file_or_dir(path: &Path) -> Result<()> {
 pub(crate) mod de {
     use serde::{Deserialize, Deserializer};
 
-    pub fn empty_string_as_none<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>, D::Error> {
+    pub fn empty_string_as_none<'de, D: Deserializer<'de>>(
+        d: D,
+    ) -> Result<Option<String>, D::Error> {
         let o: Option<String> = Option::deserialize(d)?;
         Ok(o.filter(|s| !s.is_empty()))
     }
