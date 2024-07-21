@@ -1,9 +1,9 @@
 ---
-trust-domain: "mozilla"
+trust-domain: "ap"
 task-priority: low
 
 taskgraph:
-  cached-task-prefix: "mozilla.v2.archipelago-lobby"
+  cached-task-prefix: "ap.v2.archipelago-lobby"
   repositories:
     archipelago_lobby:
       name: "Archipelago-lobby"
