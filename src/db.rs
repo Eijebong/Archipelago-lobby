@@ -188,8 +188,15 @@ pub fn add_yaml_to_room(
     let game_name = match &parsed.game {
         YamlGame::Name(name) => name.clone(),
         YamlGame::Map(map) => {
-            if map.len() == 1 {
-                map.keys().next().unwrap().clone()
+            let weighted_map: HashMap<&String, &f64> = map
+                .iter()
+                .filter(|(_, &weight)| weight >= 1.0)
+                .collect();
+
+            if weighted_map.len() == 1 {
+                weighted_map.keys().next().unwrap().to_string()
+            } else if weighted_map.len() > 1 {
+                format!("Random ({})", weighted_map.len())
             } else {
                 "Unknown".to_string()
             }
