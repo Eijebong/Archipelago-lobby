@@ -3,7 +3,7 @@ FROM $DOCKER_IMAGE_PARENT AS builder
 # %include .
 COPY /topsrcdir /src
 WORKDIR /src
-RUN cargo build --release
+RUN cargo build --bin apwm --features cli --release
 
 FROM debian:12-slim
 
