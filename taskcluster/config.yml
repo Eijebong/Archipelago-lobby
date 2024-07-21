@@ -24,4 +24,4 @@ workers:
       provisioner: ap
       implementation: docker-worker
       os: linux
-      worker-type: linux-small
+      worker-type: linux-medium
