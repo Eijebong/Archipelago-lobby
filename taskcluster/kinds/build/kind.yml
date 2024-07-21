@@ -5,7 +5,6 @@ kind-dependencies:
   - docker-image
 
 transforms:
-    - src.transforms.rust_docker_args:transforms
     - taskgraph.transforms.docker_image:transforms
     - taskgraph.transforms.cached_tasks:transforms
     - taskgraph.transforms.task:transforms
