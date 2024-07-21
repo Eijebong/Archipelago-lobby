@@ -95,7 +95,7 @@ async fn room<'a>(
     let unique_player_count = yamls.iter().unique_by(|yaml| yaml.0.owner_id).count();
     let unique_game_count = yamls
         .iter()
-        .filter(|yaml| !&yaml.0.game.starts_with("Random"))
+        .filter(|yaml| !&yaml.0.game.starts_with("Random ("))
         .unique_by(|yaml| &yaml.0.game)
         .count();
 
