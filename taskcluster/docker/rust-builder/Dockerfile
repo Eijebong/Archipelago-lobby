@@ -1,6 +1,7 @@
 FROM rust:1.79-bullseye
 
 RUN apt update && apt install libpq-dev
+RUN rustup component add clippy rustfmt
 
 # Add worker user
 RUN mkdir /builds && \
