@@ -11,11 +11,9 @@ transforms:
     - eije_taskgraph.transforms.reduce_artifacts:transforms
     - eije_taskgraph.transforms.podman:transforms
 
-task-defaults:
-  run-on-tasks-for: ["github-push"]
-  run-on-git-branches: ["main", "prod", "ci"]
-
 tasks:
     ap-lobby:
+      run-on-tasks-for: [github-push]
+      run-on-git-branches: ["main", "prod", "ci"]
       worker-type: linux-medium
       parent: rust-builder
