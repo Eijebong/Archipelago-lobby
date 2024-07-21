@@ -93,7 +93,10 @@ async fn room<'a>(
     let mut yamls = db::get_yamls_for_room_with_author_names(uuid, ctx).await?;
     yamls.sort_by(|a, b| a.0.game.cmp(&b.0.game));
     let unique_player_count = yamls.iter().unique_by(|yaml| yaml.0.owner_id).count();
-    let unique_game_count = yamls.iter().unique_by(|yaml| &yaml.0.game).count();
+    let unique_game_count = yamls
+        .iter()
+        .filter(|yaml| !&yaml.0.game.starts_with("Random"))
+        .unique_by(|yaml| &yaml.0.game).count();
 
     let is_my_room = session.is_admin || session.user_id == Some(room.author_id);
     let current_user_has_yaml_in_room = yamls
