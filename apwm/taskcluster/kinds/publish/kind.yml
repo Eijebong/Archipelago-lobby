@@ -1,0 +1,19 @@
+loader: taskgraph.loader.transform:loader
+
+transforms:
+  - eije_taskgraph.transforms.push_image
+  - taskgraph.transforms.run
+  - taskgraph.transforms.task
+
+kind-dependencies:
+  - build
+
+task-defaults:
+  worker-type: "linux-small"
+  run-on-tasks-for: ["github-push"]
+  run-on-git-branches: ["main"]
+
+tasks:
+  apwm:
+    repo: ghcr.io/eijebong/apwm
+    secret: github_deploy

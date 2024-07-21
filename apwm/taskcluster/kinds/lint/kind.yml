@@ -1,0 +1,23 @@
+---
+task-defaults:
+  worker:
+    docker-image: {in-tree: rust-builder}
+    max-run-time: 1800
+
+tasks:
+  fmt:
+    worker-type: linux-small
+    description: Run cargo fmt
+    run:
+      using: run-task
+      use-caches: false
+      command: >-
+        cd $VCS_PATH && cargo fmt --check
+  clippy:
+    worker-type: linux-medium
+    description: Run cargo clippy
+    run:
+      using: run-task
+      use-caches: false
+      command: >-
+        cd $VCS_PATH && cargo clippy

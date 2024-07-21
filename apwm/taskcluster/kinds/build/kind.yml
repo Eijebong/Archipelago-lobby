@@ -1,0 +1,19 @@
+---
+loader: taskgraph.loader.transform:loader
+
+kind-dependencies:
+  - docker-image
+
+transforms:
+    - taskgraph.transforms.docker_image:transforms
+    - taskgraph.transforms.cached_tasks:transforms
+    - taskgraph.transforms.task:transforms
+    - eije_taskgraph.transforms.reduce_artifacts:transforms
+    - eije_taskgraph.transforms.podman:transforms
+
+tasks:
+    apwm:
+      run-on-tasks-for: [github-push]
+      run-on-git-branches: ["main"]
+      worker-type: linux-medium
+      parent: rust-builder
