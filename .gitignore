@@ -3,3 +3,4 @@
 /Rocket.toml
 /.env
 /apworlds
+__pycache__/

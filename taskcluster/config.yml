@@ -1,0 +1,27 @@
+---
+trust-domain: "mozilla"
+task-priority: low
+
+taskgraph:
+  cached-task-prefix: "mozilla.v2.archipelago-lobby"
+  repositories:
+    archipelago_lobby:
+      name: "Archipelago-lobby"
+
+workers:
+  aliases:
+    linux-small:
+      provisioner: ap
+      implementation: docker-worker
+      os: linux
+      worker-type: linux-small
+    linux-medium:
+      provisioner: ap
+      implementation: docker-worker
+      os: linux
+      worker-type: linux-medium
+    images:
+      provisioner: ap
+      implementation: docker-worker
+      os: linux
+      worker-type: linux-small

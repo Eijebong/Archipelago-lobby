@@ -1,0 +1,4 @@
+FROM $DOCKER_IMAGE_PARENT
+
+# %include .
+

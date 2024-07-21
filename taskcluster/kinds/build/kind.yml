@@ -1,0 +1,18 @@
+---
+loader: taskgraph.loader.transform:loader
+
+kind-dependencies:
+  - docker-image
+
+transforms:
+    - src.transforms.rust_docker_args:transforms
+    - taskgraph.transforms.docker_image:transforms
+    - taskgraph.transforms.cached_tasks:transforms
+    - taskgraph.transforms.task:transforms
+    - eije_taskgraph.transforms.reduce_artifacts:transforms
+    - eije_taskgraph.transforms.podman:transforms
+
+tasks:
+    ap-lobby:
+      worker-type: linux-medium
+      parent: rust-builder
