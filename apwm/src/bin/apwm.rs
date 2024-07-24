@@ -1,14 +1,19 @@
 use anyhow::Result;
 use clap::Parser;
 use std::path::{Path, PathBuf};
+use tempfile::tempdir;
 
 #[derive(clap::Subcommand)]
 enum Command {
-    Refresh {
+    Update {
         #[clap(short)]
         index_path: PathBuf,
-        #[clap(short = 'd')]
-        apworlds_path: PathBuf,
+    },
+    Download {
+        #[clap(short)]
+        index_path: PathBuf,
+        #[clap(short)]
+        destination: PathBuf,
     },
 }
 
@@ -22,28 +27,36 @@ struct Args {
 async fn main() -> Result<()> {
     let cli = Args::parse();
     match cli.command {
-        Command::Refresh {
+        Command::Update { index_path } => {
+            update(&index_path).await?;
+        }
+        Command::Download {
             index_path,
-            apworlds_path,
+            destination,
         } => {
-            refresh(&index_path, &apworlds_path).await?;
+            download(&index_path, &destination).await?;
         }
     }
 
     Ok(())
 }
 
-async fn refresh(index_path: &Path, destination: &Path) -> Result<()> {
+async fn download(index_path: &Path, destination: &Path) -> Result<()> {
     let index_toml = index_path.join("index.toml");
     let index = apwm::Index::new(&index_toml)?;
+    index.refresh_into(destination, false).await?;
 
-    if !index.should_refresh(&destination) {
-        println!("The index hasn't been changed since the last refresh, nothing to do.");
-        return Ok(());
-    }
+    Ok(())
+}
 
-    println!("Refreshing apworlds into {}", destination.to_string_lossy());
-    index.refresh_into(destination).await?;
+async fn update(index_path: &Path) -> Result<()> {
+    let index_toml = index_path.join("index.toml");
+    let index = apwm::Index::new(&index_toml)?;
+    let destination = tempdir()?;
+
+    let new_lock = index.refresh_into(destination.path(), true).await?;
+
+    new_lock.write()?;
 
     Ok(())
 }

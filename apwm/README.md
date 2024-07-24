@@ -5,19 +5,19 @@ worlds based on an index file.
 
 ## Index file
 
-The index file is made of a `common` section and then `worlds`.
+The index file is made of a base file and then `world` ones.
 
-### Common section
+### Base file
 
-The common section contains information about the index and the current
-archipelago version supported by the index.
+The base file should be named `index.toml` and contains information to be
+displayed about the index as well as the base version for archipelago.
+
 
 ```toml
-[common]
 archipelago_repo = "https://github.com/ArchipelagoMW/Archipelago.git"
-archipelago_version = "0.4.6"
-homepage = "https://github.com/Eijebong/Archipelago-index"
-required_global_files = ["alttp", "AutoSNIClient.py", "AutoWorld.py", "Files.py", "generic", "__init__.py", "LauncherComponents.py"]
+archipelago_version = "0.5.0"
+index_homepage = "https://github.com/Eijebong/Archipelago-index"
+index_dir = "index"
 ```
 
 The `archipelago_repo` and `archipelago_version` will be used to download
@@ -27,41 +27,39 @@ and a proper git ref.
 The `homepage` is just a way for users of the index to trace it back to
 something.
 
-`required_global_files` contains a list of files/directories in the `worlds` folder that aren't worlds but are required for archipelago to work.
+It points to an `index_dir` directory containing different worlds files.
 
-### Supported worlds
+### World file
 
-Every supported world should have its own section in the index, looking like this:
+Every world should be contained in its own file, named `{world_name}.toml`. The
+world name **must** match the apworld name.
+
+For example, for pokemon crystal, you'd have an `index/pokemon_crystal.toml` file with the following content:
+```toml
+name = "Pokemon Crystal"
+home = "https://discord.com/channels/731205301247803413/1057476528419647572"
+
+[versions]
+"2.0.0" = { "url" = "https://github.com/AliceMousie/Archipelago/releases/download/2.0.0/pokemon_crystal.apworld" }
+"2.1.0" = { "url" = "https://github.com/AliceMousie/Archipelago/releases/download/2.1.0/pokemon_crystal.apworld" }
+```
+
+- `name`: The visible name for the APWorld, this could be anything but should probably be the title of the game
+- `home`: A URL to where people can find information about the apworld. This can be a github repo, a discord thread link...
+
+Note that the versions must be semver compliant.
+
+#### Templating URLs
+
+Because URLs are usually the same and the version is the only change, you can
+have a `default_url` for a world containing `{{version}}`.
+The toml above for pokemon crytsal would thus become:
 
 ```toml
-[worlds.pokemon_emerald]
-name = "Pokemon Emerald"
-supported = "pokemon_emerald"
-patches = []
-```
-
-The world key should match the apworld name.
-- `name`: The visible name for the APWorld, this could be anything but should probably be the title of the game
-- `supported`: This key should match the name of the directory of the apworld in the archipelago repository. It should match the world key.
-- `patches`: A list of patches to apply to the apworld. Note: this isn't implemented yet
-- `dependencies`: A list of files that are required for the apworld to work.
-  This should not be used with unsupported worlds. It's only here because some
-  worlds (sc2) have 3 folders in the original worlds folder for some reason
-
-### Unsupported worlds
-
-```
-[worlds.pokemon_crystal]
 name = "Pokemon Crystal"
-version = "2.0.0"
-url = "https://github.com/AliceMousie/Archipelago/releases/download/2.0.0/pokemon_crystal.apworld"
 home = "https://discord.com/channels/731205301247803413/1057476528419647572"
+default_url = "https://github.com/AliceMousie/Archipelago/releases/download/{{version}}/pokemon_crystal.apworld"
+[versions]
+"2.0.0" = {}
+"2.1.0" = {}
 ```
-
-As for supported worlds, the world key must match the apworld name.
-
-- `name`: The visible name for the APWorld, this could be anything but should probably be the title of the game
-- `version`: The version of the apworld. If it doesn't have any, make one up that would make sense to people
-- `url`: The URL where the apworld can be downloaded. This needs to be a direct download URL.
-- `homepage`: An URL to where people can find information about the apworld. This can be a github repo, a discord thread link...
-- `patches`: A list of patches to apply to the apworld. Note: this isn't implemented yet
