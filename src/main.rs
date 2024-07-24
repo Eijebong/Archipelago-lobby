@@ -1,11 +1,10 @@
-use std::path::PathBuf;
-
 use db::{DbInstrumentation, QUERY_HISTOGRAM};
 use diesel::pg::Pg;
 use diesel::r2d2::Pool;
 use diesel::{r2d2::ConnectionManager, PgConnection};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use dotenvy::dotenv;
+use index_manager::IndexManager;
 use reqwest::Url;
 use rocket::data::{Limits, ToByteUnit};
 use rocket::http::{CookieJar, Method, Status};
@@ -19,6 +18,7 @@ use views::auth::{AdminSession, Session};
 
 mod db;
 mod error;
+mod index_manager;
 mod schema;
 mod utils;
 mod views;
@@ -114,11 +114,15 @@ impl<R: Handler + Clone> From<AdminOnlyRoute<R>> for Vec<Route> {
 }
 
 struct AdminToken(String);
-struct APWorldPath(PathBuf);
 
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "debug");
+    }
+    env_logger::init();
+
     let db_url = std::env::var("DATABASE_URL").expect("Plox provide a DATABASE_URL env variable");
     let admin_token =
         AdminToken(std::env::var("ADMIN_TOKEN").expect("Plox provide a ADMIN_TOKEN env variable"));
@@ -132,7 +136,6 @@ async fn main() -> anyhow::Result<()> {
     let db_pool = Pool::builder()
         .build(manager)
         .expect("Failed to create database pool, aborting");
-    dbg!("hello");
     {
         let mut connection = db_pool
             .get()
@@ -165,15 +168,8 @@ async fn main() -> anyhow::Result<()> {
         .register(Box::new(QUERY_HISTOGRAM.clone()))
         .expect("Failed to register query histogram");
 
-    let apworlds_index_path = std::path::PathBuf::from(
-        std::env::var("APWORLDS_INDEX_PATH").expect("Provide a `APWORLDS_INDEX_PATH` env variable"),
-    );
-    let index_file = apworlds_index_path.join("index.toml");
-    let index = apwm::Index::new(&index_file)?;
-
-    let apworlds_path = APWorldPath(std::path::PathBuf::from(
-        std::env::var("APWORLDS_PATH").expect("Provide a `APWORLDS_PATH` env variable"),
-    ));
+    let mut index_manager = IndexManager::new()?;
+    index_manager.update().await?;
 
     rocket::custom(figment.clone())
         .attach(prometheus.clone())
@@ -186,8 +182,7 @@ async fn main() -> anyhow::Result<()> {
         .manage(ctx)
         .manage(figment)
         .manage(admin_token)
-        .manage(apworlds_path)
-        .manage(index)
+        .manage(index_manager)
         .attach(OAuth2::<Discord>::fairing("discord"))
         .launch()
         .await?;
