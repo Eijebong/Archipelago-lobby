@@ -10,7 +10,7 @@ FROM debian:12-slim
 WORKDIR /usr/local/bin
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt update && apt install -y python3 bash git openssh-client
+RUN apt update && apt install -y python3 bash git openssh-client openssl
 
 COPY --from=builder /src/target/release/apwm /usr/local/bin/
 
