@@ -12,5 +12,16 @@ WORKDIR /usr/local/bin
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt update && apt install -y python3 bash
 
-# %include-run-task
 COPY --from=builder /src/target/release/apwm /usr/local/bin/
+
+# Add worker user
+RUN mkdir /builds && \
+    useradd -d /builds/worker -s /bin/bash -m worker && \
+    mkdir /builds/worker/artifacts && \
+    chown worker:worker /builds/worker/artifacts
+
+ENV SHELL=/bin/bash \
+    HOME=/builds/worker \
+    USER=worker
+# %include-run-task
+
