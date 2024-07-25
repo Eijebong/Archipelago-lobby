@@ -17,8 +17,8 @@ use rocket::State;
 use crate::error::Result;
 use crate::utils::RenamedFile;
 use crate::utils::ZipFile;
-use crate::TplContext;
 use crate::IndexManager;
+use crate::TplContext;
 
 use super::auth::AdminSession;
 use super::auth::LoggedInSession;
@@ -56,7 +56,6 @@ async fn download_all(
     index_manager: &State<IndexManager>,
     _session: LoggedInSession,
 ) -> Result<ZipFile> {
-
     let mut writer = zip::ZipWriter::new(std::io::Cursor::new(vec![]));
     let options =
         zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
@@ -67,7 +66,9 @@ async fn download_all(
     let index = index_manager.index.read().await;
     let mut buffer = Vec::new();
     for (world_name, world) in &index.worlds {
-        let Some((version, _)) = world.get_latest_release() else { continue };
+        let Some((version, _)) = world.get_latest_release() else {
+            continue;
+        };
         let file_path = index.get_world_local_path(apworlds_path, world_name, version);
         writer.start_file(format!("{}/{}.apworld", prefix, world_name), options)?;
         File::open(&file_path)?.read_to_end(&mut buffer)?;
@@ -104,7 +105,6 @@ async fn download_world<'a>(
         .get_version(&version)
         .context("The specified version doesn't exist for this apworld")?;
 
-
     if origin.is_local() || origin.has_patches() {
         let apworld_path = world.get_path_for_origin(origin)?;
         if !apworld_path.exists() {
@@ -115,24 +115,19 @@ async fn download_world<'a>(
         }
 
         let value = format!("attachment; filename=\"{}.apworld\"", world_name);
-        return Ok(APWorldResponse::NamedFile(
-                RenamedFile {
-                    inner: NamedFile::open(&apworld_path).await?,
-                    headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
-                }
-        ));
+        return Ok(APWorldResponse::NamedFile(RenamedFile {
+            inner: NamedFile::open(&apworld_path).await?,
+            headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
+        }));
     }
 
     return Ok(APWorldResponse::Redirect(Redirect::to(
-        world.get_url_for_version(&version)?
+        world.get_url_for_version(&version)?,
     )));
 }
 
 #[rocket::get("/worlds/refresh")]
-async fn refresh_worlds(
-    index_manager: &State<IndexManager>,
-    _session: AdminSession,
-) -> Result<()> {
+async fn refresh_worlds(index_manager: &State<IndexManager>, _session: AdminSession) -> Result<()> {
     index_manager.update().await?;
     Ok(())
 }
