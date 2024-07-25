@@ -45,7 +45,7 @@ admins = [<discord_id_of_admin>, ...]
 When uploading a YAML to a lobby, you can opt-in to validate YAMLs. It will use
 this service, https://github.com/Eijebong/Archipelago-yaml-checker, just point `YAML_VALIDATOR_URL` to it.
 
-`export YAML_VALIDATOR_URL="http://127.0.0.1:5000/check_yaml"`
+`export YAML_VALIDATOR_URL="http://127.0.0.1:5000"`
 
 ## APWorlds list
 

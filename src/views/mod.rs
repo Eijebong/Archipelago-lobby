@@ -225,7 +225,7 @@ async fn validate_yaml(yaml: &str, ctx: &State<Context>) -> Result<Vec<String>> 
     let form = reqwest::multipart::Form::new().text("data", yaml.to_string());
 
     let response = client
-        .post(ctx.yaml_validator_url.clone().unwrap())
+        .post(ctx.yaml_validator_url.as_ref().unwrap().join("/check_yaml")?)
         .multipart(form)
         .send()
         .await
