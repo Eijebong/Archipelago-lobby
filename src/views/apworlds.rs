@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::Read;
 use std::io::Write;
 
-use anyhow::Context;
+use anyhow::Context as _;
 use apwm::Index;
 use askama::Template;
 use rocket::fs::NamedFile;
@@ -19,6 +19,7 @@ use crate::utils::RenamedFile;
 use crate::utils::ZipFile;
 use crate::IndexManager;
 use crate::TplContext;
+use crate::Context;
 
 use super::auth::AdminSession;
 use super::auth::LoggedInSession;
@@ -127,8 +128,13 @@ async fn download_world<'a>(
 }
 
 #[rocket::get("/worlds/refresh")]
-async fn refresh_worlds(index_manager: &State<IndexManager>, _session: AdminSession) -> Result<()> {
+async fn refresh_worlds(index_manager: &State<IndexManager>, _session: AdminSession, ctx: &State<Context>) -> Result<()> {
     index_manager.update().await?;
+    let Some(yaml_validator_url) = ctx.yaml_validator_url.as_ref() else { return Ok(()) };
+
+    let client = reqwest::Client::new();
+    let _ = client.get(yaml_validator_url.join("/restart")?).send().await;
+
     Ok(())
 }
 
