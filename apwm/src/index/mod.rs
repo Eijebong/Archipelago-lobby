@@ -18,7 +18,7 @@ use std::{
 
 use world::World;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Index {
     #[serde(skip)]
     pub path: PathBuf,

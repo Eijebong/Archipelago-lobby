@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Deserialize, Debug, PartialEq, Default)]
+#[derive(Deserialize, Debug, PartialEq, Default, Clone)]
 pub enum WorldOrigin {
     #[serde(rename = "url")]
     Url(#[serde(with = "http_serde::uri")] Uri),
@@ -32,7 +32,7 @@ impl WorldOrigin {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct World {
     #[serde(skip)]
     pub path: PathBuf,
