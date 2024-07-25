@@ -168,7 +168,7 @@ async fn main() -> anyhow::Result<()> {
         .register(Box::new(QUERY_HISTOGRAM.clone()))
         .expect("Failed to register query histogram");
 
-    let mut index_manager = IndexManager::new()?;
+    let index_manager = IndexManager::new()?;
     index_manager.update().await?;
 
     rocket::custom(figment.clone())

@@ -1,11 +1,12 @@
 use std::path::{Path, PathBuf};
 use anyhow::Result;
+use tokio::sync::RwLock;
 
 use apwm::Index;
 use git2::{Repository, ResetType};
 
 pub struct IndexManager {
-    index: Index,
+    pub index: RwLock<Index>,
     index_path: PathBuf,
     index_repo_url: String,
     pub apworlds_path: PathBuf,
@@ -29,7 +30,7 @@ impl IndexManager {
         );
 
         let manager = Self {
-            index,
+            index: RwLock::new(index),
             apworlds_path,
             index_path,
             index_repo_url
@@ -38,11 +39,11 @@ impl IndexManager {
         Ok(manager)
     }
 
-    pub async fn update(&mut self) -> Result<()> {
+    pub async fn update(&self) -> Result<()> {
         clone_or_update(&self.index_repo_url, &self.index_path)?;
         let new_index = self.parse_index()?;
         new_index.refresh_into(&self.apworlds_path, false).await?;
-        self.index = new_index;
+        *self.index.write().await = new_index;
 
 
         Ok(())
@@ -53,10 +54,6 @@ impl IndexManager {
         let index = apwm::Index::new(&index_file)?;
 
         Ok(index)
-    }
-
-    pub fn index(&self) -> &Index {
-        &self.index
     }
 }
 

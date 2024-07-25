@@ -1,11 +1,9 @@
-use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;
 
 use anyhow::Context;
 use apwm::Index;
-use apwm::World;
 use askama::Template;
 use rocket::fs::NamedFile;
 use rocket::http::hyper::header::CONTENT_DISPOSITION;
@@ -22,14 +20,14 @@ use crate::utils::ZipFile;
 use crate::TplContext;
 use crate::IndexManager;
 
+use super::auth::AdminSession;
 use super::auth::LoggedInSession;
 
 #[derive(Template)]
 #[template(path = "apworlds.html")]
 struct WorldsListTpl<'a> {
     base: TplContext<'a>,
-    unsupported_apworlds: &'a BTreeMap<String, World>,
-    index: &'a Index,
+    index: Index,
 }
 
 #[derive(Responder)]
@@ -40,22 +38,21 @@ enum APWorldResponse<'a> {
 }
 
 #[rocket::get("/worlds")]
-fn list_worlds<'a>(
+async fn list_worlds<'a>(
     index_manager: &'a State<IndexManager>,
     session: LoggedInSession,
-    cookies: &CookieJar,
+    cookies: &CookieJar<'a>,
 ) -> Result<WorldsListTpl<'a>> {
+    let index = index_manager.index.read().await.clone();
 
-    let index = index_manager.index();
     Ok(WorldsListTpl {
         base: TplContext::from_session("apworlds", session.0, cookies),
-        unsupported_apworlds: &index.worlds,
         index,
     })
 }
 
 #[rocket::get("/worlds/download_all")]
-fn download_all(
+async fn download_all(
     index_manager: &State<IndexManager>,
     _session: LoggedInSession,
 ) -> Result<ZipFile> {
@@ -67,7 +64,7 @@ fn download_all(
     let prefix = "custom_worlds";
     writer.add_directory(prefix, options)?;
 
-    let index = index_manager.index();
+    let index = index_manager.index.read().await;
     let mut buffer = Vec::new();
     for (world_name, world) in &index.worlds {
         let Some((version, _)) = world.get_latest_release() else { continue };
@@ -94,7 +91,7 @@ async fn download_world<'a>(
     world_name: &str,
     _session: LoggedInSession,
 ) -> Result<APWorldResponse<'a>> {
-    let index = index_manager.index();
+    let index = index_manager.index.read().await;
 
     let world = index
         .worlds
@@ -131,6 +128,15 @@ async fn download_world<'a>(
     )));
 }
 
+#[rocket::get("/worlds/refresh")]
+async fn refresh_worlds(
+    index_manager: &State<IndexManager>,
+    _session: AdminSession,
+) -> Result<()> {
+    index_manager.update().await?;
+    Ok(())
+}
+
 pub fn routes() -> Vec<rocket::Route> {
-    routes![list_worlds, download_all, download_world,]
+    routes![list_worlds, download_all, download_world, refresh_worlds]
 }
