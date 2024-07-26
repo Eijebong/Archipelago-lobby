@@ -25,6 +25,10 @@ reqwest = { version = "0.12", features = ["multipart", "json"] }
 rocket = { version = "0.5.0", features = ["uuid", "secrets"] }
 rocket_oauth2 = "0.5.0"
 rocket_prometheus = "0.10.1"
+rustls = "0.23.8"
+rustls-native-certs = "0.7.1"
+tokio-postgres = "0.7.7"
+tokio-postgres-rustls = "0.12.0"
 rust-embed = { version = "8.2.0", features = ["rocket"] }
 serde = { version = "1.0.195", features = ["derive"] }
 serde_json = "1.0.111"
@@ -38,6 +42,7 @@ log = "0.4.22"
 env_logger = "0.11.4"
 tokio = { version = "1.39.1", features = ["sync"] }
 deadpool = "0.12.1"
+futures-util = "0.3.30"
 
 [profile.dev.package.askama_derive]
 opt-level = 3
