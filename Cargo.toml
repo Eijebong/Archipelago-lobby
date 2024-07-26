@@ -26,7 +26,6 @@ rocket = { version = "0.5.0", features = ["uuid", "secrets"] }
 rocket_oauth2 = "0.5.0"
 rocket_prometheus = "0.10.1"
 rustls = "0.23.8"
-rustls-native-certs = "0.7.1"
 tokio-postgres = "0.7.7"
 tokio-postgres-rustls = "0.12.0"
 rust-embed = { version = "8.2.0", features = ["rocket"] }
@@ -43,6 +42,7 @@ env_logger = "0.11.4"
 tokio = { version = "1.39.1", features = ["sync"] }
 deadpool = "0.12.1"
 futures-util = "0.3.30"
+rustls-pki-types = "1.7.0"
 
 [profile.dev.package.askama_derive]
 opt-level = 3
