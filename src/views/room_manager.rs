@@ -44,10 +44,10 @@ struct ListRoomsTpl<'a> {
 }
 
 #[get("/rooms")]
-fn my_rooms<'a>(
+async fn my_rooms<'a>(
     ctx: &State<Context>,
     session: LoggedInSession,
-    cookies: &CookieJar,
+    cookies: &CookieJar<'a>,
 ) -> Result<ListRoomsTpl<'a>> {
     let author_filter = if session.0.is_admin {
         Author::Any
@@ -63,14 +63,16 @@ fn my_rooms<'a>(
                 .with_author(author_filter)
                 .with_private(true),
             ctx,
-        )?,
+        )
+        .await?,
         closed_rooms: db::list_rooms(
             RoomFilter::new()
                 .with_status(db::RoomStatus::Closed)
                 .with_author(author_filter)
                 .with_private(true),
             ctx,
-        )?,
+        )
+        .await?,
     })
 }
 #[get("/create-room")]
@@ -94,10 +96,10 @@ fn parse_date(date: &str, tz_offset: i32) -> Result<DateTime<Utc>> {
 }
 
 #[post("/create-room", data = "<room_form>")]
-fn create_room_submit(
+async fn create_room_submit<'a>(
     redirect_to: &RedirectTo,
     ctx: &State<Context>,
-    room_form: Form<CreateRoomForm>,
+    room_form: Form<CreateRoomForm<'a>>,
     session: LoggedInSession,
 ) -> Result<Redirect> {
     redirect_to.set("/create-room");
@@ -119,19 +121,19 @@ fn create_room_submit(
         yaml_validation: room_form.yaml_validation,
         allow_unsupported: room_form.allow_unsupported,
     };
-    let new_room = db::create_room(&new_room, ctx)?;
+    let new_room = db::create_room(&new_room, ctx).await?;
 
     Ok(Redirect::to(format!("/room/{}", new_room.id)))
 }
 
 #[get("/edit-room/<room_id>")]
-fn edit_room<'a>(
+async fn edit_room<'a>(
     ctx: &State<Context>,
     room_id: Uuid,
     session: LoggedInSession,
-    cookies: &CookieJar,
+    cookies: &CookieJar<'a>,
 ) -> Result<EditRoom<'a>> {
-    let room = crate::db::get_room(room_id, ctx)?;
+    let room = crate::db::get_room(room_id, ctx).await?;
     let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
 
     if !is_my_room {
@@ -145,16 +147,16 @@ fn edit_room<'a>(
 }
 
 #[post("/edit-room/<room_id>", data = "<room_form>")]
-fn edit_room_submit(
+async fn edit_room_submit<'a>(
     redirect_to: &RedirectTo,
     room_id: Uuid,
-    room_form: Form<CreateRoomForm>,
+    room_form: Form<CreateRoomForm<'a>>,
     ctx: &State<Context>,
     session: LoggedInSession,
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/edit-room/{}", room_id));
 
-    let room = crate::db::get_room(room_id, ctx)?;
+    let room = crate::db::get_room(room_id, ctx).await?;
     let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
     if !is_my_room {
         return Err(anyhow::anyhow!("You're not allowed to edit this room").into());
@@ -179,7 +181,7 @@ fn edit_room_submit(
         allow_unsupported: room_form.allow_unsupported,
     };
 
-    crate::db::update_room(&new_room, ctx)?;
+    crate::db::update_room(&new_room, ctx).await?;
 
     Ok(Redirect::to(format!("/room/{}", room_id)))
 }

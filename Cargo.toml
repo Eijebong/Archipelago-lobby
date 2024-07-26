@@ -11,7 +11,8 @@ anyhow = "1.0.79"
 askama = { version = "0.12.1", features = ["with-rocket", "markdown"] }
 askama_rocket = "0.12.0"
 chrono = "0.4.31"
-diesel = { version = "2.1.4", features = ["postgres", "r2d2", "uuid", "chrono"] }
+diesel = { version = "2.1.4", features = ["uuid", "chrono"] }
+diesel-async = { version = "0.5", features = ["postgres", "deadpool", "async-connection-wrapper"] }
 diesel_migrations = { version = "2.1.0", features = ["postgres"] }
 dotenvy = "0.15.0"
 encoding_rs = "0.8.33"
@@ -24,7 +25,6 @@ reqwest = { version = "0.12", features = ["multipart", "json"] }
 rocket = { version = "0.5.0", features = ["uuid", "secrets"] }
 rocket_oauth2 = "0.5.0"
 rocket_prometheus = "0.10.1"
-# rusqlite = { version = "0.30.0", features = ["bundled"] }  # required on windows
 rust-embed = { version = "8.2.0", features = ["rocket"] }
 serde = { version = "1.0.195", features = ["derive"] }
 serde_json = "1.0.111"
@@ -37,6 +37,7 @@ git2 = "0.19.0"
 log = "0.4.22"
 env_logger = "0.11.4"
 tokio = { version = "1.39.1", features = ["sync"] }
+deadpool = "0.12.1"
 
 [profile.dev.package.askama_derive]
 opt-level = 3

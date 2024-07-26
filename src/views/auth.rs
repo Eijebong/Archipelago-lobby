@@ -219,7 +219,7 @@ async fn login_discord_callback(
     let response = serde_json::from_str::<DiscordMeRespone>(&body)?;
 
     let discord_id = response.user.id.parse()?;
-    crate::db::upsert_discord_user(discord_id, &response.user.username, ctx)?;
+    crate::db::upsert_discord_user(discord_id, &response.user.username, ctx).await?;
     let config = config.data()?;
     let admins = config
         .get(&Profile::Default)

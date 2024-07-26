@@ -134,6 +134,7 @@ async fn refresh_worlds(
     ctx: &State<Context>,
 ) -> Result<()> {
     index_manager.update().await?;
+
     let Some(yaml_validator_url) = ctx.yaml_validator_url.as_ref() else {
         return Ok(());
     };

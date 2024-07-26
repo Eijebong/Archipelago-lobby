@@ -10,6 +10,7 @@ use diesel::connection::Instrumentation;
 use diesel::dsl::{exists, now, AsSelect, SqlTypeOf};
 use diesel::pg::Pg;
 use diesel::prelude::*;
+use diesel_async::RunQueryDsl;
 use once_cell::sync::Lazy;
 use prometheus::{HistogramOpts, HistogramVec};
 use rocket::State;
@@ -102,39 +103,41 @@ pub enum WithYaml {
     AndFor(i64),
 }
 
-pub fn list_rooms(room_filter: RoomFilter, ctx: &State<Context>) -> Result<Vec<Room>> {
-    let mut conn = ctx.db_pool.get()?;
+pub async fn list_rooms(room_filter: RoomFilter, ctx: &State<Context>) -> Result<Vec<Room>> {
+    let mut conn = ctx.db_pool.get().await?;
     let query = room_filter.as_query();
 
-    Ok(query.load::<Room>(&mut conn)?)
+    Ok(query.load::<Room>(&mut conn).await?)
 }
 
-pub fn create_room(new_room: &NewRoom, ctx: &State<Context>) -> Result<Room> {
-    let mut conn = ctx.db_pool.get()?;
+pub async fn create_room<'a>(new_room: &'a NewRoom<'a>, ctx: &State<Context>) -> Result<Room> {
+    let mut conn = ctx.db_pool.get().await?;
 
     Ok(diesel::insert_into(rooms::table)
         .values(new_room)
         .returning(Room::as_returning())
-        .get_result(&mut conn)?)
+        .get_result(&mut conn)
+        .await?)
 }
 
-pub fn update_room(new_room: &NewRoom, ctx: &State<Context>) -> Result<()> {
-    let mut conn = ctx.db_pool.get()?;
+pub async fn update_room<'a>(new_room: &'a NewRoom<'a>, ctx: &State<Context>) -> Result<()> {
+    let mut conn = ctx.db_pool.get().await?;
 
     diesel::update(rooms::table)
         .filter(rooms::id.eq(new_room.id))
         .set(new_room)
-        .execute(&mut conn)?;
+        .execute(&mut conn)
+        .await?;
 
     Ok(())
 }
 
-pub fn get_yamls_for_room_with_author_names(
+pub async fn get_yamls_for_room_with_author_names(
     uuid: uuid::Uuid,
     ctx: &State<Context>,
 ) -> Result<Vec<(Yaml, String)>> {
-    let mut conn = ctx.db_pool.get()?;
-    let room = rooms::table.find(uuid).first::<Room>(&mut conn);
+    let mut conn = ctx.db_pool.get().await?;
+    let room = rooms::table.find(uuid).first::<Room>(&mut conn).await;
     let Ok(_room) = room else {
         Err(anyhow::anyhow!("Couldn't get room"))?
     };
@@ -143,12 +146,13 @@ pub fn get_yamls_for_room_with_author_names(
         .filter(yamls::room_id.eq(uuid))
         .inner_join(discord_users::table)
         .select((Yaml::as_select(), discord_users::username))
-        .get_results(&mut conn)?)
+        .get_results(&mut conn)
+        .await?)
 }
 
-pub fn get_yamls_for_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Vec<Yaml>> {
-    let mut conn = ctx.db_pool.get()?;
-    let room = rooms::table.find(uuid).first::<Room>(&mut conn);
+pub async fn get_yamls_for_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Vec<Yaml>> {
+    let mut conn = ctx.db_pool.get().await?;
+    let room = rooms::table.find(uuid).first::<Room>(&mut conn).await;
     let Ok(_room) = room else {
         Err(anyhow::anyhow!("Couldn't get room"))?
     };
@@ -156,32 +160,34 @@ pub fn get_yamls_for_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Vec<
     Ok(yamls::table
         .filter(yamls::room_id.eq(uuid))
         .select(Yaml::as_select())
-        .get_results::<Yaml>(&mut conn)?)
+        .get_results::<Yaml>(&mut conn)
+        .await?)
 }
 
-pub fn get_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Room> {
-    let mut conn = ctx.db_pool.get()?;
-    Ok(rooms::table.find(uuid).first::<Room>(&mut conn)?)
+pub async fn get_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Room> {
+    let mut conn = ctx.db_pool.get().await?;
+    Ok(rooms::table.find(uuid).first::<Room>(&mut conn).await?)
 }
 
-pub fn get_room_and_author(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<(Room, String)> {
-    let mut conn = ctx.db_pool.get()?;
+pub async fn get_room_and_author(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<(Room, String)> {
+    let mut conn = ctx.db_pool.get().await?;
 
     Ok(rooms::table
         .find(uuid)
         .inner_join(discord_users::table)
         .select((Room::as_select(), discord_users::username))
-        .first(&mut conn)?)
+        .first(&mut conn)
+        .await?)
 }
 
-pub fn add_yaml_to_room(
+pub async fn add_yaml_to_room(
     room_id: uuid::Uuid,
     owner_id: i64,
     content: &str,
     parsed: &YamlFile,
     ctx: &State<Context>,
 ) -> Result<()> {
-    let mut conn = ctx.db_pool.get()?;
+    let mut conn = ctx.db_pool.get().await?;
     let game_name = match &parsed.game {
         YamlGame::Name(name) => name.clone(),
         YamlGame::Map(map) => {
@@ -203,24 +209,28 @@ pub fn add_yaml_to_room(
     };
     diesel::insert_into(yamls::table)
         .values(new_yaml)
-        .execute(&mut conn)?;
+        .execute(&mut conn)
+        .await?;
 
     Ok(())
 }
 
-pub fn remove_yaml(yaml_id: uuid::Uuid, ctx: &State<Context>) -> Result<()> {
-    let mut conn = ctx.db_pool.get()?;
-    diesel::delete(yamls::table.find(yaml_id)).execute(&mut conn)?;
+pub async fn remove_yaml(yaml_id: uuid::Uuid, ctx: &State<Context>) -> Result<()> {
+    let mut conn = ctx.db_pool.get().await?;
+    diesel::delete(yamls::table.find(yaml_id))
+        .execute(&mut conn)
+        .await?;
 
     Ok(())
 }
 
-pub fn get_yaml_by_id(yaml_id: Uuid, ctx: &State<Context>) -> Result<Yaml> {
-    let mut conn = ctx.db_pool.get()?;
+pub async fn get_yaml_by_id(yaml_id: Uuid, ctx: &State<Context>) -> Result<Yaml> {
+    let mut conn = ctx.db_pool.get().await?;
     Ok(yamls::table
         .find(yaml_id)
         .select(Yaml::as_select())
-        .first::<Yaml>(&mut conn)?)
+        .first::<Yaml>(&mut conn)
+        .await?)
 }
 
 impl Yaml {
@@ -236,8 +246,12 @@ pub struct DiscordUser {
     pub username: String,
 }
 
-pub fn upsert_discord_user(discord_id: i64, username: &str, ctx: &State<Context>) -> Result<()> {
-    let mut conn = ctx.db_pool.get()?;
+pub async fn upsert_discord_user(
+    discord_id: i64,
+    username: &str,
+    ctx: &State<Context>,
+) -> Result<()> {
+    let mut conn = ctx.db_pool.get().await?;
 
     let discord_user = DiscordUser {
         id: discord_id,
@@ -249,7 +263,8 @@ pub fn upsert_discord_user(discord_id: i64, username: &str, ctx: &State<Context>
         .on_conflict(discord_users::id)
         .do_update()
         .set(discord_users::username.eq(username))
-        .execute(&mut conn)?;
+        .execute(&mut conn)
+        .await?;
 
     Ok(())
 }

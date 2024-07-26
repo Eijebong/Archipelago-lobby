@@ -49,7 +49,11 @@ struct IndexTpl<'a> {
 }
 
 #[get("/")]
-fn root<'a>(cookies: &CookieJar, session: Session, ctx: &State<Context>) -> Result<IndexTpl<'a>> {
+async fn root<'a>(
+    cookies: &CookieJar<'a>,
+    session: Session,
+    ctx: &State<Context>,
+) -> Result<IndexTpl<'a>> {
     let open_rooms_filter = RoomFilter::new().with_status(RoomStatus::Open).with_max(10);
     let open_rooms_filter = if let Some(player_id) = session.user_id {
         open_rooms_filter
@@ -58,7 +62,7 @@ fn root<'a>(cookies: &CookieJar, session: Session, ctx: &State<Context>) -> Resu
     } else {
         open_rooms_filter
     };
-    let open_rooms = db::list_rooms(open_rooms_filter, ctx)?;
+    let open_rooms = db::list_rooms(open_rooms_filter, ctx).await?;
 
     let your_rooms = if let Some(player_id) = session.user_id {
         let your_rooms_filter = RoomFilter::new()
@@ -66,7 +70,7 @@ fn root<'a>(cookies: &CookieJar, session: Session, ctx: &State<Context>) -> Resu
             .with_max(10)
             .with_yamls_from(db::WithYaml::OnlyFor(player_id))
             .with_private(true);
-        db::list_rooms(your_rooms_filter, ctx)?
+        db::list_rooms(your_rooms_filter, ctx).await?
     } else {
         vec![]
     };
@@ -79,14 +83,14 @@ fn root<'a>(cookies: &CookieJar, session: Session, ctx: &State<Context>) -> Resu
 }
 
 #[get("/room/<uuid>")]
-fn room<'a>(
+async fn room<'a>(
     uuid: Uuid,
     ctx: &State<Context>,
     session: Session,
-    cookies: &CookieJar,
+    cookies: &CookieJar<'a>,
 ) -> Result<RoomTpl<'a>> {
-    let (room, author_name) = db::get_room_and_author(uuid, ctx)?;
-    let mut yamls = db::get_yamls_for_room_with_author_names(uuid, ctx)?;
+    let (room, author_name) = db::get_room_and_author(uuid, ctx).await?;
+    let mut yamls = db::get_yamls_for_room_with_author_names(uuid, ctx).await?;
     yamls.sort_by(|a, b| a.0.game.cmp(&b.0.game));
     let unique_player_count = yamls.iter().unique_by(|yaml| yaml.0.owner_id).count();
     let unique_game_count = yamls.iter().unique_by(|yaml| &yaml.0.game).count();
@@ -122,7 +126,7 @@ async fn upload_yaml(
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/room/{}", uuid));
 
-    let room = db::get_room(uuid, ctx).context("Unknown room")?;
+    let room = db::get_room(uuid, ctx).await.context("Unknown room")?;
     if room.is_closed() {
         return Err(anyhow::anyhow!("This room is closed, you're late").into());
     }
@@ -149,7 +153,9 @@ async fn upload_yaml(
         })
         .collect::<anyhow::Result<Vec<(String, YamlFile)>>>()?;
 
-    let yamls_in_room = db::get_yamls_for_room(uuid, ctx).context("Couldn't get room yamls")?;
+    let yamls_in_room = db::get_yamls_for_room(uuid, ctx)
+        .await
+        .context("Couldn't get room yamls")?;
     let mut players_in_room = yamls_in_room
         .iter()
         .map(|yaml| {
@@ -204,7 +210,9 @@ async fn upload_yaml(
     }
 
     for (document, parsed) in documents {
-        db::add_yaml_to_room(uuid, session.0.user_id.unwrap(), &document, &parsed, ctx).unwrap();
+        db::add_yaml_to_room(uuid, session.0.user_id.unwrap(), &document, &parsed, ctx)
+            .await
+            .unwrap();
     }
 
     Ok(Redirect::to(uri!(room(uuid))))
@@ -246,7 +254,7 @@ async fn validate_yaml(yaml: &str, ctx: &State<Context>) -> Result<Vec<String>> 
 }
 
 #[get("/room/<room_id>/delete/<yaml_id>")]
-fn delete_yaml(
+async fn delete_yaml(
     redirect_to: &RedirectTo,
     room_id: Uuid,
     yaml_id: Uuid,
@@ -255,25 +263,25 @@ fn delete_yaml(
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/room/{}", room_id));
 
-    let room = db::get_room(room_id, ctx).context("Unknown room")?;
+    let room = db::get_room(room_id, ctx).await.context("Unknown room")?;
     if room.is_closed() {
         return Err(anyhow::anyhow!("This room is closed, you're late").into());
     }
 
-    let yaml = db::get_yaml_by_id(yaml_id, ctx)?;
+    let yaml = db::get_yaml_by_id(yaml_id, ctx).await?;
 
     let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
     if yaml.owner_id != session.user_id() && !is_my_room {
         Err(anyhow::anyhow!("Can't delete a yaml file that isn't yours"))?
     }
 
-    db::remove_yaml(yaml_id, ctx)?;
+    db::remove_yaml(yaml_id, ctx).await?;
 
     Ok(Redirect::to(format!("/room/{}", room_id)))
 }
 
 #[get("/room/<room_id>/yamls")]
-fn download_yamls<'a>(
+async fn download_yamls<'a>(
     redirect_to: &RedirectTo,
     room_id: Uuid,
     ctx: &State<Context>,
@@ -281,8 +289,8 @@ fn download_yamls<'a>(
 ) -> Result<ZipFile<'a>> {
     redirect_to.set(&format!("/room/{}", room_id));
 
-    let room = db::get_room(room_id, ctx)?;
-    let yamls = db::get_yamls_for_room(room_id, ctx)?;
+    let room = db::get_room(room_id, ctx).await?;
+    let yamls = db::get_yamls_for_room(room_id, ctx).await?;
     let mut writer = zip::ZipWriter::new(Cursor::new(vec![]));
 
     let options =
@@ -329,15 +337,17 @@ struct YamlContent<'a> {
 }
 
 #[get("/room/<room_id>/download/<yaml_id>")]
-fn download_yaml<'a>(
+async fn download_yaml<'a>(
     redirect_to: &RedirectTo,
     room_id: Uuid,
     yaml_id: Uuid,
     ctx: &State<Context>,
 ) -> Result<YamlContent<'a>> {
     redirect_to.set("/");
-    let _room = db::get_room(room_id, ctx).context("Couldn't find the room")?;
-    let yaml = db::get_yaml_by_id(yaml_id, ctx)?;
+    let _room = db::get_room(room_id, ctx)
+        .await
+        .context("Couldn't find the room")?;
+    let yaml = db::get_yaml_by_id(yaml_id, ctx).await?;
 
     let value = format!("attachment; filename=\"{}.yaml\"", yaml.sanitized_name());
 

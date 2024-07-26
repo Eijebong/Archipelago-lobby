@@ -1,7 +1,8 @@
 use db::{DbInstrumentation, QUERY_HISTOGRAM};
-use diesel::pg::Pg;
-use diesel::r2d2::Pool;
-use diesel::{r2d2::ConnectionManager, PgConnection};
+use diesel_async::async_connection_wrapper::AsyncConnectionWrapper;
+use diesel_async::pooled_connection::deadpool::Pool;
+use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use diesel_async::AsyncPgConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use dotenvy::dotenv;
 use index_manager::IndexManager;
@@ -26,7 +27,7 @@ mod views;
 pub struct Discord;
 
 pub struct Context {
-    db_pool: Pool<ConnectionManager<PgConnection>>,
+    db_pool: Pool<AsyncPgConnection>,
     yaml_validator_url: Option<Url>,
 }
 
@@ -66,14 +67,6 @@ impl<'a> TplContext<'a> {
 }
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
-
-fn run_migrations(
-    connection: &mut impl MigrationHarness<Pg>,
-) -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    connection.run_pending_migrations(MIGRATIONS)?;
-
-    Ok(())
-}
 
 #[catch(401)]
 fn unauthorized(req: &Request) -> crate::error::Result<Redirect> {
@@ -132,15 +125,23 @@ async fn main() -> anyhow::Result<()> {
     })
     .expect("Failed to set diesel instrumentation");
 
-    let manager = ConnectionManager::<PgConnection>::new(db_url);
-    let db_pool = Pool::builder()
-        .build(manager)
+    let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(db_url);
+    let db_pool = Pool::builder(config)
+        .build()
         .expect("Failed to create database pool, aborting");
     {
-        let mut connection = db_pool
+        let connection = db_pool
             .get()
+            .await
             .expect("Failed to get database connection to run migrations");
-        run_migrations(&mut connection).expect("Failed to run migrations");
+
+        let mut async_wrapper: AsyncConnectionWrapper<
+            deadpool::managed::Object<AsyncDieselConnectionManager<AsyncPgConnection>>,
+        > = AsyncConnectionWrapper::from(connection);
+        tokio::task::spawn_blocking(move || {
+            async_wrapper.run_pending_migrations(MIGRATIONS).unwrap();
+        })
+        .await?;
     }
 
     let yaml_validator_url = if let Ok(yaml_validator_url) = std::env::var("YAML_VALIDATOR_URL") {
