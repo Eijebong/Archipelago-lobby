@@ -16,7 +16,8 @@ docker compose up -d
 ```
 export DATABASE_URL="postgres:///postgres:postgres@127.0.0.1:25432/aplobby"
 export ADMIN_TOKEN="theadmintoken"
-export APWORLDS_INDEX_PATH="../apworlds_index"
+export APWORLDS_INDEX_DIR="../apworlds_index"
+export APWORLDS_INDEX_REPO_URL="https://github.com/Eijebong/Archipelago-index.git"
 export APWORLDS_PATH="../apworlds_index/worlds"
 cargo run
 ```
@@ -56,11 +57,13 @@ using in the yaml checking service.
 You also need to provide it the apworlds folder you're using for yaml checking
 so it can provide them for download.
 
-This is done through two environment variables, `APWORLDS_INDEX_PATH` and
-`APWORLDS_PATH`.
+This is done through three environment variables, `APWORLDS_INDEX_DIR`,
+`APWORLDS_INDEX_REPO_URL` and `APWORLDS_PATH`.
 
-`APWORLDS_INDEX_PATH` should point to the index folder (not the toml itself).
-`APWORLDS_PATH` should point to the apworlds folder.
+`APWORLDS_INDEX_DIR` should point to the index folder (not the toml itself). It
+will be created and initialized by the lobby.
+`APWORLDS_PATH` should point to the apworlds folder. It will also get initialized by the lobby
+`APWORLDS_INDEX_REPO_URL` needs to point to a git repository containing a valid index.
 
 Index documentation and management tools can be found at https://github.com/Eijebong/apwm
 You can find my own index at https://github.com/Eijebong/Archipelago-index
