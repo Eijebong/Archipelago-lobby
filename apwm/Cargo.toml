@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = { version = "1.0.86", features = ["backtrace"] }
 clap = { version = "4.5.4", optional = true, features = ["derive"] }
+env_logger = { version = "0.11.5", optional = true }
 http = "1.1.0"
 http-serde = "2.1.0"
 log = "0.4.22"
@@ -20,7 +21,7 @@ toml = "0.8.13"
 zip = "2.1.1"
 
 [features]
-cli = ["dep:clap"]
+cli = ["dep:clap", "dep:env_logger"]
 
 [[bin]]
 name = "apwm"

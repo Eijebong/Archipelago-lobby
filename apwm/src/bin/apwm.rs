@@ -33,6 +33,7 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    env_logger::init();
     let cli = Args::parse();
     match cli.command {
         Command::Update { index_path } => {

@@ -68,7 +68,9 @@ impl Index {
 
         let parent = self.path.parent().context("Invalid index path")?;
         let lock_toml = parent.join("index.lock");
-        let mut lock = IndexLock::new(&lock_toml)?;
+        let old_lock = IndexLock::new(&lock_toml)?;
+        let mut new_lock = IndexLock::default();
+        new_lock.path = old_lock.path.clone();
         if destination.is_file() {
             bail!("Error downloading, destination exists and is a file");
         }
@@ -80,12 +82,13 @@ impl Index {
                 log::debug!("Refreshing world: {}, version: {}", world_name, version);
                 let apworld_destination_path =
                     self.get_world_local_path(destination, world_name, version);
-                let expected_checksum = lock.get_checksum(world_name, version);
+                let expected_checksum = old_lock.get_checksum(world_name, version);
 
                 if expected_checksum.is_some() && only_new {
                     log::debug!(
                         "World exists in lockfile and we only want to refresh new ones, ignoring."
                     );
+                    new_lock.set_checksum(world_name, version, &expected_checksum.unwrap());
                     continue;
                 }
 
@@ -96,8 +99,9 @@ impl Index {
                     let mut buf = Vec::new();
                     apworld_destination.read_to_end(&mut buf)?;
                     let current_checksum = format!("{:x}", Sha256::digest(&buf));
-                    if expected_checksum == Some(current_checksum) {
+                    if expected_checksum == Some(current_checksum.clone()) {
                         log::debug!("World exists in lockfile and on disk, checksums are matching, ignoring");
+                        new_lock.set_checksum(world_name, version, &current_checksum);
                         continue;
                     }
 
@@ -113,11 +117,11 @@ impl Index {
                     .truncate(true)
                     .open(&apworld_destination_path)?;
                 let checksum = world.copy_to(version, &apworld_destination).await?;
-                lock.set_checksum(world_name, version, &checksum);
+                new_lock.set_checksum(world_name, version, &checksum);
             }
         }
 
-        Ok(lock)
+        Ok(new_lock)
     }
 
     pub fn get_world_local_path(

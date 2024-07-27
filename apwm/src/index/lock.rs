@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Default)]
 pub struct IndexLock {
-    path: PathBuf,
+    pub path: PathBuf,
     // World name -> (Version -> Checksum)
     apworlds: BTreeMap<String, BTreeMap<Version, String>>,
 }
