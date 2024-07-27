@@ -87,7 +87,7 @@
 </table>
 
 <form style="display: none" action="/room/{{room.id}}/upload" method="POST" enctype="multipart/form-data">
-    <input type="file" name="yaml" id="yamlUpload" accept=".yml,.yaml" />
+    <input type="file" name="yaml[]" id="yamlUpload" accept=".yml,.yaml" multiple/>
     <button id="yamlFormButton">Upload</button>
 </form>
 {%endblock%}
@@ -105,9 +105,7 @@
     }
 
     yamlUpload.onchange = function() {
-        if (yamlUpload.files.length == 1) {
-            yamlFormButton.click();
-        }
+        yamlFormButton.click();
     }
 
     const filter_yamls = document.getElementById("my-yamls");

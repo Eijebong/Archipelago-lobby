@@ -148,7 +148,6 @@ dependencies = [
  "diesel-async",
  "diesel_migrations",
  "dotenvy",
- "encoding_rs",
  "env_logger",
  "futures-util",
  "git2",

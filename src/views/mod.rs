@@ -121,11 +121,16 @@ async fn room<'a>(
     })
 }
 
+#[derive(rocket::form::FromForm)]
+struct Yamls<'a> {
+    yaml: Vec<&'a str>,
+}
+
 #[post("/room/<uuid>/upload", data = "<yaml>")]
 async fn upload_yaml(
     redirect_to: &RedirectTo,
     uuid: Uuid,
-    yaml: Form<&[u8]>,
+    yaml: Form<Yamls<'_>>,
     mut session: LoggedInSession,
     cookies: &CookieJar<'_>,
     ctx: &State<Context>,
@@ -136,14 +141,19 @@ async fn upload_yaml(
     if room.is_closed() {
         return Err(anyhow::anyhow!("This room is closed, you're late").into());
     }
-    let (yaml, _encoding, has_errors) = encoding_rs::UTF_8.decode(&yaml);
-
-    if has_errors {
-        return Err(Error(anyhow::anyhow!("Error while decoding the yaml")));
-    }
+    let yaml = yaml
+        .yaml
+        .iter()
+        .map(|yaml| {
+            yaml.trim()
+                .trim_start_matches("---")
+                .trim_end_matches("---")
+        })
+        .join("\n---\n");
 
     let reader = BufReader::new(yaml.as_bytes());
     let documents = yaml_split::DocumentIterator::new(reader);
+
     let documents = documents
         .into_iter()
         .map(|doc| {

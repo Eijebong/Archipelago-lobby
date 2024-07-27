@@ -171,7 +171,7 @@ async fn main() -> anyhow::Result<()> {
         yaml_validator_url,
     };
 
-    let limits = Limits::default().limit("bytes", 2.megabytes());
+    let limits = Limits::default().limit("string", 2.megabytes());
 
     let figment = rocket::Config::figment().merge(("limits", limits));
     let prometheus =

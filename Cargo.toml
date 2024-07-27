@@ -15,7 +15,6 @@ diesel = { version = "2.1.4", features = ["uuid", "chrono"] }
 diesel-async = { version = "0.5", features = ["postgres", "deadpool", "async-connection-wrapper"] }
 diesel_migrations = { version = "2.1.0", features = ["postgres"] }
 dotenvy = "0.15.0"
-encoding_rs = "0.8.33"
 headers = "0.4.0"
 http = "1.1.0"
 itertools = "0.12.1"
