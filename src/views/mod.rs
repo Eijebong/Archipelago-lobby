@@ -165,21 +165,32 @@ async fn upload_yaml(
     let mut players_in_room = yamls_in_room
         .iter()
         .map(|yaml| {
-            let mut player_name = yaml.player_name.clone();
-            player_name.truncate(16);
+            let player_name = &yaml.player_name;
+            let player_name =
+                player_name.trim_start()[..std::cmp::min(player_name.len(), 16)].trim_end();
             player_name
         })
-        .collect::<HashSet<String>>();
+        .collect::<HashSet<&str>>();
 
     let mut games = Vec::with_capacity(documents.len());
     for (document, parsed) in documents.iter() {
-        let mut player_name = parsed.name.clone();
+        let original_player_name = &parsed.name;
 
-        let ignore_dupe = player_name.contains("{NUMBER}")
-            || player_name.contains("{number}")
-            || player_name.contains("{PLAYER}")
-            || player_name.contains("{player}");
-        player_name.truncate(16);
+        // AP 0.5.0 doesn't like non ASCII names while hosting.
+        if !original_player_name.is_ascii() {
+            return Err(Error(anyhow::anyhow!(format!(
+                "Your YAML contains an invalid name: {}.",
+                original_player_name
+            ))));
+        }
+
+        let ignore_dupe = original_player_name.contains("{NUMBER}")
+            || original_player_name.contains("{number}")
+            || original_player_name.contains("{PLAYER}")
+            || original_player_name.contains("{player}");
+        let player_name = original_player_name.trim_start()
+            [..std::cmp::min(original_player_name.len(), 16)]
+            .trim_end();
 
         if player_name == "meta" || player_name == "Archipelago" {
             return Err(Error(anyhow::anyhow!(format!(
