@@ -1,14 +1,16 @@
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::io::{BufReader, Cursor, Write};
 use std::path::PathBuf;
 
-use crate::db::{RoomFilter, RoomStatus, Yaml, YamlFile};
+use crate::db::{RoomFilter, RoomStatus, Yaml, YamlFile, YamlGame};
 use crate::utils::ZipFile;
 use crate::{Context, TplContext};
 use askama::Template;
 use auth::{LoggedInSession, Session};
+use diesel_async::scoped_futures::ScopedFutureExt;
+use diesel_async::AsyncConnection;
 use itertools::Itertools;
 use rocket::form::Form;
 use rocket::http::hyper::header::CONTENT_DISPOSITION;
@@ -169,6 +171,7 @@ async fn upload_yaml(
         })
         .collect::<HashSet<String>>();
 
+    let mut games = Vec::with_capacity(documents.len());
     for (document, parsed) in documents.iter() {
         let mut player_name = parsed.name.clone();
 
@@ -191,6 +194,22 @@ async fn upload_yaml(
             )));
         }
 
+        let game_name = match &parsed.game {
+            YamlGame::Name(name) => name.clone(),
+            YamlGame::Map(map) => {
+                let weighted_map: HashMap<&String, &f64> =
+                    map.iter().filter(|(_, &weight)| weight >= 1.0).collect();
+
+                match weighted_map.len() {
+                    1 => weighted_map.keys().next().unwrap().to_string(),
+                    n if n > 1 => format!("Random ({})", n),
+                    _ => Err(anyhow::anyhow!(
+                        "Your YAML contains games but none of the has any chance of getting rolled"
+                    ))?,
+                }
+            }
+        };
+
         if room.yaml_validation {
             let unsupported_games = validate_yaml(document, ctx).await?;
             if !unsupported_games.is_empty() {
@@ -211,13 +230,28 @@ async fn upload_yaml(
         }
 
         players_in_room.insert(player_name);
+        games.push((game_name, document, parsed));
     }
 
-    for (document, parsed) in documents {
-        db::add_yaml_to_room(uuid, session.0.user_id.unwrap(), &document, &parsed, ctx)
-            .await
-            .unwrap();
-    }
+    let mut conn = ctx.db_pool.get().await?;
+    conn.transaction::<(), Error, _>(|conn| {
+        async move {
+            for (game_name, document, parsed) in games {
+                db::add_yaml_to_room(
+                    uuid,
+                    session.0.user_id.unwrap(),
+                    &game_name,
+                    document,
+                    parsed,
+                    conn,
+                )
+                .await?;
+            }
+            Ok(())
+        }
+        .scope_boxed()
+    })
+    .await?;
 
     Ok(Redirect::to(uri!(room(uuid))))
 }

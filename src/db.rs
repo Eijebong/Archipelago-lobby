@@ -10,7 +10,7 @@ use diesel::connection::Instrumentation;
 use diesel::dsl::{exists, now, AsSelect, SqlTypeOf};
 use diesel::pg::Pg;
 use diesel::prelude::*;
-use diesel_async::RunQueryDsl;
+use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use once_cell::sync::Lazy;
 use prometheus::{HistogramOpts, HistogramVec};
 use rocket::State;
@@ -183,38 +183,23 @@ pub async fn get_room_and_author(uuid: uuid::Uuid, ctx: &State<Context>) -> Resu
 pub async fn add_yaml_to_room(
     room_id: uuid::Uuid,
     owner_id: i64,
+    game_name: &str,
     content: &str,
     parsed: &YamlFile,
-    ctx: &State<Context>,
+    conn: &mut AsyncPgConnection,
 ) -> Result<()> {
-    let mut conn = ctx.db_pool.get().await?;
-    let game_name = match &parsed.game {
-        YamlGame::Name(name) => name.clone(),
-        YamlGame::Map(map) => {
-            let weighted_map: HashMap<&String, &f64> =
-                map.iter().filter(|(_, &weight)| weight >= 1.0).collect();
-
-            if weighted_map.len() == 1 {
-                weighted_map.keys().next().unwrap().to_string()
-            } else if weighted_map.len() > 1 {
-                format!("Random ({})", weighted_map.len())
-            } else {
-                "Unknown".to_string()
-            }
-        }
-    };
-
     let new_yaml = NewYaml {
         id: Uuid::new_v4(),
         owner_id,
         room_id,
         content,
         player_name: &parsed.name,
-        game: &game_name,
+        game: game_name,
     };
+
     diesel::insert_into(yamls::table)
         .values(new_yaml)
-        .execute(&mut conn)
+        .execute(conn)
         .await?;
 
     Ok(())
