@@ -1,9 +1,10 @@
 function showYaml(roomId, yamlId, yamlName, yamlGame) {
-    const url = new URL("/room/" + roomId + "/download/" + yamlId, document.location)
+    const url = new URL("/api/room/" + roomId + "/download/" + yamlId, document.location)
     fetch(url)
         .then((response) => {
             if(!response.ok) {
-                showError("Error while retrieving YAML:" + response.statusText);
+                showError("Error while retrieving YAML: " + response.statusText);
+                throw Error("Error while retrieving YAML: " + response.statusText);
             }
             return response.text()
         })

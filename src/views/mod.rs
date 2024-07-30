@@ -23,6 +23,7 @@ use uuid::Uuid;
 use crate::db::{self, Room};
 use crate::error::{Error, RedirectTo, Result, WithContext};
 
+pub mod api;
 pub mod apworlds;
 pub mod auth;
 pub mod room_manager;
@@ -390,7 +391,7 @@ async fn download_yamls<'a>(
 
 #[derive(rocket::Responder)]
 #[response(status = 200, content_type = "application/yaml")]
-struct YamlContent<'a> {
+pub(crate) struct YamlContent<'a> {
     content: String,
     headers: Header<'a>,
 }
@@ -403,17 +404,10 @@ async fn download_yaml<'a>(
     ctx: &State<Context>,
 ) -> Result<YamlContent<'a>> {
     redirect_to.set("/");
-    let _room = db::get_room(room_id, ctx)
+
+    Ok(api::download_yaml(room_id, yaml_id, ctx)
         .await
-        .context("Couldn't find the room")?;
-    let yaml = db::get_yaml_by_id(yaml_id, ctx).await?;
-
-    let value = format!("attachment; filename=\"{}.yaml\"", yaml.sanitized_name());
-
-    Ok(YamlContent {
-        content: yaml.content,
-        headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
-    })
+        .map_err(|api_err| api_err.error)?)
 }
 
 #[get("/static/<file..>")]

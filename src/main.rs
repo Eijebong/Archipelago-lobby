@@ -190,6 +190,7 @@ async fn main() -> anyhow::Result<()> {
         .mount("/", views::room_manager::routes())
         .mount("/", views::apworlds::routes())
         .mount("/auth/", views::auth::routes())
+        .mount("/api/", views::api::routes())
         .mount("/metrics", AdminOnlyRoute(prometheus))
         .register("/", catchers![unauthorized])
         .manage(ctx)
