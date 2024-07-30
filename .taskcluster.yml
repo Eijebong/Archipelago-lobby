@@ -113,7 +113,10 @@ tasks:
                   metadata:
                       $merge:
                           - owner: "${ownerEmail}"
-                            source: "${repoUrl}/raw/${head_sha}/.taskcluster.yml"
+                            source:
+                              $if: tasks_for == "github-pull-request"
+                              then: ${event.pull_request.html_url}
+                              else: ${event.compare}
                           - $switch:
                                 'tasks_for == "github-push" || isPullRequest':
                                     name: "Decision Task"
@@ -142,9 +145,11 @@ tasks:
                           'tasks_for == "github-push" || isPullRequest':
                               createdForUser: "${ownerEmail}"
                               kind: decision-task
+                              git_ref: "${short_head_ref}"
                           'tasks_for in ["action", "pr-action"]':
                               createdForUser: '${ownerEmail}'
                               kind: 'action-callback'
+                              git_ref: "${short_head_ref}"
                           'tasks_for == "cron"':
                               kind: cron-task
 
