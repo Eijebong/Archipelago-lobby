@@ -28,7 +28,7 @@ pub struct Index {
     pub index_homepage: String,
     pub index_dir: PathBuf,
     #[serde(default)]
-    pub worlds: BTreeMap<String, World>,
+    worlds: BTreeMap<String, World>,
 }
 
 impl Index {
@@ -131,5 +131,11 @@ impl Index {
         version: &Version,
     ) -> PathBuf {
         apworld_root.join(format!("{}-{}.apworld", world_name, version))
+    }
+
+    pub fn worlds(&self) -> BTreeMap<String, World> {
+        let mut worlds = self.worlds.clone();
+        worlds.retain(|_, world| world.disabled);
+        worlds
     }
 }

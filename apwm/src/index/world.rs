@@ -43,6 +43,8 @@ pub struct World {
     pub home: Option<String>,
     #[serde(deserialize_with = "de::map_with_default_value", default)]
     pub versions: BTreeMap<Version, WorldOrigin>,
+    #[serde(default)]
+    pub disabled: bool,
 }
 
 impl World {

@@ -83,7 +83,7 @@ async fn install(index_path: &Path, apworlds_path: &Path, destination: &Path) ->
 
     std::fs::create_dir_all(destination)?;
 
-    for (world_name, world) in &index.worlds {
+    for (world_name, world) in &index.worlds() {
         let Some((version, _)) = world.get_latest_release() else {
             continue;
         };
