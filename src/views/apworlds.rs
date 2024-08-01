@@ -66,7 +66,7 @@ async fn download_all(
 
     let index = index_manager.index.read().await;
     let mut buffer = Vec::new();
-    for (world_name, world) in &index.worlds {
+    for (world_name, world) in &index.worlds() {
         let Some((version, _)) = world.get_latest_release() else {
             continue;
         };
@@ -95,8 +95,8 @@ async fn download_world<'a>(
 ) -> Result<APWorldResponse<'a>> {
     let index = index_manager.index.read().await;
 
-    let world = index
-        .worlds
+    let worlds = index.worlds();
+    let world = worlds
         .get(world_name)
         .context("This APworld doesn't seem to exist")?;
 
