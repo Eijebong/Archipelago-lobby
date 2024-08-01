@@ -135,7 +135,7 @@ impl Index {
 
     pub fn worlds(&self) -> BTreeMap<String, World> {
         let mut worlds = self.worlds.clone();
-        worlds.retain(|_, world| world.disabled);
+        worlds.retain(|_, world| !world.disabled);
         worlds
     }
 }
