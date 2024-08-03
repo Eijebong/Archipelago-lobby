@@ -15,7 +15,7 @@ use rocket::time::OffsetDateTime;
 use rocket::{get, Request, State};
 use rocket_oauth2::{OAuth2, TokenResponse};
 
-#[derive(serde::Serialize, serde::Deserialize, Default, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Default)]
 pub struct Session {
     pub is_admin: bool,
     pub is_logged_in: bool,
@@ -56,6 +56,7 @@ impl LoggedInSession {
 }
 
 impl Session {
+    #[tracing::instrument("parse_session", skip_all)]
     pub fn from_request_sync(request: &Request) -> Self {
         let admin_token = request.rocket().state::<AdminToken>();
         let admin_token = admin_token.map(|t| t.0.as_str());
@@ -65,6 +66,7 @@ impl Session {
             let creds = Basic::decode(&HeaderValue::from_str(authorization).unwrap());
             if let Some(creds) = creds {
                 if creds.username() == "admin" && Some(creds.password()) == admin_token {
+                    tracing::info!("Admin logged with authorization header");
                     return Session {
                         is_admin: true,
                         is_logged_in: true,
@@ -76,6 +78,7 @@ impl Session {
 
         let x_api_key = request.headers().get_one("X-Api-Key");
         if x_api_key == admin_token {
+            tracing::info!("Admin logged with API key");
             return Session {
                 is_admin: true,
                 is_logged_in: true,
@@ -87,11 +90,21 @@ impl Session {
         if let Some(session_str) = cookies.get_private("session") {
             let session = serde_json::from_str::<Session>(session_str.value());
             if let Ok(session) = session {
+                tracing::event!(
+                    tracing::Level::INFO,
+                    message = "Session already established",
+                    session = session.user_id
+                );
                 return session;
             }
             let session_recovery = serde_json::from_str::<SessionRecovery>(session_str.value());
             if let Ok(session_recovery) = session_recovery {
                 let session: Session = session_recovery.into();
+                tracing::event!(
+                    tracing::Level::INFO,
+                    message = "Session recovered",
+                    session = session.user_id
+                );
                 session.save(cookies).unwrap();
                 return session;
             }
@@ -170,6 +183,7 @@ impl<'r> FromRequest<'r> for AdminSession {
 }
 
 #[get("/login?<redirect>")]
+#[tracing::instrument(skip_all)]
 fn login_discord(
     oauth2: OAuth2<Discord>,
     mut session: Session,
@@ -199,6 +213,7 @@ struct DiscordUser {
 }
 
 #[get("/oauth")]
+#[tracing::instrument(skip_all)]
 async fn login_discord_callback(
     mut session: Session,
     token: TokenResponse<Discord>,
@@ -250,6 +265,7 @@ async fn login_discord_callback(
 }
 
 #[get("/logout")]
+#[tracing::instrument(skip_all)]
 fn logout(cookies: &CookieJar) -> Result<Redirect> {
     let session = Session::default();
     session.save(cookies)?;

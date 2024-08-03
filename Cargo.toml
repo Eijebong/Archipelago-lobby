@@ -42,6 +42,13 @@ tokio = { version = "1.39.1", features = ["sync"] }
 deadpool = "0.12.1"
 futures-util = "0.3.30"
 rustls-pki-types = "1.7.0"
+tracing = "0.1.40"
+opentelemetry = "0.24.0"
+opentelemetry_sdk = { version = "0.24.1", features = ["rt-tokio", "tokio"] }
+opentelemetry-otlp = "0.17.0"
+tracing-opentelemetry = "0.25.0"
+tracing-subscriber = "0.3.18"
+opentelemetry-semantic-conventions = "0.16.0"
 
 [profile.dev.package.askama_derive]
 opt-level = 3
@@ -53,6 +60,8 @@ walkdir = "2.5.0"
 
 [patch.crates-io]
 diesel = { git = "https://github.com/diesel-rs/diesel.git" }
+rocket = { git = "https://github.com/Eijebong/Rocket.git", branch = "0.6.0-dev" }
+rocket_prometheus = { git = "https://github.com/Eijebong/rocket_prometheus.git", branch = "0.6.0-dev" }
 
 # [patch."https://github.com/Eijebong/APWM.git"]
 # apwm = { path = "../apwm" }

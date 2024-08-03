@@ -29,6 +29,7 @@ use views::auth::{AdminSession, Session};
 mod db;
 mod error;
 mod index_manager;
+mod otlp;
 mod schema;
 mod utils;
 mod views;
@@ -123,7 +124,8 @@ async fn main() -> anyhow::Result<()> {
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "debug");
     }
-    env_logger::init();
+    let otlp_endpoint = std::env::var("OTLP_ENDPOINT").ok();
+    let _guard = otlp::init_tracing_subscriber(otlp_endpoint);
 
     let db_url = std::env::var("DATABASE_URL").expect("Plox provide a DATABASE_URL env variable");
     let admin_token =
@@ -199,7 +201,8 @@ async fn main() -> anyhow::Result<()> {
         .manage(index_manager)
         .attach(OAuth2::<Discord>::fairing("discord"))
         .launch()
-        .await?;
+        .await
+        .unwrap();
 
     Ok(())
 }

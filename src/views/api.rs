@@ -14,6 +14,7 @@ use crate::{
 };
 
 #[get("/room/<room_id>/download/<yaml_id>")]
+#[tracing::instrument(skip(ctx))]
 pub(crate) async fn download_yaml<'a>(
     room_id: Uuid,
     yaml_id: Uuid,

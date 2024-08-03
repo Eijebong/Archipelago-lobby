@@ -82,27 +82,28 @@ pub struct YamlFile {
     pub name: String,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum RoomStatus {
     Open,
     Closed,
     Any,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Author {
     Any,
     User(i64),
     IncludeUser(i64),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum WithYaml {
     Any,
     OnlyFor(i64),
     AndFor(i64),
 }
 
+#[tracing::instrument(skip(ctx))]
 pub async fn list_rooms(room_filter: RoomFilter, ctx: &State<Context>) -> Result<Vec<Room>> {
     let mut conn = ctx.db_pool.get().await?;
     let query = room_filter.as_query();
@@ -110,6 +111,7 @@ pub async fn list_rooms(room_filter: RoomFilter, ctx: &State<Context>) -> Result
     Ok(query.load::<Room>(&mut conn).await?)
 }
 
+#[tracing::instrument(skip(ctx))]
 pub async fn create_room<'a>(new_room: &'a NewRoom<'a>, ctx: &State<Context>) -> Result<Room> {
     let mut conn = ctx.db_pool.get().await?;
 
@@ -120,6 +122,7 @@ pub async fn create_room<'a>(new_room: &'a NewRoom<'a>, ctx: &State<Context>) ->
         .await?)
 }
 
+#[tracing::instrument(skip(ctx))]
 pub async fn update_room<'a>(new_room: &'a NewRoom<'a>, ctx: &State<Context>) -> Result<()> {
     let mut conn = ctx.db_pool.get().await?;
 
@@ -132,6 +135,7 @@ pub async fn update_room<'a>(new_room: &'a NewRoom<'a>, ctx: &State<Context>) ->
     Ok(())
 }
 
+#[tracing::instrument(skip(ctx))]
 pub async fn get_yamls_for_room_with_author_names(
     uuid: uuid::Uuid,
     ctx: &State<Context>,
@@ -150,6 +154,7 @@ pub async fn get_yamls_for_room_with_author_names(
         .await?)
 }
 
+#[tracing::instrument(skip(ctx))]
 pub async fn get_yamls_for_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Vec<Yaml>> {
     let mut conn = ctx.db_pool.get().await?;
     let room = rooms::table.find(uuid).first::<Room>(&mut conn).await;
@@ -164,11 +169,13 @@ pub async fn get_yamls_for_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Resul
         .await?)
 }
 
+#[tracing::instrument(skip(ctx))]
 pub async fn get_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Room> {
     let mut conn = ctx.db_pool.get().await?;
     Ok(rooms::table.find(uuid).first::<Room>(&mut conn).await?)
 }
 
+#[tracing::instrument(skip(ctx))]
 pub async fn get_room_and_author(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<(Room, String)> {
     let mut conn = ctx.db_pool.get().await?;
 
@@ -180,6 +187,7 @@ pub async fn get_room_and_author(uuid: uuid::Uuid, ctx: &State<Context>) -> Resu
         .await?)
 }
 
+#[tracing::instrument(skip(conn, content))]
 pub async fn add_yaml_to_room(
     room_id: uuid::Uuid,
     owner_id: i64,
@@ -205,6 +213,7 @@ pub async fn add_yaml_to_room(
     Ok(())
 }
 
+#[tracing::instrument(skip(ctx))]
 pub async fn remove_yaml(yaml_id: uuid::Uuid, ctx: &State<Context>) -> Result<()> {
     let mut conn = ctx.db_pool.get().await?;
     diesel::delete(yamls::table.find(yaml_id))
@@ -214,6 +223,7 @@ pub async fn remove_yaml(yaml_id: uuid::Uuid, ctx: &State<Context>) -> Result<()
     Ok(())
 }
 
+#[tracing::instrument(skip(ctx))]
 pub async fn get_yaml_by_id(yaml_id: Uuid, ctx: &State<Context>) -> Result<Yaml> {
     let mut conn = ctx.db_pool.get().await?;
     Ok(yamls::table
@@ -236,6 +246,7 @@ pub struct DiscordUser {
     pub username: String,
 }
 
+#[tracing::instrument(skip(ctx))]
 pub async fn upsert_discord_user(
     discord_id: i64,
     username: &str,
@@ -259,6 +270,7 @@ pub async fn upsert_discord_user(
     Ok(())
 }
 
+#[derive(Debug)]
 pub struct RoomFilter {
     pub show_private: bool,
     pub with_yaml_from: WithYaml,

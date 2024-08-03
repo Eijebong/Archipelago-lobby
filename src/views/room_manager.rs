@@ -44,6 +44,7 @@ struct ListRoomsTpl<'a> {
 }
 
 #[get("/rooms")]
+#[tracing::instrument(skip_all)]
 async fn my_rooms<'a>(
     ctx: &State<Context>,
     session: LoggedInSession,
@@ -76,6 +77,7 @@ async fn my_rooms<'a>(
     })
 }
 #[get("/create-room")]
+#[tracing::instrument(skip_all)]
 fn create_room<'a>(session: LoggedInSession, cookies: &CookieJar) -> Result<EditRoom<'a>> {
     Ok(EditRoom {
         base: TplContext::from_session("create-room", session.0, cookies),
@@ -96,6 +98,7 @@ fn parse_date(date: &str, tz_offset: i32) -> Result<DateTime<Utc>> {
 }
 
 #[post("/create-room", data = "<room_form>")]
+#[tracing::instrument(skip_all)]
 async fn create_room_submit<'a>(
     redirect_to: &RedirectTo,
     ctx: &State<Context>,
@@ -127,6 +130,7 @@ async fn create_room_submit<'a>(
 }
 
 #[get("/edit-room/<room_id>")]
+#[tracing::instrument(skip(ctx, session, cookies))]
 async fn edit_room<'a>(
     ctx: &State<Context>,
     room_id: Uuid,
@@ -147,6 +151,7 @@ async fn edit_room<'a>(
 }
 
 #[post("/edit-room/<room_id>", data = "<room_form>")]
+#[tracing::instrument(skip(redirect_to, room_form, ctx, session))]
 async fn edit_room_submit<'a>(
     redirect_to: &RedirectTo,
     room_id: Uuid,

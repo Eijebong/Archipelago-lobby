@@ -5,8 +5,8 @@ use std::io::Write;
 use anyhow::Context as _;
 use apwm::Index;
 use askama::Template;
+use http::header::CONTENT_DISPOSITION;
 use rocket::fs::NamedFile;
-use rocket::http::hyper::header::CONTENT_DISPOSITION;
 use rocket::http::CookieJar;
 use rocket::http::Header;
 use rocket::response::Redirect;
@@ -39,6 +39,7 @@ enum APWorldResponse<'a> {
 }
 
 #[rocket::get("/worlds")]
+#[tracing::instrument(skip_all)]
 async fn list_worlds<'a>(
     index_manager: &'a State<IndexManager>,
     session: LoggedInSession,
@@ -53,6 +54,7 @@ async fn list_worlds<'a>(
 }
 
 #[rocket::get("/worlds/download_all")]
+#[tracing::instrument(skip_all)]
 async fn download_all(
     index_manager: &State<IndexManager>,
     _session: LoggedInSession,
@@ -87,6 +89,7 @@ async fn download_all(
 }
 
 #[rocket::get("/worlds/download/<world_name>/<version>")]
+#[tracing::instrument(skip(index_manager, _session))]
 async fn download_world<'a>(
     index_manager: &State<IndexManager>,
     version: &str,
@@ -128,6 +131,7 @@ async fn download_world<'a>(
 }
 
 #[rocket::get("/worlds/refresh")]
+#[tracing::instrument(skip_all)]
 async fn refresh_worlds(
     index_manager: &State<IndexManager>,
     _session: AdminSession,

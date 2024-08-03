@@ -11,9 +11,9 @@ use askama::Template;
 use auth::{LoggedInSession, Session};
 use diesel_async::scoped_futures::ScopedFutureExt;
 use diesel_async::AsyncConnection;
+use http::header::CONTENT_DISPOSITION;
 use itertools::Itertools;
 use rocket::form::Form;
-use rocket::http::hyper::header::CONTENT_DISPOSITION;
 use rocket::http::{ContentType, CookieJar, Header};
 use rocket::response::Redirect;
 use rocket::routes;
@@ -52,6 +52,7 @@ struct IndexTpl<'a> {
 }
 
 #[get("/")]
+#[tracing::instrument(skip_all)]
 async fn root<'a>(
     cookies: &CookieJar<'a>,
     session: Session,
@@ -86,6 +87,7 @@ async fn root<'a>(
 }
 
 #[get("/room/<uuid>")]
+#[tracing::instrument(skip(ctx, session, cookies))]
 async fn room<'a>(
     uuid: Uuid,
     ctx: &State<Context>,
@@ -128,6 +130,7 @@ struct Yamls<'a> {
 }
 
 #[post("/room/<uuid>/upload", data = "<yaml>")]
+#[tracing::instrument(skip(redirect_to, yaml, session, cookies, ctx))]
 async fn upload_yaml(
     redirect_to: &RedirectTo,
     uuid: Uuid,
@@ -278,6 +281,7 @@ async fn upload_yaml(
     Ok(Redirect::to(uri!(room(uuid))))
 }
 
+#[tracing::instrument(skip_all)]
 async fn validate_yaml(yaml: &str, ctx: &State<Context>) -> Result<Vec<String>> {
     if ctx.yaml_validator_url.is_none() {
         return Ok(vec![]);
@@ -314,6 +318,7 @@ async fn validate_yaml(yaml: &str, ctx: &State<Context>) -> Result<Vec<String>> 
 }
 
 #[get("/room/<room_id>/delete/<yaml_id>")]
+#[tracing::instrument(skip(redirect_to, session, ctx))]
 async fn delete_yaml(
     redirect_to: &RedirectTo,
     room_id: Uuid,
@@ -341,6 +346,7 @@ async fn delete_yaml(
 }
 
 #[get("/room/<room_id>/yamls")]
+#[tracing::instrument(skip(redirect_to, ctx, _session))]
 async fn download_yamls<'a>(
     redirect_to: &RedirectTo,
     room_id: Uuid,
@@ -397,6 +403,7 @@ pub(crate) struct YamlContent<'a> {
 }
 
 #[get("/room/<room_id>/download/<yaml_id>")]
+#[tracing::instrument(skip(redirect_to, ctx))]
 async fn download_yaml<'a>(
     redirect_to: &RedirectTo,
     room_id: Uuid,
@@ -411,6 +418,7 @@ async fn download_yaml<'a>(
 }
 
 #[get("/static/<file..>")]
+#[tracing::instrument]
 fn dist(file: PathBuf) -> Option<(ContentType, Cow<'static, [u8]>)> {
     let filename = file.display().to_string();
     let asset = Asset::get(&filename)?;
