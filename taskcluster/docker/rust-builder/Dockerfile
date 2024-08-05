@@ -4,9 +4,9 @@ RUN apt update && apt install libpq-dev
 RUN rustup component add clippy rustfmt
 
 # Add worker user
-RUN mkdir /builds && \
+RUN mkdir -p /builds && \
     useradd -d /builds/worker -s /bin/bash -m worker && \
-    mkdir /builds/worker/artifacts && \
+    mkdir -p /builds/worker/artifacts && \
     chown worker:worker /builds/worker/artifacts
 
 ENV SHELL=/bin/bash \
