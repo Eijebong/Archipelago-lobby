@@ -7,7 +7,7 @@ RUN rustup component add clippy rustfmt
 RUN mkdir -p /builds && \
     useradd -d /builds/worker -s /bin/bash -m worker && \
     mkdir -p /builds/worker/artifacts && \
-    chown worker:worker /builds/worker/artifacts
+    chown -R worker:worker /builds/worker
 
 ENV SHELL=/bin/bash \
     HOME=/builds/worker \
