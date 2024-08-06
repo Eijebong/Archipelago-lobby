@@ -115,7 +115,7 @@ async fn create_room_submit<'a>(
     let close_date = parse_date(room_form.close_date, room_form.tz_offset)?;
     let new_room = NewRoom {
         id: Uuid::new_v4(),
-        name: room_form.room_name,
+        name: room_form.room_name.trim(),
         close_date: close_date.naive_utc(),
         description: room_form.room_description.trim(),
         room_url: "",
@@ -180,7 +180,7 @@ async fn edit_room_submit<'a>(
 
     let new_room = NewRoom {
         id: room_id,
-        name: room_form.room_name,
+        name: room_form.room_name.trim(),
         description: room_form.room_description.trim(),
         close_date: parse_date(room_form.close_date, room_form.tz_offset)?.naive_utc(),
         room_url,
