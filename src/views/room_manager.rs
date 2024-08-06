@@ -107,7 +107,7 @@ async fn create_room_submit<'a>(
 ) -> Result<Redirect> {
     redirect_to.set("/create-room");
 
-    if room_form.room_name.is_empty() {
+    if room_form.room_name.trim().is_empty() {
         return Err(anyhow::anyhow!("The room name shouldn't be empty").into());
     }
 
@@ -165,6 +165,10 @@ async fn edit_room_submit<'a>(
     let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
     if !is_my_room {
         return Err(anyhow::anyhow!("You're not allowed to edit this room").into());
+    }
+
+    if room_form.room_name.trim().is_empty() {
+        return Err(anyhow::anyhow!("The room name shouldn't be empty").into());
     }
 
     let room_url = room_form.room_url.trim();
