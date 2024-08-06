@@ -62,8 +62,15 @@ impl Room {
 
 #[derive(Debug, diesel::Selectable, diesel::Queryable)]
 pub struct Yaml {
-    pub id: Uuid,
     pub content: String,
+    pub player_name: String,
+    pub owner_id: i64,
+}
+
+#[derive(Debug, diesel::Selectable, diesel::Queryable)]
+#[diesel(table_name = yamls)]
+pub struct YamlWithoutContent {
+    pub id: Uuid,
     pub player_name: String,
     pub game: String,
     pub owner_id: i64,
@@ -139,7 +146,7 @@ pub async fn update_room<'a>(new_room: &'a NewRoom<'a>, ctx: &State<Context>) ->
 pub async fn get_yamls_for_room_with_author_names(
     uuid: uuid::Uuid,
     ctx: &State<Context>,
-) -> Result<Vec<(Yaml, String)>> {
+) -> Result<Vec<(YamlWithoutContent, String)>> {
     let mut conn = ctx.db_pool.get().await?;
     let room = rooms::table.find(uuid).first::<Room>(&mut conn).await;
     let Ok(_room) = room else {
@@ -149,7 +156,7 @@ pub async fn get_yamls_for_room_with_author_names(
     Ok(yamls::table
         .filter(yamls::room_id.eq(uuid))
         .inner_join(discord_users::table)
-        .select((Yaml::as_select(), discord_users::username))
+        .select((YamlWithoutContent::as_select(), discord_users::username))
         .get_results(&mut conn)
         .await?)
 }

@@ -4,7 +4,7 @@ use std::ffi::OsStr;
 use std::io::{BufReader, Cursor, Write};
 use std::path::PathBuf;
 
-use crate::db::{RoomFilter, RoomStatus, Yaml, YamlFile, YamlGame};
+use crate::db::{RoomFilter, RoomStatus, YamlFile, YamlGame, YamlWithoutContent};
 use crate::utils::ZipFile;
 use crate::{Context, TplContext};
 use askama::Template;
@@ -34,7 +34,7 @@ struct RoomTpl<'a> {
     base: TplContext<'a>,
     room: Room,
     author_name: String,
-    yamls: Vec<(Yaml, String)>,
+    yamls: Vec<(YamlWithoutContent, String)>,
     player_count: usize,
     unique_player_count: usize,
     unique_game_count: usize,
