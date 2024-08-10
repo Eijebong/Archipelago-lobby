@@ -18,6 +18,7 @@ use rocket::http::{ContentType, CookieJar, Header};
 use rocket::response::Redirect;
 use rocket::routes;
 use rocket::{get, post, uri, State};
+use tracing::Instrument;
 use uuid::Uuid;
 
 use crate::db::{self, Room};
@@ -277,6 +278,7 @@ async fn upload_yaml(
         }
         .scope_boxed()
     })
+    .instrument(tracing::info_span!("add_yamls_to_room_transaction"))
     .await?;
 
     Ok(Redirect::to(uri!(room(uuid))))
