@@ -389,6 +389,7 @@ impl Instrumentation for DbInstrumentation {
     fn on_connection_event(&mut self, event: diesel::connection::InstrumentationEvent<'_>) {
         match event {
             diesel::connection::InstrumentationEvent::StartQuery { .. } => {
+                tracing::event!(tracing::Level::INFO, "Query started");
                 self.query_start = Some(Instant::now());
             }
             diesel::connection::InstrumentationEvent::FinishQuery { query, .. } => {
@@ -401,6 +402,25 @@ impl Instrumentation for DbInstrumentation {
                 QUERY_HISTOGRAM
                     .with_label_values(&[query])
                     .observe(elapsed.as_secs_f64());
+                tracing::event!(tracing::Level::INFO, %query, "Query finished");
+            }
+            diesel::connection::InstrumentationEvent::StartEstablishConnection { .. } => {
+                tracing::event!(tracing::Level::INFO, "StartEstablishConnection");
+            }
+            diesel::connection::InstrumentationEvent::FinishEstablishConnection { .. } => {
+                tracing::event!(tracing::Level::INFO, "FinishEstablishConnection");
+            }
+            diesel::connection::InstrumentationEvent::CacheQuery { .. } => {
+                tracing::event!(tracing::Level::INFO, "CacheQuery");
+            }
+            diesel::connection::InstrumentationEvent::BeginTransaction { .. } => {
+                tracing::event!(tracing::Level::INFO, "BeginTransaction");
+            }
+            diesel::connection::InstrumentationEvent::CommitTransaction { .. } => {
+                tracing::event!(tracing::Level::INFO, "CommitTransaction");
+            }
+            diesel::connection::InstrumentationEvent::RollbackTransaction { .. } => {
+                tracing::event!(tracing::Level::INFO, "RollbackTransaction");
             }
             _ => {}
         };
