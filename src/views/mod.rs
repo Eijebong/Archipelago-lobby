@@ -166,7 +166,7 @@ async fn upload_yaml(
             };
             let Ok(parsed) = serde_yaml::from_str(&doc) else {
                 anyhow::bail!(
-                    "Invalid yaml file. This does not look like an archipelago game YAML."
+                    "This does not look like an archipelago YAML. Check that your YAML syntax is valid."
                 )
             };
             Ok((doc, parsed))
