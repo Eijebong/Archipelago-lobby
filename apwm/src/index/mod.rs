@@ -80,6 +80,11 @@ impl Index {
         for (world_name, world) in &self.worlds {
             for version in world.versions.keys() {
                 log::debug!("Refreshing world: {}, version: {}", world_name, version);
+                if world.disabled {
+                    log::debug!("World is disabled, ignoring");
+                    continue;
+                }
+
                 let apworld_destination_path =
                     self.get_world_local_path(destination, world_name, version);
                 let expected_checksum = old_lock.get_checksum(world_name, version);
