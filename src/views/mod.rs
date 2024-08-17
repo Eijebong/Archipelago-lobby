@@ -127,15 +127,15 @@ async fn room<'a>(
 
 #[derive(rocket::form::FromForm)]
 struct Yamls<'a> {
-    yaml: Vec<&'a str>,
+    yamls: Vec<&'a str>,
 }
 
-#[post("/room/<uuid>/upload", data = "<yaml>")]
-#[tracing::instrument(skip(redirect_to, yaml, session, cookies, ctx))]
+#[post("/room/<uuid>/upload", data = "<yaml_form>")]
+#[tracing::instrument(skip(redirect_to, yaml_form, session, cookies, ctx))]
 async fn upload_yaml(
     redirect_to: &RedirectTo,
     uuid: Uuid,
-    yaml: Form<Yamls<'_>>,
+    yaml_form: Form<Yamls<'_>>,
     mut session: LoggedInSession,
     cookies: &CookieJar<'_>,
     ctx: &State<Context>,
@@ -146,8 +146,8 @@ async fn upload_yaml(
     if room.is_closed() {
         return Err(anyhow::anyhow!("This room is closed, you're late").into());
     }
-    let yaml = yaml
-        .yaml
+    let yaml = yaml_form
+        .yamls
         .iter()
         .map(|yaml| {
             yaml.trim()

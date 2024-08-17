@@ -87,7 +87,7 @@
 </table>
 
 <form style="display: none" action="/room/{{room.id}}/upload" method="POST" enctype="multipart/form-data">
-    <input type="file" name="yaml[]" id="yamlUpload" accept=".yml,.yaml" multiple/>
+    <input type="file" name="yamls[]" id="yamlUpload" accept=".yml,.yaml" multiple/>
     <button id="yamlFormButton">Upload</button>
 </form>
 {%endblock%}
