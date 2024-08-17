@@ -33,6 +33,7 @@ mod otlp;
 mod schema;
 mod utils;
 mod views;
+mod yaml;
 
 pub struct Discord;
 

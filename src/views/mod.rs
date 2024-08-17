@@ -1,10 +1,10 @@
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::ffi::OsStr;
-use std::io::{BufReader, Cursor, Write};
+use std::io::{Cursor, Write};
 use std::path::PathBuf;
 
-use crate::db::{RoomFilter, RoomStatus, YamlFile, YamlGame, YamlWithoutContent};
+use crate::db::{RoomFilter, RoomStatus, YamlWithoutContent};
 use crate::utils::ZipFile;
 use crate::{Context, TplContext};
 use askama::Template;
@@ -130,142 +130,39 @@ struct Yamls<'a> {
     yamls: Vec<&'a str>,
 }
 
-#[post("/room/<uuid>/upload", data = "<yaml_form>")]
+#[post("/room/<room_id>/upload", data = "<yaml_form>")]
 #[tracing::instrument(skip(redirect_to, yaml_form, session, cookies, ctx))]
 async fn upload_yaml(
     redirect_to: &RedirectTo,
-    uuid: Uuid,
+    room_id: Uuid,
     yaml_form: Form<Yamls<'_>>,
     mut session: LoggedInSession,
     cookies: &CookieJar<'_>,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
-    redirect_to.set(&format!("/room/{}", uuid));
+    redirect_to.set(&format!("/room/{}", room_id));
 
-    let room = db::get_room(uuid, ctx).await.context("Unknown room")?;
+    let room = db::get_room(room_id, ctx).await.context("Unknown room")?;
     if room.is_closed() {
         return Err(anyhow::anyhow!("This room is closed, you're late").into());
     }
-    let yaml = yaml_form
-        .yamls
-        .iter()
-        .map(|yaml| {
-            yaml.trim()
-                .trim_start_matches("---")
-                .trim_end_matches("---")
-        })
-        .join("\n---\n");
 
-    let reader = BufReader::new(yaml.as_bytes());
-    let documents = yaml_split::DocumentIterator::new(reader);
-
-    let documents = documents
-        .into_iter()
-        .map(|doc| {
-            let Ok(doc) = doc else {
-                anyhow::bail!("Invalid yaml file. Syntax error.")
-            };
-
-            let Ok(parsed) = serde_yaml::from_str(&doc.trim_start_matches("\u{feff}")) else {
-                anyhow::bail!(
-                    "This does not look like an archipelago YAML. Check that your YAML syntax is valid."
-                )
-            };
-            Ok((doc, parsed))
-        })
-        .collect::<anyhow::Result<Vec<(String, YamlFile)>>>()?;
-
-    let yamls_in_room = db::get_yamls_for_room(uuid, ctx)
-        .await
-        .context("Couldn't get room yamls")?;
-    let mut players_in_room = yamls_in_room
-        .iter()
-        .map(|yaml| {
-            let player_name = &yaml.player_name;
-            let player_name =
-                player_name.trim_start()[..std::cmp::min(player_name.len(), 16)].trim_end();
-            player_name
-        })
-        .collect::<HashSet<&str>>();
-
-    let mut games = Vec::with_capacity(documents.len());
-    for (document, parsed) in documents.iter() {
-        let original_player_name = &parsed.name;
-
-        // AP 0.5.0 doesn't like non ASCII names while hosting.
-        if !original_player_name.is_ascii() {
-            return Err(Error(anyhow::anyhow!(format!(
-                "Your YAML contains an invalid name: {}.",
-                original_player_name
-            ))));
-        }
-
-        let ignore_dupe = original_player_name.contains("{NUMBER}")
-            || original_player_name.contains("{number}")
-            || original_player_name.contains("{PLAYER}")
-            || original_player_name.contains("{player}");
-        let player_name = original_player_name.trim_start()
-            [..std::cmp::min(original_player_name.len(), 16)]
-            .trim_end();
-
-        if player_name == "meta" || player_name == "Archipelago" {
-            return Err(Error(anyhow::anyhow!(format!(
-                "{} is a reserved name",
-                player_name
-            ))));
-        }
-
-        if !ignore_dupe && players_in_room.contains(&player_name) {
-            return Err(Error(anyhow::anyhow!(
-                "Adding this yaml would duplicate a player name"
-            )));
-        }
-
-        let game_name = match &parsed.game {
-            YamlGame::Name(name) => name.clone(),
-            YamlGame::Map(map) => {
-                let weighted_map: HashMap<&String, &f64> =
-                    map.iter().filter(|(_, &weight)| weight >= 1.0).collect();
-
-                match weighted_map.len() {
-                    1 => weighted_map.keys().next().unwrap().to_string(),
-                    n if n > 1 => format!("Random ({})", n),
-                    _ => Err(anyhow::anyhow!(
-                        "Your YAML contains games but none of the has any chance of getting rolled"
-                    ))?,
-                }
-            }
-        };
-
-        if room.yaml_validation {
-            let unsupported_games = validate_yaml(document, ctx).await?;
-            if !unsupported_games.is_empty() {
-                if room.allow_unsupported {
-                    session.0.warning_msg.push(format!(
-                        "Uploaded a YAML with unsupported games: {}. Couldn't verify it.",
-                        unsupported_games.iter().join("; ")
-                    ));
-                    session.0.save(cookies)?;
-                } else {
-                    return Err(anyhow::anyhow!(format!(
-                        "Your YAML contains the following unsupported games: {}. Can't upload.",
-                        unsupported_games.iter().join("; ")
-                    ))
-                    .into());
-                }
-            }
-        }
-
-        players_in_room.insert(player_name);
-        games.push((game_name, document, parsed));
-    }
+    let documents = crate::yaml::parse_raw_yamls(&yaml_form.yamls)?;
+    let games = crate::yaml::parse_and_validate_yamls_for_room(
+        &room,
+        &documents,
+        &mut session,
+        cookies,
+        ctx,
+    )
+    .await?;
 
     let mut conn = ctx.db_pool.get().await?;
     conn.transaction::<(), Error, _>(|conn| {
         async move {
             for (game_name, document, parsed) in games {
                 db::add_yaml_to_room(
-                    uuid,
+                    room_id,
                     session.0.user_id.unwrap(),
                     &game_name,
                     document,
@@ -281,43 +178,7 @@ async fn upload_yaml(
     .instrument(tracing::info_span!("add_yamls_to_room_transaction"))
     .await?;
 
-    Ok(Redirect::to(uri!(room(uuid))))
-}
-
-#[tracing::instrument(skip_all)]
-async fn validate_yaml(yaml: &str, ctx: &State<Context>) -> Result<Vec<String>> {
-    if ctx.yaml_validator_url.is_none() {
-        return Ok(vec![]);
-    }
-
-    #[derive(serde::Deserialize)]
-    struct ValidationResponse {
-        error: Option<String>,
-        unsupported: Vec<String>,
-    }
-
-    let client = reqwest::Client::new();
-    let form = reqwest::multipart::Form::new().text("data", yaml.to_string());
-
-    let response = client
-        .post(
-            ctx.yaml_validator_url
-                .as_ref()
-                .unwrap()
-                .join("/check_yaml")?,
-        )
-        .multipart(form)
-        .send()
-        .await
-        .map_err(|_| anyhow::anyhow!("Error while communicating with the YAML validator."))?
-        .json::<ValidationResponse>()
-        .await?;
-
-    if let Some(error) = response.error {
-        return Err(anyhow::anyhow!(error).into());
-    }
-
-    Ok(response.unsupported)
+    Ok(Redirect::to(uri!(room(room_id))))
 }
 
 #[get("/room/<room_id>/delete/<yaml_id>")]
