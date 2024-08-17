@@ -132,10 +132,7 @@ async fn download_world<'a>(
 
 #[rocket::get("/worlds/refresh")]
 #[tracing::instrument(skip_all)]
-async fn refresh_worlds(
-    index_manager: &State<IndexManager>,
-    _session: AdminSession,
-) -> Result<()> {
+async fn refresh_worlds(index_manager: &State<IndexManager>, _session: AdminSession) -> Result<()> {
     index_manager.update().await?;
 
     Ok(())
