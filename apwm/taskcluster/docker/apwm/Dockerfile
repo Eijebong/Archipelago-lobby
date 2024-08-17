@@ -15,10 +15,10 @@ RUN apt update && apt install -y python3 bash git openssh-client openssl
 COPY --from=builder /src/target/release/apwm /usr/local/bin/
 
 # Add worker user
-RUN mkdir /builds && \
+RUN mkdir -p /builds && \
     useradd -d /builds/worker -s /bin/bash -m worker && \
     mkdir /builds/worker/artifacts && \
-    chown worker:worker /builds/worker/artifacts /build/workers
+    chown worker:worker /builds/worker/artifacts /builds/worker
 
 ENV SHELL=/bin/bash \
     HOME=/builds/worker \
