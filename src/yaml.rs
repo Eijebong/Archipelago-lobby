@@ -31,7 +31,7 @@ pub fn parse_raw_yamls(yamls: &[&str]) -> Result<Vec<(String, YamlFile)>> {
                 anyhow::bail!("Invalid yaml file. Syntax error.")
             };
 
-            let Ok(parsed) = serde_yaml::from_str(doc.trim_start_matches("\u{feff}")) else {
+            let Ok(parsed) = serde_yaml::from_str(doc.trim_start_matches('\u{feff}')) else {
                 anyhow::bail!(
                     "This does not look like an archipelago YAML. Check that your YAML syntax is valid."
                 )

@@ -17,7 +17,6 @@ use rocket::State;
 use crate::error::Result;
 use crate::utils::RenamedFile;
 use crate::utils::ZipFile;
-use crate::Context;
 use crate::IndexManager;
 use crate::TplContext;
 
