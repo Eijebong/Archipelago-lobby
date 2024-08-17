@@ -224,7 +224,7 @@ async fn download_yamls<'a>(
     let mut writer = zip::ZipWriter::new(Cursor::new(vec![]));
 
     let options =
-        zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
     let mut emitted_names = HashSet::new();
 
     for yaml in yamls {

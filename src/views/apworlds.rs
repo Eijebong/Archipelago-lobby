@@ -61,7 +61,7 @@ async fn download_all(
 ) -> Result<ZipFile> {
     let mut writer = zip::ZipWriter::new(std::io::Cursor::new(vec![]));
     let options =
-        zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
     let apworlds_path = &index_manager.apworlds_path;
     let prefix = "custom_worlds";
     writer.add_directory(prefix, options)?;
