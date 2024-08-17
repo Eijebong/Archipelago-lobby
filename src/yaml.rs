@@ -31,7 +31,7 @@ pub fn parse_raw_yamls(yamls: &[&str]) -> Result<Vec<(String, YamlFile)>> {
                 anyhow::bail!("Invalid yaml file. Syntax error.")
             };
 
-            let Ok(parsed) = serde_yaml::from_str(&doc.trim_start_matches("\u{feff}")) else {
+            let Ok(parsed) = serde_yaml::from_str(doc.trim_start_matches("\u{feff}")) else {
                 anyhow::bail!(
                     "This does not look like an archipelago YAML. Check that your YAML syntax is valid."
                 )
@@ -114,7 +114,7 @@ fn validate_player_name<'a>(
         ))));
     }
 
-    let ignore_dupe = should_ignore_dupes(&original_player_name);
+    let ignore_dupe = should_ignore_dupes(original_player_name);
     if !ignore_dupe && players_in_room.contains(&player_name) {
         return Err(Error(anyhow::anyhow!(
             "Adding this yaml would duplicate a player name"
