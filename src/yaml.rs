@@ -4,10 +4,12 @@ use crate::views::auth::LoggedInSession;
 use crate::Context;
 
 use itertools::Itertools;
+use opentelemetry_http::HeaderInjector;
 use rocket::http::CookieJar;
 use rocket::State;
 use std::collections::{HashMap, HashSet};
 use std::io::BufReader;
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 pub fn parse_raw_yamls(yamls: &[&str]) -> Result<Vec<(String, YamlFile)>> {
     let yaml = yamls
@@ -155,7 +157,9 @@ async fn validate_yaml(yaml: &str, ctx: &State<Context>) -> Result<Vec<String>> 
     let client = reqwest::Client::new();
     let form = reqwest::multipart::Form::new().text("data", yaml.to_string());
 
-    let response = client
+    let cx = tracing::Span::current().context();
+
+    let mut req = client
         .post(
             ctx.yaml_validator_url
                 .as_ref()
@@ -163,7 +167,14 @@ async fn validate_yaml(yaml: &str, ctx: &State<Context>) -> Result<Vec<String>> 
                 .join("/check_yaml")?,
         )
         .multipart(form)
-        .send()
+        .build()?;
+
+    opentelemetry::global::get_text_map_propagator(|propagator| {
+        propagator.inject_context(&cx, &mut HeaderInjector(req.headers_mut()))
+    });
+
+    let response = client
+        .execute(req)
         .await
         .map_err(|_| anyhow::anyhow!("Error while communicating with the YAML validator."))?
         .json::<ValidationResponse>()

@@ -1,6 +1,7 @@
 use opentelemetry::{global, trace::TracerProvider, KeyValue};
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{
+    propagation::TraceContextPropagator,
     runtime,
     trace::{BatchConfig, RandomIdGenerator, Tracer},
     Resource,
@@ -44,6 +45,7 @@ fn init_tracer(endpoint: &str) -> Tracer {
         .unwrap();
 
     global::set_tracer_provider(provider.clone());
+    global::set_text_map_propagator(TraceContextPropagator::new());
     provider.tracer("tracing-otel-subscriber")
 }
 
