@@ -10,7 +10,6 @@ tasks:
     description: Run cargo fmt
     run:
       using: run-task
-      use-caches: false
       command: >-
         cd $VCS_PATH && cargo fmt --check
   clippy:
@@ -18,6 +17,5 @@ tasks:
     description: Run cargo clippy
     run:
       using: run-task
-      use-caches: false
       command: >-
         cd $VCS_PATH && cargo clippy
