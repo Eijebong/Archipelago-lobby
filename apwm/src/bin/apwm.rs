@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::{Path, PathBuf};
 use tempfile::tempdir;
@@ -89,7 +89,7 @@ async fn install(index_path: &Path, apworlds_path: &Path, destination: &Path) ->
         };
         let apworld_path = index.get_world_local_path(apworlds_path, world_name, version);
         let destination = destination.join(format!("{}.apworld", world_name));
-        std::fs::copy(apworld_path, destination)?;
+        std::fs::copy(&apworld_path, &destination).with_context(|| format!("Cannot copy {:?} to {:?}", &apworld_path, &destination))?;
     }
 
     Ok(())
