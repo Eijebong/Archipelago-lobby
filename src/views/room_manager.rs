@@ -33,6 +33,8 @@ struct CreateRoomForm<'a> {
     private: bool,
     yaml_validation: bool,
     allow_unsupported: bool,
+    yaml_limit_per_user: bool,
+    yaml_limit_per_user_nb: i32,
 }
 
 #[derive(Template)]
@@ -102,14 +104,12 @@ fn parse_date(date: &str, tz_offset: i32) -> Result<DateTime<Utc>> {
 async fn create_room_submit<'a>(
     redirect_to: &RedirectTo,
     ctx: &State<Context>,
-    room_form: Form<CreateRoomForm<'a>>,
+    mut room_form: Form<CreateRoomForm<'a>>,
     session: LoggedInSession,
 ) -> Result<Redirect> {
     redirect_to.set("/create-room");
 
-    if room_form.room_name.trim().is_empty() {
-        return Err(anyhow::anyhow!("The room name shouldn't be empty").into());
-    }
+    validate_room_form(&mut room_form)?;
 
     let author_id = session.user_id();
     let close_date = parse_date(room_form.close_date, room_form.tz_offset)?;
@@ -123,6 +123,9 @@ async fn create_room_submit<'a>(
         private: room_form.private,
         yaml_validation: room_form.yaml_validation,
         allow_unsupported: room_form.allow_unsupported,
+        yaml_limit_per_user: room_form
+            .yaml_limit_per_user
+            .then_some(room_form.yaml_limit_per_user_nb),
     };
     let new_room = db::create_room(&new_room, ctx).await?;
 
@@ -155,7 +158,7 @@ async fn edit_room<'a>(
 async fn edit_room_submit<'a>(
     redirect_to: &RedirectTo,
     room_id: Uuid,
-    room_form: Form<CreateRoomForm<'a>>,
+    mut room_form: Form<CreateRoomForm<'a>>,
     ctx: &State<Context>,
     session: LoggedInSession,
 ) -> Result<Redirect> {
@@ -167,6 +170,29 @@ async fn edit_room_submit<'a>(
         return Err(anyhow::anyhow!("You're not allowed to edit this room").into());
     }
 
+    validate_room_form(&mut room_form)?;
+
+    let new_room = NewRoom {
+        id: room_id,
+        name: room_form.room_name.trim(),
+        description: room_form.room_description.trim(),
+        close_date: parse_date(room_form.close_date, room_form.tz_offset)?.naive_utc(),
+        room_url: room_form.room_url,
+        author_id: None, // (Skips updating that field)
+        private: room_form.private,
+        yaml_validation: room_form.yaml_validation,
+        allow_unsupported: room_form.allow_unsupported,
+        yaml_limit_per_user: room_form
+            .yaml_limit_per_user
+            .then_some(room_form.yaml_limit_per_user_nb),
+    };
+
+    crate::db::update_room(&new_room, ctx).await?;
+
+    Ok(Redirect::to(format!("/room/{}", room_id)))
+}
+
+fn validate_room_form(room_form: &mut Form<CreateRoomForm<'_>>) -> Result<()> {
     if room_form.room_name.trim().is_empty() {
         return Err(anyhow::anyhow!("The room name shouldn't be empty").into());
     }
@@ -177,22 +203,15 @@ async fn edit_room_submit<'a>(
             return Err(anyhow::anyhow!("Error while parsing room URL: {}", e).into());
         }
     }
+    room_form.room_url = room_url;
 
-    let new_room = NewRoom {
-        id: room_id,
-        name: room_form.room_name.trim(),
-        description: room_form.room_description.trim(),
-        close_date: parse_date(room_form.close_date, room_form.tz_offset)?.naive_utc(),
-        room_url,
-        author_id: None, // (Skips updating that field)
-        private: room_form.private,
-        yaml_validation: room_form.yaml_validation,
-        allow_unsupported: room_form.allow_unsupported,
-    };
+    if room_form.yaml_limit_per_user && room_form.yaml_limit_per_user_nb <= 0 {
+        return Err(
+            anyhow::anyhow!("The per player YAML limit should be greater or equal to 1").into(),
+        );
+    }
 
-    crate::db::update_room(&new_room, ctx).await?;
-
-    Ok(Redirect::to(format!("/room/{}", room_id)))
+    Ok(())
 }
 
 pub fn routes() -> Vec<rocket::Route> {

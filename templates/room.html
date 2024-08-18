@@ -30,6 +30,7 @@
 {% if has_room_url %}
     <p class="message info">Room URL: <a href="{{ room.room_url }}">{{ room.room_url }}</a></p>
 {% endif %}
+
 <table class="styled" id="room-info">
     <tr>
         <td>Room name</td>
@@ -39,6 +40,14 @@
         <td>Closing time</td>
         <td id="close-date" class="time long-time discord">{{ room.close_date }}</td>
     </tr>
+    {% match room.yaml_limit_per_user%}
+    {% when Some with (yaml_limit_per_user) %}
+    <tr>
+        <td>Maximum number of games per player</td>
+        <td>{{ yaml_limit_per_user}}</td>
+    </tr>
+    {% when None %}
+    {% endmatch %}
     <tr>
         <td>Players</td>
         <td><span title="{{unique_player_count}} unique players / {{ unique_game_count }} unique games">{{ player_count }}</span></td>

@@ -168,6 +168,13 @@ form
     text-align: center
 
   formset
+    label + input[type=number]
+      margin-left: 2em !important
+      width: calc(100% - 2em) !important
+
+    label:has(+input[type=number])
+      margin-left: 2em !important
+
     input + label
       margin-left: 2em
       width: calc(100% - 2em) !important

@@ -25,6 +25,8 @@ pub struct NewRoom<'a> {
     pub description: &'a str,
     pub room_url: &'a str,
     pub author_id: Option<i64>,
+    #[diesel(treat_none_as_null = true)]
+    pub yaml_limit_per_user: Option<i32>,
     pub private: bool,
     pub yaml_validation: bool,
     pub allow_unsupported: bool,
@@ -52,6 +54,7 @@ pub struct Room {
     pub private: bool,
     pub yaml_validation: bool,
     pub allow_unsupported: bool,
+    pub yaml_limit_per_user: Option<i32>,
 }
 
 impl Room {

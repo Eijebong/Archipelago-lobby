@@ -55,6 +55,11 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
         .await
         .context("Couldn't get room yamls")?;
 
+    let mut own_games_nb = yamls_in_room
+        .iter()
+        .filter(|yaml| Some(yaml.owner_id) == session.0.user_id)
+        .count() as i32;
+
     let mut players_in_room = yamls_in_room
         .iter()
         .map(|yaml| get_ap_player_name(&yaml.player_name))
@@ -63,6 +68,15 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
     let mut games = Vec::with_capacity(documents.len());
 
     for (document, parsed) in documents.iter() {
+        if let Some(yaml_limit_per_user) = room.yaml_limit_per_user {
+            if own_games_nb >= yaml_limit_per_user && !session.0.is_admin {
+                return Err(anyhow::anyhow!(format!(
+                    "The room only allows {} game(s) per person. Cannot upload.",
+                    yaml_limit_per_user
+                ))
+                .into());
+            }
+        }
         let player_name = validate_player_name(&parsed.name, &players_in_room)?;
         players_in_room.insert(player_name);
 
@@ -88,6 +102,7 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
         }
 
         games.push((game_name, document, parsed));
+        own_games_nb += 1;
     }
 
     Ok(games)

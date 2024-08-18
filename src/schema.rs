@@ -18,6 +18,7 @@ diesel::table! {
         private -> Bool,
         yaml_validation -> Bool,
         allow_unsupported -> Bool,
+        yaml_limit_per_user -> Nullable<Int4>,
     }
 }
 

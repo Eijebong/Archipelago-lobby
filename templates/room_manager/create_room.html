@@ -39,6 +39,15 @@
     {%- when None -%}
     {%- endmatch -%}
     </textarea>
+    {% match room %}
+    {% when Some with (room) %}
+        <label for="room_url">Room URL:</label>
+        <input type="text" id="room_url" name="room_url" value="{{room.room_url}}"/>
+    {%- when None -%}
+        <input type="hidden" id="room_url" name="room_url" value=""/>
+    {%- endmatch -%}
+
+    <hr>
 
     {% match room %}
     {% when Some with (room) %}
@@ -66,13 +75,27 @@
         <label for="allow_unsupported">Allow bypassing validation for unsupported games</label>
     </formset>
 
+    <hr>
+
+    <formset>
     {% match room %}
     {% when Some with (room) %}
-        <label for="room_url">Room URL:</label>
-        <input type="text" id="room_url" name="room_url" value="{{room.room_url}}"/>
-    {%- when None -%}
-        <input type="hidden" id="room_url" name="room_url" value=""/>
-    {%- endmatch -%}
+    <input type="checkbox" name="yaml_limit_per_user" id="yaml_limit_per_user" {% if room.yaml_limit_per_user.is_some() %} checked {% endif %} />
+    {% when None %}
+    <input type="checkbox" name="yaml_limit_per_user" id="yaml_limit_per_user" />
+    {% endmatch %}
+
+    <label for="yaml_limit_per_user">Limit the number of games a user can submit</label>
+
+    <label for="yaml_limit_per_user_nb">Limit:</label>
+    {% match room %}
+    {% when Some with (room) %}
+    <input type="number" min=1 name="yaml_limit_per_user_nb" id="yaml_limit_per_user_nb" value="{{ room.yaml_limit_per_user.unwrap_or(1) }}" />
+    {% when None %}
+    <input type="number" min=1 name="yaml_limit_per_user_nb" id="yaml_limit_per_user_nb" value="1" />
+    {% endmatch %}
+
+    </formset>
 
     <input type="hidden" name="tz_offset" id="tz_offset"/>
 
