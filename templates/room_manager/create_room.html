@@ -3,6 +3,8 @@
 {% import "utils.html.tera" as utils %}
 
 {% block menu %}
+    {% call menu::menu_item("Room", "", "#room-options", true, "room-options") %}
+    {% call menu::menu_item("Advanced options", "", "#advanced-options", false, "advanced-options") %}
 {% endblock %}
 {% block room_navigation %}
     {%- match room %}
@@ -20,6 +22,8 @@
 {%- when None %}
     <form method="POST">
 {%- endmatch %}
+
+<div class="options-tab" id="section-room-options">
     <label for="room_name">Room name:</label>
     {% match room %}
     {% when Some with (room) %}
@@ -56,7 +60,9 @@
     <input type="checkbox" name="private" id="private" checked/>
     {%- endmatch -%}
     <label for="private">Private room | {% call utils::hint_text("A private room will not be displayed on the index page unless you already have a YAML file uploaded to it. The link to the room will need to be shared to other participants manually.") %}</label>
+</div>
 
+<div class="options-tab" id="section-advanced-options">
     <formset>
         {% match room %}
         {% when Some with (room) %}
@@ -96,6 +102,7 @@
     {% endmatch %}
 
     </formset>
+</div>
 
     <input type="hidden" name="tz_offset" id="tz_offset"/>
 
@@ -109,63 +116,17 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-const tzOffset = (new Date()).getTimezoneOffset();
-document.getElementById("tz_offset").value = tzOffset;
+    <script src="/static/js/room_editor.js?{{ base.js_version}}"></script>
+    <script defer>
+        const closeDateEl = document.getElementById("close_date");
 
-
-function dateToISOLikeButLocal(date) {
-    const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-    const msLocal =  date.getTime() - offsetMs;
-    const dateLocal = new Date(msLocal);
-    const iso = dateLocal.toISOString();
-    const isoLocal = iso.slice(0, 19);
-    return isoLocal;
-}
-const closeDateEl = document.getElementById("close_date");
-
-{%- if let Some(room) = room %}
-const closeDate = new Date("{{room.close_date}}Z");
-closeDateEl.value = dateToISOLikeButLocal(closeDate);
-{% else %}
-const closeDate = new Date();
-closeDate.setSeconds(0)
-closeDateEl.value = dateToISOLikeButLocal(closeDate);
-{%- endif %}
-
-function updateFormset(formset) {
-    const inputs = Array.from(formset.getElementsByTagName("input"));
-    if (!inputs) {
-        return;
-    }
-
-    const first_input = inputs[0];
-    if (first_input.type != "checkbox") {
-        return;
-    }
-
-    inputs.splice(0, 1);
-    const display = first_input.checked ? "inline-block" : "none";
-    for (const input of inputs) {
-        if (input.type != "checkbox") {
-            input.style.display = display;
-        }
-
-        for (const label of input.labels) {
-            label.style.display = display;
-        }
-    }
-
-    return first_input;
-}
-
-const formsets = document.getElementsByTagName("formset");
-for (const formset of formsets) {
-    const first_input = updateFormset(formset);
-    if (first_input) {
-        first_input.onchange = () => updateFormset(formset);
-    }
-}
-
-</script>
+        {%- if let Some(room) = room %}
+        const closeDate = new Date("{{room.close_date}}Z");
+        closeDateEl.value = dateToISOLikeButLocal(closeDate);
+        {% else %}
+        const closeDate = new Date();
+        closeDate.setSeconds(0)
+        closeDateEl.value = dateToISOLikeButLocal(closeDate);
+        {%- endif %}
+    </script>
 {% endblock %}
