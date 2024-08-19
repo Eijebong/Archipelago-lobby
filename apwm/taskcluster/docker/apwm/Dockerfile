@@ -1,10 +1,3 @@
-FROM $DOCKER_IMAGE_PARENT AS builder
-
-# %include .
-COPY /topsrcdir /src
-WORKDIR /src
-RUN cargo build --bin apwm --features cli --release
-
 FROM debian:12-slim
 
 WORKDIR /usr/local/bin
@@ -12,7 +5,7 @@ WORKDIR /usr/local/bin
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt update && apt install -y python3 bash git openssh-client openssl
 
-COPY --from=builder /src/target/release/apwm /usr/local/bin/
+COPY /builds/worker/fetches/build-result /usr/local/bin/apwm
 
 # Add worker user
 RUN mkdir -p /builds && \
@@ -28,5 +21,3 @@ ENV SHELL=/bin/bash \
 
 VOLUME /builds/worker/checkouts
 VOLUME /builds/worker/.cache
-
-
