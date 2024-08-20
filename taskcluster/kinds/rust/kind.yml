@@ -1,0 +1,16 @@
+---
+loader: taskgraph.loader.transform:loader
+
+kind-dependencies:
+  - docker-image
+
+transforms:
+    - eije_taskgraph.transforms.rust:transforms
+    - taskgraph.transforms.task:transforms
+
+tasks:
+    ap-lobby:
+      worker-type-fmt: linux-small
+      worker-type-build: linux-medium
+      build-result: /builds/worker/target/release/ap-lobby
+      docker-repo: ghcr.io/eijebong/archipelago-lobby

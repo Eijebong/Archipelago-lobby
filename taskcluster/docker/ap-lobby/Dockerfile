@@ -1,10 +1,3 @@
-FROM $DOCKER_IMAGE_PARENT AS builder
-
-# %include .
-COPY /topsrcdir /src
-WORKDIR /src
-RUN cargo build --release
-
 FROM debian:12-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -14,5 +7,5 @@ RUN apt update && \
 
 WORKDIR /usr/local/bin
 
-COPY --from=builder /src/target/release/ap-lobby /usr/local/bin/
+COPY build-result /usr/local/bin/ap-lobby
 CMD ["/usr/local/bin/ap-lobby"]
