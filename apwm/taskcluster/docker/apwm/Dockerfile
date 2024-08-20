@@ -10,7 +10,7 @@ COPY build-result /usr/local/bin/apwm
 # Add worker user
 RUN mkdir -p /builds && \
     useradd -d /builds/worker -s /bin/bash -m worker && \
-    mkdir /builds/worker/artifacts && \
+    mkdir -p /builds/worker/artifacts && \
     chown worker:worker /builds/worker/artifacts /builds/worker
 
 ENV SHELL=/bin/bash \
