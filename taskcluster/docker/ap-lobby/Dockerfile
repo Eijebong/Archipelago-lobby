@@ -7,5 +7,5 @@ RUN apt update && \
 
 WORKDIR /usr/local/bin
 
-COPY build-result /usr/local/bin/ap-lobby
+COPY --chmod=755 build-result /usr/local/bin/ap-lobby
 CMD ["/usr/local/bin/ap-lobby"]
