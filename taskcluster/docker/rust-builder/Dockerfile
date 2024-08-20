@@ -1,6 +1,6 @@
 FROM rust:1.79-bookworm
 
-RUN apt update && apt install libpq-dev
+RUN apt update && apt install -y libpq-dev
 RUN rustup component add clippy rustfmt
 
 # Add worker user
