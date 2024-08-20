@@ -20,7 +20,7 @@ COPY run-task/fetch-content /usr/local/bin/fetch-content
 COPY run-task/robustcheckout.py /usr/local/mercurial/robustcheckout.py
 COPY run-task/hgrc /etc/mercurial/hgrc.d/mozilla.rc
 
-COPY --chmod 755 build-result /usr/local/bin/apwm
+COPY --chmod=755 build-result /usr/local/bin/apwm
 
 VOLUME /builds/worker/checkouts
 VOLUME /builds/worker/.cache
