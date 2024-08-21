@@ -101,11 +101,22 @@
     <input type="number" min=1 name="yaml_limit_per_user_nb" id="yaml_limit_per_user_nb" value="1" />
     {% endmatch %}
 
+{%- match room %}
+{%- when Some with (room) %}
+    <hr>
+    <h5>Danger zone</h5>
+    <table class="styled danger-zone">
+        <tr><td>Delete this room. This will delete all associated YAMLs, there is no going back.</td><td><a href="/delete-room/{{room.id}}" class="cancel-button" data-confirm-del=true data-resource-type="room" data-resource-name="{{room.name}}">Delete room</a></td></tr>
+    </table>
+{%- when None %}
+{%- endmatch %}
+
     </formset>
 </div>
 
     <input type="hidden" name="tz_offset" id="tz_offset"/>
 
+<hr>
 {%- match room %}
 {%- when Some with (room) %}
     <button>Save room</button>
@@ -117,6 +128,7 @@
 
 {% block scripts %}
     <script src="/static/js/room_editor.js?{{ base.js_version}}"></script>
+    <script src="/static/js/room.js?{{ base.js_version}}"></script>
     <script defer>
         const closeDateEl = document.getElementById("close_date");
 

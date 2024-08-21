@@ -153,6 +153,25 @@ async fn edit_room<'a>(
     })
 }
 
+#[get("/delete-room/<room_id>")]
+#[tracing::instrument(skip(ctx, session))]
+async fn delete_room<'a>(
+    ctx: &State<Context>,
+    room_id: Uuid,
+    session: LoggedInSession,
+) -> Result<Redirect> {
+    let room = crate::db::get_room(room_id, ctx).await?;
+    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
+
+    if !is_my_room {
+        return Err(anyhow::anyhow!("You're not allowed to delete this room").into());
+    }
+
+    db::delete_room(&room_id, ctx).await?;
+
+    Ok(Redirect::to("/"))
+}
+
 #[post("/edit-room/<room_id>", data = "<room_form>")]
 #[tracing::instrument(skip(redirect_to, room_form, ctx, session))]
 async fn edit_room_submit<'a>(
@@ -220,6 +239,7 @@ pub fn routes() -> Vec<rocket::Route> {
         my_rooms,
         create_room_submit,
         edit_room,
+        delete_room,
         edit_room_submit
     ]
 }

@@ -146,6 +146,18 @@ pub async fn update_room<'a>(new_room: &'a NewRoom<'a>, ctx: &State<Context>) ->
 }
 
 #[tracing::instrument(skip(ctx))]
+pub async fn delete_room(room_id: &uuid::Uuid, ctx: &State<Context>) -> Result<()> {
+    let mut conn = ctx.db_pool.get().await?;
+
+    diesel::delete(rooms::table)
+        .filter(rooms::id.eq(room_id))
+        .execute(&mut conn)
+        .await?;
+
+    Ok(())
+}
+
+#[tracing::instrument(skip(ctx))]
 pub async fn get_yamls_for_room_with_author_names(
     uuid: uuid::Uuid,
     ctx: &State<Context>,
