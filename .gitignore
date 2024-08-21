@@ -3,5 +3,6 @@
 /Rocket.toml
 /.env
 /apworlds
+/apworlds_index
 /.ratarget
 __pycache__/
