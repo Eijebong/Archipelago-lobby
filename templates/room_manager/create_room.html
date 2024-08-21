@@ -18,9 +18,9 @@
 
 {%- match room %}
 {%- when Some with (room) %}
-    <form method="POST" action="/edit-room/{{room.id}}">
+    <form method="POST" action="/edit-room/{{room.id}}" id="room-form">
 {%- when None %}
-    <form method="POST">
+    <form method="POST" id="room-form">
 {%- endmatch %}
 
 <div class="options-tab" id="section-room-options">
@@ -140,5 +140,18 @@
         closeDate.setSeconds(0)
         closeDateEl.value = dateToISOLikeButLocal(closeDate);
         {%- endif %}
+
+        const form = document.getElementById("room-form");
+        const messages = document.getElementById("messages");
+        for (const elmt of form.getElementsByTagName("input")) {
+            elmt.addEventListener("invalid", () => {
+                const message = document.createElement("p")
+                message.className = "error";
+                message.innerText = "One or more input is invalid.";
+
+                messages.innerHTML = "";
+                messages.appendChild(message);
+            });
+        }
     </script>
 {% endblock %}
