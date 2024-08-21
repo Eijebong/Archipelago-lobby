@@ -103,7 +103,7 @@ impl Session {
                 tracing::event!(
                     tracing::Level::INFO,
                     message = "Session recovered",
-                    session = session.user_id
+                    session = session.user_id.map(|id| id.to_string())
                 );
                 session.save(cookies).unwrap();
                 return session;
