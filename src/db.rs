@@ -256,7 +256,7 @@ pub struct DiscordUser {
     pub username: String,
 }
 
-#[tracing::instrument(skip(ctx))]
+#[tracing::instrument(skip(ctx, discord_id), fields(%discord_id))]
 pub async fn upsert_discord_user(
     discord_id: i64,
     username: &str,
