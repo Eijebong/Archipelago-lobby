@@ -80,7 +80,7 @@
             {% endif %}
             <td>{{yaml.0.game}}</td>
             {% if (is_my_yaml || is_my_room) && !is_closed %}
-            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}", "{{yaml.0.player_name}}", "{{yaml.0.game}}")' />View</a> | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}">Delete</a></td>
+            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}", "{{yaml.0.player_name}}", "{{yaml.0.game}}")' />View</a> | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}" data-confirm-del=true data-resource-type="YAML file" data-resource-name="{{yaml.0.player_name}} ({{yaml.0.game}})">Delete</a></td>
             {% else %}
             <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}", "{{yaml.0.player_name}}", "{{yaml.0.game}}")' />View</a></td>
             {% endif %}
@@ -139,6 +139,7 @@
 <script src="/static/contrib/highlight.js/highlight.min.js" defer></script>
 <script src="/static/contrib/highlight.js/yaml.min.js" defer></script>
 <script src="/static/js/viewer.js?{{ base.js_version }}" defer></script>
+<script src="/static/js/room.js?{{ base.js_version }}" defer></script>
 {% endblock %}
 
 {% block styles %}
