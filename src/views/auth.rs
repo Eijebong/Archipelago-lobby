@@ -93,7 +93,7 @@ impl Session {
                 tracing::event!(
                     tracing::Level::INFO,
                     message = "Session already established",
-                    session = session.user_id
+                    session = session.user_id.map(|id| id.to_string())
                 );
                 return session;
             }
