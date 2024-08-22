@@ -30,6 +30,7 @@ pub struct NewRoom<'a> {
     pub private: bool,
     pub yaml_validation: bool,
     pub allow_unsupported: bool,
+    pub yaml_limit_bypass_list: Vec<i64>,
 }
 
 #[derive(Insertable)]
@@ -55,6 +56,7 @@ pub struct Room {
     pub yaml_validation: bool,
     pub allow_unsupported: bool,
     pub yaml_limit_per_user: Option<i32>,
+    pub yaml_limit_bypass_list: Vec<i64>,
 }
 
 impl Room {

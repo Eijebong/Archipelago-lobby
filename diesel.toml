@@ -1,0 +1,2 @@
+[print_schema]
+patch_file = "schema.diff"

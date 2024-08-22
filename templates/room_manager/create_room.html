@@ -97,8 +97,16 @@
     {% match room %}
     {% when Some with (room) %}
     <input type="number" min=1 name="yaml_limit_per_user_nb" id="yaml_limit_per_user_nb" value="{{ room.yaml_limit_per_user.unwrap_or(1) }}" />
+    {% if base.is_admin %}
+    <label for="yaml_limit_bypass_list">YAML limit bypass list:</label>
+    {% endif %}
+    <input {% if base.is_admin %}type="text"{% else %}type="hidden"{% endif %} name="yaml_limit_bypass_list" id="yaml_limit_bypass_list" value="{{ room.yaml_limit_bypass_list|join(",") }}" />
     {% when None %}
     <input type="number" min=1 name="yaml_limit_per_user_nb" id="yaml_limit_per_user_nb" value="1" />
+    {% if base.is_admin %}
+    <label for="yaml_limit_bypass_list">YAML limit bypass list:</label>
+    {% endif %}
+    <input {% if base.is_admin %}type="text"{% else %}type="hidden"{% endif %} type="text" name="yaml_limit_bypass_list" id="yaml_limit_bypass_list" />
     {% endmatch %}
 
 {%- match room %}

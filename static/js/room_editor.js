@@ -29,8 +29,10 @@ function updateFormset(formset) {
             input.style.display = display;
         }
 
-        for (const label of input.labels) {
-            label.style.display = display;
+        if (input.labels !== null) {
+            for (const label of input.labels) {
+                label.style.display = display;
+            }
         }
     }
 

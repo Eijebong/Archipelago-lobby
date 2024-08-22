@@ -69,7 +69,9 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
 
     for (document, parsed) in documents.iter() {
         if let Some(yaml_limit_per_user) = room.yaml_limit_per_user {
-            if own_games_nb >= yaml_limit_per_user && !session.0.is_admin {
+            let allow_bypass =
+                session.0.is_admin || room.yaml_limit_bypass_list.contains(&session.user_id());
+            if own_games_nb >= yaml_limit_per_user && !allow_bypass {
                 return Err(anyhow::anyhow!(format!(
                     "The room only allows {} game(s) per person. Cannot upload.",
                     yaml_limit_per_user

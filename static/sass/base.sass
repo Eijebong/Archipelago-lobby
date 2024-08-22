@@ -180,7 +180,7 @@ form
     text-align: center
 
   formset
-    label + input[type=number]
+    label + input[type]:not([type=checkbox])
       margin-left: 2em !important
       width: calc(100% - 2em) !important
 
@@ -189,11 +189,14 @@ form
 
     input + label
       margin-left: 2em
-      width: calc(100% - 2em) !important
 
+    input[type=checkbox] + label
       &:first-of-type
         margin-left: 0em
         width: 100% !important
+
+      &:not(first-of-type)
+        width: calc(100% - 2em) !important
 
 
 legend

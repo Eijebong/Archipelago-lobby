@@ -8,6 +8,7 @@ use rocket::http::uri::Absolute;
 use rocket::http::{self, CookieJar};
 use rocket::response::Redirect;
 use rocket::{get, post, FromForm};
+use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::db::{self, Author, NewRoom, Room, RoomFilter};
@@ -35,6 +36,7 @@ struct CreateRoomForm<'a> {
     allow_unsupported: bool,
     yaml_limit_per_user: bool,
     yaml_limit_per_user_nb: i32,
+    yaml_limit_bypass_list: &'a str,
 }
 
 #[derive(Template)]
@@ -126,6 +128,11 @@ async fn create_room_submit<'a>(
         yaml_limit_per_user: room_form
             .yaml_limit_per_user
             .then_some(room_form.yaml_limit_per_user_nb),
+        yaml_limit_bypass_list: room_form
+            .yaml_limit_bypass_list
+            .split(',')
+            .filter_map(|id| i64::from_str(id).ok())
+            .collect(),
     };
     let new_room = db::create_room(&new_room, ctx).await?;
 
@@ -204,6 +211,11 @@ async fn edit_room_submit<'a>(
         yaml_limit_per_user: room_form
             .yaml_limit_per_user
             .then_some(room_form.yaml_limit_per_user_nb),
+        yaml_limit_bypass_list: room_form
+            .yaml_limit_bypass_list
+            .split(',')
+            .filter_map(|id| i64::from_str(id).ok())
+            .collect(),
     };
 
     crate::db::update_room(&new_room, ctx).await?;
@@ -228,6 +240,18 @@ fn validate_room_form(room_form: &mut Form<CreateRoomForm<'_>>) -> Result<()> {
         return Err(
             anyhow::anyhow!("The per player YAML limit should be greater or equal to 1").into(),
         );
+    }
+
+    if !room_form.yaml_limit_bypass_list.is_empty() {
+        let possible_ids = room_form.yaml_limit_bypass_list.split(',');
+        for possible_id in possible_ids {
+            if i64::from_str(possible_id).is_err() {
+                return Err(anyhow::anyhow!(
+                    "The YAML limit bypass list should be a comma delimited list of discord IDs."
+                )
+                .into());
+            }
+        }
     }
 
     Ok(())
