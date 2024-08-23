@@ -86,7 +86,7 @@
             {% endif %}
         </tr>
         {% endfor %}
-        {% if is_my_room && !yamls.is_empty() %}
+        {% if base.is_logged_in && !yamls.is_empty() %}
         <hr>
         <tr>
             <td colspan="2"></td><td><a class="validation-button" href="/room/{{room.id}}/yamls">Download all YAMLs</a></td>
