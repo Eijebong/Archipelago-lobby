@@ -1,5 +1,6 @@
 use crate::db::{self, Room, YamlFile, YamlGame};
 use crate::error::{Error, Result, WithContext};
+use crate::extractor::YamlFeatures;
 use crate::views::auth::LoggedInSession;
 use crate::Context;
 
@@ -31,7 +32,8 @@ pub fn parse_raw_yamls(yamls: &[&str]) -> Result<Vec<(String, YamlFile)>> {
                 anyhow::bail!("Invalid yaml file. Syntax error.")
             };
 
-            let Ok(parsed) = serde_yaml::from_str(doc.trim_start_matches('\u{feff}')) else {
+            let doc = doc.trim_start_matches('\u{feff}').to_string();
+            let Ok(parsed) = serde_yaml::from_str(&doc) else {
                 anyhow::bail!(
                     "This does not look like an archipelago YAML. Check that your YAML syntax is valid."
                 )
@@ -50,7 +52,7 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
     session: &mut LoggedInSession,
     cookies: &CookieJar<'_>,
     ctx: &State<Context>,
-) -> Result<Vec<(String, &'a String, &'a YamlFile)>> {
+) -> Result<Vec<(String, &'a String, &'a YamlFile, YamlFeatures)>> {
     let yamls_in_room = db::get_yamls_for_room(room.id, ctx)
         .await
         .context("Couldn't get room yamls")?;
@@ -103,7 +105,9 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
             }
         }
 
-        games.push((game_name, document, parsed));
+        let features = crate::extractor::extract_features(parsed, document)?;
+
+        games.push((game_name, document, parsed, features));
         own_games_nb += 1;
     }
 
@@ -133,9 +137,10 @@ fn validate_player_name<'a>(
 
     let ignore_dupe = should_ignore_dupes(original_player_name);
     if !ignore_dupe && players_in_room.contains(&player_name) {
-        return Err(Error(anyhow::anyhow!(
-            "Adding this yaml would duplicate a player name"
-        )));
+        return Err(Error(anyhow::anyhow!(format!(
+            "Adding this yaml would duplicate a player name: {}",
+            player_name
+        ))));
     }
 
     Ok(player_name)

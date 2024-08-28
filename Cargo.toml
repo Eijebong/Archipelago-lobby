@@ -11,7 +11,7 @@ anyhow = "1.0.86"
 askama = { version = "0.12.1", features = ["with-rocket", "markdown"] }
 askama_rocket = "0.12.0"
 chrono = "0.4.38"
-diesel = { version = "2.2.2", features = ["uuid", "chrono"] }
+diesel = { version = "2.2.2", features = ["uuid", "chrono", "serde_json"] }
 diesel-async = { version = "0.5", features = ["postgres", "deadpool", "async-connection-wrapper"] }
 diesel_migrations = { version = "2.2.0", features = ["postgres"] }
 dotenvy = "0.15.7"

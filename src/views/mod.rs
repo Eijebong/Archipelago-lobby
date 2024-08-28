@@ -27,6 +27,7 @@ use crate::error::{Error, RedirectTo, Result, WithContext};
 pub mod api;
 pub mod apworlds;
 pub mod auth;
+pub mod filters;
 pub mod room_manager;
 
 #[derive(Template)]
@@ -160,13 +161,14 @@ async fn upload_yaml(
     let mut conn = ctx.db_pool.get().await?;
     conn.transaction::<(), Error, _>(|conn| {
         async move {
-            for (game_name, document, parsed) in games {
+            for (game_name, document, parsed, features) in games {
                 db::add_yaml_to_room(
                     room_id,
                     session.0.user_id.unwrap(),
                     &game_name,
                     document,
                     parsed,
+                    features,
                     conn,
                 )
                 .await?;

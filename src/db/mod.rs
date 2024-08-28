@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::error::Result;
+use crate::extractor::YamlFeatures;
 use crate::schema::{discord_users, rooms, yamls};
 use crate::Context;
 
@@ -11,10 +12,13 @@ use diesel::dsl::{exists, now, AsSelect, SqlTypeOf};
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
+pub use json::Json;
 use once_cell::sync::Lazy;
 use prometheus::{HistogramOpts, HistogramVec};
 use rocket::State;
 use uuid::Uuid;
+
+mod json;
 
 #[derive(Insertable, diesel::AsChangeset, Debug)]
 #[diesel(table_name=rooms)]
@@ -42,6 +46,7 @@ pub struct NewYaml<'a> {
     content: &'a str,
     player_name: &'a str,
     game: &'a str,
+    features: json::Json<YamlFeatures>,
 }
 
 #[derive(Debug, diesel::Queryable, diesel::Selectable)]
@@ -79,6 +84,7 @@ pub struct YamlWithoutContent {
     pub player_name: String,
     pub game: String,
     pub owner_id: i64,
+    pub features: json::Json<YamlFeatures>,
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -218,6 +224,7 @@ pub async fn add_yaml_to_room(
     game_name: &str,
     content: &str,
     parsed: &YamlFile,
+    features: YamlFeatures,
     conn: &mut AsyncPgConnection,
 ) -> Result<()> {
     let new_yaml = NewYaml {
@@ -227,6 +234,7 @@ pub async fn add_yaml_to_room(
         content,
         player_name: &parsed.name,
         game: game_name,
+        features: Json(features),
     };
 
     diesel::insert_into(yamls::table)

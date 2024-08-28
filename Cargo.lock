@@ -914,6 +914,7 @@ dependencies = [
  "chrono",
  "diesel_derives",
  "itoa",
+ "serde_json",
  "uuid",
 ]
 

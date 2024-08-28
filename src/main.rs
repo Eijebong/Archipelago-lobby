@@ -28,6 +28,7 @@ use views::auth::{AdminSession, Session};
 
 mod db;
 mod error;
+mod extractor;
 mod index_manager;
 mod otlp;
 mod schema;
@@ -185,7 +186,7 @@ async fn main() -> anyhow::Result<()> {
         .expect("Failed to register query histogram");
 
     let index_manager = IndexManager::new()?;
-    index_manager.update().await?;
+    //index_manager.update().await?;
 
     rocket::custom(figment.clone())
         .attach(prometheus.clone())

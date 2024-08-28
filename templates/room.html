@@ -74,7 +74,7 @@
         {% let is_my_yaml = (Some(yaml.0.owner_id) == base.user_id.as_ref()) %}
         <tr {% if is_my_yaml %} data-my-yaml=true {% endif %}>
             {% if base.is_logged_in %}
-                <td><span title="@{{yaml.1}}">{{yaml.0.player_name}}</span></td>
+            <td><span title="@{{yaml.1}}">{{yaml.0.player_name}} {{yaml.0.features|yaml_features|safe}}</span></td>
             {% else %}
                 <td>{{yaml.0.player_name}}</td>
             {% endif %}
