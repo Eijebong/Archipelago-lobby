@@ -86,12 +86,20 @@ fn get_option_probability(option: &serde_yaml::Value) -> Result<u32> {
     if option.is_bool() {
         return Ok(if option.as_bool().unwrap() { 10000 } else { 0 });
     }
+
     if option.is_number() {
         return Ok(if option.as_i64().unwrap() != 0 {
             10000
         } else {
             0
         });
+    }
+
+    if option.is_string() {
+        if option.as_str() == Some("true") {
+            return Ok(10000);
+        }
+        return Ok(0);
     }
 
     if option.is_mapping() {
@@ -253,6 +261,26 @@ mod tests {
 Test:
   deathlink: true
   trainersanity: false
+  other_option: false
+        "#;
+        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let mut extractor = Extractor::new(&yaml)?;
+        extractor.set_game("Test", 10000)?;
+        game_extractor.extract_features(&mut extractor)?;
+
+        let expected = HashMap::from([(YamlFeature::DeathLink, 10000)]);
+        assert_eq!(extractor.finalize(), expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_extract_str_bool() -> Result<()> {
+        let game_extractor = TestExtractor {};
+        let raw_yaml = r#"
+Test:
+  deathlink: 'true'
+  trainersanity: 'false'
   other_option: false
         "#;
         let yaml: Value = serde_yaml::from_str(raw_yaml)?;
