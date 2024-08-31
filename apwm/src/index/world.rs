@@ -122,7 +122,7 @@ impl World {
     }
 
     async fn download_to(&self, uri: &str, mut destination: &File) -> Result<String> {
-        let req = reqwest::get(uri).await?;
+        let req = reqwest::get(uri).await?.error_for_status()?;
         let body = req.bytes().await?;
 
         destination.write_all(&body)?;
