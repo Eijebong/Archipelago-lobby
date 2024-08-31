@@ -14,3 +14,4 @@ tasks:
       worker-type-build: linux-medium
       build-result: /builds/worker/target/release/ap-lobby
       docker-repo: ghcr.io/eijebong/archipelago-lobby
+      with-tests: true
