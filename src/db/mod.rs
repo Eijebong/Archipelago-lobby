@@ -4,7 +4,6 @@ use std::time::Instant;
 use crate::error::Result;
 use crate::extractor::YamlFeatures;
 use crate::schema::{discord_users, rooms, yamls};
-use crate::Context;
 
 use chrono::NaiveDateTime;
 use diesel::connection::Instrumentation;
@@ -15,7 +14,6 @@ use diesel_async::{AsyncPgConnection, RunQueryDsl};
 pub use json::Json;
 use once_cell::sync::Lazy;
 use prometheus::{HistogramOpts, HistogramVec};
-use rocket::State;
 use uuid::Uuid;
 
 mod json;
@@ -121,57 +119,58 @@ pub enum WithYaml {
     AndFor(i64),
 }
 
-#[tracing::instrument(skip(ctx))]
-pub async fn list_rooms(room_filter: RoomFilter, ctx: &State<Context>) -> Result<Vec<Room>> {
-    let mut conn = ctx.db_pool.get().await?;
+#[tracing::instrument(skip(conn))]
+pub async fn list_rooms(
+    room_filter: RoomFilter,
+    conn: &mut AsyncPgConnection,
+) -> Result<Vec<Room>> {
     let query = room_filter.as_query();
 
-    Ok(query.load::<Room>(&mut conn).await?)
+    Ok(query.load::<Room>(conn).await?)
 }
 
-#[tracing::instrument(skip(ctx))]
-pub async fn create_room<'a>(new_room: &'a NewRoom<'a>, ctx: &State<Context>) -> Result<Room> {
-    let mut conn = ctx.db_pool.get().await?;
-
+#[tracing::instrument(skip(conn))]
+pub async fn create_room<'a>(
+    new_room: &'a NewRoom<'a>,
+    conn: &mut AsyncPgConnection,
+) -> Result<Room> {
     Ok(diesel::insert_into(rooms::table)
         .values(new_room)
         .returning(Room::as_returning())
-        .get_result(&mut conn)
+        .get_result(conn)
         .await?)
 }
 
-#[tracing::instrument(skip(ctx))]
-pub async fn update_room<'a>(new_room: &'a NewRoom<'a>, ctx: &State<Context>) -> Result<()> {
-    let mut conn = ctx.db_pool.get().await?;
-
+#[tracing::instrument(skip(conn))]
+pub async fn update_room<'a>(
+    new_room: &'a NewRoom<'a>,
+    conn: &mut AsyncPgConnection,
+) -> Result<()> {
     diesel::update(rooms::table)
         .filter(rooms::id.eq(new_room.id))
         .set(new_room)
-        .execute(&mut conn)
+        .execute(conn)
         .await?;
 
     Ok(())
 }
 
-#[tracing::instrument(skip(ctx))]
-pub async fn delete_room(room_id: &uuid::Uuid, ctx: &State<Context>) -> Result<()> {
-    let mut conn = ctx.db_pool.get().await?;
-
+#[tracing::instrument(skip(conn))]
+pub async fn delete_room(room_id: &uuid::Uuid, conn: &mut AsyncPgConnection) -> Result<()> {
     diesel::delete(rooms::table)
         .filter(rooms::id.eq(room_id))
-        .execute(&mut conn)
+        .execute(conn)
         .await?;
 
     Ok(())
 }
 
-#[tracing::instrument(skip(ctx))]
+#[tracing::instrument(skip(conn))]
 pub async fn get_yamls_for_room_with_author_names(
     uuid: uuid::Uuid,
-    ctx: &State<Context>,
+    conn: &mut AsyncPgConnection,
 ) -> Result<Vec<(YamlWithoutContent, String)>> {
-    let mut conn = ctx.db_pool.get().await?;
-    let room = rooms::table.find(uuid).first::<Room>(&mut conn).await;
+    let room = rooms::table.find(uuid).first::<Room>(conn).await;
     let Ok(_room) = room else {
         Err(anyhow::anyhow!("Couldn't get room"))?
     };
@@ -180,14 +179,16 @@ pub async fn get_yamls_for_room_with_author_names(
         .filter(yamls::room_id.eq(uuid))
         .inner_join(discord_users::table)
         .select((YamlWithoutContent::as_select(), discord_users::username))
-        .get_results(&mut conn)
+        .get_results(conn)
         .await?)
 }
 
-#[tracing::instrument(skip(ctx))]
-pub async fn get_yamls_for_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Vec<Yaml>> {
-    let mut conn = ctx.db_pool.get().await?;
-    let room = rooms::table.find(uuid).first::<Room>(&mut conn).await;
+#[tracing::instrument(skip(conn))]
+pub async fn get_yamls_for_room(
+    uuid: uuid::Uuid,
+    conn: &mut AsyncPgConnection,
+) -> Result<Vec<Yaml>> {
+    let room = rooms::table.find(uuid).first::<Room>(conn).await;
     let Ok(_room) = room else {
         Err(anyhow::anyhow!("Couldn't get room"))?
     };
@@ -195,25 +196,25 @@ pub async fn get_yamls_for_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Resul
     Ok(yamls::table
         .filter(yamls::room_id.eq(uuid))
         .select(Yaml::as_select())
-        .get_results::<Yaml>(&mut conn)
+        .get_results::<Yaml>(conn)
         .await?)
 }
 
-#[tracing::instrument(skip(ctx))]
-pub async fn get_room(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<Room> {
-    let mut conn = ctx.db_pool.get().await?;
-    Ok(rooms::table.find(uuid).first::<Room>(&mut conn).await?)
+#[tracing::instrument(skip(conn))]
+pub async fn get_room(uuid: uuid::Uuid, conn: &mut AsyncPgConnection) -> Result<Room> {
+    Ok(rooms::table.find(uuid).first::<Room>(conn).await?)
 }
 
-#[tracing::instrument(skip(ctx))]
-pub async fn get_room_and_author(uuid: uuid::Uuid, ctx: &State<Context>) -> Result<(Room, String)> {
-    let mut conn = ctx.db_pool.get().await?;
-
+#[tracing::instrument(skip(conn))]
+pub async fn get_room_and_author(
+    uuid: uuid::Uuid,
+    conn: &mut AsyncPgConnection,
+) -> Result<(Room, String)> {
     Ok(rooms::table
         .find(uuid)
         .inner_join(discord_users::table)
         .select((Room::as_select(), discord_users::username))
-        .first(&mut conn)
+        .first(conn)
         .await?)
 }
 
@@ -245,23 +246,21 @@ pub async fn add_yaml_to_room(
     Ok(())
 }
 
-#[tracing::instrument(skip(ctx))]
-pub async fn remove_yaml(yaml_id: uuid::Uuid, ctx: &State<Context>) -> Result<()> {
-    let mut conn = ctx.db_pool.get().await?;
+#[tracing::instrument(skip(conn))]
+pub async fn remove_yaml(yaml_id: uuid::Uuid, conn: &mut AsyncPgConnection) -> Result<()> {
     diesel::delete(yamls::table.find(yaml_id))
-        .execute(&mut conn)
+        .execute(conn)
         .await?;
 
     Ok(())
 }
 
-#[tracing::instrument(skip(ctx))]
-pub async fn get_yaml_by_id(yaml_id: Uuid, ctx: &State<Context>) -> Result<Yaml> {
-    let mut conn = ctx.db_pool.get().await?;
+#[tracing::instrument(skip(conn))]
+pub async fn get_yaml_by_id(yaml_id: Uuid, conn: &mut AsyncPgConnection) -> Result<Yaml> {
     Ok(yamls::table
         .find(yaml_id)
         .select(Yaml::as_select())
-        .first::<Yaml>(&mut conn)
+        .first::<Yaml>(conn)
         .await?)
 }
 
@@ -278,14 +277,12 @@ pub struct DiscordUser {
     pub username: String,
 }
 
-#[tracing::instrument(skip(ctx, discord_id), fields(%discord_id))]
+#[tracing::instrument(skip(conn, discord_id), fields(%discord_id))]
 pub async fn upsert_discord_user(
     discord_id: i64,
     username: &str,
-    ctx: &State<Context>,
+    conn: &mut AsyncPgConnection,
 ) -> Result<()> {
-    let mut conn = ctx.db_pool.get().await?;
-
     let discord_user = DiscordUser {
         id: discord_id,
         username: username.to_string(),
@@ -296,7 +293,7 @@ pub async fn upsert_discord_user(
         .on_conflict(discord_users::id)
         .do_update()
         .set(discord_users::username.eq(username))
-        .execute(&mut conn)
+        .execute(conn)
         .await?;
 
     Ok(())
@@ -400,7 +397,7 @@ pub struct DbInstrumentation {
     query_start: Option<Instant>,
 }
 
-pub(crate) static QUERY_HISTOGRAM: Lazy<HistogramVec> = Lazy::new(|| {
+pub static QUERY_HISTOGRAM: Lazy<HistogramVec> = Lazy::new(|| {
     HistogramVec::new(
         HistogramOpts::new("diesel_query_seconds", "SQL query duration").buckets(vec![
             0.000005, 0.00001, 0.00005, 0.0001, 0.0005, 0.001, 0.005, 0.01, 0.1, 1.0,

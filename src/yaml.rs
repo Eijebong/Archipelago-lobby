@@ -1,13 +1,13 @@
 use crate::db::{self, Room, YamlFile, YamlGame};
 use crate::error::{Error, Result, WithContext};
 use crate::extractor::YamlFeatures;
-use crate::views::auth::LoggedInSession;
-use crate::Context;
+use crate::session::LoggedInSession;
 
+use diesel_async::AsyncPgConnection;
 use itertools::Itertools;
 use opentelemetry_http::HeaderInjector;
+use reqwest::Url;
 use rocket::http::CookieJar;
-use rocket::State;
 use std::collections::{HashMap, HashSet};
 use std::io::BufReader;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -51,9 +51,10 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
     documents: &'a [(String, YamlFile)],
     session: &mut LoggedInSession,
     cookies: &CookieJar<'_>,
-    ctx: &State<Context>,
+    yaml_validator_url: &Option<Url>,
+    conn: &mut AsyncPgConnection,
 ) -> Result<Vec<(String, &'a String, &'a YamlFile, YamlFeatures)>> {
-    let yamls_in_room = db::get_yamls_for_room(room.id, ctx)
+    let yamls_in_room = db::get_yamls_for_room(room.id, conn)
         .await
         .context("Couldn't get room yamls")?;
 
@@ -87,20 +88,22 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
         let game_name = validate_game(&parsed.game)?;
 
         if room.yaml_validation {
-            let unsupported_games = validate_yaml(document, ctx).await?;
-            if !unsupported_games.is_empty() {
-                if room.allow_unsupported {
-                    session.0.warning_msg.push(format!(
-                        "Uploaded a YAML with unsupported games: {}. Couldn't verify it.",
-                        unsupported_games.iter().join("; ")
-                    ));
-                    session.0.save(cookies)?;
-                } else {
-                    return Err(anyhow::anyhow!(format!(
-                        "Your YAML contains the following unsupported games: {}. Can't upload.",
-                        unsupported_games.iter().join("; ")
-                    ))
-                    .into());
+            if let Some(yaml_validator_url) = yaml_validator_url {
+                let unsupported_games = validate_yaml(document, yaml_validator_url).await?;
+                if !unsupported_games.is_empty() {
+                    if room.allow_unsupported {
+                        session.0.warning_msg.push(format!(
+                            "Uploaded a YAML with unsupported games: {}. Couldn't verify it.",
+                            unsupported_games.iter().join("; ")
+                        ));
+                        session.0.save(cookies)?;
+                    } else {
+                        return Err(anyhow::anyhow!(format!(
+                            "Your YAML contains the following unsupported games: {}. Can't upload.",
+                            unsupported_games.iter().join("; ")
+                        ))
+                        .into());
+                    }
                 }
             }
         }
@@ -165,11 +168,7 @@ fn validate_game(game: &YamlGame) -> Result<String> {
 }
 
 #[tracing::instrument(skip_all)]
-async fn validate_yaml(yaml: &str, ctx: &State<Context>) -> Result<Vec<String>> {
-    if ctx.yaml_validator_url.is_none() {
-        return Ok(vec![]);
-    }
-
+async fn validate_yaml(yaml: &str, yaml_validator_url: &Url) -> Result<Vec<String>> {
     #[derive(serde::Deserialize)]
     struct ValidationResponse {
         error: Option<String>,
@@ -182,12 +181,7 @@ async fn validate_yaml(yaml: &str, ctx: &State<Context>) -> Result<Vec<String>> 
     let cx = tracing::Span::current().context();
 
     let mut req = client
-        .post(
-            ctx.yaml_validator_url
-                .as_ref()
-                .unwrap()
-                .join("/check_yaml")?,
-        )
+        .post(yaml_validator_url.join("/check_yaml")?)
         .multipart(form)
         .build()?;
 

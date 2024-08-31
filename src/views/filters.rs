@@ -1,9 +1,7 @@
 use itertools::Itertools;
 
-use crate::{
-    db::Json,
-    extractor::{YamlFeature, YamlFeatures},
-};
+use ap_lobby::db::Json;
+use ap_lobby::extractor::{YamlFeature, YamlFeatures};
 
 pub fn yaml_features(features: &Json<YamlFeatures>) -> askama::Result<String> {
     let mut features_content = String::new();

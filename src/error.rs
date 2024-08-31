@@ -6,7 +6,7 @@ use rocket::request::{FromRequest, Outcome};
 use rocket::response::{self, Responder};
 use rocket::{Request, Response};
 
-use crate::views::auth::Session;
+use crate::session::Session;
 
 pub type Result<T> = std::result::Result<T, Error>;
 pub type ApiResult<T> = std::result::Result<T, ApiError>;

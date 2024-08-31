@@ -2,15 +2,15 @@ use http::header::CONTENT_DISPOSITION;
 use rocket::{
     get,
     http::{Header, Status},
+    routes, State,
 };
-use rocket::{routes, State};
 use uuid::Uuid;
 
-use super::YamlContent;
-use crate::{
+use crate::views::YamlContent;
+use crate::Context;
+use ap_lobby::{
     db,
     error::{ApiResult, WithContext, WithStatus},
-    Context,
 };
 
 #[get("/room/<room_id>/download/<yaml_id>")]
@@ -20,12 +20,14 @@ pub(crate) async fn download_yaml<'a>(
     yaml_id: Uuid,
     ctx: &State<Context>,
 ) -> ApiResult<YamlContent<'a>> {
-    let _room = db::get_room(room_id, ctx)
+    let mut conn = ctx.db_pool.get().await?;
+
+    let _room = db::get_room(room_id, &mut conn)
         .await
         .context("Couldn't find the room")
         .status(Status::NotFound)?;
 
-    let yaml = db::get_yaml_by_id(yaml_id, ctx)
+    let yaml = db::get_yaml_by_id(yaml_id, &mut conn)
         .await
         .context("Couldn't find the YAML file")
         .status(Status::NotFound)?;

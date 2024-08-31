@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use db::{DbInstrumentation, QUERY_HISTOGRAM};
+use ap_lobby::db::{DbInstrumentation, QUERY_HISTOGRAM};
+use ap_lobby::session::{AdminSession, AdminToken, Session};
 use diesel::{ConnectionError, ConnectionResult};
 use diesel_async::async_connection_wrapper::AsyncConnectionWrapper;
 use diesel_async::pooled_connection::deadpool::Pool;
@@ -10,7 +11,6 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use dotenvy::dotenv;
 use futures_util::future::BoxFuture;
 use futures_util::FutureExt;
-use index_manager::IndexManager;
 use reqwest::Url;
 use rocket::data::{Limits, ToByteUnit};
 use rocket::http::{CookieJar, Method, Status};
@@ -24,17 +24,14 @@ use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, Server
 use rustls::pki_types::{ServerName, UnixTime};
 use rustls::Error as TLSError;
 use rustls::{DigitallySignedStruct, SignatureScheme};
-use views::auth::{AdminSession, Session};
 
-mod db;
-mod error;
-mod extractor;
+use crate::index_manager::IndexManager;
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
+
 mod index_manager;
 mod otlp;
-mod schema;
-mod utils;
 mod views;
-mod yaml;
 
 pub struct Discord;
 
@@ -78,10 +75,8 @@ impl<'a> TplContext<'a> {
     }
 }
 
-pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
-
 #[catch(401)]
-fn unauthorized(req: &Request) -> crate::error::Result<Redirect> {
+fn unauthorized(req: &Request) -> ap_lobby::error::Result<Redirect> {
     let mut session = Session::from_request_sync(req);
     if session.is_logged_in {
         let cookies = req.cookies();
@@ -117,8 +112,6 @@ impl<R: Handler + Clone> From<AdminOnlyRoute<R>> for Vec<Route> {
         vec![Route::new(Method::Get, "/", val)]
     }
 }
-
-struct AdminToken(String);
 
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
@@ -186,7 +179,7 @@ async fn main() -> anyhow::Result<()> {
         .expect("Failed to register query histogram");
 
     let index_manager = IndexManager::new()?;
-    //index_manager.update().await?;
+    index_manager.update().await?;
 
     rocket::custom(figment.clone())
         .attach(prometheus.clone())

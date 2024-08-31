@@ -1,6 +1,8 @@
 #![allow(clippy::blocks_in_conditions)]
 
-use crate::error::{RedirectTo, Result};
+use ap_lobby::db::{self, Author, NewRoom, Room, RoomFilter};
+use ap_lobby::error::{RedirectTo, Result};
+use ap_lobby::session::LoggedInSession;
 use askama::Template;
 use chrono::{DateTime, TimeZone, Utc};
 use rocket::form::Form;
@@ -11,11 +13,8 @@ use rocket::{get, post, FromForm};
 use std::str::FromStr;
 use uuid::Uuid;
 
-use crate::db::{self, Author, NewRoom, Room, RoomFilter};
 use crate::{Context, TplContext};
 use rocket::State;
-
-use super::auth::LoggedInSession;
 
 #[derive(Template)]
 #[template(path = "room_manager/create_room.html")]
@@ -60,6 +59,8 @@ async fn my_rooms<'a>(
         Author::User(session.user_id())
     };
 
+    let mut conn = ctx.db_pool.get().await?;
+
     Ok(ListRoomsTpl {
         base: TplContext::from_session("rooms", session.0, cookies),
         open_rooms: db::list_rooms(
@@ -67,7 +68,7 @@ async fn my_rooms<'a>(
                 .with_status(db::RoomStatus::Open)
                 .with_author(author_filter)
                 .with_private(true),
-            ctx,
+            &mut conn,
         )
         .await?,
         closed_rooms: db::list_rooms(
@@ -75,7 +76,7 @@ async fn my_rooms<'a>(
                 .with_status(db::RoomStatus::Closed)
                 .with_author(author_filter)
                 .with_private(true),
-            ctx,
+            &mut conn,
         )
         .await?,
     })
@@ -91,12 +92,12 @@ fn create_room<'a>(session: LoggedInSession, cookies: &CookieJar) -> Result<Edit
 
 fn parse_date(date: &str, tz_offset: i32) -> Result<DateTime<Utc>> {
     let offset = chrono::FixedOffset::west_opt(tz_offset * 60)
-        .ok_or_else(|| crate::error::Error(anyhow::anyhow!("Wrong timezone offset")))?;
+        .ok_or_else(|| ap_lobby::error::Error(anyhow::anyhow!("Wrong timezone offset")))?;
     let datetime = chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%dT%H:%M")?;
     let date = offset
         .from_local_datetime(&datetime)
         .single()
-        .ok_or_else(|| crate::error::Error(anyhow::anyhow!("Cannot parse passed datetime")))?;
+        .ok_or_else(|| ap_lobby::error::Error(anyhow::anyhow!("Cannot parse passed datetime")))?;
 
     Ok(date.into())
 }
@@ -134,7 +135,8 @@ async fn create_room_submit<'a>(
             .filter_map(|id| i64::from_str(id).ok())
             .collect(),
     };
-    let new_room = db::create_room(&new_room, ctx).await?;
+    let mut conn = ctx.db_pool.get().await?;
+    let new_room = db::create_room(&new_room, &mut conn).await?;
 
     Ok(Redirect::to(format!("/room/{}", new_room.id)))
 }
@@ -147,7 +149,8 @@ async fn edit_room<'a>(
     session: LoggedInSession,
     cookies: &CookieJar<'a>,
 ) -> Result<EditRoom<'a>> {
-    let room = crate::db::get_room(room_id, ctx).await?;
+    let mut conn = ctx.db_pool.get().await?;
+    let room = db::get_room(room_id, &mut conn).await?;
     let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
 
     if !is_my_room {
@@ -167,14 +170,15 @@ async fn delete_room<'a>(
     room_id: Uuid,
     session: LoggedInSession,
 ) -> Result<Redirect> {
-    let room = crate::db::get_room(room_id, ctx).await?;
+    let mut conn = ctx.db_pool.get().await?;
+    let room = db::get_room(room_id, &mut conn).await?;
     let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
 
     if !is_my_room {
         return Err(anyhow::anyhow!("You're not allowed to delete this room").into());
     }
 
-    db::delete_room(&room_id, ctx).await?;
+    db::delete_room(&room_id, &mut conn).await?;
 
     Ok(Redirect::to("/"))
 }
@@ -190,7 +194,8 @@ async fn edit_room_submit<'a>(
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/edit-room/{}", room_id));
 
-    let room = crate::db::get_room(room_id, ctx).await?;
+    let mut conn = ctx.db_pool.get().await?;
+    let room = db::get_room(room_id, &mut conn).await?;
     let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
     if !is_my_room {
         return Err(anyhow::anyhow!("You're not allowed to edit this room").into());
@@ -218,7 +223,7 @@ async fn edit_room_submit<'a>(
             .collect(),
     };
 
-    crate::db::update_room(&new_room, ctx).await?;
+    db::update_room(&new_room, &mut conn).await?;
 
     Ok(Redirect::to(format!("/room/{}", room_id)))
 }
