@@ -122,6 +122,7 @@ fn get_option_probability(option: &serde_yaml::Value) -> Result<u32> {
     Ok(0)
 }
 
+struct PokemonRB;
 struct PokemonEmerald;
 struct PokemonCrystal;
 struct PokemonFrLg;
@@ -167,6 +168,18 @@ impl FeatureExtractor for DefaultExtractor {
     fn extract_features(&self, extractor: &mut Extractor) -> Result<()> {
         extractor.register_feature(YamlFeature::DeathLink, "death_link")?;
         extractor.register_feature(YamlFeature::DeathLink, "deathlink")?;
+        Ok(())
+    }
+}
+
+impl FeatureExtractor for PokemonRB {
+    fn game(&self) -> &'static str {
+        "Pokemon Red and Blue"
+    }
+
+    fn extract_features(&self, extractor: &mut Extractor) -> Result<()> {
+        extractor.register_feature(YamlFeature::TrainerSanity, "trainersanity")?;
+        extractor.register_feature(YamlFeature::DexSanity, "dexsanity")?;
         Ok(())
     }
 }
