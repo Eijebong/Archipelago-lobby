@@ -11,9 +11,9 @@ for (const span of spanElements) {
     const titleElem = document.createElement("span");
     titleElem.innerHTML = " (" + span.title + ")";
     titleElem.style.display = 'none';
-    titleElem.classList = "span-title"
-    if (titleElem.nextSibling) {
-        parent.insertBefore(titleElem, titleElem.nextSibling);
+  titleElem.classList = "span-title"
+    if (span.nextSibling) {
+        parent.insertBefore(titleElem, span.nextSibling);
     } else {
         parent.appendChild(titleElem);
     }

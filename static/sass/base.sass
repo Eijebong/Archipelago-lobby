@@ -84,9 +84,6 @@ hr
     &:last-child
       width: 0
 
-    &:first-child
-      width: 65%
-
 .danger-zone
   td
     &:last-child
@@ -847,9 +844,31 @@ body:has(dialog[open])
   word-break: break-word
 
 .yaml-features
-  float: right
   margin-right: 0.5em
+  display: flex
+  flex-wrap: wrap
+  justify-content: center
   img
     height: 1.2em
     vertical-align: middle
     margin-left: 0.2em
+
+@media (min-width:768px)
+  .yamls
+    td
+      &:first-child
+        width: 65%
+        span
+          &:first-child
+            display: flex
+
+  .yaml-features
+    margin-left: auto
+
+@media (max-width:768px)
+  .yamls
+    td
+      &:first-child > span
+        display: grid
+        grid-auto-rows: auto
+        text-align: center
