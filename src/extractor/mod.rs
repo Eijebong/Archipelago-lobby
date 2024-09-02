@@ -8,11 +8,15 @@ use serde_yaml::Value;
 
 use crate::db::YamlFile;
 
+mod jd;
+mod pokemon;
+
 #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum YamlFeature {
     DeathLink,
     TrainerSanity,
     DexSanity,
+    OrbSanity,
 }
 
 pub type YamlFeatures = HashMap<YamlFeature, u32>;
@@ -25,7 +29,20 @@ pub trait FeatureExtractor {
 pub struct Extractor<'a> {
     features: YamlFeatures,
     current_game: Option<(&'a Value, u32)>,
+    current_weight: u32,
     yaml: &'a Value,
+}
+
+fn is_true(option: &Value) -> bool {
+    if let Some(value) = option.as_bool() {
+        return value;
+    }
+
+    if let Some(value) = option.as_i64() {
+        return value != 0;
+    }
+
+    return option.as_str() == Some("true");
 }
 
 impl<'a> Extractor<'a> {
@@ -38,11 +55,47 @@ impl<'a> Extractor<'a> {
             features: YamlFeatures::new(),
             yaml,
             current_game: None,
+            current_weight: 10000,
         })
     }
 
     pub fn register_feature(&mut self, feature: YamlFeature, path: &str) -> Result<()> {
-        let Some((game_yaml, game_probability)) = self.current_game else {
+        let option_probability = self.get_option_probability(path, is_true)?;
+        let new_value = self.get_weighted_probality(option_probability);
+
+        if new_value != 0 {
+            let current_value = self.features.entry(feature).or_default();
+            *current_value += new_value;
+        }
+
+        Ok(())
+    }
+
+    pub fn get_option_probability(
+        &mut self,
+        path: &str,
+        is_true_callback: fn(&Value) -> bool,
+    ) -> Result<u32> {
+        let Some((game_yaml, _)) = self.current_game else {
+            panic!("You should call set_game before")
+        };
+
+        let Some(option) = game_yaml.get(path) else {
+            return Ok(0);
+        };
+
+        get_option_probability(option, is_true_callback)
+    }
+
+    pub fn register_ranged_feature(
+        &mut self,
+        feature: YamlFeature,
+        path: &str,
+        min: u64,
+        max: u64,
+        transform: fn(&Value) -> Result<u64>,
+    ) -> Result<()> {
+        let Some((game_yaml, _)) = self.current_game else {
             panic!("You should call set_game before")
         };
 
@@ -50,13 +103,34 @@ impl<'a> Extractor<'a> {
             return Ok(());
         };
 
-        let option_probability = get_option_probability(option)?;
+        let map = get_option_map::<u64>(option, transform)?;
 
-        if option_probability != 0 {
+        let total: u32 = map.values().sum();
+        let probability: u32 = map
+            .iter()
+            .filter_map(|(option, probability)| {
+                if *option < min || *option > max {
+                    return Some(probability);
+                }
+
+                None
+            })
+            .sum();
+        let actual_probability = ((probability as f64 / total as f64) * 10000.) as u32;
+        let new_value = self.get_weighted_probality(actual_probability);
+
+        if new_value != 0 {
             let current_value = self.features.entry(feature).or_default();
-            *current_value +=
-                (option_probability as f64 * (game_probability as f64 / 10000.)) as u32;
+            *current_value += new_value;
         }
+
+        Ok(())
+    }
+
+    pub fn with_weight(&mut self, weight: u32, inner: fn(&mut Self) -> Result<()>) -> Result<()> {
+        self.current_weight = weight;
+        inner(self)?;
+        self.current_weight = 10000;
 
         Ok(())
     }
@@ -77,29 +151,52 @@ impl<'a> Extractor<'a> {
         Ok(())
     }
 
+    fn get_weighted_probality(&self, probability: u32) -> u32 {
+        let Some((_, game_probability)) = self.current_game else {
+            panic!("You should call set_game before")
+        };
+
+        (probability as f64
+            * (game_probability as f64 / 10000.)
+            * (self.current_weight as f64 / 10000.)) as u32
+    }
+
     fn finalize(self) -> YamlFeatures {
         self.features
     }
 }
 
-fn get_option_probability(option: &serde_yaml::Value) -> Result<u32> {
-    if option.is_bool() {
-        return Ok(if option.as_bool().unwrap() { 10000 } else { 0 });
+fn get_option_map<K: for<'a> Deserialize<'a> + std::hash::Hash + Eq>(
+    option: &serde_yaml::Value,
+    transform: fn(&Value) -> Result<K>,
+) -> Result<HashMap<K, u32>> {
+    if let Ok(value) = transform(option) {
+        return Ok(HashMap::from([(value, 10000)]));
     }
 
-    if option.is_number() {
-        return Ok(if option.as_i64().unwrap() != 0 {
-            10000
-        } else {
-            0
-        });
-    }
+    let Some(map) = option.as_mapping() else {
+        Err(anyhow!(
+            "Option should either be value or a mapping of the same type"
+        ))?
+    };
 
-    if option.is_string() {
-        if option.as_str() == Some("true") {
-            return Ok(10000);
+    let mut ret = HashMap::new();
+    for (key, value) in map.iter() {
+        let Ok(key) = transform(key) else { continue };
+        if value != 0 {
+            ret.insert(key, value.as_u64().unwrap() as u32);
         }
-        return Ok(0);
+    }
+
+    Ok(ret)
+}
+
+fn get_option_probability(
+    option: &serde_yaml::Value,
+    is_true_callback: fn(&Value) -> bool,
+) -> Result<u32> {
+    if is_true_callback(option) {
+        return Ok(10000);
     }
 
     if option.is_mapping() {
@@ -111,7 +208,7 @@ fn get_option_probability(option: &serde_yaml::Value) -> Result<u32> {
                 continue;
             }
 
-            if value != 0 && get_option_probability(key)? != 0 {
+            if value != 0 && get_option_probability(key, is_true_callback)? != 0 {
                 on_count += value.as_u64().unwrap();
             }
         }
@@ -122,44 +219,7 @@ fn get_option_probability(option: &serde_yaml::Value) -> Result<u32> {
     Ok(0)
 }
 
-struct PokemonRB;
-struct PokemonEmerald;
-struct PokemonCrystal;
-struct PokemonFrLg;
 struct DefaultExtractor;
-
-impl FeatureExtractor for PokemonEmerald {
-    fn game(&self) -> &'static str {
-        "Pokemon Emerald"
-    }
-
-    fn extract_features(&self, extractor: &mut Extractor) -> Result<()> {
-        extractor.register_feature(YamlFeature::TrainerSanity, "trainersanity")?;
-        extractor.register_feature(YamlFeature::DexSanity, "dexsanity")?;
-
-        Ok(())
-    }
-}
-
-impl FeatureExtractor for PokemonCrystal {
-    fn game(&self) -> &'static str {
-        "Pokemon Crystal"
-    }
-    fn extract_features(&self, extractor: &mut Extractor) -> Result<()> {
-        extractor.register_feature(YamlFeature::TrainerSanity, "trainersanity")?;
-        Ok(())
-    }
-}
-
-impl FeatureExtractor for PokemonFrLg {
-    fn game(&self) -> &'static str {
-        "Pokemon FireRed and LeafGreen"
-    }
-    fn extract_features(&self, extractor: &mut Extractor) -> Result<()> {
-        extractor.register_feature(YamlFeature::TrainerSanity, "trainersanity")?;
-        Ok(())
-    }
-}
 
 impl FeatureExtractor for DefaultExtractor {
     fn game(&self) -> &'static str {
@@ -172,33 +232,22 @@ impl FeatureExtractor for DefaultExtractor {
     }
 }
 
-impl FeatureExtractor for PokemonRB {
-    fn game(&self) -> &'static str {
-        "Pokemon Red and Blue"
-    }
-
-    fn extract_features(&self, extractor: &mut Extractor) -> Result<()> {
-        extractor.register_feature(YamlFeature::TrainerSanity, "trainersanity")?;
-        extractor.register_feature(YamlFeature::DexSanity, "dexsanity")?;
-        Ok(())
-    }
-}
-
 pub static EXTRACTORS: Lazy<HashMap<&'static str, Box<dyn FeatureExtractor + Send + Sync>>> =
     Lazy::new(|| {
         let mut extractors: HashMap<&'static str, Box<dyn FeatureExtractor + Send + Sync>> =
             HashMap::new();
         macro_rules! register {
-            ($ty: ident) => {
-                let obj = $ty {};
+            ($($ty: ident)::+) => {
+                let obj = $($ty)::+ {};
                 extractors.insert(obj.game(), Box::new(obj));
             };
         }
 
-        register!(PokemonRB);
-        register!(PokemonEmerald);
-        register!(PokemonCrystal);
-        register!(PokemonFrLg);
+        register!(pokemon::PokemonRB);
+        register!(pokemon::PokemonEmerald);
+        register!(pokemon::PokemonCrystal);
+        register!(pokemon::PokemonFrLg);
+        register!(jd::JakAndDaxter);
 
         extractors
     });
@@ -250,6 +299,7 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::{error::Result, extractor::DefaultExtractor};
+    use anyhow::anyhow;
     use serde_yaml::Value;
 
     use super::{Extractor, FeatureExtractor, YamlFeature};
@@ -263,6 +313,14 @@ mod tests {
         fn extract_features(&self, extractor: &mut super::Extractor) -> crate::error::Result<()> {
             extractor.register_feature(YamlFeature::DeathLink, "deathlink")?;
             extractor.register_feature(YamlFeature::TrainerSanity, "trainersanity")?;
+            extractor.register_ranged_feature(YamlFeature::OrbSanity, "orbulons", 2, 5, |v| {
+                Ok(v.as_u64().ok_or_else(|| anyhow!("Nope"))?)
+            })?;
+            extractor.with_weight(5000, |extractor: &mut Extractor| -> Result<()> {
+                extractor.register_feature(YamlFeature::DeathLink, "half_deathlink")?;
+
+                Ok(())
+            })?;
 
             Ok(())
         }
@@ -411,6 +469,161 @@ Other:
             (YamlFeature::DeathLink, 5400),
             (YamlFeature::TrainerSanity, 1800),
         ]);
+        assert_eq!(extractor.finalize(), expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_ranged_feature_low() -> Result<()> {
+        let game_extractor = TestExtractor {};
+        let raw_yaml = r#"
+games:
+  Test: 100
+Test:
+  orbulons:
+    1: 50
+    2: 0
+    3: 0
+    4: 0
+    5: 0
+    6: 0
+        "#;
+        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let mut extractor = Extractor::new(&yaml)?;
+        extractor.set_game("Test", 10000)?;
+        game_extractor.extract_features(&mut extractor)?;
+        DefaultExtractor {}.extract_features(&mut extractor)?;
+
+        let expected = HashMap::from([(YamlFeature::OrbSanity, 10000)]);
+        assert_eq!(extractor.finalize(), expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_ranged_feature_high() -> Result<()> {
+        let game_extractor = TestExtractor {};
+        let raw_yaml = r#"
+games:
+  Test: 100
+Test:
+  orbulons:
+    1: 0
+    2: 0
+    3: 0
+    4: 0
+    5: 0
+    6: 50
+        "#;
+        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let mut extractor = Extractor::new(&yaml)?;
+        extractor.set_game("Test", 10000)?;
+        game_extractor.extract_features(&mut extractor)?;
+        DefaultExtractor {}.extract_features(&mut extractor)?;
+
+        let expected = HashMap::from([(YamlFeature::OrbSanity, 10000)]);
+        assert_eq!(extractor.finalize(), expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_ranged_feature_both() -> Result<()> {
+        let game_extractor = TestExtractor {};
+        let raw_yaml = r#"
+games:
+  Test: 100
+Test:
+  orbulons:
+    1: 50
+    2: 0
+    3: 0
+    4: 0
+    5: 0
+    6: 50
+        "#;
+        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let mut extractor = Extractor::new(&yaml)?;
+        extractor.set_game("Test", 10000)?;
+        game_extractor.extract_features(&mut extractor)?;
+        DefaultExtractor {}.extract_features(&mut extractor)?;
+
+        let expected = HashMap::from([(YamlFeature::OrbSanity, 10000)]);
+        assert_eq!(extractor.finalize(), expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_ranged_feature_off() -> Result<()> {
+        let game_extractor = TestExtractor {};
+        let raw_yaml = r#"
+games:
+  Test: 100
+Test:
+  orbulons:
+    1: 0
+    2: 0
+    3: 50
+    4: 0
+    5: 0
+    6: 0
+        "#;
+        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let mut extractor = Extractor::new(&yaml)?;
+        extractor.set_game("Test", 10000)?;
+        game_extractor.extract_features(&mut extractor)?;
+        DefaultExtractor {}.extract_features(&mut extractor)?;
+
+        let expected = HashMap::new();
+        assert_eq!(extractor.finalize(), expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_ranged_feature_prob() -> Result<()> {
+        let game_extractor = TestExtractor {};
+        let raw_yaml = r#"
+games:
+  Test: 100
+Test:
+  orbulons:
+    1: 50
+    2: 50
+    3: 50
+    4: 50
+    5: 50
+    6: 50
+        "#;
+        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let mut extractor = Extractor::new(&yaml)?;
+        extractor.set_game("Test", 10000)?;
+        game_extractor.extract_features(&mut extractor)?;
+        DefaultExtractor {}.extract_features(&mut extractor)?;
+
+        let expected = HashMap::from([(YamlFeature::OrbSanity, 3333)]);
+        assert_eq!(extractor.finalize(), expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_extract_weighted() -> Result<()> {
+        let game_extractor = TestExtractor {};
+        let raw_yaml = r#"
+Test:
+  half_deathlink: true
+  trainersanity: false
+  other_option: false
+        "#;
+        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let mut extractor = Extractor::new(&yaml)?;
+        extractor.set_game("Test", 10000)?;
+        game_extractor.extract_features(&mut extractor)?;
+
+        let expected = HashMap::from([(YamlFeature::DeathLink, 5000)]);
         assert_eq!(extractor.finalize(), expected);
 
         Ok(())

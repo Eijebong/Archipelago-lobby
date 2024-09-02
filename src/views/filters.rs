@@ -25,6 +25,7 @@ fn feature_to_icon(feature: &YamlFeature) -> &str {
         YamlFeature::DeathLink => "death-link.svg",
         YamlFeature::TrainerSanity => "trainersanity.svg",
         YamlFeature::DexSanity => "dexsanity.svg",
+        YamlFeature::OrbSanity => "jd-orb.svg",
     }
 }
 
@@ -33,5 +34,6 @@ fn feature_to_name(feature: &YamlFeature) -> &str {
         YamlFeature::DeathLink => "Deathlink",
         YamlFeature::TrainerSanity => "Trainersanity",
         YamlFeature::DexSanity => "Dexsanity",
+        YamlFeature::OrbSanity => "Extreme Orbsanity",
     }
 }
