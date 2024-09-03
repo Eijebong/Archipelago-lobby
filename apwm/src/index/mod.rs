@@ -16,7 +16,7 @@ use std::{
     io::Read,
 };
 
-use world::World;
+use world::{World, WorldOrigin};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Index {
@@ -53,7 +53,12 @@ impl Index {
                 .file_stem()
                 .with_context(|| format!("World path {:?} is invalid", world_path))?
                 .to_string_lossy();
-            let world = World::new(&world_toml.path())?;
+            let mut world = World::new(&world_toml.path())?;
+            if world.supported {
+                world
+                    .versions
+                    .insert(index.archipelago_version.clone(), WorldOrigin::Supported);
+            }
 
             index.worlds.insert(world_name.to_string(), world);
         }
@@ -78,10 +83,15 @@ impl Index {
         std::fs::create_dir_all(destination)?;
 
         for (world_name, world) in &self.worlds {
-            for version in world.versions.keys() {
+            for (version, origin) in &world.versions {
                 log::debug!("Refreshing world: {}, version: {}", world_name, version);
                 if world.disabled {
                     log::debug!("World is disabled, ignoring");
+                    continue;
+                }
+
+                if origin.is_supported() {
+                    log::debug!("World is supported, skipping");
                     continue;
                 }
 

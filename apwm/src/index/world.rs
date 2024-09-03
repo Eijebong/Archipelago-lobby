@@ -17,6 +17,7 @@ pub enum WorldOrigin {
     Url(#[serde(with = "http_serde::uri")] Uri),
     #[serde(rename = "local")]
     Local(PathBuf),
+    Supported,
     #[default]
     Default,
 }
@@ -24,6 +25,10 @@ pub enum WorldOrigin {
 impl WorldOrigin {
     pub fn is_local(&self) -> bool {
         matches!(self, WorldOrigin::Local(_))
+    }
+
+    pub fn is_supported(&self) -> bool {
+        matches!(self, WorldOrigin::Supported)
     }
 
     // TODO: Add support for patching
@@ -37,6 +42,8 @@ pub struct World {
     #[serde(skip)]
     pub path: PathBuf,
     pub name: String,
+    #[serde(default)]
+    pub display_name: String,
     #[serde(with = "http_serde::option::uri", default)]
     pub default_url: Option<Uri>,
     #[serde(deserialize_with = "de::empty_string_as_none", default)]
@@ -45,6 +52,8 @@ pub struct World {
     pub versions: BTreeMap<Version, WorldOrigin>,
     #[serde(default)]
     pub disabled: bool,
+    #[serde(default)]
+    pub supported: bool,
 }
 
 impl World {
@@ -53,7 +62,9 @@ impl World {
         let deser = toml::Deserializer::new(&world_content);
         let mut world: Self = serde_path_to_error::deserialize(deser)?;
         world.path = world_path.into();
-
+        if world.display_name.is_empty() {
+            world.display_name = world.name.clone();
+        }
         Ok(world)
     }
 
@@ -84,6 +95,7 @@ impl World {
                 let checksum = Sha256::digest(&buf);
                 Ok(format!("{:x}", checksum))
             }
+            WorldOrigin::Supported => Ok("none".into()),
         }
     }
 
@@ -108,6 +120,7 @@ impl World {
                 Ok(url)
             }
             WorldOrigin::Local(_) => Ok("".into()),
+            WorldOrigin::Supported => Ok("https://archipelago.gg/games".into()),
         }
     }
 
