@@ -3,11 +3,13 @@ use crate::error::{Error, Result, WithContext};
 use crate::extractor::YamlFeatures;
 use crate::session::LoggedInSession;
 
+use crate::index_manager::IndexManager;
 use diesel_async::AsyncPgConnection;
 use itertools::Itertools;
 use opentelemetry_http::HeaderInjector;
 use reqwest::Url;
 use rocket::http::CookieJar;
+use semver::Version;
 use std::collections::{HashMap, HashSet};
 use std::io::BufReader;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -52,6 +54,7 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
     session: &mut LoggedInSession,
     cookies: &CookieJar<'_>,
     yaml_validator_url: &Option<Url>,
+    index_manager: &IndexManager,
     conn: &mut AsyncPgConnection,
 ) -> Result<Vec<(String, &'a String, &'a YamlFile, YamlFeatures)>> {
     let yamls_in_room = db::get_yamls_for_room(room.id, conn)
@@ -89,7 +92,8 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
 
         if room.yaml_validation {
             if let Some(yaml_validator_url) = yaml_validator_url {
-                let unsupported_games = validate_yaml(document, yaml_validator_url).await?;
+                let unsupported_games =
+                    validate_yaml(document, parsed, index_manager, yaml_validator_url).await?;
                 if !unsupported_games.is_empty() {
                     if room.allow_unsupported {
                         session.0.warning_msg.push(format!(
@@ -168,15 +172,27 @@ fn validate_game(game: &YamlGame) -> Result<String> {
 }
 
 #[tracing::instrument(skip_all)]
-async fn validate_yaml(yaml: &str, yaml_validator_url: &Url) -> Result<Vec<String>> {
+async fn validate_yaml(
+    yaml: &str,
+    parsed: &YamlFile,
+    index_manager: &IndexManager,
+    yaml_validator_url: &Url,
+) -> Result<Vec<String>> {
     #[derive(serde::Deserialize)]
     struct ValidationResponse {
         error: Option<String>,
-        unsupported: Vec<String>,
+        unsupported: Option<Vec<String>>,
     }
 
     let client = reqwest::Client::new();
-    let form = reqwest::multipart::Form::new().text("data", yaml.to_string());
+    let apworlds = match get_apworlds_for_games(index_manager, &parsed.game).await {
+        Ok(apworlds) => apworlds,
+        Err(unsupported) => return Ok(unsupported),
+    };
+
+    let form = reqwest::multipart::Form::new()
+        .text("data", yaml.to_string())
+        .text("apworlds", serde_json::to_string(&apworlds)?);
 
     let cx = tracing::Span::current().context();
 
@@ -200,7 +216,7 @@ async fn validate_yaml(yaml: &str, yaml_validator_url: &Url) -> Result<Vec<Strin
         return Err(anyhow::anyhow!(error).into());
     }
 
-    Ok(response.unsupported)
+    Ok(response.unsupported.unwrap_or(vec![]))
 }
 
 fn should_ignore_dupes(player_name: &str) -> bool {
@@ -216,4 +232,31 @@ fn get_ap_player_name(original_name: &str) -> &str {
 
 fn is_reserved_name(player_name: &str) -> bool {
     player_name == "meta" || player_name == "Archipelago"
+}
+
+async fn get_apworlds_for_games(
+    index_manager: &IndexManager,
+    games: &YamlGame,
+) -> std::result::Result<Vec<(String, Version)>, Vec<String>> {
+    match games {
+        YamlGame::Name(name) => {
+            let Some(apworld_path) = index_manager.get_apworld_from_game_name(name).await else {
+                return Err(vec![name.to_string()]);
+            };
+            Ok(vec![apworld_path])
+        }
+        YamlGame::Map(map) => {
+            let mut result = Vec::new();
+            for (game, _) in map.iter().filter(|(_, probability)| **probability != 0.) {
+                result.push(
+                    index_manager
+                        .get_apworld_from_game_name(game)
+                        .await
+                        .unwrap(),
+                )
+            }
+
+            Ok(result)
+        }
+    }
 }

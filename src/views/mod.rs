@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use crate::{Context, TplContext};
 use ap_lobby::db::{self, Room, RoomFilter, RoomStatus, YamlWithoutContent};
 use ap_lobby::error::{Error, RedirectTo, Result, WithContext};
+use ap_lobby::index_manager::IndexManager;
 use ap_lobby::session::{LoggedInSession, Session};
 use ap_lobby::utils::ZipFile;
 use askama::Template;
@@ -132,13 +133,14 @@ struct Yamls<'a> {
 }
 
 #[post("/room/<room_id>/upload", data = "<yaml_form>")]
-#[tracing::instrument(skip(redirect_to, yaml_form, session, cookies, ctx))]
+#[tracing::instrument(skip(redirect_to, yaml_form, session, cookies, ctx, index_manager))]
 async fn upload_yaml(
     redirect_to: &RedirectTo,
     room_id: Uuid,
     yaml_form: Form<Yamls<'_>>,
     mut session: LoggedInSession,
     cookies: &CookieJar<'_>,
+    index_manager: &State<IndexManager>,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/room/{}", room_id));
@@ -158,6 +160,7 @@ async fn upload_yaml(
         &mut session,
         cookies,
         &ctx.yaml_validator_url,
+        index_manager,
         &mut conn,
     )
     .await?;

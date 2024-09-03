@@ -19,9 +19,9 @@
                 <td>
                     {% match world.home %}
                     {% when Some(home) %}
-                        <a href="{{home}}">{{ world.name }}</a>
+                        <a href="{{home}}">{{ world.display_name }}</a>
                     {% when None %}
-                        {{ world.name }}
+                        {{ world.display_name }}
                     {% endmatch %}
                 </td>
                 <td>{{ version }}</td>
@@ -30,7 +30,9 @@
                     <i class="fa fa-wrench" title="This apworld contains custom patches made by the index author"></i>
                     {% endif %}
 
-                    <a href="/worlds/download/{{id}}/{{version}}">Download</a>
+                    {% if !origin.is_supported() %}
+                        <a href="/worlds/download/{{id}}/{{version}}">Download</a>
+                    {% endif %}
                 </td>
             </tr>
         {% endfor %}
@@ -49,10 +51,6 @@
         <td>Index homepage</td>
         <td><a href="{{ index.index_homepage }}">{{ index.index_homepage }}</a></td>
     </tr>
-    <tr>
-        <td>Archipelago version</td>
-        <td>{{ index.archipelago_version }}</td>
-    </tr>
     {% if base.is_logged_in %}
     <tr>
         <td>Download</td>
@@ -61,9 +59,36 @@
 
     {% endif %}
 </table>
-<h6 style="margin-bottom: 1em;">Unofficial apworlds <i class="fa fa-warning" title="Those are unsupported apworlds, please always be careful when generating with them"></i></h6>
-{% call apworlds_table(index.worlds(), "unsupported") %}
+<h6 style="margin-bottom: 1em;">Official apworlds <span id="official-visibility" class="clickable">(Hide)</span></h6>
+{% call apworlds_table(supported_apworlds, "official") %}
+<h6 style="margin-bottom: 1em;">Unofficial apworlds <i class="fa fa-warning" title="Those are unsupported apworlds, please always be careful when generating with them"></i> <span id="unsupported-visibility" class="clickable">(Hide)</span></h6>
+{% call apworlds_table(unsupported_apworlds, "unsupported") %}
 {%endblock%}
+
+{% block scripts %}
+<script>
+function setupHideableTable(spanId, tableId) {
+    const span = document.getElementById(spanId);
+    const table = document.getElementById(tableId);
+
+    span.onclick = () => {
+        if (table.className.includes("hidden-table")) {
+            span.innerText = "(Hide)";
+            table.className = "styled yamls visible-table";
+        } else {
+            span.innerText = "(Show)";
+            table.className = "styled yamls hidden-table";
+        }
+    }
+}
+
+setupHideableTable("official-visibility", "official");
+setupHideableTable("unsupported-visibility", "unsupported");
+
+const officialSpan = document.getElementById("official-visibility").click()
+</script>
+
+{% endblock %}
 
 {% block styles %}
 {% endblock %}

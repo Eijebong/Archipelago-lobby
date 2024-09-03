@@ -213,7 +213,7 @@ dependencies = [
 [[package]]
 name = "apwm"
 version = "0.1.0"
-source = "git+https://github.com/Eijebong/APWM.git#9dbb0c151dfe2d2bf9883ca81739d6d73d24467d"
+source = "git+https://github.com/Eijebong/APWM.git#874cba930bb742efb7c6247d6f79b41a26cdd589"
 dependencies = [
  "anyhow",
  "http 1.1.0",
@@ -2826,7 +2826,7 @@ dependencies = [
 [[package]]
 name = "rocket"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#b0b59ba3034c50f681d7c7683e6a13aa440cbf9b"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#dfb5830ba60bdc269a46e1002c23f54fdb48a172"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -2874,7 +2874,7 @@ dependencies = [
 [[package]]
 name = "rocket_codegen"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#b0b59ba3034c50f681d7c7683e6a13aa440cbf9b"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#dfb5830ba60bdc269a46e1002c23f54fdb48a172"
 dependencies = [
  "devise",
  "glob",
@@ -2890,7 +2890,7 @@ dependencies = [
 [[package]]
 name = "rocket_http"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#b0b59ba3034c50f681d7c7683e6a13aa440cbf9b"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#dfb5830ba60bdc269a46e1002c23f54fdb48a172"
 dependencies = [
  "cookie",
  "either",

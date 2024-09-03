@@ -25,11 +25,10 @@ use rustls::pki_types::{ServerName, UnixTime};
 use rustls::Error as TLSError;
 use rustls::{DigitallySignedStruct, SignatureScheme};
 
-use crate::index_manager::IndexManager;
+use ap_lobby::index_manager::IndexManager;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
 
-mod index_manager;
 mod otlp;
 mod views;
 
@@ -179,7 +178,7 @@ async fn main() -> anyhow::Result<()> {
         .expect("Failed to register query histogram");
 
     let index_manager = IndexManager::new()?;
-    index_manager.update().await?;
+    //index_manager.update().await?;
 
     rocket::custom(figment.clone())
         .attach(prometheus.clone())

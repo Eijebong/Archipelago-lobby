@@ -1,9 +1,12 @@
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;
 
 use anyhow::Context as _;
 use apwm::Index;
+use apwm::World;
+use apwm::WorldOrigin;
 use askama::Template;
 use http::header::CONTENT_DISPOSITION;
 use rocket::fs::NamedFile;
@@ -14,9 +17,9 @@ use rocket::routes;
 use rocket::Responder;
 use rocket::State;
 
-use crate::index_manager::IndexManager;
 use crate::TplContext;
 use ap_lobby::error::Result;
+use ap_lobby::index_manager::IndexManager;
 use ap_lobby::session::{AdminSession, LoggedInSession};
 use ap_lobby::utils::{RenamedFile, ZipFile};
 
@@ -25,6 +28,8 @@ use ap_lobby::utils::{RenamedFile, ZipFile};
 struct WorldsListTpl<'a> {
     base: TplContext<'a>,
     index: Index,
+    supported_apworlds: BTreeMap<String, World>,
+    unsupported_apworlds: BTreeMap<String, World>,
 }
 
 #[derive(Responder)]
@@ -42,10 +47,20 @@ async fn list_worlds<'a>(
     cookies: &CookieJar<'a>,
 ) -> Result<WorldsListTpl<'a>> {
     let index = index_manager.index.read().await.clone();
+    let (supported_apworlds, unsupported_apworlds): (BTreeMap<_, _>, BTreeMap<_, _>) =
+        index.worlds().into_iter().partition(|(_, world)| {
+            world.supported
+                && matches!(
+                    world.get_latest_release().unwrap().1,
+                    WorldOrigin::Supported
+                )
+        });
 
     Ok(WorldsListTpl {
         base: TplContext::from_session("apworlds", session.0, cookies),
         index,
+        supported_apworlds,
+        unsupported_apworlds,
     })
 }
 
@@ -65,12 +80,19 @@ async fn download_all(
     let index = index_manager.index.read().await;
     let mut buffer = Vec::new();
     for (world_name, world) in &index.worlds() {
-        let Some((version, _)) = world.get_latest_release() else {
+        let Some((version, origin)) = world.get_latest_release() else {
             continue;
         };
+
+        if origin.is_supported() {
+            continue;
+        }
+
         let file_path = index.get_world_local_path(apworlds_path, world_name, version);
         writer.start_file(format!("{}/{}.apworld", prefix, world_name), options)?;
-        File::open(&file_path)?.read_to_end(&mut buffer)?;
+        File::open(&file_path)
+            .with_context(|| format!("Can't open {:?}", file_path))?
+            .read_to_end(&mut buffer)?;
         writer.write_all(&buffer)?;
         buffer.clear();
     }
