@@ -205,6 +205,7 @@ async fn validate_yaml(
         propagator.inject_context(&cx, &mut HeaderInjector(req.headers_mut()))
     });
 
+    tracing::event!(tracing::Level::INFO, "Request to yaml-checker started");
     let response = client
         .execute(req)
         .await
