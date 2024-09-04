@@ -210,6 +210,7 @@ async fn validate_yaml(
         .execute(req)
         .await
         .map_err(|_| anyhow::anyhow!("Error while communicating with the YAML validator."))?
+        .error_for_status()?
         .json::<ValidationResponse>()
         .await?;
 
