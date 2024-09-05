@@ -45,12 +45,9 @@ for(const item of deletableItems) {
         if (event.cancelable) {
             event.preventDefault();
             openConfirmationPopup(resourceName, resourceType, () => {
-                const newEvent = new PointerEvent("click", {
-                    cancelable: false
-                });
-                item.dispatchEvent(newEvent);
+                location.href = item.href;
             });
-            return false;
         }
+
     });
 }
