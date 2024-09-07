@@ -307,6 +307,15 @@ fn dist(file: PathBuf) -> Option<(ContentType, Cow<'static, [u8]>)> {
     Some((content_type, asset.data))
 }
 
+#[get("/favicon.ico")]
+#[tracing::instrument]
+fn favicon() -> Option<(ContentType, Cow<'static, [u8]>)> {
+    let asset = Asset::get("images/favicon.ico")?;
+    let content_type = ContentType::Icon;
+
+    Some((content_type, asset.data))
+}
+
 #[derive(rust_embed::RustEmbed)]
 #[folder = "./static/"]
 struct Asset;
@@ -319,6 +328,7 @@ pub fn routes() -> Vec<rocket::Route> {
         delete_yaml,
         download_yamls,
         download_yaml,
-        dist
+        dist,
+        favicon,
     ]
 }
