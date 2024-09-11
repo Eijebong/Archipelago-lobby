@@ -233,6 +233,10 @@ fn validate_room_form(room_form: &mut Form<CreateRoomForm<'_>>) -> Result<()> {
         return Err(anyhow::anyhow!("The room name shouldn't be empty").into());
     }
 
+    if room_form.room_name.len() > 200 {
+        return Err(anyhow::anyhow!("The room name shouldn't exceed 200 characters. Seriously it doesn't need to be that long.").into());
+    }
+
     let room_url = room_form.room_url.trim();
     if !room_url.is_empty() {
         if let Err(e) = http::uri::Uri::parse::<Absolute>(room_url) {
