@@ -15,3 +15,4 @@ tasks:
       build-args: --bin apwm --features cli
       build-result: /builds/worker/target/release/apwm
       docker-repo: ghcr.io/eijebong/apwm
+      with-tests: true
