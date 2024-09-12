@@ -1,4 +1,4 @@
-use crate::utils::de;
+use crate::utils::{de, git_clone_shallow};
 use anyhow::{bail, Context, Result};
 use http::Uri;
 use semver::Version;
@@ -6,10 +6,12 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
-    fs::File,
+    fs::{File, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
+    sync::OnceLock,
 };
+use tempfile::{tempdir, TempDir};
 
 #[derive(Deserialize, Debug, PartialEq, Default, Clone)]
 pub enum WorldOrigin {
@@ -36,6 +38,8 @@ impl WorldOrigin {
         false
     }
 }
+
+static AP_CACHE: OnceLock<TempDir> = OnceLock::new();
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct World {
@@ -99,6 +103,53 @@ impl World {
         }
     }
 
+    pub async fn extract_to(
+        &self,
+        version: &Version,
+        destination: &Path,
+        ap_index_url: &str,
+        ap_index_ref: &str,
+    ) -> Result<()> {
+        let origin = self.versions.get(version).with_context(|| {
+            format!("Unable to find version {} for world {}", version, self.name)
+        })?;
+
+        if origin.is_supported() {
+            let ap_cache = AP_CACHE.get_or_init(|| {
+                let cache = tempdir().unwrap();
+                git_clone_shallow(ap_index_url, ap_index_ref, cache.path()).unwrap();
+                cache
+            });
+
+            crate::utils::copy_dir_all(
+                &ap_cache.path().join("worlds").join(self.get_ap_name()?),
+                destination,
+            )?;
+
+            return Ok(());
+        }
+
+        let download_dir = tempdir()?;
+        let apworld_path = download_dir.path().join("apworld");
+        let apworld_file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&apworld_path)?;
+
+        self.copy_to(version, &apworld_file).await?;
+        let mut archive = zip::ZipArchive::new(File::open(apworld_path)?)?;
+        Ok(archive.extract(destination)?)
+    }
+
+    pub fn get_ap_name(&self) -> Result<String> {
+        Ok(self
+            .path
+            .file_stem()
+            .context("Invalid path for world")?
+            .to_string_lossy()
+            .to_string())
+    }
     pub fn get_url_for_version(&self, version: &Version) -> Result<String> {
         let origin = self.versions.get(version).with_context(|| {
             format!("Unable to find version {} for world {}", self.name, version)

@@ -1,4 +1,6 @@
 use anyhow::{Context, Result};
+use apwm::diff::diff_world_and_write;
+use apwm::utils::git_clone_shallow;
 use clap::Parser;
 use std::path::{Path, PathBuf};
 use tempfile::tempdir;
@@ -22,6 +24,14 @@ enum Command {
         apworlds_path: PathBuf,
         #[clap(short)]
         destination: PathBuf,
+    },
+    Diff {
+        #[clap(short)]
+        index_path: PathBuf,
+        #[clap(short)]
+        from: String,
+        #[clap(short)]
+        output: PathBuf,
     },
 }
 
@@ -52,6 +62,13 @@ async fn main() -> Result<()> {
         } => {
             install(&index_path, &apworlds_path, &destination).await?;
         }
+        Command::Diff {
+            index_path,
+            from,
+            output,
+        } => {
+            diff(&index_path, &from, &output).await?;
+        }
     }
 
     Ok(())
@@ -73,6 +90,70 @@ async fn update(index_path: &Path) -> Result<()> {
     let new_lock = index.refresh_into(destination.path(), true).await?;
 
     new_lock.write()?;
+
+    Ok(())
+}
+
+async fn diff(index_path: &Path, from_git_remote: &str, output: &Path) -> Result<()> {
+    let old_index_dir = tempdir()?;
+    git_clone_shallow(from_git_remote, "main", old_index_dir.path())?;
+
+    let new_index_toml = index_path.join("index.toml");
+    let old_index_toml = old_index_dir.path().join("index.toml");
+
+    let new_index = apwm::Index::new(&new_index_toml)?;
+    let old_index = apwm::Index::new(&old_index_toml)?;
+
+    let old_worlds = old_index.worlds();
+    let new_worlds = new_index.worlds();
+
+    for (name, world) in &new_worlds {
+        match old_worlds.get(name) {
+            // This is a new world, diff from nothing
+            None => {
+                diff_world_and_write(
+                    None,
+                    Some(world),
+                    name,
+                    output,
+                    &new_index.archipelago_repo.to_string(),
+                    &new_index.archipelago_version.to_string(),
+                )
+                .await?
+            }
+            // The world was already there before, diff from latest version
+            Some(old_world) => {
+                if world.versions.keys().collect::<Vec<_>>()
+                    == old_world.versions.keys().collect::<Vec<_>>()
+                {
+                    continue;
+                }
+                diff_world_and_write(
+                    Some(old_world),
+                    Some(world),
+                    name,
+                    output,
+                    &new_index.archipelago_repo.to_string(),
+                    &new_index.archipelago_version.to_string(),
+                )
+                .await?
+            }
+        }
+    }
+
+    for (name, world) in &old_worlds {
+        if !new_worlds.contains_key(name.as_str()) {
+            diff_world_and_write(
+                Some(world),
+                None,
+                name,
+                output,
+                &new_index.archipelago_repo.to_string(),
+                &new_index.archipelago_version.to_string(),
+            )
+            .await?;
+        }
+    }
 
     Ok(())
 }

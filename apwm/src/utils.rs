@@ -1,3 +1,7 @@
+use anyhow::Result;
+use git2::{FetchOptions, Repository, ResetType};
+use std::path::Path;
+
 pub(crate) mod de {
     use std::collections::BTreeMap;
     use std::marker::PhantomData;
@@ -60,4 +64,38 @@ pub(crate) mod de {
     ) -> Result<BTreeMap<K, V>, D::Error> {
         d.deserialize_map(DefaultMapVisitor::new())
     }
+}
+
+pub fn git_clone_shallow(url: &str, git_ref: &str, path: &Path) -> Result<()> {
+    let repo = Repository::init(path)?;
+
+    let mut remote = repo.remote("origin", url)?;
+    let mut fetch_options = FetchOptions::new();
+    fetch_options.depth(1);
+
+    remote.fetch(&[git_ref], Some(&mut fetch_options), None)?;
+
+    let fetch_head = repo.find_reference("FETCH_HEAD")?;
+    repo.reset(
+        &fetch_head.peel(git2::ObjectType::Commit)?,
+        ResetType::Hard,
+        None,
+    )?;
+
+    Ok(())
+}
+
+/// Copy the content of a directory `src` into `dst`. `dst` must be a directory.
+pub(crate) fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
+    std::fs::create_dir_all(&dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(&entry.path(), &dst.join(entry.file_name()))?;
+        } else {
+            std::fs::copy(entry.path(), &dst.join(entry.file_name()))?;
+        }
+    }
+    Ok(())
 }

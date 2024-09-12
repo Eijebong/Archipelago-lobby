@@ -7,17 +7,21 @@ edition = "2021"
 anyhow = { version = "1.0.86", features = ["backtrace"] }
 clap = { version = "4.5.4", optional = true, features = ["derive"] }
 env_logger = { version = "0.11.5", optional = true }
+git2 = { version = "0.19.0" }
 http = "1.1.0"
 http-serde = "2.1.0"
 log = "0.4.22"
 reqwest = "0.12.4"
 semver = { version = "1.0.23", features = ["serde"] }
 serde = { version = "1.0.202", features = ["derive"] }
+serde_json = { version = "1.0.128" }
 serde_path_to_error = "0.1.16"
 sha2 = "0.10.8"
+similar = { version = "2.6.0", features = ["inline"] }
 tempfile = "3.10.1"
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
 toml = "0.8.13"
+walkdir = "2.5.0"
 zip = "2.1.1"
 
 [features]
