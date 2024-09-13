@@ -2,15 +2,18 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, HashSet},
     path::Path,
+    str::FromStr,
 };
 
 use crate::World;
 use anyhow::{bail, Result};
 use semver::Version;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use similar::DiffableStr;
 use tempfile::tempdir;
+use serde::de::Error;
 
-#[derive(Serialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum Diff {
     VersionAdded(String),
     VersionRemoved,
@@ -30,7 +33,23 @@ impl Serialize for VersionRange {
     }
 }
 
-#[derive(Serialize, PartialEq, Debug)]
+impl<'de> Deserialize<'de> for VersionRange {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+            let s: String = Deserialize::deserialize(deserializer)?;
+            let parts = s.split("...").collect::<Vec<_>>();
+            if parts.len() != 2 {
+                return Err(D::Error::custom("Fail to deserialize VersionRange, expected {from}...{to}"))
+            }
+
+            let v0 = (!parts[0].is_empty()).then(|| Version::from_str(parts[0]).map_err(D::Error::custom)).transpose()?;
+            let v1 = (!parts[1].is_empty()).then(|| Version::from_str(parts[1]).map_err(D::Error::custom)).transpose()?;
+            Ok(VersionRange(v0, v1))
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct CombinedDiff {
     pub world_name: String,
     pub diffs: BTreeMap<VersionRange, Diff>,
