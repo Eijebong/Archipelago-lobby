@@ -1,0 +1,71 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="/static/css/github-dark.min.css"/>
+        <link rel="stylesheet" type="text/css" href="/static/css/diff2html.min.css" />
+        <script type="text/javascript" src="/static/js/diff2html-ui-slim.min.js"></script>
+        <link rel="stylesheet" type="text/css" href="/static/css/main.css" />
+    </head>
+    <body>
+        <script>
+            function switchTab(tabId) {
+                const nav = document.getElementById("nav-menu")
+                for (a of nav.children) {
+                    if (a.id == "a-" + tabId) {
+                        a.classList = ["selected"]
+                    } else {
+                        a.classList = []
+                    }
+                }
+
+                for (var tab of document.getElementsByClassName("tab")) {
+                    if (tab.id == tabId) {
+                        tab.style.display = "block"
+                        tab.classNames = "selected"
+                    } else {
+                        tab.style.display = "none"
+                    }
+                }
+            }
+        </script>
+        <nav id="nav-menu">
+        {% for world in diffs.iter() %}
+            <a href="#{{world.world_name}}" id="a-tab-{{world.world_name}}" onclick=switchTab("tab-{{world.world_name}}")>{{world.world_name}}</a>
+        {% endfor %}
+        </nav>
+        {% for (world_i, world) in diffs.iter().enumerate() %}
+            <div id="tab-{{world.world_name}}" class="tab" style="display:none">
+                <ul class="version-list">
+                {% for (i, version) in world.diffs.keys().enumerate() %}
+                    <li>
+                        <a href="#{{world.world_name}}-{{i}}"> {{ version|fmt_version|safe }}</a>
+                    </li>
+                {% endfor %}
+                </ul>
+
+                <hr>
+                {% for (i, (version, diff)) in world.diffs.iter().enumerate() %}
+                    {% match diff %}
+                    {% when (apwm::diff::Diff::VersionRemoved) %}
+                    {% when (apwm::diff::Diff::VersionAdded(diff)) %}
+                        <h4> {{ version|fmt_version|safe }}</h4>
+                        <div id="{{world.world_name}}-{{i}}"></div>
+                        <script>
+                            var configuration = { drawFileList: false, matching: 'lines', highlight: true, colorScheme: 'dark' };
+                            var targetElement = document.getElementById("{{world.world_name}}-{{i}}");
+                            var diff2htmlUi = new Diff2HtmlUI(targetElement, `{{ diff|safe }}`, configuration);
+                            diff2htmlUi.draw();
+                            diff2htmlUi.highlightCode();
+                        </script>
+                    {% endmatch %}
+                {% endfor %}
+                </h4>
+
+                {% if world_i == 0 %}
+                <script>
+                    switchTab("tab-{{world.world_name}}");
+                </script>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </body>
+</html>

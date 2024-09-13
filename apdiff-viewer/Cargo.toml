@@ -1,0 +1,21 @@
+[package]
+name = "apdiff-viewer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+apwm = { git = "https://github.com/Eijebong/APWM.git" }
+anyhow = "1.0.88"
+askama = { version = "0.12.1", features = ["with-rocket"] }
+askama_rocket = "0.12.0"
+dotenvy = "0.15.7"
+reqwest = { version = "0.12.7", features = ["gzip", "json"] }
+rocket = "0.5.1"
+rust-embed = { version = "8.5.0", features = ["rocket"] }
+taskcluster = "68.0.4"
+tokio = { version = "1.40.0", features = ["rt-multi-thread", "macros"] }
+serde_path_to_error = "0.1.16"
+serde_json = "1.0.128"
+
+[patch."https://github.com/Eijebong/APWM.git"]
+apwm = { path = "../apwm" }
