@@ -15,17 +15,13 @@ mod filters {
     pub fn fmt_version(range: &VersionRange) -> askama::Result<String> {
         Ok(match (&range.0, &range.1) {
             (None, Some(new_version)) => {
-                format!("<span>✅ {}</span>", new_version.to_string())
+                format!("<span>✅ {}</span>", new_version)
             }
             (Some(old_version), None) => {
-                format!("<span>❌ {}</span>", old_version.to_string())
+                format!("<span>❌ {}</span>", old_version)
             }
             (Some(old_version), Some(new_version)) => {
-                format!(
-                    "<span>{} -> {}</span>",
-                    old_version.to_string(),
-                    new_version.to_string()
-                )
+                format!("<span>{} -> {}</span>", old_version, new_version)
             }
             (None, None) => unreachable!(),
         })
@@ -68,7 +64,7 @@ struct Index {
 
 #[rocket::get("/<task_id>")]
 async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
-    let artifacts = get_task_artifacts(&queue, task_id).await?;
+    let artifacts = get_task_artifacts(queue, task_id).await?;
     let diff_artifacts = artifacts
         .iter()
         .filter(|path| path.starts_with("public/diffs/"))
