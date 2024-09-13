@@ -105,7 +105,7 @@ fn dist(file: PathBuf) -> Option<(ContentType, Cow<'static, [u8]>)> {
 
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
-    dotenvy::dotenv()?;
+    dotenvy::dotenv().ok();
 
     let client_builder = ClientBuilder::new(std::env::var("TASKCLUSTER_ROOT_URL")?);
     let queue = Queue::new(client_builder)?;
