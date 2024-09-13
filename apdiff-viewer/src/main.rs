@@ -109,7 +109,6 @@ async fn main() -> anyhow::Result<()> {
 
     let client_builder = ClientBuilder::new(std::env::var("TASKCLUSTER_ROOT_URL")?);
     let queue = Queue::new(client_builder)?;
-    let task_id = "eU-94h6GQYiHxOr5Cmj4Ww";
 
     rocket::build()
         .manage(queue)

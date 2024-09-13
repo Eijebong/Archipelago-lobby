@@ -82,6 +82,7 @@ dependencies = [
 [[package]]
 name = "apwm"
 version = "0.1.0"
+source = "git+https://github.com/Eijebong/APWM.git#d9d63fd762d8edde9e43761e3e865a18315cb47a"
 dependencies = [
  "anyhow",
  "git2",
@@ -2252,13 +2253,13 @@ dependencies = [
 
 [[package]]
 name = "slugid"
-version = "1.0.1"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a797a9aeced44a2b3b70946cb925bdefe8f2eb15d36bc8edafd150e9f82c5beb"
+checksum = "b3bdb10c7fc7b7037dc6403b58397721fc1f3d888f557bd3eddc2d1154701ded"
 dependencies = [
- "base64 0.13.1",
+ "base64 0.22.1",
  "lazy_static",
- "ring 0.16.20",
+ "ring 0.17.8",
 ]
 
 [[package]]
