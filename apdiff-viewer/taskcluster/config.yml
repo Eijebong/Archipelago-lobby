@@ -1,0 +1,27 @@
+---
+trust-domain: "ap"
+task-priority: low
+
+taskgraph:
+  cached-task-prefix: "ap.v2.apdiff-viewer"
+  repositories:
+    apdiff_viewer:
+      name: "apdiff-viewer"
+
+workers:
+  aliases:
+    linux-small:
+      provisioner: ap
+      implementation: docker-worker
+      os: linux
+      worker-type: linux-small
+    linux-medium:
+      provisioner: ap
+      implementation: docker-worker
+      os: linux
+      worker-type: linux-medium
+    images:
+      provisioner: ap
+      implementation: docker-worker
+      os: linux
+      worker-type: linux-medium
