@@ -30,6 +30,11 @@ mod filters {
             (None, None) => unreachable!(),
         })
     }
+
+    pub fn base64(b64: &String) -> askama::Result<String> {
+        use base64::Engine;
+        Ok(base64::engine::general_purpose::STANDARD.encode(b64))
+    }
 }
 
 #[derive(Debug)]

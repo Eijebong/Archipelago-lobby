@@ -52,7 +52,8 @@
                         <script>
                             var configuration = { drawFileList: false, matching: 'lines', highlight: true, colorScheme: 'dark' };
                             var targetElement = document.getElementById("{{world.world_name}}-{{i}}");
-                            var diff2htmlUi = new Diff2HtmlUI(targetElement, `{{ diff|safe }}`, configuration);
+                            var diffContent = "{{ diff|base64 }}"
+                            var diff2htmlUi = new Diff2HtmlUI(targetElement, atob(diffContent), configuration);
                             diff2htmlUi.draw();
                             diff2htmlUi.highlightCode();
                         </script>

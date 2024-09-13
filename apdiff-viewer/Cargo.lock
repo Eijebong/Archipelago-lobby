@@ -69,6 +69,7 @@ dependencies = [
  "apwm",
  "askama",
  "askama_rocket",
+ "base64 0.22.1",
  "dotenvy",
  "reqwest 0.12.7",
  "rocket",
