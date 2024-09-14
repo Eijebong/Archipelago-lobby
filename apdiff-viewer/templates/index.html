@@ -55,7 +55,6 @@
                             var diffContent = "{{ diff|base64 }}"
                             var diff2htmlUi = new Diff2HtmlUI(targetElement, atob(diffContent), configuration);
                             diff2htmlUi.draw();
-                            diff2htmlUi.highlightCode();
                         </script>
                     {% endmatch %}
                 {% endfor %}
