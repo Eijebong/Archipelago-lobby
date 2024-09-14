@@ -228,6 +228,7 @@ impl FeatureExtractor for DefaultExtractor {
     fn extract_features(&self, extractor: &mut Extractor) -> Result<()> {
         extractor.register_feature(YamlFeature::DeathLink, "death_link")?;
         extractor.register_feature(YamlFeature::DeathLink, "deathlink")?;
+        extractor.register_feature(YamlFeature::DeathLink, "DeathLink")?;
         Ok(())
     }
 }
