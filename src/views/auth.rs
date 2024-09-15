@@ -32,7 +32,7 @@ fn login_discord(
 }
 
 #[derive(serde::Deserialize)]
-struct DiscordMeRespone {
+struct DiscordMeResponse {
     pub user: DiscordUser,
 }
 
@@ -51,24 +51,13 @@ async fn login_discord_callback(
     config: &State<Figment>,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
-    let mut request = reqwest::Request::new(
-        reqwest::Method::GET,
-        Url::from_str("https://discord.com/api/oauth2/@me")?,
-    );
-    request.headers_mut().insert(
-        "Authorization",
-        HeaderValue::from_str(&format!("Bearer {}", token.access_token()))?,
-    );
-    let response = reqwest::Client::new().execute(request).await?;
-    let body = response.text().await?;
-    let response = serde_json::from_str::<DiscordMeRespone>(&body)?;
+    let token = token.access_token();
 
-    let discord_id = response.user.id.parse()?;
+    let client = reqwest::Client::new();
+    let user = get_discord_user(&client, token).await?;
 
-    let mut conn = ctx.db_pool.get().await?;
-    ap_lobby::db::upsert_discord_user(discord_id, &response.user.username, &mut conn).await?;
     let config = config.data()?;
-    let admins = config
+    let discord_config = config
         .get(&Profile::Default)
         .ok_or(anyhow!("No default profile in config"))?
         .get("oauth")
@@ -78,14 +67,32 @@ async fn login_discord_callback(
         .get("discord")
         .ok_or(anyhow!("no discord section in oauth"))?
         .as_dict()
-        .ok_or(anyhow!("discord section isn't a dict"))?
+        .ok_or(anyhow!("discord section isn't a dict"))?;
+    let client_id = discord_config
+        .get("client_id")
+        .ok_or(anyhow!("client id not present in discord config"))?
+        .as_str()
+        .ok_or(anyhow!("client id isn't a string"))?;
+    let client_secret = discord_config
+        .get("client_secret")
+        .ok_or(anyhow!("client secret not present in discord config"))?
+        .as_str()
+        .ok_or(anyhow!("client secret isn't a string"))?;
+    revoke_token(&client, client_id, client_secret, token).await?;
+
+    let discord_id = user.id.parse()?;
+
+    let mut conn = ctx.db_pool.get().await?;
+    ap_lobby::db::upsert_discord_user(discord_id, &user.username, &mut conn).await?;
+
+    let admins = discord_config
         .get("admins")
         .ok_or(anyhow!("no admins in discord section"))?
         .as_array()
         .ok_or(anyhow!("admins isn't an array"))?;
 
     session.is_admin = admins.contains(&discord_id.into());
-    session.user_id = Some(response.user.id.parse()?);
+    session.user_id = Some(user.id.parse()?);
     session.is_logged_in = true;
     session.save(cookies).unwrap();
 
@@ -94,6 +101,46 @@ async fn login_discord_callback(
     }
 
     Ok(Redirect::to("/"))
+}
+
+#[tracing::instrument(skip_all)]
+async fn revoke_token(
+    client: &reqwest::Client,
+    client_id: &str,
+    client_secret: &str,
+    token: &str,
+) -> Result<()> {
+    #[derive(serde::Serialize)]
+    struct RevokeForm<'a> {
+        token: &'a str,
+    }
+
+    let _ = client
+        .post("https://discord.com/api/oauth2/token/revoke")
+        .basic_auth(client_id, Some(client_secret))
+        .form(&RevokeForm { token })
+        .send()
+        .await?
+        .error_for_status()?;
+
+    Ok(())
+}
+
+#[tracing::instrument(skip_all)]
+async fn get_discord_user(client: &reqwest::Client, token: &str) -> Result<DiscordUser> {
+    let mut request = reqwest::Request::new(
+        reqwest::Method::GET,
+        Url::from_str("https://discord.com/api/oauth2/@me")?,
+    );
+    request.headers_mut().insert(
+        "Authorization",
+        HeaderValue::from_str(&format!("Bearer {}", token))?,
+    );
+    let response = client.execute(request).await?;
+    let body = response.text().await?;
+    let response = serde_json::from_str::<DiscordMeResponse>(&body)?;
+
+    Ok(response.user)
 }
 
 #[get("/logout")]
