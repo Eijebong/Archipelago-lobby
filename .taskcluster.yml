@@ -101,10 +101,12 @@ tasks:
               then:
                   taskId: {$if: 'tasks_for != "action" && tasks_for != "pr-action"', then: '${ownTaskId}'}
                   taskGroupId:
-                      $if: 'tasks_for in ["action", "pr-action"]'
-                      then:
+                      $switch:
+                        'tasks_for in ["action", "pr-action"]':
                           '${action.taskGroupId}'
-                      else:
+                        'tasks_for == "cron"':
+                          '${cron.task_id}'
+                        $default:
                           '${ownTaskId}'  # same as taskId; this is how automation identifies a decision task
                   schedulerId: '${trustDomain}-level-${level}'
                   created: {$fromNow: ''}
@@ -228,6 +230,8 @@ tasks:
 
                           features:
                               taskclusterProxy: true
+                          capabilities:
+                              containerEngine: podman
 
                           image: ghcr.io/eijebong/taskcluster-images/decision-task:main
                           maxRunTime: 1800
