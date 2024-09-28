@@ -2,22 +2,21 @@ use std::{collections::BTreeMap, path::Path};
 
 use anyhow::{bail, Result};
 use semver::Version;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::Index;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ManifestCommon {
     pub archipelago_version: Version,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WorldDef {
-    #[serde(default)]
-    pub version: Option<Version>,
+    pub version: Version,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
     pub common: ManifestCommon,
     pub worlds: BTreeMap<String, WorldDef>,
@@ -35,19 +34,18 @@ impl Manifest {
 
     pub fn from_index_with_latest_versions(index: &Index) -> Result<Self> {
         let mut result = Self::new(index.archipelago_version.clone());
-        for (name, world) in index.worlds.iter() {
-            let world_def = world.get_latest_release();
-            if world_def.as_ref().map(|def| &def.version).is_none()  {
+        for (name, world) in index.worlds().iter() {
+            let Some(world_def) = world.get_latest_release() else {
                 bail!(format!(
                     "World `{}` has no known release",
                     name
                 ));
-            }
+            };
 
             result.worlds.insert(
                 name.to_string(),
                 WorldDef {
-                    version: world_def.map(|def| def.version.clone()),
+                    version: world_def.0.clone(),
                 },
             );
         }
