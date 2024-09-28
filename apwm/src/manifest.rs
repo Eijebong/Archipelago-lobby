@@ -36,10 +36,7 @@ impl Manifest {
         let mut result = Self::new(index.archipelago_version.clone());
         for (name, world) in index.worlds().iter() {
             let Some(world_def) = world.get_latest_release() else {
-                bail!(format!(
-                    "World `{}` has no known release",
-                    name
-                ));
+                bail!(format!("World `{}` has no known release", name));
             };
 
             result.worlds.insert(
@@ -66,4 +63,3 @@ impl Manifest {
         Ok(manifest)
     }
 }
-
