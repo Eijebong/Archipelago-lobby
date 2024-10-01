@@ -4,6 +4,7 @@ use crate::extractor::YamlFeatures;
 use crate::session::LoggedInSession;
 
 use crate::index_manager::IndexManager;
+use apwm::Manifest;
 use diesel_async::AsyncPgConnection;
 use itertools::Itertools;
 use opentelemetry_http::HeaderInjector;
@@ -185,7 +186,13 @@ async fn validate_yaml(
     }
 
     let client = reqwest::Client::new();
-    let apworlds = match get_apworlds_for_games(index_manager, &parsed.game).await {
+    // Build a fake manifest for now
+    let manifest = {
+        let index = index_manager.index.read().await;
+        Manifest::from_index_with_latest_versions(&index)?
+    };
+
+    let apworlds = match get_apworlds_for_games(index_manager, &manifest, &parsed.game).await {
         Ok(apworlds) => apworlds,
         Err(unsupported) => return Ok(unsupported),
     };
@@ -238,11 +245,15 @@ fn is_reserved_name(player_name: &str) -> bool {
 
 async fn get_apworlds_for_games(
     index_manager: &IndexManager,
+    manifest: &Manifest,
     games: &YamlGame,
 ) -> std::result::Result<Vec<(String, Version)>, Vec<String>> {
     match games {
         YamlGame::Name(name) => {
-            let Some(apworld_path) = index_manager.get_apworld_from_game_name(name).await else {
+            let Some(apworld_path) = index_manager
+                .get_apworld_from_game_name(manifest, name)
+                .await
+            else {
                 return Err(vec![name.to_string()]);
             };
             Ok(vec![apworld_path])
@@ -252,7 +263,7 @@ async fn get_apworlds_for_games(
             for (game, _) in map.iter().filter(|(_, probability)| **probability != 0.) {
                 result.push(
                     index_manager
-                        .get_apworld_from_game_name(game)
+                        .get_apworld_from_game_name(manifest, game)
                         .await
                         .unwrap(),
                 )

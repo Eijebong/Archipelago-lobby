@@ -3,7 +3,7 @@ use semver::Version;
 use std::path::{Path, PathBuf};
 use tokio::sync::RwLock;
 
-use apwm::Index;
+use apwm::{Index, Manifest};
 use git2::{Repository, ResetType};
 
 pub struct IndexManager {
@@ -66,18 +66,16 @@ impl IndexManager {
         Ok(index)
     }
 
-    pub async fn get_apworld_from_game_name(&self, game_name: &str) -> Option<(String, Version)> {
+    pub async fn get_apworld_from_game_name(
+        &self,
+        manifest: &Manifest,
+        game_name: &str,
+    ) -> Option<(String, Version)> {
         let index = self.index.read().await;
-        let worlds = index.worlds();
-        worlds
-            .values()
-            .find(|world| world.name == game_name)
-            .map(|world| {
-                let path = world.path.file_stem().unwrap().to_str().unwrap().to_owned();
-                let (version, _) = world.get_latest_release().unwrap();
+        let (world, version) = manifest.resolve_from_game_name(game_name, &index).ok()?;
+        let path = world.path.file_stem().unwrap().to_str().unwrap().to_owned();
 
-                (path, version.clone())
-            })
+        Some((path, version.clone()))
     }
 }
 
