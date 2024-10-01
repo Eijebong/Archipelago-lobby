@@ -65,10 +65,10 @@ impl Manifest {
     pub fn parse_file(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
 
-        Manifest::from_str(&content)
+        Manifest::parse(&content)
     }
 
-    pub fn from_str(content: &str) -> Result<Self> {
+    pub fn parse(content: &str) -> Result<Self> {
         let deser = toml::Deserializer::new(content);
 
         let manifest: Manifest = serde_path_to_error::deserialize(deser)?;
@@ -130,7 +130,7 @@ impl Manifest {
             WorldVersion::LatestSupported => world.get_latest_supported_release(),
             WorldVersion::Latest => world.get_latest_release(),
             WorldVersion::Specific(version) => {
-                world.get_version(&version).map(|origin| (version, origin))
+                world.get_version(version).map(|origin| (version, origin))
             }
         };
 

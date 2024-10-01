@@ -104,9 +104,9 @@ async fn diff_world(
 
             for version in new_world.versions.keys() {
                 let diff = diff_version(
-                    &new_world,
+                    new_world,
                     previous_version.clone(),
-                    &new_world,
+                    new_world,
                     Some(version),
                     ap_index_url,
                     ap_index_ref,
@@ -167,7 +167,7 @@ async fn diff_world(
                 let previous_version =
                     find_closest_version(version, old_world.versions.keys().collect());
                 let origin_diff = diff_version(
-                    &old_world,
+                    old_world,
                     previous_version.clone(),
                     new_world,
                     Some(version),
@@ -238,7 +238,7 @@ async fn diff_version(
     }
     if let Some(to_version) = to_version {
         to_world
-            .extract_to(&to_version, to_tmpdir.path(), ap_index_url, ap_index_ref)
+            .extract_to(to_version, to_tmpdir.path(), ap_index_url, ap_index_ref)
             .await?;
     }
 
@@ -247,7 +247,7 @@ async fn diff_version(
     Ok(diff)
 }
 
-pub fn diff_dir<'a>(from: &Path, to: &Path) -> Result<String> {
+pub fn diff_dir(from: &Path, to: &Path) -> Result<String> {
     let mut combined_paths = walkdir::WalkDir::new(from)
         .into_iter()
         .filter_map(Result::ok)

@@ -87,14 +87,14 @@ pub fn git_clone_shallow(url: &str, git_ref: &str, path: &Path) -> Result<()> {
 
 /// Copy the content of a directory `src` into `dst`. `dst` must be a directory.
 pub(crate) fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
-    std::fs::create_dir_all(&dst)?;
+    std::fs::create_dir_all(dst)?;
     for entry in std::fs::read_dir(src)? {
         let entry = entry?;
         let ty = entry.file_type()?;
         if ty.is_dir() {
             copy_dir_all(&entry.path(), &dst.join(entry.file_name()))?;
         } else {
-            std::fs::copy(entry.path(), &dst.join(entry.file_name()))?;
+            std::fs::copy(entry.path(), dst.join(entry.file_name()))?;
         }
     }
     Ok(())
