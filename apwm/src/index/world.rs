@@ -76,6 +76,12 @@ impl World {
         self.versions.iter().max_by_key(|p| p.0)
     }
 
+    pub fn get_latest_supported_release(&self) -> Option<(&Version, &WorldOrigin)> {
+        self.versions
+            .iter()
+            .find(|(_, origin)| origin.is_supported())
+    }
+
     pub fn get_version(&self, version: &Version) -> Option<&WorldOrigin> {
         self.versions.get(version)
     }
