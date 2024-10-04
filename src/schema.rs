@@ -20,6 +20,7 @@ diesel::table! {
         allow_unsupported -> Bool,
         yaml_limit_per_user -> Nullable<Int4>,
         yaml_limit_bypass_list -> Array<Int8>,
+        manifest -> Jsonb,
     }
 }
 

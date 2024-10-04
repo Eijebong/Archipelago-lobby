@@ -1,44 +1,8 @@
 {% extends "base.html" %}
 {% import "menu.html.tera" as menu %}
+{% import "shared/apworlds_table.html" as apworlds_table %}
 {% block menu %}
 {% endblock %}
-
-{% macro apworlds_table(apworlds, id) %}
-<table class="styled yamls" id="{{id}}">
-    <thead>
-        <tr>
-            <td>World</td>
-            <td>Version</td>
-            <td>Download</td>
-        </tr>
-    </thead>
-    <tbody>
-        {% for (id, world) in apworlds.iter() %}
-            {% let (version, origin) = world.get_latest_release().unwrap() %}
-            <tr>
-                <td>
-                    {% match world.home %}
-                    {% when Some(home) %}
-                        <a href="{{home}}">{{ world.display_name }}</a>
-                    {% when None %}
-                        {{ world.display_name }}
-                    {% endmatch %}
-                </td>
-                <td>{{ version }}</td>
-                <td>
-                    {% if origin.has_patches() %}
-                    <i class="fa fa-wrench" title="This apworld contains custom patches made by the index author"></i>
-                    {% endif %}
-
-                    {% if !origin.is_supported() %}
-                        <a href="/worlds/download/{{id}}/{{version}}">Download</a>
-                    {% endif %}
-                </td>
-            </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% endmacro %}
 
 {% block main %}
 <table class="styled" id="room-info">
@@ -59,35 +23,8 @@
 
     {% endif %}
 </table>
-<h6 style="margin-bottom: 1em;">Official apworlds <span id="official-visibility" class="clickable">(Hide)</span></h6>
-{% call apworlds_table(supported_apworlds, "official") %}
-<h6 style="margin-bottom: 1em;">Unofficial apworlds <i class="fa fa-warning" title="Those are unsupported apworlds, please always be careful when generating with them"></i> <span id="unsupported-visibility" class="clickable">(Hide)</span></h6>
-{% call apworlds_table(unsupported_apworlds, "unsupported") %}
-{%endblock%}
 
-{% block scripts %}
-<script>
-function setupHideableTable(spanId, tableId) {
-    const span = document.getElementById(spanId);
-    const table = document.getElementById(tableId);
-
-    span.onclick = () => {
-        if (table.className.includes("hidden-table")) {
-            span.innerText = "(Hide)";
-            table.className = "styled yamls visible-table";
-        } else {
-            span.innerText = "(Show)";
-            table.className = "styled yamls hidden-table";
-        }
-    }
-}
-
-setupHideableTable("official-visibility", "official");
-setupHideableTable("unsupported-visibility", "unsupported");
-
-const officialSpan = document.getElementById("official-visibility").click()
-</script>
-
+{% call apworlds_table::apworlds_tables(supported_apworlds, unsupported_apworlds) %}
 {% endblock %}
 
 {% block styles %}

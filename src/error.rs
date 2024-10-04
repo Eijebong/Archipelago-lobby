@@ -102,7 +102,7 @@ impl<'r> FromRequest<'r> for &'r RedirectTo {
     }
 }
 
-impl<'r> Responder<'r, 'static> for Error {
+impl Responder<'_, 'static> for Error {
     fn respond_to(self, request: &Request<'_>) -> response::Result<'static> {
         let redirect = request.local_cache(|| {
             let lock = OnceLock::new();
@@ -119,7 +119,7 @@ impl<'r> Responder<'r, 'static> for Error {
     }
 }
 
-impl<'r> Responder<'r, 'static> for ApiError {
+impl Responder<'_, 'static> for ApiError {
     fn respond_to(self, _: &Request<'_>) -> response::Result<'static> {
         let error = self.error.to_string();
         Response::build()

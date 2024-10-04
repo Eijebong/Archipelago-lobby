@@ -42,7 +42,7 @@ fn is_true(option: &Value) -> bool {
         return value != 0;
     }
 
-    return option.as_str() == Some("true");
+    option.as_str() == Some("true")
 }
 
 impl<'a> Extractor<'a> {

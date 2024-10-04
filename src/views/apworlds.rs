@@ -1,10 +1,6 @@
-use std::collections::BTreeMap;
-use std::fs::File;
-use std::io::Read;
-use std::io::Write;
-
 use anyhow::Context as _;
 use apwm::Index;
+use apwm::Manifest;
 use apwm::World;
 use apwm::WorldOrigin;
 use askama::Template;
@@ -16,6 +12,7 @@ use rocket::response::Redirect;
 use rocket::routes;
 use rocket::Responder;
 use rocket::State;
+use semver::Version;
 
 use crate::TplContext;
 use ap_lobby::error::Result;
@@ -28,8 +25,8 @@ use ap_lobby::utils::{RenamedFile, ZipFile};
 struct WorldsListTpl<'a> {
     base: TplContext<'a>,
     index: Index,
-    supported_apworlds: BTreeMap<String, World>,
-    unsupported_apworlds: BTreeMap<String, World>,
+    supported_apworlds: Vec<(String, (World, Version))>,
+    unsupported_apworlds: Vec<(String, (World, Version))>,
 }
 
 #[derive(Responder)]
@@ -47,14 +44,16 @@ async fn list_worlds<'a>(
     cookies: &CookieJar<'a>,
 ) -> Result<WorldsListTpl<'a>> {
     let index = index_manager.index.read().await.clone();
-    let (supported_apworlds, unsupported_apworlds): (BTreeMap<_, _>, BTreeMap<_, _>) =
-        index.worlds().into_iter().partition(|(_, world)| {
-            world.supported
-                && matches!(
-                    world.get_latest_release().unwrap().1,
-                    WorldOrigin::Supported
-                )
+    let manifest = Manifest::from_index_with_latest_versions(&index)?;
+    let (worlds, _) = manifest.resolve_with(&index);
+
+    let (mut supported_apworlds, mut unsupported_apworlds): (Vec<_>, Vec<_>) =
+        worlds.into_iter().partition(|(_, (world, version))| {
+            world.supported && matches!(world.get_version(version).unwrap(), WorldOrigin::Supported)
         });
+
+    supported_apworlds.sort_by_cached_key(|(_, (world, _))| world.display_name.clone());
+    unsupported_apworlds.sort_by_cached_key(|(_, (world, _))| world.display_name.clone());
 
     Ok(WorldsListTpl {
         base: TplContext::from_session("apworlds", session.0, cookies),
@@ -70,40 +69,9 @@ async fn download_all(
     index_manager: &State<IndexManager>,
     _session: LoggedInSession,
 ) -> Result<ZipFile> {
-    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(vec![]));
-    let options =
-        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
-    let apworlds_path = &index_manager.apworlds_path;
-    let prefix = "custom_worlds";
-    writer.add_directory(prefix, options)?;
-
-    let index = index_manager.index.read().await;
-    let mut buffer = Vec::new();
-    for (world_name, world) in &index.worlds() {
-        let Some((version, origin)) = world.get_latest_release() else {
-            continue;
-        };
-
-        if origin.is_supported() {
-            continue;
-        }
-
-        let file_path = index.get_world_local_path(apworlds_path, world_name, version);
-        writer.start_file(format!("{}/{}.apworld", prefix, world_name), options)?;
-        File::open(&file_path)
-            .with_context(|| format!("Can't open {:?}", file_path))?
-            .read_to_end(&mut buffer)?;
-        writer.write_all(&buffer)?;
-        buffer.clear();
-    }
-
-    let value = "attachment; filename=\"apworlds.zip\"";
-    let content = writer.finish()?.into_inner();
-
-    return Ok(ZipFile {
-        content,
-        headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
-    });
+    let index = index_manager.index.read().await.clone();
+    let manifest = Manifest::from_index_with_latest_versions(&index)?;
+    Ok(index_manager.download_apworlds(&manifest).await?)
 }
 
 #[rocket::get("/worlds/download/<world_name>/<version>")]
@@ -116,8 +84,8 @@ async fn download_world<'a>(
 ) -> Result<APWorldResponse<'a>> {
     let index = index_manager.index.read().await;
 
-    let worlds = index.worlds();
-    let world = worlds
+    let world = index
+        .worlds
         .get(world_name)
         .context("This APworld doesn't seem to exist")?;
 

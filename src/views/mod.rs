@@ -10,6 +10,7 @@ use ap_lobby::error::{Error, RedirectTo, Result, WithContext};
 use ap_lobby::index_manager::IndexManager;
 use ap_lobby::session::{LoggedInSession, Session};
 use ap_lobby::utils::ZipFile;
+use apwm::{World, WorldOrigin};
 use askama::Template;
 use diesel_async::scoped_futures::ScopedFutureExt;
 use diesel_async::AsyncConnection;
@@ -20,6 +21,7 @@ use rocket::http::{ContentType, CookieJar, Header};
 use rocket::response::Redirect;
 use rocket::routes;
 use rocket::{get, post, uri, State};
+use semver::Version;
 use tracing::Instrument;
 use uuid::Uuid;
 
@@ -27,6 +29,7 @@ pub mod api;
 pub mod apworlds;
 pub mod auth;
 pub mod filters;
+pub mod manifest_editor;
 pub mod room_manager;
 
 #[derive(Template)]
@@ -42,6 +45,17 @@ struct RoomTpl<'a> {
     is_closed: bool,
     has_room_url: bool,
     is_my_room: bool,
+}
+
+#[derive(Template)]
+#[template(path = "room_manager/room_apworlds.html")]
+struct RoomApworldsTpl<'a> {
+    base: TplContext<'a>,
+    is_my_room: bool,
+    is_closed: bool,
+    supported_apworlds: Vec<(String, (World, Version))>,
+    unsupported_apworlds: Vec<(String, (World, Version))>,
+    room: Room,
 }
 
 #[derive(Template)]
@@ -271,6 +285,66 @@ async fn download_yamls<'a>(
     })
 }
 
+#[get("/room/<room_id>/worlds")]
+#[tracing::instrument(skip(redirect_to, ctx, index_manager, session, cookies))]
+async fn room_worlds<'a>(
+    room_id: Uuid,
+    session: LoggedInSession,
+    index_manager: &State<IndexManager>,
+    redirect_to: &RedirectTo,
+    cookies: &CookieJar<'_>,
+    ctx: &State<Context>,
+) -> Result<RoomApworldsTpl<'a>> {
+    redirect_to.set(&format!("/room/{}", room_id));
+
+    let mut conn = ctx.db_pool.get().await?;
+    let room = db::get_room(room_id, &mut conn).await?;
+    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
+
+    let index = index_manager.index.read().await.clone();
+    let (worlds, resolve_errors) = room.manifest.resolve_with(&index);
+    if !resolve_errors.is_empty() {
+        Err(anyhow::anyhow!(
+            "Error while resolving apworlds for this room: {}",
+            resolve_errors.iter().join("\n")
+        ))?
+    }
+
+    let (mut supported_apworlds, mut unsupported_apworlds): (Vec<_>, Vec<_>) =
+        worlds.into_iter().partition(|(_, (world, version))| {
+            world.supported && matches!(world.get_version(version).unwrap(), WorldOrigin::Supported)
+        });
+
+    supported_apworlds.sort_by_cached_key(|(_, (world, _))| world.display_name.clone());
+    unsupported_apworlds.sort_by_cached_key(|(_, (world, _))| world.display_name.clone());
+
+    Ok(RoomApworldsTpl {
+        base: TplContext::from_session("room", session.0, cookies),
+        is_my_room,
+        is_closed: room.is_closed(),
+        supported_apworlds,
+        unsupported_apworlds,
+        room,
+    })
+}
+
+#[get("/room/<room_id>/worlds/download_all")]
+#[tracing::instrument(skip(ctx, _session, index_manager, redirect_to))]
+async fn room_download_all_worlds<'a>(
+    room_id: Uuid,
+    _session: LoggedInSession,
+    index_manager: &'a State<IndexManager>,
+    redirect_to: &'a RedirectTo,
+    ctx: &'a State<Context>,
+) -> Result<ZipFile<'a>> {
+    redirect_to.set(&format!("/room/{}", room_id));
+
+    let mut conn = ctx.db_pool.get().await?;
+    let room = db::get_room(room_id, &mut conn).await?;
+
+    Ok(index_manager.download_apworlds(&room.manifest).await?)
+}
+
 #[derive(rocket::Responder)]
 #[response(status = 200, content_type = "application/yaml")]
 pub(crate) struct YamlContent<'a> {
@@ -324,6 +398,8 @@ pub fn routes() -> Vec<rocket::Route> {
     routes![
         root,
         room,
+        room_worlds,
+        room_download_all_worlds,
         upload_yaml,
         delete_yaml,
         download_yamls,

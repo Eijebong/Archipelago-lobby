@@ -56,10 +56,8 @@ hr
       background-color: hsla(0,0%,0%,0.05)
     &:hover
       background-color: hsla(0,0%,100%,0.025)
-  th
-    padding: 4px
 
-  td
+  td, th
     padding: 4px
     border-left: 1px dashed hsla(0,0%,0%, 0.35)
 
@@ -99,6 +97,23 @@ hr
 
 /* == FORM ENHANCMENT == */
 
+.manifest-editor
+  input[type=checkbox] + label
+    margin-bottom: 0
+    margin-right: 1
+    width: 0
+
+  label
+    box-shadow: none
+    display: inline-block
+    padding: 0.25em 0.75em
+
+  td
+    &:first-child
+      width: 2.5em
+
+    &:nth-child(2)
+      text-align: center
 
 textarea
   font-size: 1.2em
@@ -106,10 +121,11 @@ textarea
 
 form
   label
-    display: inline-block
-    padding: 0.25em 0.75em
-    background-color: hsla(0,0%,0%,0.1)
-    box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 1px hsla(0,0%,0%,0.5)
+    &:not(.unstyled)
+      display: inline-block
+      padding: 0.25em 0.75em
+      background-color: hsla(0,0%,0%,0.1)
+      box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 1px hsla(0,0%,0%,0.5)
 
 
   input[type=text], input[type=url], input[type=password], input[type=file], input[type=number], input[type=datetime-local], textarea
@@ -135,7 +151,6 @@ form
 
   input[type=checkbox] + label, input[type=radio] + label
     cursor: pointer
-    background-color: none
     border: none
     margin-bottom: 1em
     width: 100%
@@ -196,6 +211,12 @@ form
       &:not(first-of-type)
         width: calc(100% - 2em) !important
 
+  fieldset
+    border: 1px solid #666
+
+    input + label
+      margin-left: 2em
+      width: calc(100% - 2em) !important
 
 legend
   padding: 0 0.5em
@@ -264,14 +285,17 @@ select
   box-shadow: 0 0 1px black, inset 0 1px 0px 0px hsla(0,0%,100%,0.15)
   cursor: pointer
   font-weight: bold
+  text-align: center
+
 
   border: none
-  padding: 0 0.50em
+  padding: 0.5em
   margin-right: -10%
   margin-bottom: -0.75em
 
   text-shadow: 0 0 0 white, 1px 1px black
   margin: -0.2em 0
+  width: 100%
 
 
 label + select
@@ -285,18 +309,6 @@ label + select
   margin: 0
   margin-bottom: 1em
   font-weight: normal
-
-  option
-    padding: 0.5em 0.75em
-
-
-option
-  padding: 0.25em
-  color: white
-  display: hidden
-  border: 1px solid red
-  border: none
-  background: none
 
 
 /* == GENERIC CLASSES == */
@@ -874,3 +886,46 @@ body:has(dialog[open])
         display: grid
         grid-auto-rows: auto
         text-align: center
+
+.actionable
+  cursor: pointer
+
+.context-menu
+  display: none
+  z-index: 1000
+  position: absolute
+  overflow: hidden
+  white-space: nowrap
+  padding: 0
+  margin-top: 2px
+
+  color: white
+  background: hsl(135, 0%, 31%)
+  box-shadow: 0 0 1px black, inset 0 1px 0px 0px hsla(0,0%,100%,0.15)
+  cursor: pointer
+  font-weight: bold
+  text-align: center
+
+.context-menu li
+  padding: 8px 12px
+  cursor: pointer
+  list-style-type: none
+  user-select: none
+
+  &:hover
+    background: hsl(135, 0%, 24%)
+
+#room-form
+  display: flex
+  flex-direction: column
+
+@media (min-width:768px)
+  #room-form
+    height: calc(100vh - 4em)
+
+@media (max-width:768px)
+  #room-form
+    height: calc(100vh - 5em)
+
+#option-pages
+  overflow: auto

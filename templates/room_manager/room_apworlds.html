@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% import "menu.html.tera" as menu %}
+{% import "shared/apworlds_table.html" as apworlds_table %}
+{% block menu %}
+    {% let room_url = format!("/room/{}", self.room.id) %}
+    {% call menu::menu_item("Room", "", room_url, false, "") %}
+    {% if !is_closed && base.is_logged_in %}
+        {% call menu::menu_item("Upload yaml", "", "#upload", false, "uploadButton") %}
+    {% endif %}
+    {% if !is_closed && !base.is_logged_in %}
+        {% let login_url = format!("/auth/login?redirect={}", room_url) %}
+        {% call menu::menu_item("Upload yaml", "", login_url, false, "") %}
+    {% endif %}
+    {% if base.is_logged_in %}
+        {% let apworlds_url = format!("/room/{}/worlds", self.room.id) %}
+        {% call menu::menu_item("Apworlds", "", apworlds_url, true, "apworldsButton") %}
+    {% endif %}
+    {% if is_my_room %}
+        {% let edit_url = format!("/edit-room/{}", self.room.id) %}
+        {% call menu::menu_item("Edit room", "", edit_url, false, "editButton") %}
+    {% endif %}
+{% endblock %}
+
+{% block room_navigation %}
+    {% let room_url = format!("/room/{}", self.room.id) %}
+    {% call menu::app_menu_item(room.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}
+{% endblock %}
+
+{% block main %}
+<table class="styled" id="room-info">
+    {% if !room.yaml_validation %}
+        <tr>
+            <td colspan=2>
+                The room doesn't have YAML validation on. The following list is
+                just an informative one and might not correspond to what the
+                author is going to use.
+            </td>
+        </tr>
+    {% else if room.allow_unsupported %}
+        <tr>
+            <td colspan=2>
+                The room author has allowed uploading YAMLs for games not
+                present in the following list.
+            </td>
+        </tr>
+    {% endif %}
+    <tr>
+        <td>Download</td>
+        <td><a class="validation-button" href="/room/{{room.id}}/worlds/download_all">Download all apworlds</a></td>
+    </tr>
+</table>
+
+{% call apworlds_table::apworlds_tables(supported_apworlds, unsupported_apworlds) %}
+{% endblock %}
+
+{% block styles %}
+{% endblock %}
+
+

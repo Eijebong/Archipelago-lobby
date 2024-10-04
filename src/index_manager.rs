@@ -1,10 +1,18 @@
-use anyhow::Result;
+use anyhow::{bail, Context, Result};
+use http::header::CONTENT_DISPOSITION;
+use rocket::http::Header;
 use semver::Version;
-use std::path::{Path, PathBuf};
+use std::{
+    fs::File,
+    io::{Read, Write},
+    path::{Path, PathBuf},
+};
 use tokio::sync::RwLock;
 
 use apwm::{Index, Manifest};
 use git2::{Repository, ResetType};
+
+use crate::utils::ZipFile;
 
 pub struct IndexManager {
     pub index: RwLock<Index>,
@@ -53,7 +61,9 @@ impl IndexManager {
             &self.index_path,
         )?;
         let new_index = self.parse_index()?;
-        new_index.refresh_into(&self.apworlds_path, false).await?;
+        new_index
+            .refresh_into(&self.apworlds_path, false, None)
+            .await?;
         *self.index.write().await = new_index;
 
         Ok(())
@@ -76,6 +86,46 @@ impl IndexManager {
         let path = world.path.file_stem().unwrap().to_str().unwrap().to_owned();
 
         Some((path, version.clone()))
+    }
+
+    pub async fn download_apworlds(&self, manifest: &Manifest) -> Result<ZipFile> {
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(vec![]));
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored);
+        let apworlds_path = &self.apworlds_path;
+        let prefix = "custom_worlds";
+        writer.add_directory(prefix, options)?;
+
+        let index = self.index.read().await;
+        let mut buffer = Vec::new();
+        let (worlds, resolve_errors) = manifest.resolve_with(&index);
+        if !resolve_errors.is_empty() {
+            bail!("Error while resolving manifest");
+        }
+
+        for (world_name, (world, version)) in &worlds {
+            let origin = world.get_version(version).unwrap();
+
+            if origin.is_supported() {
+                continue;
+            }
+
+            let file_path = index.get_world_local_path(apworlds_path, world_name, version);
+            writer.start_file(format!("{}/{}.apworld", prefix, world_name), options)?;
+            File::open(&file_path)
+                .with_context(|| format!("Can't open {:?}", file_path))?
+                .read_to_end(&mut buffer)?;
+            writer.write_all(&buffer)?;
+            buffer.clear();
+        }
+
+        let value = "attachment; filename=\"apworlds.zip\"";
+        let content = writer.finish()?.into_inner();
+
+        Ok(ZipFile {
+            content,
+            headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
+        })
     }
 }
 

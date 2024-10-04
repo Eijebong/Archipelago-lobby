@@ -5,6 +5,7 @@ use crate::error::Result;
 use crate::extractor::YamlFeatures;
 use crate::schema::{discord_users, rooms, yamls};
 
+use apwm::Manifest;
 use chrono::NaiveDateTime;
 use diesel::connection::Instrumentation;
 use diesel::dsl::{exists, now, AsSelect, SqlTypeOf};
@@ -33,6 +34,7 @@ pub struct NewRoom<'a> {
     pub yaml_validation: bool,
     pub allow_unsupported: bool,
     pub yaml_limit_bypass_list: Vec<i64>,
+    pub manifest: Json<Manifest>,
 }
 
 #[derive(Insertable)]
@@ -60,6 +62,7 @@ pub struct Room {
     pub allow_unsupported: bool,
     pub yaml_limit_per_user: Option<i32>,
     pub yaml_limit_bypass_list: Vec<i64>,
+    pub manifest: json::Json<Manifest>,
 }
 
 impl Room {
@@ -126,7 +129,7 @@ pub async fn list_rooms(
 ) -> Result<Vec<Room>> {
     let query = room_filter.as_query();
 
-    Ok(query.load::<Room>(conn).await?)
+    Ok(query.load::<Room>(conn).await.unwrap())
 }
 
 #[tracing::instrument(skip(conn))]

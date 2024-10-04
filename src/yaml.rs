@@ -94,7 +94,7 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
         if room.yaml_validation {
             if let Some(yaml_validator_url) = yaml_validator_url {
                 let unsupported_games =
-                    validate_yaml(document, parsed, index_manager, yaml_validator_url).await?;
+                    validate_yaml(document, parsed, &room.manifest, index_manager, yaml_validator_url).await?;
                 if !unsupported_games.is_empty() {
                     if room.allow_unsupported {
                         session.0.warning_msg.push(format!(
@@ -165,7 +165,7 @@ fn validate_game(game: &YamlGame) -> Result<String> {
                 1 => Ok(weighted_map.keys().next().unwrap().to_string()),
                 n if n > 1 => Ok(format!("Random ({})", n)),
                 _ => Err(anyhow::anyhow!(
-                    "Your YAML contains games but none of the has any chance of getting rolled"
+                    "Your YAML contains games but none of them has any chance of getting rolled"
                 ))?,
             }
         }
@@ -176,6 +176,7 @@ fn validate_game(game: &YamlGame) -> Result<String> {
 async fn validate_yaml(
     yaml: &str,
     parsed: &YamlFile,
+    manifest: &Manifest,
     index_manager: &IndexManager,
     yaml_validator_url: &Url,
 ) -> Result<Vec<String>> {
@@ -186,13 +187,8 @@ async fn validate_yaml(
     }
 
     let client = reqwest::Client::new();
-    // Build a fake manifest for now
-    let manifest = {
-        let index = index_manager.index.read().await;
-        Manifest::from_index_with_latest_versions(&index)?
-    };
 
-    let apworlds = match get_apworlds_for_games(index_manager, &manifest, &parsed.game).await {
+    let apworlds = match get_apworlds_for_games(index_manager, manifest, &parsed.game).await {
         Ok(apworlds) => apworlds,
         Err(unsupported) => return Ok(unsupported),
     };

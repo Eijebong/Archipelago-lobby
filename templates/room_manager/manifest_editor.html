@@ -1,0 +1,200 @@
+{% macro emit_apworld_version_select(row) %}
+<select name="me.version.{{row.apworld_name}}">
+    {% for version in row.valid_versions %}
+    {% let is_current = (version.clone() == row.current_version) %}
+    <option value="{{ version.to_string() }}" {% if is_current %}selected{% endif %}>{{ version.to_string() }}</option>
+    {% endfor %}
+</select>
+{% endmacro %}
+
+{% macro emit_apworld_row(row) %}
+<tr data-supported={{ row.supported }}>
+    <td>
+        <input type="checkbox" id="me-enabled-{{row.apworld_name}}" class="me-enabled" name="me.enabled.{{row.apworld_name}}" {% if row.enabled %}checked{% endif %}/>
+        <label class="unstyled" for="me-enabled-{{row.apworld_name}}"></label>
+    </td>
+    <td>{{ row.display_name }}</td>
+    <td>{% call emit_apworld_version_select(row) %}
+</tr>
+{% endmacro %}
+
+<div>
+    <fieldset>
+        <legend>When a new apworld is added to the lobby:</legend>
+
+        {% let enable_checked = matches!(self.manifest_builder.manifest.new_apworld_policy, apwm::NewApworldPolicy::Enable) %}
+        <input type="radio" name="me.new_apworld_policy" id="new_apworld_policy_enable" value="enable" {% if enable_checked %}checked{% endif %}/>
+        <label for="new_apworld_policy_enable">Add it to the room</label>
+        {% let disable_checked = matches!(self.manifest_builder.manifest.new_apworld_policy, apwm::NewApworldPolicy::Disable) %}
+        <input type="radio" name="me.new_apworld_policy" id="new_apworld_policy_disable" value="disable" {% if disable_checked %}checked{% endif %}/>
+        <label for="new_apworld_policy_disable">Don't add it to the room</label>
+    </fieldset>
+</div>
+
+<table id="me-editor" class="styled manifest-editor">
+    <thead>
+        <tr>
+            <th class="actionable" id="enable-th" onclick="enableMenu.trigger(event)"><i class="fa-solid fa-bars"></i></th>
+            <th>World</th>
+            <th class="actionable" id="version-th" onclick="versionMenu.trigger(event)"><i class="fa-solid fa-bars"></i>&nbsp;Version</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in manifest_builder.rows() %}
+        {% call emit_apworld_row(row) %}
+    {% endfor %}
+    </tbody>
+</table>
+
+<script>
+
+function forEachApworld(callback) {
+    const rows = document.querySelectorAll("#me-editor > tbody > tr");
+    for (const row of rows) {
+        callback({
+            checkbox: row.children[0].children[0],
+            versions: row.lastChild.children[0],
+            dataset: row.dataset
+        })
+    }
+}
+
+function disableAll() {
+    forEachApworld((row) => {
+        row.checkbox.checked = false;
+    })
+}
+
+function enableAll() {
+    forEachApworld((row) => {
+        row.checkbox.checked = true;
+    })
+}
+
+function keepSupportedOnly() {
+    forEachApworld((row) => {
+        row.checkbox.checked = row.dataset.supported === "true";
+    })
+}
+
+function resetVersions() {
+    forEachApworld((row) => {
+        row.versions.value = row.versions.options[0].value;
+    })
+}
+
+function freezeVersions() {
+    forEachApworld((row) => {
+        const currentVersion = row.versions.value;
+        if (currentVersion == "Latest") {
+            for (const option of row.versions.options) {
+                if (option.value != "Latest") {
+                    row.versions.value = option.value;
+                    break;
+                }
+            }
+        }
+    })
+}
+
+
+class Menu {
+    constructor(anchor) {
+        this.opened = false;
+        this.items = [];
+        this.elmt = null;
+        this.anchor = anchor;
+        this.resizeHandler = this.moveToAnchor.bind(this)
+        this.clickHandler = this.handleClick.bind(this)
+    }
+
+    build() {
+        const elmt = document.createElement("ul")
+        elmt.classList = "context-menu"
+        elmt.style.visibility = "hidden";
+        elmt.style.display = "block";
+        elmt.style.position = "absolute"
+
+        for (const item of this.items) {
+            const itemElmt = item.build();
+
+            elmt.appendChild(itemElmt)
+        }
+
+        this.elmt = elmt;
+        this.anchor.appendChild(this.elmt)
+        this.moveToAnchor()
+    }
+
+    trigger(event) {
+        if (this.opened) {
+            this.close()
+            return;
+        }
+        this.open()
+    }
+
+    open() {
+        this.moveToAnchor()
+        this.elmt.style.visibility = "visible";
+        this.opened = true;
+
+        addEventListener("resize", this.resizeHandler)
+        addEventListener("mousedown", this.clickHandler)
+    }
+
+    close() {
+        this.elmt.style.visibility = "hidden";
+        this.opened = false;
+
+        removeEventListener("resize", this.resizeHandler)
+        removeEventListener("mousedown", this.clickHandler)
+    }
+
+    moveToAnchor() {
+        const anchor_bb = this.anchor.getBoundingClientRect();
+        const element_bb = this.elmt.getBoundingClientRect();
+        // If the menu doesn't fit in the page, offset it to the left
+        if (anchor_bb.left + element_bb.width > window.innerWidth) {
+            this.elmt.style.left = window.innerWidth - element_bb.width + "px"
+        } else {
+            this.elmt.style.left = anchor_bb.left + "px"
+        }
+
+        this.elmt.style.top = anchor_bb.bottom + "px"
+        this.elmt.style["min-width"] = anchor_bb.width + "px"
+    }
+
+    handleClick(event) {
+        if (!this.anchor.contains(event.target)) {
+            this.close()
+        }
+    }
+}
+
+class MenuItem {
+    constructor(text, callback) {
+        this.text = text
+        this.callback = callback
+    }
+
+    build() {
+        const elmt = document.createElement("li");
+        elmt.innerText = this.text;
+        elmt.addEventListener("click", this.callback)
+
+        return elmt
+    }
+}
+
+const versionMenu = new Menu(document.getElementById("version-th"))
+versionMenu.items.push(new MenuItem("Reset versions to latest", resetVersions))
+versionMenu.items.push(new MenuItem("Freeze versions", freezeVersions))
+versionMenu.build();
+
+const enableMenu = new Menu(document.getElementById("enable-th"))
+enableMenu.items.push(new MenuItem("Enable all", enableAll))
+enableMenu.items.push(new MenuItem("Disable all", disableAll))
+enableMenu.items.push(new MenuItem("Only keep supported worlds", keepSupportedOnly))
+enableMenu.build();
+</script>

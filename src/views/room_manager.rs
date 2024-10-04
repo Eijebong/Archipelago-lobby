@@ -2,7 +2,9 @@
 
 use ap_lobby::db::{self, Author, NewRoom, Room, RoomFilter};
 use ap_lobby::error::{RedirectTo, Result};
+use ap_lobby::index_manager::IndexManager;
 use ap_lobby::session::LoggedInSession;
+use apwm::Manifest;
 use askama::Template;
 use chrono::{DateTime, TimeZone, Utc};
 use rocket::form::Form;
@@ -16,11 +18,14 @@ use uuid::Uuid;
 use crate::{Context, TplContext};
 use rocket::State;
 
+use super::manifest_editor::{manifest_from_form, ManifestForm, ManifestFormBuilder};
+
 #[derive(Template)]
 #[template(path = "room_manager/create_room.html")]
 struct EditRoom<'a> {
     base: TplContext<'a>,
     room: Option<Room>,
+    manifest_builder: ManifestFormBuilder,
 }
 
 #[derive(FromForm, Debug)]
@@ -36,6 +41,7 @@ struct CreateRoomForm<'a> {
     yaml_limit_per_user: bool,
     yaml_limit_per_user_nb: i32,
     yaml_limit_bypass_list: &'a str,
+    me: ManifestForm<'a>,
 }
 
 #[derive(Template)]
@@ -83,10 +89,18 @@ async fn my_rooms<'a>(
 }
 #[get("/create-room")]
 #[tracing::instrument(skip_all)]
-fn create_room<'a>(session: LoggedInSession, cookies: &CookieJar) -> Result<EditRoom<'a>> {
+async fn create_room<'a>(
+    session: LoggedInSession,
+    index_manager: &State<IndexManager>,
+    cookies: &CookieJar<'_>,
+) -> Result<EditRoom<'a>> {
+    let index = index_manager.index.read().await;
+    let manifest = Manifest::from_index_with_latest_versions(&index)?;
+
     Ok(EditRoom {
         base: TplContext::from_session("create-room", session.0, cookies),
         room: None,
+        manifest_builder: ManifestFormBuilder::new(index.clone(), manifest),
     })
 }
 
@@ -107,12 +121,17 @@ fn parse_date(date: &str, tz_offset: i32) -> Result<DateTime<Utc>> {
 async fn create_room_submit<'a>(
     redirect_to: &RedirectTo,
     ctx: &State<Context>,
+    index_manager: &State<IndexManager>,
     mut room_form: Form<CreateRoomForm<'a>>,
     session: LoggedInSession,
 ) -> Result<Redirect> {
     redirect_to.set("/create-room");
 
     validate_room_form(&mut room_form)?;
+    let room_manifest = {
+        let index = index_manager.index.read().await;
+        manifest_from_form(&room_form.me, &index)
+    }?;
 
     let author_id = session.user_id();
     let close_date = parse_date(room_form.close_date, room_form.tz_offset)?;
@@ -134,7 +153,9 @@ async fn create_room_submit<'a>(
             .split(',')
             .filter_map(|id| i64::from_str(id).ok())
             .collect(),
+        manifest: db::Json(room_manifest),
     };
+
     let mut conn = ctx.db_pool.get().await?;
     let new_room = db::create_room(&new_room, &mut conn).await?;
 
@@ -142,11 +163,12 @@ async fn create_room_submit<'a>(
 }
 
 #[get("/edit-room/<room_id>")]
-#[tracing::instrument(skip(ctx, session, cookies))]
+#[tracing::instrument(skip(ctx, session, cookies, index_manager))]
 async fn edit_room<'a>(
     ctx: &State<Context>,
     room_id: Uuid,
     session: LoggedInSession,
+    index_manager: &State<IndexManager>,
     cookies: &CookieJar<'a>,
 ) -> Result<EditRoom<'a>> {
     let mut conn = ctx.db_pool.get().await?;
@@ -157,8 +179,11 @@ async fn edit_room<'a>(
         return Err(anyhow::anyhow!("You're not allowed to edit this room").into());
     }
 
+    let index = index_manager.index.read().await;
+
     Ok(EditRoom {
         base: TplContext::from_session("room", session.0, cookies),
+        manifest_builder: ManifestFormBuilder::new(index.clone(), room.manifest.0.clone()),
         room: Some(room),
     })
 }
@@ -184,12 +209,13 @@ async fn delete_room<'a>(
 }
 
 #[post("/edit-room/<room_id>", data = "<room_form>")]
-#[tracing::instrument(skip(redirect_to, room_form, ctx, session))]
+#[tracing::instrument(skip(redirect_to, room_form, index_manager, ctx, session))]
 async fn edit_room_submit<'a>(
     redirect_to: &RedirectTo,
     room_id: Uuid,
     mut room_form: Form<CreateRoomForm<'a>>,
     ctx: &State<Context>,
+    index_manager: &State<IndexManager>,
     session: LoggedInSession,
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/edit-room/{}", room_id));
@@ -202,6 +228,11 @@ async fn edit_room_submit<'a>(
     }
 
     validate_room_form(&mut room_form)?;
+
+    let room_manifest = {
+        let index = index_manager.index.read().await;
+        manifest_from_form(&room_form.me, &index)
+    }?;
 
     let new_room = NewRoom {
         id: room_id,
@@ -221,6 +252,7 @@ async fn edit_room_submit<'a>(
             .split(',')
             .filter_map(|id| i64::from_str(id).ok())
             .collect(),
+        manifest: db::Json(room_manifest),
     };
 
     db::update_room(&new_room, &mut conn).await?;

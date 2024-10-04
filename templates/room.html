@@ -10,6 +10,10 @@
         {% let login_url = format!("/auth/login?redirect={}", room_url) %}
         {% call menu::menu_item("Upload yaml", "", login_url, false, "") %}
     {% endif %}
+    {% if base.is_logged_in %}
+        {% let apworlds_url = format!("/room/{}/worlds", self.room.id) %}
+        {% call menu::menu_item("Apworlds", "", apworlds_url, false, "apworldsButton") %}
+    {% endif %}
     {% if is_my_room %}
         {% let edit_url = format!("/edit-room/{}", self.room.id) %}
         {% call menu::menu_item("Edit room", "", edit_url, false, "editButton") %}
