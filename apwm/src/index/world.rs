@@ -129,7 +129,7 @@ impl World {
 
             crate::utils::copy_dir_all(
                 &ap_cache.path().join("worlds").join(self.get_ap_name()?),
-                destination,
+                &destination.join(self.get_ap_name()?),
             )?;
 
             return Ok(());
