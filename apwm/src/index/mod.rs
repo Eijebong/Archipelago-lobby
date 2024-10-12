@@ -72,7 +72,12 @@ impl Index {
         Ok(index)
     }
 
-    pub async fn refresh_into(&self, destination: &Path, only_new: bool) -> Result<IndexLock> {
+    pub async fn refresh_into(
+        &self,
+        destination: &Path,
+        only_new: bool,
+        precise: Option<(String, Version)>,
+    ) -> Result<IndexLock> {
         log::info!("Refreshing index into {:?}", destination);
 
         let parent = self.path.parent().context("Invalid index path")?;
@@ -89,6 +94,16 @@ impl Index {
         for (world_name, world) in &self.worlds {
             for (version, origin) in &world.versions {
                 log::debug!("Refreshing world: {}, version: {}", world_name, version);
+                if let Some((ref target_world, ref target_version)) = precise {
+                    if world_name != target_world {
+                        log::debug!("Ignoring world because of precise requirement");
+                        continue;
+                    }
+                    if version != target_version {
+                        log::debug!("Ignoring version because of precise requirement");
+                        continue;
+                    }
+                }
                 if world.disabled {
                     log::debug!("World is disabled, ignoring");
                     continue;

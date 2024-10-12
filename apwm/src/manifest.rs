@@ -175,8 +175,7 @@ impl Manifest {
             NewApworldPolicy::Enable => self
                 .worlds
                 .get(apworld_name)
-                .and_then(|version_req| Some(version_req != &VersionReq::Disabled))
-                .unwrap_or(true),
+                .map(|version_req| version_req != &VersionReq::Disabled),
             NewApworldPolicy::Disable => self.worlds.contains_key(apworld_name),
         }
     }

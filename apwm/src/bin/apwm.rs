@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use apwm::diff::diff_world_and_write;
 use apwm::utils::git_clone_shallow;
 use clap::Parser;
+use semver::Version;
 use std::path::{Path, PathBuf};
 use tempfile::tempdir;
 
@@ -16,6 +17,8 @@ enum Command {
         index_path: PathBuf,
         #[clap(short)]
         destination: PathBuf,
+        #[clap(short)]
+        precise: Option<String>,
     },
     Install {
         #[clap(short)]
@@ -24,6 +27,8 @@ enum Command {
         apworlds_path: PathBuf,
         #[clap(short)]
         destination: PathBuf,
+        #[clap(short)]
+        precise: Option<String>,
     },
     Diff {
         #[clap(short)]
@@ -52,15 +57,17 @@ async fn main() -> Result<()> {
         Command::Download {
             index_path,
             destination,
+            precise,
         } => {
-            download(&index_path, &destination).await?;
+            download(&index_path, &destination, &precise).await?;
         }
         Command::Install {
             index_path,
             apworlds_path,
             destination,
+            precise,
         } => {
-            install(&index_path, &apworlds_path, &destination).await?;
+            install(&index_path, &apworlds_path, &destination, &precise).await?;
         }
         Command::Diff {
             index_path,
@@ -74,10 +81,12 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn download(index_path: &Path, destination: &Path) -> Result<()> {
+async fn download(index_path: &Path, destination: &Path, precise: &Option<String>) -> Result<()> {
     let index_toml = index_path.join("index.toml");
     let index = apwm::Index::new(&index_toml)?;
-    index.refresh_into(destination, false).await?;
+    let target = apworld_version_from_precise(precise)?;
+
+    index.refresh_into(destination, false, target).await?;
 
     Ok(())
 }
@@ -87,7 +96,7 @@ async fn update(index_path: &Path) -> Result<()> {
     let index = apwm::Index::new(&index_toml)?;
     let destination = tempdir()?;
 
-    let new_lock = index.refresh_into(destination.path(), true).await?;
+    let new_lock = index.refresh_into(destination.path(), true, None).await?;
 
     new_lock.write()?;
 
@@ -158,16 +167,44 @@ async fn diff(index_path: &Path, from_git_remote: &str, output: &Path) -> Result
     Ok(())
 }
 
-async fn install(index_path: &Path, apworlds_path: &Path, destination: &Path) -> Result<()> {
+fn apworld_version_from_precise(precise: &Option<String>) -> Result<Option<(String, Version)>> {
+    if let Some(precise) = precise {
+        let parts = precise.splitn(2, ':').collect::<Vec<_>>();
+        if parts.len() != 2 {
+            anyhow::bail!("Precise version need to be of the form <apworld>:<version>");
+        }
+
+        Ok(Some((parts[0].to_string(), parts[1].parse::<Version>()?)))
+    } else {
+        Ok(None)
+    }
+}
+
+async fn install(
+    index_path: &Path,
+    apworlds_path: &Path,
+    destination: &Path,
+    precise: &Option<String>,
+) -> Result<()> {
     let index_toml = index_path.join("index.toml");
     let index = apwm::Index::new(&index_toml)?;
 
     std::fs::create_dir_all(destination)?;
+    let target = apworld_version_from_precise(precise)?;
 
     for (world_name, world) in &index.worlds {
-        let Some((version, _)) = world.get_latest_release() else {
-            continue;
+        let version = if let Some((ref target_apworld, ref target_version)) = target {
+            if target_apworld != world_name {
+                continue;
+            }
+            target_version
+        } else {
+            let Some((version, _)) = world.get_latest_release() else {
+                continue;
+            };
+            version
         };
+
         let apworld_path = index.get_world_local_path(apworlds_path, world_name, version);
         let destination = destination.join(format!("{}.apworld", world_name));
         std::fs::copy(&apworld_path, &destination)
