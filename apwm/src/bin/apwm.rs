@@ -104,8 +104,8 @@ async fn diff(index_path: &Path, from_git_remote: &str, output: &Path) -> Result
     let new_index = apwm::Index::new(&new_index_toml)?;
     let old_index = apwm::Index::new(&old_index_toml)?;
 
-    let old_worlds = old_index.worlds();
-    let new_worlds = new_index.worlds();
+    let old_worlds = old_index.worlds;
+    let new_worlds = new_index.worlds;
 
     for (name, world) in &new_worlds {
         match old_worlds.get(name) {
@@ -164,7 +164,7 @@ async fn install(index_path: &Path, apworlds_path: &Path, destination: &Path) ->
 
     std::fs::create_dir_all(destination)?;
 
-    for (world_name, world) in &index.worlds() {
+    for (world_name, world) in &index.worlds {
         let Some((version, _)) = world.get_latest_release() else {
             continue;
         };

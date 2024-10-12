@@ -28,7 +28,7 @@ pub struct Index {
     pub index_homepage: String,
     pub index_dir: PathBuf,
     #[serde(default)]
-    worlds: BTreeMap<String, World>,
+    pub worlds: BTreeMap<String, World>,
 }
 
 impl Index {
@@ -54,6 +54,10 @@ impl Index {
                 .with_context(|| format!("World path {:?} is invalid", world_path))?
                 .to_string_lossy();
             let mut world = World::new(&world_toml.path())?;
+            if world.disabled {
+                continue;
+            }
+
             if world.supported {
                 world
                     .versions
@@ -146,11 +150,5 @@ impl Index {
         version: &Version,
     ) -> PathBuf {
         apworld_root.join(format!("{}-{}.apworld", world_name, version))
-    }
-
-    pub fn worlds(&self) -> BTreeMap<String, World> {
-        let mut worlds = self.worlds.clone();
-        worlds.retain(|_, world| !world.disabled);
-        worlds
     }
 }

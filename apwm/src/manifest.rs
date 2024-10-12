@@ -6,57 +6,76 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Index, World};
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ManifestCommon {
-    pub archipelago_version: Version,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum WorldVersion {
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub enum VersionReq {
+    Disabled,
+    #[default]
     Latest,
     LatestSupported,
     Specific(Version),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Manifest {
-    pub common: ManifestCommon,
-    pub worlds: BTreeMap<String, WorldVersion>,
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+// TODO: UI
+pub enum NewApworldPolicy {
+    #[default]
+    Enable,
+    Disable,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct Manifest {
+    #[serde(default)]
+    worlds: BTreeMap<String, VersionReq>,
+    #[serde(default)]
+    new_apworld_policy: NewApworldPolicy,
+}
+
+#[derive(Debug)]
 pub enum ResolveError<'a> {
     WorldNotFound(&'a str),
-    VersionNotFound(String, WorldVersion),
+    VersionNotFound(String, VersionReq),
     WorldNotInManifest(&'a str),
+    WorldDisabled(String),
 }
 
-impl<'a> ResolveError<'a> {
-    pub fn is_fatal(&self) -> bool {
+impl VersionReq {
+    pub fn parse(s: &str) -> Result<Self> {
+        Ok(match s {
+            "Latest" => Self::Latest,
+            "Latest Supported" => Self::LatestSupported,
+            "Disabled" => Self::Disabled,
+            s => Self::Specific(Version::parse(s)?),
+        })
+    }
+
+    pub fn to_string(&self) -> String {
         match self {
-            Self::WorldNotFound(..) | Self::WorldNotInManifest(..) => true,
-            Self::VersionNotFound(..) => false,
+            Self::Latest => "Latest".to_string(),
+            Self::LatestSupported => "Latest Supported".to_string(),
+            Self::Specific(v) => v.to_string(),
+            Self::Disabled => "Disabled".to_string(),
         }
     }
 }
 
 impl Manifest {
-    pub fn new(archipelago_version: Version) -> Self {
+    pub fn new() -> Self {
         Self {
-            common: ManifestCommon {
-                archipelago_version,
-            },
             worlds: BTreeMap::new(),
+            new_apworld_policy: NewApworldPolicy::Enable,
         }
     }
 
     pub fn from_index_with_latest_versions(index: &Index) -> Result<Self> {
-        let mut result = Self::new(index.archipelago_version.clone());
-        for (name, world) in index.worlds().iter() {
+        let mut result = Self::new();
+
+        for (name, world) in &index.worlds {
             if world.get_latest_release().is_none() {
                 bail!(format!("World `{}` has no known release", name));
             };
 
-            result.worlds.insert(name.to_string(), WorldVersion::Latest);
+            result.worlds.insert(name.to_string(), VersionReq::Latest);
         }
 
         Ok(result)
@@ -79,15 +98,18 @@ impl Manifest {
         &self,
         index: &Index,
     ) -> (BTreeMap<String, (World, Version)>, Vec<ResolveError>) {
-        let index_worlds = index.worlds();
         let mut resolve_errors = vec![];
         let mut ret = BTreeMap::new();
 
         for (apworld_name, version_requirement) in &self.worlds {
-            let Some(world) = index_worlds.get(apworld_name) else {
+            let Some(world) = index.worlds.get(apworld_name) else {
                 resolve_errors.push(ResolveError::WorldNotFound(apworld_name));
                 continue;
             };
+
+            if version_requirement == &VersionReq::Disabled {
+                continue;
+            }
 
             let version = match self.resolve_world_version(world, version_requirement) {
                 Ok((_, version)) => version,
@@ -108,8 +130,8 @@ impl Manifest {
         game_name: &'a str,
         index: &Index,
     ) -> Result<(World, Version), ResolveError<'a>> {
-        let worlds = index.worlds();
-        let Some((apworld_name, world)) = worlds.iter().find(|(_, game)| game.name == game_name)
+        let Some((apworld_name, world)) =
+            index.worlds.iter().find(|(_, game)| game.name == game_name)
         else {
             return Err(ResolveError::WorldNotFound(game_name));
         };
@@ -124,13 +146,16 @@ impl Manifest {
     fn resolve_world_version(
         &self,
         world: &World,
-        version_requirement: &WorldVersion,
+        version_requirement: &VersionReq,
     ) -> Result<(World, Version), ResolveError> {
         let resolved = match version_requirement {
-            WorldVersion::LatestSupported => world.get_latest_supported_release(),
-            WorldVersion::Latest => world.get_latest_release(),
-            WorldVersion::Specific(version) => {
+            VersionReq::LatestSupported => world.get_latest_supported_release(),
+            VersionReq::Latest => world.get_latest_release(),
+            VersionReq::Specific(version) => {
                 world.get_version(version).map(|origin| (version, origin))
+            }
+            VersionReq::Disabled => {
+                return Err(ResolveError::WorldDisabled(world.display_name.clone()))
             }
         };
 
@@ -143,5 +168,27 @@ impl Manifest {
             }
             Some((version, _)) => Ok((world.clone(), version.clone())),
         }
+    }
+
+    pub fn is_enabled(&self, apworld_name: &str) -> bool {
+        match self.new_apworld_policy {
+            NewApworldPolicy::Enable => self
+                .worlds
+                .get(apworld_name)
+                .and_then(|version_req| Some(version_req != &VersionReq::Disabled))
+                .unwrap_or(true),
+            NewApworldPolicy::Disable => self.worlds.contains_key(apworld_name),
+        }
+    }
+
+    pub fn get_version_req(&self, apworld_name: &str) -> VersionReq {
+        self.worlds
+            .get(apworld_name)
+            .cloned()
+            .unwrap_or(VersionReq::Latest)
+    }
+
+    pub fn add_version_req(&mut self, apworld_name: &str, version_req: VersionReq) {
+        self.worlds.insert(apworld_name.to_string(), version_req);
     }
 }

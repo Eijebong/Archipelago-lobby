@@ -4,4 +4,4 @@ mod manifest;
 pub mod utils;
 
 pub use index::{lock::IndexLock, world::World, world::WorldOrigin, Index};
-pub use manifest::Manifest;
+pub use manifest::{Manifest, VersionReq};
