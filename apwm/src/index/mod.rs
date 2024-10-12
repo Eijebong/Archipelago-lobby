@@ -33,7 +33,7 @@ pub struct Index {
 
 impl Index {
     pub fn new(index_path: &Path) -> Result<Self> {
-        let index_content = std::fs::read_to_string(index_path)?;
+        let index_content = std::fs::read_to_string(index_path).context("Reading index.toml")?;
         let deser = toml::Deserializer::new(&index_content);
         let mut index: Index = serde_path_to_error::deserialize(deser)?;
         let index_dir_resolved = index_path

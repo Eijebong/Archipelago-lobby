@@ -189,7 +189,7 @@ async fn install(
     let index_toml = index_path.join("index.toml");
     let index = apwm::Index::new(&index_toml)?;
 
-    std::fs::create_dir_all(destination)?;
+    std::fs::create_dir_all(destination).context("While creating destination dir")?;
     let target = apworld_version_from_precise(precise)?;
 
     for (world_name, world) in &index.worlds {
