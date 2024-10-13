@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, path::Path};
+use std::{collections::BTreeMap, fmt::Display, path::Path};
 
 use anyhow::{bail, Result};
 use semver::Version;
@@ -38,6 +38,27 @@ pub enum ResolveError<'a> {
     WorldDisabled(String),
 }
 
+impl<'a> Display for ResolveError<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResolveError::WorldNotFound(world) => {
+                f.write_fmt(format_args!("Couldn't find world {}", world))
+            }
+            ResolveError::VersionNotFound(world, version_req) => f.write_fmt(format_args!(
+                "Couldn't resolve version {} for world {}",
+                version_req, world
+            )),
+            ResolveError::WorldNotInManifest(world) => f.write_fmt(format_args!(
+                "The world {} is missing in the manifest",
+                world
+            )),
+            ResolveError::WorldDisabled(world) => {
+                f.write_fmt(format_args!("The world {} is disabled", world))
+            }
+        }
+    }
+}
+
 impl VersionReq {
     pub fn parse(s: &str) -> Result<Self> {
         Ok(match s {
@@ -47,13 +68,15 @@ impl VersionReq {
             s => Self::Specific(Version::parse(s)?),
         })
     }
+}
 
-    pub fn to_string(&self) -> String {
+impl Display for VersionReq {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Latest => "Latest".to_string(),
-            Self::LatestSupported => "Latest Supported".to_string(),
-            Self::Specific(v) => v.to_string(),
-            Self::Disabled => "Disabled".to_string(),
+            Self::Latest => f.write_str("Latest"),
+            Self::LatestSupported => f.write_str("Latest Supported"),
+            Self::Specific(v) => v.fmt(f),
+            Self::Disabled => f.write_str("Disabled"),
         }
     }
 }
