@@ -169,9 +169,10 @@ impl Manifest {
         let resolved = match version_requirement {
             VersionReq::LatestSupported => world.get_latest_supported_release(),
             VersionReq::Latest => world.get_latest_release(),
-            VersionReq::Specific(version) => {
-                world.get_version(version).map(|origin| (version, origin))
-            }
+            VersionReq::Specific(version) => world
+                .get_version(version)
+                .map(|origin| (version, origin))
+                .or_else(|| world.get_latest_release()),
             VersionReq::Disabled => {
                 return Err(ResolveError::WorldDisabled(world.display_name.clone()))
             }
