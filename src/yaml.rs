@@ -5,6 +5,7 @@ use crate::session::LoggedInSession;
 
 use crate::index_manager::IndexManager;
 use apwm::Manifest;
+use counter::Counter;
 use diesel_async::AsyncPgConnection;
 use itertools::Itertools;
 use opentelemetry_http::HeaderInjector;
@@ -67,10 +68,12 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
         .filter(|yaml| Some(yaml.owner_id) == session.0.user_id)
         .count() as i32;
 
+    let mut player_counter = Counter::new();
+
     let mut players_in_room = yamls_in_room
         .iter()
-        .map(|yaml| get_ap_player_name(&yaml.player_name))
-        .collect::<HashSet<&str>>();
+        .map(|yaml| get_ap_player_name(&yaml.player_name, &mut player_counter))
+        .collect::<HashSet<String>>();
 
     let mut games = Vec::with_capacity(documents.len());
 
@@ -86,15 +89,22 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
                 .into());
             }
         }
-        let player_name = validate_player_name(&parsed.name, &players_in_room)?;
+        let player_name =
+            validate_player_name(&parsed.name, &players_in_room, &mut player_counter)?;
         players_in_room.insert(player_name);
 
         let game_name = validate_game(&parsed.game)?;
 
         if room.yaml_validation {
             if let Some(yaml_validator_url) = yaml_validator_url {
-                let unsupported_games =
-                    validate_yaml(document, parsed, &room.manifest, index_manager, yaml_validator_url).await?;
+                let unsupported_games = validate_yaml(
+                    document,
+                    parsed,
+                    &room.manifest,
+                    index_manager,
+                    yaml_validator_url,
+                )
+                .await?;
                 if !unsupported_games.is_empty() {
                     if room.allow_unsupported {
                         session.0.warning_msg.push(format!(
@@ -123,9 +133,10 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
 }
 
 fn validate_player_name<'a>(
-    original_player_name: &'a str,
-    players_in_room: &HashSet<&str>,
-) -> Result<&'a str> {
+    original_player_name: &'a String,
+    players_in_room: &HashSet<String>,
+    player_counter: &'a mut Counter<String>,
+) -> Result<String> {
     // AP 0.5.0 doesn't like non ASCII names while hosting.
     if !original_player_name.is_ascii() {
         return Err(Error(anyhow::anyhow!(format!(
@@ -134,17 +145,16 @@ fn validate_player_name<'a>(
         ))));
     }
 
-    let player_name = get_ap_player_name(original_player_name);
+    let player_name = get_ap_player_name(original_player_name, player_counter);
 
-    if is_reserved_name(player_name) {
+    if is_reserved_name(&player_name) {
         return Err(Error(anyhow::anyhow!(format!(
             "{} is a reserved name",
             player_name
         ))));
     }
 
-    let ignore_dupe = should_ignore_dupes(original_player_name);
-    if !ignore_dupe && players_in_room.contains(&player_name) {
+    if players_in_room.contains(&player_name) {
         return Err(Error(anyhow::anyhow!(format!(
             "Adding this yaml would duplicate a player name: {}",
             player_name
@@ -224,15 +234,38 @@ async fn validate_yaml(
     Ok(response.unsupported.unwrap_or(vec![]))
 }
 
-fn should_ignore_dupes(player_name: &str) -> bool {
-    player_name.contains("{NUMBER}")
-        || player_name.contains("{number}")
-        || player_name.contains("{PLAYER}")
-        || player_name.contains("{player}")
-}
+fn get_ap_player_name<'a>(
+    original_name: &'a String,
+    player_counter: &'a mut Counter<String>,
+) -> String {
+    player_counter[original_name] += 1;
 
-fn get_ap_player_name(original_name: &str) -> &str {
-    original_name.trim_start()[..std::cmp::min(original_name.len(), 16)].trim_end()
+    let number = player_counter[original_name];
+    let player = player_counter.total::<usize>();
+
+    let new_name = original_name
+        .replace("{number}", &format!("{}", number))
+        .replace(
+            "{NUMBER}",
+            &(if number > 1 {
+                format!("{}", number)
+            } else {
+                "".to_string()
+            }),
+        )
+        .replace("{player}", &format!("{}", player))
+        .replace(
+            "{PLAYER}",
+            &(if player > 1 {
+                format!("{}", player)
+            } else {
+                "".to_string()
+            }),
+        );
+
+    new_name.trim_start()[..std::cmp::min(new_name.len(), 16)]
+        .trim_end()
+        .to_string()
 }
 
 fn is_reserved_name(player_name: &str) -> bool {
