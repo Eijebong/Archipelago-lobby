@@ -16,7 +16,6 @@ pub enum VersionReq {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-// TODO: UI
 pub enum NewApworldPolicy {
     #[default]
     Enable,
@@ -101,17 +100,13 @@ impl Manifest {
         let mut resolve_errors = vec![];
         let mut ret = BTreeMap::new();
 
-        for (apworld_name, version_requirement) in &self.worlds {
-            let Some(world) = index.worlds.get(apworld_name) else {
-                resolve_errors.push(ResolveError::WorldNotFound(apworld_name));
-                continue;
-            };
-
-            if version_requirement == &VersionReq::Disabled {
+        for (world_name, world) in &index.worlds {
+            let version_requirement = self.get_version_req(world_name);
+            if version_requirement == VersionReq::Disabled {
                 continue;
             }
 
-            let version = match self.resolve_world_version(world, version_requirement) {
+            let version = match self.resolve_world_version(world, &version_requirement) {
                 Ok((_, version)) => version,
                 Err(e) => {
                     resolve_errors.push(e);
@@ -119,7 +114,7 @@ impl Manifest {
                 }
             };
 
-            ret.insert(apworld_name.clone(), (world.clone(), version));
+            ret.insert(world_name.clone(), (world.clone(), version));
         }
 
         (ret, resolve_errors)
@@ -185,7 +180,10 @@ impl Manifest {
         self.worlds
             .get(apworld_name)
             .cloned()
-            .unwrap_or(VersionReq::Latest)
+            .unwrap_or_else(|| match self.new_apworld_policy {
+                NewApworldPolicy::Enable => VersionReq::Latest,
+                NewApworldPolicy::Disable => VersionReq::Disabled,
+            })
     }
 
     pub fn add_version_req(&mut self, apworld_name: &str, version_req: VersionReq) {

@@ -104,6 +104,7 @@ impl Index {
                         continue;
                     }
                 }
+
                 if world.disabled {
                     log::debug!("World is disabled, ignoring");
                     continue;
