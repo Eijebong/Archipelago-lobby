@@ -113,11 +113,19 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
                         ));
                         session.0.save(cookies)?;
                     } else {
-                        return Err(anyhow::anyhow!(format!(
-                            "Your YAML contains the following unsupported games: {}. Can't upload.",
-                            unsupported_games.iter().join("; ")
-                        ))
-                        .into());
+                        let index = index_manager.index.read().await;
+                        let err = format!("Error:\n{}",
+                            unsupported_games.iter().map(|game| {
+                                let is_game_in_index = index.get_world_by_name(game).is_some();
+                                if is_game_in_index {
+                                    format!("Uploaded a game for game {} which has been disabled for this room", game)
+                                } else {
+                                    format!("Uploaded a game for game {} which is not supported on this lobby", game)
+                                }
+                            }).join("\n")
+                        );
+
+                        Err(anyhow::anyhow!(err))?
                     }
                 }
             }
