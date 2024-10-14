@@ -179,12 +179,10 @@ impl Manifest {
         };
 
         match resolved {
-            None => {
-                Err(ResolveError::VersionNotFound(
-                    world.name.clone(),
-                    version_requirement.clone(),
-                ))
-            }
+            None => Err(ResolveError::VersionNotFound(
+                world.name.clone(),
+                version_requirement.clone(),
+            )),
             Some((version, _)) => Ok((world.clone(), version.clone())),
         }
     }
