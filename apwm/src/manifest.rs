@@ -194,7 +194,11 @@ impl Manifest {
                 .get(apworld_name)
                 .map(|version_req| version_req != &VersionReq::Disabled)
                 .unwrap_or(true),
-            NewApworldPolicy::Disable => self.worlds.contains_key(apworld_name),
+            NewApworldPolicy::Disable => self
+                .worlds
+                .get(apworld_name)
+                .map(|version_req| version_req != &VersionReq::Disabled)
+                .unwrap_or(false),
         }
     }
 
