@@ -27,7 +27,7 @@ pub struct Manifest {
     #[serde(default)]
     worlds: BTreeMap<String, VersionReq>,
     #[serde(default)]
-    new_apworld_policy: NewApworldPolicy,
+    pub new_apworld_policy: NewApworldPolicy,
 }
 
 #[derive(Debug)]
