@@ -49,7 +49,7 @@ impl Index {
         for world_toml in world_tomls {
             let world_toml = world_toml?;
             let world_path = world_toml.path();
-            let world_name = world_path
+            let apworld_name = world_path
                 .file_stem()
                 .with_context(|| format!("World path {:?} is invalid", world_path))?
                 .to_string_lossy();
@@ -64,7 +64,7 @@ impl Index {
                     .insert(index.archipelago_version.clone(), WorldOrigin::Supported);
             }
 
-            index.worlds.insert(world_name.to_string(), world);
+            index.worlds.insert(apworld_name.to_string(), world);
         }
 
         index.path = index_path.into();
@@ -91,11 +91,11 @@ impl Index {
 
         std::fs::create_dir_all(destination)?;
 
-        for (world_name, world) in &self.worlds {
+        for (apworld_name, world) in &self.worlds {
             for (version, origin) in &world.versions {
-                log::debug!("Refreshing world: {}, version: {}", world_name, version);
+                log::debug!("Refreshing world: {}, version: {}", apworld_name, version);
                 if let Some((ref target_world, ref target_version)) = precise {
-                    if world_name != target_world {
+                    if apworld_name != target_world {
                         log::debug!("Ignoring world because of precise requirement");
                         continue;
                     }
@@ -116,14 +116,14 @@ impl Index {
                 }
 
                 let apworld_destination_path =
-                    self.get_world_local_path(destination, world_name, version);
-                let expected_checksum = old_lock.get_checksum(world_name, version);
+                    self.get_world_local_path(destination, apworld_name, version);
+                let expected_checksum = old_lock.get_checksum(apworld_name, version);
 
                 if expected_checksum.is_some() && only_new {
                     log::debug!(
                         "World exists in lockfile and we only want to refresh new ones, ignoring."
                     );
-                    new_lock.set_checksum(world_name, version, &expected_checksum.unwrap());
+                    new_lock.set_checksum(apworld_name, version, &expected_checksum.unwrap());
                     continue;
                 }
 
@@ -136,7 +136,7 @@ impl Index {
                     let current_checksum = format!("{:x}", Sha256::digest(&buf));
                     if expected_checksum == Some(current_checksum.clone()) {
                         log::debug!("World exists in lockfile and on disk, checksums are matching, ignoring");
-                        new_lock.set_checksum(world_name, version, &current_checksum);
+                        new_lock.set_checksum(apworld_name, version, &current_checksum);
                         continue;
                     }
 
@@ -152,7 +152,7 @@ impl Index {
                     .truncate(true)
                     .open(&apworld_destination_path)?;
                 let checksum = world.copy_to(version, &apworld_destination).await?;
-                new_lock.set_checksum(world_name, version, &checksum);
+                new_lock.set_checksum(apworld_name, version, &checksum);
             }
         }
 
@@ -162,9 +162,13 @@ impl Index {
     pub fn get_world_local_path(
         &self,
         apworld_root: &Path,
-        world_name: &str,
+        apworld_name: &str,
         version: &Version,
     ) -> PathBuf {
-        apworld_root.join(format!("{}-{}.apworld", world_name, version))
+        apworld_root.join(format!("{}-{}.apworld", apworld_name, version))
+    }
+
+    pub fn get_world_by_name(&self, game_name: &str) -> Option<&World> {
+        self.worlds.values().find(|game| game.name == game_name)
     }
 }
