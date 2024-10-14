@@ -7,10 +7,6 @@
     {% if !is_closed && base.is_logged_in %}
         {% call menu::menu_item("Upload yaml", "", "#upload", false, "uploadButton") %}
     {% endif %}
-    {% if !is_closed && !base.is_logged_in %}
-        {% let login_url = format!("/auth/login?redirect={}", room_url) %}
-        {% call menu::menu_item("Upload yaml", "", login_url, false, "") %}
-    {% endif %}
     {% if base.is_logged_in %}
         {% let apworlds_url = format!("/room/{}/worlds", self.room.id) %}
         {% call menu::menu_item("Apworlds", "", apworlds_url, true, "apworldsButton") %}
