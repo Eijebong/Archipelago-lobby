@@ -82,6 +82,13 @@
         {%- endmatch -%}
         <label for="allow_unsupported">Allow bypassing validation for games not on the lobby</label>
     </formset>
+    {% match room %}
+    {% when Some with (room) %}
+    <input type="checkbox" name="show_apworlds" id="show_apworlds" {% if room.show_apworlds%} checked {% endif %}/>
+    {%- when None -%}
+    <input type="checkbox" name="show_apworlds" id="show_apworlds" checked/>
+    {%- endmatch -%}
+    <label for="show_apworlds">Show the apworlds page for the room</label>
 
     <hr>
 

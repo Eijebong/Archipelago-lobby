@@ -1,5 +1,5 @@
 diff --git a/src/schema.rs b/src/schema.rs
-index efd2dac..75e3246 100644
+index 9efb393..eff36fe 100644
 --- a/src/schema.rs
 +++ b/src/schema.rs
 @@ -19,7 +19,7 @@ diesel::table! {
@@ -9,5 +9,5 @@ index efd2dac..75e3246 100644
 -        yaml_limit_bypass_list -> Array<Nullable<Int8>>,
 +        yaml_limit_bypass_list -> Array<Int8>,
          manifest -> Jsonb,
+         show_apworlds -> Bool,
      }
- }

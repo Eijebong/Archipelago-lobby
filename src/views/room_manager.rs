@@ -41,6 +41,7 @@ struct CreateRoomForm<'a> {
     yaml_limit_per_user: bool,
     yaml_limit_per_user_nb: i32,
     yaml_limit_bypass_list: &'a str,
+    show_apworlds: bool,
     me: ManifestForm<'a>,
 }
 
@@ -154,6 +155,7 @@ async fn create_room_submit<'a>(
             .filter_map(|id| i64::from_str(id).ok())
             .collect(),
         manifest: db::Json(room_manifest),
+        show_apworlds: room_form.show_apworlds,
     };
 
     let mut conn = ctx.db_pool.get().await?;
@@ -253,6 +255,7 @@ async fn edit_room_submit<'a>(
             .filter_map(|id| i64::from_str(id).ok())
             .collect(),
         manifest: db::Json(room_manifest),
+        show_apworlds: room_form.show_apworlds,
     };
 
     db::update_room(&new_room, &mut conn).await?;

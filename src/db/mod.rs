@@ -35,6 +35,7 @@ pub struct NewRoom<'a> {
     pub allow_unsupported: bool,
     pub yaml_limit_bypass_list: Vec<i64>,
     pub manifest: Json<Manifest>,
+    pub show_apworlds: bool,
 }
 
 #[derive(Insertable)]
@@ -63,6 +64,7 @@ pub struct Room {
     pub yaml_limit_per_user: Option<i32>,
     pub yaml_limit_bypass_list: Vec<i64>,
     pub manifest: json::Json<Manifest>,
+    pub show_apworlds: bool,
 }
 
 impl Room {
