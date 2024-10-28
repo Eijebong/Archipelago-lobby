@@ -28,17 +28,27 @@
         <tr>
             <td colspan=2>
                 The room doesn't have YAML validation on. The following list is
-                just an informative one and might not correspond to what the
-                author is going to use.
+                just an informative one about what the lobby supports and might
+                not correspond to what the author is going to use.
             </td>
         </tr>
-    {% else if room.allow_unsupported %}
+    {% else %}
         <tr>
             <td colspan=2>
-                The room author has allowed uploading YAMLs for games not
-                present in the following list.
+                The room is validating uploaded YAMLs with the following
+                list of apworlds. The apworlds used during generation might
+                differ though and you should refer to the room description
+                to know what the author's stance on that is.
             </td>
         </tr>
+        {% if room.allow_unsupported %}
+            <tr>
+                <td colspan=2>
+                    The room author has allowed uploading YAMLs for games not
+                    present in the list.
+                </td>
+            </tr>
+        {% endif %}
     {% endif %}
     <tr>
         <td>Download</td>
