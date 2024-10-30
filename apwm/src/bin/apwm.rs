@@ -1,7 +1,8 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use apwm::diff::diff_world_and_write;
 use apwm::utils::git_clone_shallow;
 use clap::Parser;
+use reqwest::Url;
 use semver::Version;
 use std::path::{Path, PathBuf};
 use tempfile::tempdir;
@@ -37,6 +38,8 @@ enum Command {
         from: String,
         #[clap(short)]
         output: PathBuf,
+        #[clap(short)]
+        lobby_url: Option<Url>,
     },
 }
 
@@ -73,8 +76,14 @@ async fn main() -> Result<()> {
             index_path,
             from,
             output,
+            lobby_url,
         } => {
-            diff(&index_path, &from, &output).await?;
+            if lobby_url.is_some() {
+                if std::env::var("LOBBY_API_KEY").is_err() {
+                    bail!("Lobby url specified but missing `LOBBY_API_KEY` env variable");
+                }
+            }
+            diff(&index_path, &from, &output, &lobby_url).await?;
         }
     }
 
@@ -103,7 +112,12 @@ async fn update(index_path: &Path) -> Result<()> {
     Ok(())
 }
 
-async fn diff(index_path: &Path, from_git_remote: &str, output: &Path) -> Result<()> {
+async fn diff(
+    index_path: &Path,
+    from_git_remote: &str,
+    output: &Path,
+    lobby_url: &Option<Url>,
+) -> Result<()> {
     let old_index_dir = tempdir()?;
     git_clone_shallow(from_git_remote, "main", old_index_dir.path())?;
 
@@ -130,6 +144,7 @@ async fn diff(index_path: &Path, from_git_remote: &str, output: &Path) -> Result
                     &new_index.archipelago_repo.to_string(),
                     &new_index.archipelago_version.to_string(),
                     &old_index_lock,
+                    lobby_url,
                 )
                 .await?
             }
@@ -148,6 +163,7 @@ async fn diff(index_path: &Path, from_git_remote: &str, output: &Path) -> Result
                     &new_index.archipelago_repo.to_string(),
                     &new_index.archipelago_version.to_string(),
                     &old_index_lock,
+                    lobby_url,
                 )
                 .await?
             }
@@ -164,6 +180,7 @@ async fn diff(index_path: &Path, from_git_remote: &str, output: &Path) -> Result
                 &new_index.archipelago_repo.to_string(),
                 &new_index.archipelago_version.to_string(),
                 &old_index_lock,
+                lobby_url,
             )
             .await?;
         }

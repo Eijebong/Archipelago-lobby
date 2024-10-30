@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, path::Path, process::Command, str::FromStr};
 
 use crate::{IndexLock, World};
 use anyhow::{bail, Result};
+use reqwest::Url;
 use semver::Version;
 use serde::de::Error;
 use serde::{Deserialize, Serialize};
@@ -65,8 +66,9 @@ pub async fn diff_world_and_write(
     ap_index_url: &str,
     ap_index_ref: &str,
     index_lock: &IndexLock,
+    lobby_url: &Option<Url>,
 ) -> Result<()> {
-    let diff = diff_world(from, to, ap_index_url, ap_index_ref, index_lock).await?;
+    let diff = diff_world(from, to, ap_index_url, ap_index_ref, index_lock, lobby_url).await?;
 
     std::fs::create_dir_all(destination)?;
     let file_path = destination.join(format!("{}.apdiff", world_name));
@@ -84,6 +86,7 @@ async fn diff_world(
     ap_index_url: &str,
     ap_index_ref: &str,
     index_lock: &IndexLock,
+    lobby_url: &Option<Url>,
 ) -> Result<CombinedDiff> {
     match (from, to) {
         // World added
@@ -110,6 +113,7 @@ async fn diff_world(
                     ap_index_url,
                     ap_index_ref,
                     index_lock,
+                    lobby_url,
                 )
                 .await?;
                 result.diffs.insert(
@@ -176,6 +180,7 @@ async fn diff_world(
                     ap_index_url,
                     ap_index_ref,
                     index_lock,
+                    lobby_url,
                 )
                 .await?;
                 result.diffs.insert(
@@ -226,6 +231,7 @@ async fn diff_version(
     ap_index_url: &str,
     ap_index_ref: &str,
     index_lock: &IndexLock,
+    lobby_url: &Option<Url>,
 ) -> Result<String> {
     let from_tmpdir = tempdir()?;
     let to_tmpdir = tempdir()?;
@@ -238,6 +244,7 @@ async fn diff_version(
                 ap_index_url,
                 ap_index_ref,
                 index_lock,
+                lobby_url,
             )
             .await?;
     }
@@ -249,6 +256,7 @@ async fn diff_version(
                 ap_index_url,
                 ap_index_ref,
                 index_lock,
+                lobby_url,
             )
             .await?;
     }
