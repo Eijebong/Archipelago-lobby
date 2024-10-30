@@ -359,7 +359,8 @@ mod tests {
         let diff = diff_world(None, Some(&new_world), "", "").await?;
 
         let expected_diff = CombinedDiff {
-            world_name: "foobar".to_string(),
+            apworld_name: "foobar".to_string(),
+            world_name: "New World".to_string(),
             diffs: BTreeMap::from([
                 (
                     VersionRange(None, Some(Version::from_str("0.0.1")?)),
@@ -411,7 +412,8 @@ mod tests {
         let diff = diff_world(Some(&old_world), None, "", "").await?;
 
         let expected_diff = CombinedDiff {
-            world_name: "foobar".to_string(),
+            apworld_name: "foobar".to_string(),
+            world_name: "Old World".to_string(),
             diffs: BTreeMap::from([
                 (
                     VersionRange(Some(Version::from_str("0.0.1")?), None),
@@ -460,7 +462,8 @@ mod tests {
         let diff = diff_world(Some(&old_world), Some(&new_world), "", "").await?;
 
         let expected_diff = CombinedDiff {
-            world_name: "foobar".to_string(),
+            apworld_name: "foobar".to_string(),
+            world_name: "World".to_string(),
             diffs: BTreeMap::from([
                 (
                     VersionRange(Some(Version::from_str("0.0.2")?), None),
