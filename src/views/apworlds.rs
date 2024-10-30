@@ -116,6 +116,46 @@ async fn download_world<'a>(
     )));
 }
 
+#[rocket::get("/worlds/download_cached/<world_name>/<version>")]
+#[tracing::instrument(skip(index_manager, _session))]
+async fn download_cached_world<'a>(
+    index_manager: &State<IndexManager>,
+    version: &str,
+    world_name: &str,
+    _session: AdminSession,
+) -> Result<APWorldResponse<'a>> {
+    let index = index_manager.index.read().await;
+
+    dbg!(&world_name);
+    let world = index
+        .worlds
+        .get(world_name)
+        .context("This APworld doesn't seem to exist")?;
+
+    let version = semver::Version::parse(version).context("The passed version isn't valid")?;
+
+    let _origin = world
+        .get_version(&version)
+        .context("The specified version doesn't exist for this apworld")?;
+
+    let apworld_path = index_manager
+        .apworlds_path
+        .join(format!("{}-{}.apworld", world_name, version));
+
+    if !apworld_path.exists() {
+        return Err(anyhow::anyhow!(
+            "This apworld seems to be in the host's index but not in their apworld folder."
+        )
+        .into());
+    }
+
+    let value = format!("attachment; filename=\"{}.apworld\"", world_name);
+    return Ok(APWorldResponse::NamedFile(RenamedFile {
+        inner: NamedFile::open(&apworld_path).await?,
+        headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
+    }));
+}
+
 #[rocket::get("/worlds/refresh")]
 #[tracing::instrument(skip_all)]
 async fn refresh_worlds(index_manager: &State<IndexManager>, _session: AdminSession) -> Result<()> {
@@ -125,5 +165,11 @@ async fn refresh_worlds(index_manager: &State<IndexManager>, _session: AdminSess
 }
 
 pub fn routes() -> Vec<rocket::Route> {
-    routes![list_worlds, download_all, download_world, refresh_worlds]
+    routes![
+        list_worlds,
+        download_all,
+        download_world,
+        download_cached_world,
+        refresh_worlds
+    ]
 }
