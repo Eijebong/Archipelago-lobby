@@ -214,7 +214,7 @@ dependencies = [
 [[package]]
 name = "apwm"
 version = "0.1.0"
-source = "git+https://github.com/Eijebong/APWM.git#b2a936c4f918404a424e8a95aa67ebdf47e7c75f"
+source = "git+https://github.com/Eijebong/APWM.git#e8dd2183fba184bd388d2469a260b47c092f2186"
 dependencies = [
  "anyhow",
  "git2",
@@ -227,7 +227,6 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "sha2",
- "similar",
  "tempfile",
  "tokio",
  "toml",
@@ -1873,7 +1872,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -3458,12 +3457,6 @@ name = "simd-adler32"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
-
-[[package]]
-name = "similar"
-version = "2.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1de1d4f81173b03af4c0cbed3c898f6bff5b870e4a7f5d6f4057d62a7a4b686e"
 
 [[package]]
 name = "siphasher"
