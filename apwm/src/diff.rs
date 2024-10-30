@@ -286,7 +286,7 @@ mod tests {
     use std::io::Write;
     use std::str::FromStr;
 
-    use crate::{World, WorldOrigin};
+    use crate::{IndexLock, World, WorldOrigin};
     use anyhow::Result;
     use semver::Version;
     use tempfile::{tempdir, TempDir};
@@ -326,6 +326,7 @@ mod tests {
     #[tokio::test]
     async fn test_add_world() -> Result<()> {
         let (_tmpdir, versions) = get_mock_world_versions(&["0.0.1", "0.0.3", "0.0.2"])?;
+        let index_lock = IndexLock::default();
 
         let new_world = World {
             path: "/tmp/foobar.toml".into(),
@@ -338,7 +339,7 @@ mod tests {
             supported: false,
         };
 
-        let diff = diff_world(None, Some(&new_world), "", "").await?;
+        let diff = diff_world(None, Some(&new_world), "", "", &index_lock, &None).await?;
 
         let expected_diff = CombinedDiff {
             apworld_name: "foobar".to_string(),
@@ -379,6 +380,7 @@ mod tests {
     #[tokio::test]
     async fn test_remove_world() -> Result<()> {
         let (_tmpdir, versions) = get_mock_world_versions(&["0.0.1", "0.0.2"])?;
+        let index_lock = IndexLock::default();
 
         let old_world = World {
             path: "/tmp/foobar.toml".into(),
@@ -391,7 +393,7 @@ mod tests {
             supported: false,
         };
 
-        let diff = diff_world(Some(&old_world), None, "", "").await?;
+        let diff = diff_world(Some(&old_world), None, "", "", &index_lock, &None).await?;
 
         let expected_diff = CombinedDiff {
             apworld_name: "foobar".to_string(),
@@ -416,6 +418,7 @@ mod tests {
     #[tokio::test]
     async fn test_change_world() -> Result<()> {
         let (_tmpdir, old_versions) = get_mock_world_versions(&["0.0.1", "0.0.2", "0.0.3"])?;
+        let index_lock = IndexLock::default();
 
         let old_world = World {
             path: "/tmp/foobar.toml".into(),
@@ -441,7 +444,7 @@ mod tests {
             supported: false,
         };
 
-        let diff = diff_world(Some(&old_world), Some(&new_world), "", "").await?;
+        let diff = diff_world(Some(&old_world), Some(&new_world), "", "", &index_lock, &None).await?;
 
         let expected_diff = CombinedDiff {
             apworld_name: "foobar".to_string(),
