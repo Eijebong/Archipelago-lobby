@@ -34,7 +34,6 @@ pub struct Manifest {
 pub enum ResolveError<'a> {
     WorldNotFound(&'a str),
     VersionNotFound(String, VersionReq),
-    WorldNotInManifest(&'a str),
     WorldDisabled(String),
 }
 
@@ -47,10 +46,6 @@ impl Display for ResolveError<'_> {
             ResolveError::VersionNotFound(world, version_req) => f.write_fmt(format_args!(
                 "Couldn't resolve version {} for world {}",
                 version_req, world
-            )),
-            ResolveError::WorldNotInManifest(world) => f.write_fmt(format_args!(
-                "The world {} is missing in the manifest",
-                world
             )),
             ResolveError::WorldDisabled(world) => {
                 f.write_fmt(format_args!("The world {} is disabled", world))
@@ -154,11 +149,8 @@ impl Manifest {
             return Err(ResolveError::WorldNotFound(game_name));
         };
 
-        let Some(version_requirement) = self.worlds.get(apworld_name) else {
-            return Err(ResolveError::WorldNotInManifest(game_name));
-        };
-
-        self.resolve_world_version(world, version_requirement)
+        let version_requirement = self.get_version_req(apworld_name);
+        self.resolve_world_version(world, &version_requirement)
     }
 
     fn resolve_world_version(
