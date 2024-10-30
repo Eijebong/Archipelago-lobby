@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, path::Path, process::Command, str::FromStr};
 
-use crate::World;
+use crate::{IndexLock, World};
 use anyhow::{bail, Result};
 use semver::Version;
 use serde::de::Error;
@@ -64,8 +64,9 @@ pub async fn diff_world_and_write(
     destination: &Path,
     ap_index_url: &str,
     ap_index_ref: &str,
+    index_lock: &IndexLock,
 ) -> Result<()> {
-    let diff = diff_world(from, to, ap_index_url, ap_index_ref).await?;
+    let diff = diff_world(from, to, ap_index_url, ap_index_ref, index_lock).await?;
 
     std::fs::create_dir_all(destination)?;
     let file_path = destination.join(format!("{}.apdiff", world_name));
@@ -82,6 +83,7 @@ async fn diff_world(
     to: Option<&World>,
     ap_index_url: &str,
     ap_index_ref: &str,
+    index_lock: &IndexLock,
 ) -> Result<CombinedDiff> {
     match (from, to) {
         // World added
@@ -107,6 +109,7 @@ async fn diff_world(
                     Some(version),
                     ap_index_url,
                     ap_index_ref,
+                    index_lock,
                 )
                 .await?;
                 result.diffs.insert(
@@ -172,6 +175,7 @@ async fn diff_world(
                     Some(version),
                     ap_index_url,
                     ap_index_ref,
+                    index_lock,
                 )
                 .await?;
                 result.diffs.insert(
@@ -221,6 +225,7 @@ async fn diff_version(
     to_version: Option<&Version>,
     ap_index_url: &str,
     ap_index_ref: &str,
+    index_lock: &IndexLock,
 ) -> Result<String> {
     let from_tmpdir = tempdir()?;
     let to_tmpdir = tempdir()?;
@@ -232,12 +237,19 @@ async fn diff_version(
                 from_tmpdir.path(),
                 ap_index_url,
                 ap_index_ref,
+                index_lock,
             )
             .await?;
     }
     if let Some(to_version) = to_version {
         to_world
-            .extract_to(to_version, to_tmpdir.path(), ap_index_url, ap_index_ref)
+            .extract_to(
+                to_version,
+                to_tmpdir.path(),
+                ap_index_url,
+                ap_index_ref,
+                index_lock,
+            )
             .await?;
     }
 

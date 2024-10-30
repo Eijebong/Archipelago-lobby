@@ -1,4 +1,7 @@
-use crate::utils::{de, git_clone_shallow};
+use crate::{
+    utils::{de, git_clone_shallow},
+    IndexLock,
+};
 use anyhow::{bail, Context, Result};
 use http::Uri;
 use semver::Version;
@@ -115,6 +118,7 @@ impl World {
         destination: &Path,
         ap_index_url: &str,
         ap_index_ref: &str,
+        lock_file: &IndexLock,
     ) -> Result<()> {
         let origin = self.versions.get(version).with_context(|| {
             format!("Unable to find version {} for world {}", version, self.name)
@@ -143,7 +147,16 @@ impl World {
             .truncate(true)
             .open(&apworld_path)?;
 
-        self.copy_to(version, &apworld_file).await?;
+        let checksum = self.copy_to(version, &apworld_file).await?;
+        let apworld_name = self.get_ap_name()?;
+        let expected_checksum = lock_file.get_checksum(&apworld_name, version);
+
+        if let Some(expected_checksum) = expected_checksum {
+            if checksum != expected_checksum {
+                bail!("The source checksum doesn't match the current index for the apworld `{}`, version `{}`", apworld_name, version);
+            }
+        }
+
         let mut archive = zip::ZipArchive::new(File::open(apworld_path)?)?;
         Ok(archive.extract(destination)?)
     }

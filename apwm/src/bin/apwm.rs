@@ -109,9 +109,11 @@ async fn diff(index_path: &Path, from_git_remote: &str, output: &Path) -> Result
 
     let new_index_toml = index_path.join("index.toml");
     let old_index_toml = old_index_dir.path().join("index.toml");
+    let old_index_lock = old_index_dir.path().join("index.lock");
 
     let new_index = apwm::Index::new(&new_index_toml)?;
     let old_index = apwm::Index::new(&old_index_toml)?;
+    let old_index_lock = apwm::IndexLock::new(&old_index_lock)?;
 
     let old_worlds = old_index.worlds;
     let new_worlds = new_index.worlds;
@@ -127,6 +129,7 @@ async fn diff(index_path: &Path, from_git_remote: &str, output: &Path) -> Result
                     output,
                     &new_index.archipelago_repo.to_string(),
                     &new_index.archipelago_version.to_string(),
+                    &old_index_lock,
                 )
                 .await?
             }
@@ -144,6 +147,7 @@ async fn diff(index_path: &Path, from_git_remote: &str, output: &Path) -> Result
                     output,
                     &new_index.archipelago_repo.to_string(),
                     &new_index.archipelago_version.to_string(),
+                    &old_index_lock,
                 )
                 .await?
             }
@@ -159,6 +163,7 @@ async fn diff(index_path: &Path, from_git_remote: &str, output: &Path) -> Result
                 output,
                 &new_index.archipelago_repo.to_string(),
                 &new_index.archipelago_version.to_string(),
+                &old_index_lock,
             )
             .await?;
         }
