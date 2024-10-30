@@ -3,7 +3,7 @@ FROM debian:12-slim
 WORKDIR /usr/local/bin
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt update && apt install -y --option=Dpkg::Options::=--force-confdef python3 bash git openssh-client openssl curl
+RUN apt update && apt install -y --option=Dpkg::Options::=--force-confdef python3 bash git openssh-client openssl curl jq
 
 # Add worker user
 RUN mkdir -p /builds && \
