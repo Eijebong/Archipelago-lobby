@@ -1,9 +1,4 @@
-use std::{
-    borrow::Cow,
-    collections::{BTreeMap, HashSet},
-    path::Path,
-    str::FromStr,
-};
+use std::{collections::BTreeMap, path::Path, process::Command, str::FromStr};
 
 use crate::World;
 use anyhow::{bail, Result};
@@ -252,49 +247,16 @@ async fn diff_version(
 }
 
 pub fn diff_dir(from: &Path, to: &Path) -> Result<String> {
-    let mut combined_paths = walkdir::WalkDir::new(from)
-        .into_iter()
-        .filter_map(Result::ok)
-        .filter(|e| !e.file_type().is_dir())
-        .map(|entry| entry.path().strip_prefix(from).unwrap().to_owned())
-        .collect::<HashSet<_>>();
+    let out = Command::new("git")
+        .arg("diff")
+        .arg("--no-index")
+        .arg(from)
+        .arg(to)
+        .output()?;
 
-    combined_paths.extend(
-        walkdir::WalkDir::new(to)
-            .into_iter()
-            .filter_map(Result::ok)
-            .filter(|e| !e.file_type().is_dir())
-            .map(|entry| entry.path().strip_prefix(to).unwrap().to_owned()),
-    );
-
-    let mut result = "".to_string();
-    for file in &combined_paths {
-        let from_path = from.join(file);
-        let to_path = to.join(file);
-
-        let from_value = std::fs::read_to_string(&from_path).unwrap_or_else(|_| "".to_string());
-        let to_value = std::fs::read_to_string(&to_path).unwrap_or_else(|_| "".to_string());
-        let file_diff = similar::TextDiff::from_lines(&from_value, &to_value);
-        let mut udiff = file_diff.unified_diff();
-
-        let from = if from_path.is_file() {
-            from_path.strip_prefix(from).unwrap().to_string_lossy()
-        } else {
-            Cow::from("/dev/null")
-        };
-        let to = if to_path.is_file() {
-            to_path.strip_prefix(to).unwrap().to_string_lossy()
-        } else {
-            Cow::from("/dev/null")
-        };
-
-        udiff
-            .header(from.as_ref(), to.as_ref())
-            .missing_newline_hint(false);
-        result += &format!("{}", udiff);
-    }
-
-    Ok(result)
+    Ok(String::from_utf8(out.stdout)?
+        .replace(from.to_str().unwrap(), "")
+        .replace(to.to_str().unwrap(), ""))
 }
 
 #[cfg(test)]
@@ -331,7 +293,7 @@ mod tests {
                 .open(&path)?;
             let mut archive = ZipWriter::new(&apworld_file);
             archive.start_file("VERSION", SimpleFileOptions::default())?;
-            archive.write_all(version.as_bytes())?;
+            archive.write_fmt(format_args!("{}\n", version))?;
             archive.finish()?;
             result.insert(
                 Version::from_str(version)?,
@@ -365,7 +327,7 @@ mod tests {
                 (
                     VersionRange(None, Some(Version::from_str("0.0.1")?)),
                     Diff::VersionAdded(
-                        "--- /dev/null\n+++ VERSION\n@@ -0,0 +1 @@\n+0.0.1\n".to_string(),
+                        "diff --git a/VERSION b/VERSION\nnew file mode 100644\nindex 0000000..8acdd82\n--- /dev/null\n+++ b/VERSION\n@@ -0,0 +1 @@\n+0.0.1\n".to_string()
                     ),
                 ),
                 (
@@ -374,7 +336,7 @@ mod tests {
                         Some(Version::from_str("0.0.2")?),
                     ),
                     Diff::VersionAdded(
-                        "--- VERSION\n+++ VERSION\n@@ -1 +1 @@\n-0.0.1\n+0.0.2\n".to_string(),
+                        "diff --git a/VERSION b/VERSION\nindex 8acdd82..4e379d2 100644\n--- a/VERSION\n+++ b/VERSION\n@@ -1 +1 @@\n-0.0.1\n+0.0.2\n".to_string()
                     ),
                 ),
                 (
@@ -383,7 +345,7 @@ mod tests {
                         Some(Version::from_str("0.0.3")?),
                     ),
                     Diff::VersionAdded(
-                        "--- VERSION\n+++ VERSION\n@@ -1 +1 @@\n-0.0.2\n+0.0.3\n".to_string(),
+                        "diff --git a/VERSION b/VERSION\nindex 4e379d2..bcab45a 100644\n--- a/VERSION\n+++ b/VERSION\n@@ -1 +1 @@\n-0.0.2\n+0.0.3\n".to_string()
                     ),
                 ),
             ]),
@@ -475,7 +437,7 @@ mod tests {
                         Some(Version::from_str("0.0.4")?),
                     ),
                     Diff::VersionAdded(
-                        "--- VERSION\n+++ VERSION\n@@ -1 +1 @@\n-0.0.3\n+0.0.4\n".to_string(),
+                        "diff --git a/VERSION b/VERSION\nindex bcab45a..81340c7 100644\n--- a/VERSION\n+++ b/VERSION\n@@ -1 +1 @@\n-0.0.3\n+0.0.4\n".to_string()
                     ),
                 ),
             ]),

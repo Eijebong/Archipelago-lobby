@@ -17,7 +17,6 @@ serde = { version = "1.0.202", features = ["derive"] }
 serde_json = { version = "1.0.128" }
 serde_path_to_error = "0.1.16"
 sha2 = "0.10.8"
-similar = { version = "2.6.0", features = ["inline"] }
 tempfile = "3.10.1"
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
 toml = "0.8.13"
