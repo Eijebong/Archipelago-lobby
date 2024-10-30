@@ -58,6 +58,7 @@ impl<'de> Deserialize<'de> for VersionRange {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct CombinedDiff {
     pub world_name: String,
+    pub apworld_name: String,
     pub diffs: BTreeMap<VersionRange, Diff>,
 }
 
@@ -93,12 +94,13 @@ async fn diff_world(
             let mut previous_version = None;
 
             let mut result = CombinedDiff {
-                world_name: new_world
+                apworld_name: new_world
                     .path
                     .file_stem()
                     .unwrap()
                     .to_string_lossy()
                     .to_string(),
+                world_name: new_world.name.clone(),
                 diffs: BTreeMap::new(),
             };
 
@@ -126,12 +128,13 @@ async fn diff_world(
         (Some(old_world), None) => {
             // We don't have anything to review for worlds removal, don't include diffs
             let mut result = CombinedDiff {
-                world_name: old_world
+                apworld_name: old_world
                     .path
                     .file_stem()
                     .unwrap()
                     .to_string_lossy()
                     .to_string(),
+                world_name: old_world.name.clone(),
                 diffs: BTreeMap::new(),
             };
 
@@ -149,12 +152,13 @@ async fn diff_world(
             //let mut previous_version = None;
 
             let mut result = CombinedDiff {
-                world_name: new_world
+                apworld_name: new_world
                     .path
                     .file_stem()
                     .unwrap()
                     .to_string_lossy()
                     .to_string(),
+                world_name: new_world.name.clone(),
                 diffs: BTreeMap::new(),
             };
 
