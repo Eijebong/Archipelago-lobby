@@ -444,7 +444,15 @@ mod tests {
             supported: false,
         };
 
-        let diff = diff_world(Some(&old_world), Some(&new_world), "", "", &index_lock, &None).await?;
+        let diff = diff_world(
+            Some(&old_world),
+            Some(&new_world),
+            "",
+            "",
+            &index_lock,
+            &None,
+        )
+        .await?;
 
         let expected_diff = CombinedDiff {
             apworld_name: "foobar".to_string(),
