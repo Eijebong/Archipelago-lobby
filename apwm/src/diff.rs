@@ -2,7 +2,6 @@ use std::{collections::BTreeMap, path::Path, process::Command, str::FromStr};
 
 use crate::{IndexLock, World};
 use anyhow::{bail, Result};
-use regex::RegexBuilder;
 use reqwest::Url;
 use semver::Version;
 use serde::de::Error;
@@ -268,8 +267,6 @@ async fn diff_version(
 }
 
 pub fn diff_dir(from: &Path, to: &Path) -> Result<String> {
-    let re_no_newline = RegexBuilder::new(r"\ No newline at end of file$").multi_line(true).build()?;
-
     let out = Command::new("git")
         .arg("diff")
         .arg("--no-index")
@@ -277,12 +274,9 @@ pub fn diff_dir(from: &Path, to: &Path) -> Result<String> {
         .arg(to)
         .output()?;
 
-
-    let result = String::from_utf8(out.stdout)?
+    Ok(String::from_utf8(out.stdout)?
         .replace(from.to_str().unwrap(), "")
-        .replace(to.to_str().unwrap(), "");
-
-    Ok(re_no_newline.replace_all(&result, "").into())
+        .replace(to.to_str().unwrap(), ""))
 }
 
 #[cfg(test)]
