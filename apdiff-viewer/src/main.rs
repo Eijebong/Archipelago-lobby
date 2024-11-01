@@ -31,6 +31,10 @@ mod filters {
         use base64::Engine;
         Ok(base64::engine::general_purpose::STANDARD.encode(b64))
     }
+
+    pub fn dashify(original: &str) -> askama::Result<String> {
+        return Ok(original.replace(' ', "-").replace('\'', "-"));
+    }
 }
 
 #[derive(Debug)]

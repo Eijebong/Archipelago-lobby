@@ -29,15 +29,15 @@
         </script>
         <nav id="nav-menu">
         {% for world in diffs.iter() %}
-            <a href="#{{world.world_name}}" id="a-tab-{{world.world_name}}" onclick=switchTab("tab-{{world.world_name}}")>{{world.world_name}}</a>
+            <a href="#{{world.world_name|dashify}}" id="a-tab-{{world.world_name|dashify}}" onclick=switchTab("tab-{{world.world_name|dashify}}")>{{world.world_name}}</a>
         {% endfor %}
         </nav>
         {% for (world_i, world) in diffs.iter().enumerate() %}
-            <div id="tab-{{world.world_name}}" class="tab" style="display:none">
+            <div id="tab-{{world.world_name|dashify}}" class="tab" style="display:none">
                 <ul class="version-list">
                 {% for (i, version) in world.diffs.keys().enumerate() %}
                     <li>
-                        <a href="#{{world.world_name}}-{{i}}"> {{ version|fmt_version|safe }}</a>
+                        <a href="#{{world.world_name|dashify}}-{{i}}"> {{ version|fmt_version|safe }}</a>
                     </li>
                 {% endfor %}
                 </ul>
@@ -48,10 +48,10 @@
                     {% when (apwm::diff::Diff::VersionRemoved) %}
                     {% when (apwm::diff::Diff::VersionAdded(diff)) %}
                         <h4> {{ version|fmt_version|safe }}</h4>
-                        <div id="{{world.world_name}}-{{i}}"></div>
+                        <div id="{{world.world_name|dashify}}-{{i}}"></div>
                         <script>
                             var configuration = { drawFileList: false, matching: 'lines', highlight: true, colorScheme: 'dark' };
-                            var targetElement = document.getElementById("{{world.world_name}}-{{i}}");
+                            var targetElement = document.getElementById("{{world.world_name|dashify}}-{{i}}");
                             var diffContent = "{{ diff|base64 }}"
                             var diff2htmlUi = new Diff2HtmlUI(targetElement, atob(diffContent), configuration);
                             diff2htmlUi.draw();
@@ -62,7 +62,7 @@
 
                 {% if world_i == 0 %}
                 <script>
-                    switchTab("tab-{{world.world_name}}");
+                    switchTab("tab-{{world.world_name|dashify}}");
                 </script>
                 {% endif %}
             </div>
