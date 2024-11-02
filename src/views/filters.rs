@@ -4,6 +4,10 @@ use ap_lobby::db::Json;
 use ap_lobby::extractor::{YamlFeature, YamlFeatures};
 
 pub fn yaml_features(features: &Json<YamlFeatures>) -> askama::Result<String> {
+    if features.is_empty() {
+        return Ok(String::new());
+    }
+
     let mut features_content = String::new();
     for (feature, probability) in features.0.iter().sorted() {
         features_content += &format!(

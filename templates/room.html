@@ -78,15 +78,15 @@
         {% let is_my_yaml = (Some(yaml.0.owner_id) == base.user_id.as_ref()) %}
         <tr {% if is_my_yaml %} data-my-yaml=true {% endif %}>
             {% if base.is_logged_in %}
-                <td><span><span title="@{{yaml.1}}">{{yaml.0.player_name}}</span> {{yaml.0.features|yaml_features|safe}}</span></span></td>
+                <td><span><span title="@{{yaml.1}}">{{yaml.0.player_name}}</span> {{yaml.0.features|yaml_features|safe}}</span></td>
             {% else %}
                 <td><span><span>{{yaml.0.player_name}}</span> {{yaml.0.features|yaml_features|safe}}</span></td>
             {% endif %}
             <td>{{yaml.0.game}}</td>
             {% if (is_my_yaml || is_my_room) && !is_closed %}
-            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}", "{{yaml.0.player_name}}", "{{yaml.0.game}}")' />View</a> | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}" data-confirm-del=true data-resource-type="YAML file" data-resource-name="{{yaml.0.player_name}} ({{yaml.0.game}})">Delete</a></td>
+            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}", "{{yaml.0.player_name}}", "{{yaml.0.game}}")'>View</a> | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}" data-confirm-del=true data-resource-type="YAML file" data-resource-name="{{yaml.0.player_name}} ({{yaml.0.game}})">Delete</a></td>
             {% else %}
-            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}", "{{yaml.0.player_name}}", "{{yaml.0.game}}")' />View</a></td>
+            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}", "{{yaml.0.player_name}}", "{{yaml.0.game}}")'>View</a></td>
             {% endif %}
         </tr>
         {% endfor %}
