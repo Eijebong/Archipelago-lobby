@@ -297,15 +297,21 @@ async fn get_apworlds_for_games(
         }
         YamlGame::Map(map) => {
             let mut result = Vec::new();
+            let mut errors = Vec::new();
             for (game, _) in map.iter().filter(|(_, probability)| **probability != 0.) {
-                result.push(
-                    index_manager
-                        .get_apworld_from_game_name(manifest, game)
-                        .await
-                        .unwrap(),
-                )
+                let resolved_game = index_manager
+                    .get_apworld_from_game_name(manifest, game)
+                    .await;
+
+                match resolved_game {
+                    Some(game) => result.push(game),
+                    None => errors.push(game.clone()),
+                }
             }
 
+            if !errors.is_empty() {
+                return Err(errors);
+            }
             Ok(result)
         }
     }
