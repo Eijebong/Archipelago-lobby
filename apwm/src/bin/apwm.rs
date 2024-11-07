@@ -36,6 +36,8 @@ enum Command {
         index_path: PathBuf,
         #[clap(short)]
         from: String,
+        #[clap(short = 'r')]
+        from_ref: Option<String>,
         #[clap(short)]
         output: PathBuf,
         #[clap(short)]
@@ -75,6 +77,7 @@ async fn main() -> Result<()> {
         Command::Diff {
             index_path,
             from,
+            from_ref,
             output,
             lobby_url,
         } => {
@@ -83,7 +86,7 @@ async fn main() -> Result<()> {
                     bail!("Lobby url specified but missing `LOBBY_API_KEY` env variable");
                 }
             }
-            diff(&index_path, &from, &output, &lobby_url).await?;
+            diff(&index_path, &from, &from_ref, &output, &lobby_url).await?;
         }
     }
 
@@ -115,11 +118,16 @@ async fn update(index_path: &Path) -> Result<()> {
 async fn diff(
     index_path: &Path,
     from_git_remote: &str,
+    from_git_ref: &Option<String>,
     output: &Path,
     lobby_url: &Option<Url>,
 ) -> Result<()> {
     let old_index_dir = tempdir()?;
-    git_clone_shallow(from_git_remote, "main", old_index_dir.path())?;
+    git_clone_shallow(
+        from_git_remote,
+        from_git_ref.as_ref().map_or("main", |v| v),
+        old_index_dir.path(),
+    )?;
 
     let new_index_toml = index_path.join("index.toml");
     let old_index_toml = old_index_dir.path().join("index.toml");
