@@ -274,7 +274,7 @@ pub fn diff_dir(from: &Path, to: &Path) -> Result<String> {
         .arg(to)
         .output()?;
 
-    Ok(String::from_utf8(out.stdout)?
+    Ok(String::from_utf8_lossy(&out.stdout)
         .replace(from.to_str().unwrap(), "")
         .replace(to.to_str().unwrap(), ""))
 }
