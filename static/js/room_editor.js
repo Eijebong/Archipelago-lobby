@@ -1,6 +1,7 @@
-const tzOffset = (new Date()).getTimezoneOffset();
-document.getElementById("tz_offset").value = tzOffset;
-
+function refreshTimezoneOffset(date) {
+    const tzOffset = date.getTimezoneOffset();
+    document.getElementById("tz_offset").value = tzOffset;
+}
 
 function dateToISOLikeButLocal(date) {
     const offsetMs = date.getTimezoneOffset() * 60 * 1000;
