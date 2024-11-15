@@ -2,7 +2,7 @@
 {% import "menu.html.tera" as menu %}
 {% block menu %}
     {% let room_url = format!("/room/{}", self.room.id) %}
-    {% call menu::menu_item("Room", "", room_url, true, "") %}
+    {% call menu::menu_item("Room", "", room_url, true, "room-menu") %}
     {% if !is_closed && base.is_logged_in %}
         {% call menu::menu_item("Upload yaml", "", "#upload", false, "uploadButton") %}
     {% endif %}
@@ -56,7 +56,6 @@
         <td>Players</td>
         <td><span title="{{unique_player_count}} unique players / {{ unique_game_count }} unique games">{{ player_count }}</span></td>
     </tr>
-    <tr>
     {% if !room.settings.description.is_empty() %}
     <tr>
         <td>Description</td>
@@ -68,7 +67,7 @@
 <table class="styled yamls" id="yamls">
     <thead>
         <tr>
-            <th>Player {% if base.is_logged_in  %}(<input type="checkbox" id="my-yamls"/><label for="my-yamls">My files only</label>){% endif %}</th>
+            <th>Player {%+ if base.is_logged_in  %}(<input type="checkbox" id="my-yamls"><label for="my-yamls">My files only</label>){% endif %}</th>
             <th>Game</th>
             <th>Action</th>
         </tr>
@@ -76,7 +75,7 @@
     <tbody>
         {% for yaml in yamls %}
         {% let is_my_yaml = (Some(yaml.0.owner_id) == base.user_id.as_ref()) %}
-        <tr {% if is_my_yaml %} data-my-yaml=true {% endif %}>
+        <tr {%+ if is_my_yaml %} data-my-yaml=true {% endif %}>
             {% if base.is_logged_in %}
                 <td><span><span title="@{{yaml.1}}">{{yaml.0.player_name}}</span> {{yaml.0.features|yaml_features|safe}}</span></td>
             {% else %}
@@ -91,7 +90,6 @@
         </tr>
         {% endfor %}
         {% if base.is_logged_in && !yamls.is_empty() %}
-        <hr>
         <tr>
             <td colspan="2"></td><td><a class="validation-button" href="/room/{{room.id}}/yamls">Download all YAMLs</a></td>
         </tr>
@@ -100,7 +98,7 @@
 </table>
 
 <form style="display: none" action="/room/{{room.id}}/upload" method="POST" enctype="multipart/form-data">
-    <input type="file" name="yamls[]" id="yamlUpload" accept=".yml,.yaml" multiple/>
+    <input type="file" name="yamls[]" id="yamlUpload" accept=".yml,.yaml" multiple>
     <button id="yamlFormButton">Upload</button>
 </form>
 {%endblock%}

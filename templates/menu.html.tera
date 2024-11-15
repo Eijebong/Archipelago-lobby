@@ -1,8 +1,8 @@
 {% macro app_menu_item(name, icon, url, module, cur_module) %}
     {% if module == cur_module %}
-        <a href="{{ url }}" class="selected" id="{{ name }}"><i class="{{ icon }}"></i> <span>{{ name }}</span><span class="arrow"></span></a>
+        <a href="{{ url }}" class="selected" id="{{ module }}"><i class="{{ icon }}"></i> <span>{{ name }}</span><span class="arrow"></span></a>
     {% else %}
-        <a href="{{ url }}" id="{{ name }}"><i class="{{ icon }}"></i> <span>{{ name }}</span></a>
+        <a href="{{ url }}" id="{{ module }}"><i class="{{ icon }}"></i> <span>{{ name }}</span></a>
     {% endif %}
 {% endmacro %}
 

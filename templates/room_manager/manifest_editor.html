@@ -2,7 +2,7 @@
 <select name="me.version.{{row.apworld_name}}">
     {% for version in row.valid_versions %}
     {% let is_current = (version.clone() == row.current_version) %}
-    <option value="{{ version.to_string() }}" {% if is_current %}selected{% endif %}>{{ version.to_string() }}</option>
+    <option value="{{ version.to_string() }}" {%+ if is_current %}selected{% endif %}>{{ version.to_string() }}</option>
     {% endfor %}
 </select>
 {% endmacro %}
@@ -10,7 +10,7 @@
 {% macro emit_apworld_row(row) %}
 <tr data-supported={{ row.supported }}>
     <td>
-        <input type="checkbox" id="me-enabled-{{row.apworld_name}}" class="me-enabled" name="me.enabled.{{row.apworld_name}}" {% if row.enabled %}checked{% endif %}/>
+        <input type="checkbox" id="me-enabled-{{row.apworld_name}}" class="me-enabled" name="me.enabled.{{row.apworld_name}}" {%+ if row.enabled %}checked{% endif %}>
         <label class="unstyled" for="me-enabled-{{row.apworld_name}}"></label>
     </td>
     <td>{{ row.display_name }}</td>
@@ -23,10 +23,10 @@
         <legend>When a new apworld is added to the lobby:</legend>
 
         {% let enable_checked = matches!(self.manifest_builder.manifest.new_apworld_policy, apwm::NewApworldPolicy::Enable) %}
-        <input type="radio" name="me.new_apworld_policy" id="new_apworld_policy_enable" value="enable" {% if enable_checked %}checked{% endif %}/>
+        <input type="radio" name="me.new_apworld_policy" id="new_apworld_policy_enable" value="enable" {%+ if enable_checked %}checked{% endif %}>
         <label for="new_apworld_policy_enable">Add it to the room</label>
         {% let disable_checked = matches!(self.manifest_builder.manifest.new_apworld_policy, apwm::NewApworldPolicy::Disable) %}
-        <input type="radio" name="me.new_apworld_policy" id="new_apworld_policy_disable" value="disable" {% if disable_checked %}checked{% endif %}/>
+        <input type="radio" name="me.new_apworld_policy" id="new_apworld_policy_disable" value="disable" {%+ if disable_checked %}checked{% endif %}>
         <label for="new_apworld_policy_disable">Don't add it to the room</label>
     </fieldset>
 </div>

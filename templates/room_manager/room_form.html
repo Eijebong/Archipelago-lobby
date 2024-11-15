@@ -1,18 +1,18 @@
 {% import "utils.html.tera" as utils %}
 
-{%- match self.room_id -%}
-{%- when Some with (room_id) -%}
+{% match self.room_id %}
+{% when Some with (room_id) %}
 <form method="POST" action="/edit-room/{{room_id}}" id="room-form">
-{%- when None -%}
+{% when None %}
 <form method="POST" id="room-form">
-{%- endmatch %}
+{% endmatch %}
     <div id='option-pages'>
         <div class="options-tab" id="section-room-options">
             <label for="room_name">Room name:</label>
-            <input type="text" name="room_name" id="room_name" value="{{self.room.name}}" minlength="1" required />
+            <input type="text" name="room_name" id="room_name" value="{{self.room.name}}" minlength="1" required>
 
             <label for="close_date">Submission limit:</label>
-            <input type="datetime-local" id="close_date" name="close_date"/>
+            <input type="datetime-local" id="close_date" name="close_date">
 
             <label for="room_description">Description:</label>
             <textarea name="room_description" id="room_description">
@@ -20,42 +20,42 @@
             </textarea>
 
             <label for="room_url">Room URL:</label>
-            <input type="text" id="room_url" name="room_url" value="{{self.room.room_url}}"/>
+            <input type="text" id="room_url" name="room_url" value="{{self.room.room_url}}">
 
             <hr>
 
-            <input type="checkbox" name="private" id="private" {% if self.room.private %} checked {% endif %}/>
+            <input type="checkbox" name="private" id="private" {%+ if self.room.private %}checked{% endif %}>
             <label for="private">Private room | {% call utils::hint_text("A private room will not be displayed on the index page unless you already have a YAML file uploaded to it. The link to the room will need to be shared to other participants manually.") %}</label>
         </div>
 
         <div class="options-tab" id="section-advanced-options">
-            <formset>
-                <input type="checkbox" name="yaml_validation" id="yaml_validation" {% if self.room.yaml_validation %} checked {% endif %}/>
+            <fieldset class="formset">
+                <input type="checkbox" name="yaml_validation" id="yaml_validation" {%+ if self.room.yaml_validation %} checked {% endif %}>
                 <label for="yaml_validation">Validate uploaded YAML files</label>
 
-                <input type="checkbox" name="allow_unsupported" id="allow_unsupported" {% if self.room.allow_unsupported%} checked {% endif %}/>
+                <input type="checkbox" name="allow_unsupported" id="allow_unsupported" {%+ if self.room.allow_unsupported%} checked {% endif %}>
                 <label for="allow_unsupported">Allow bypassing validation for games not on the lobby</label>
-            </formset>
+            </fieldset>
 
-            <input type="checkbox" name="show_apworlds" id="show_apworlds" {% if self.room.show_apworlds%} checked {% endif %}/>
+            <input type="checkbox" name="show_apworlds" id="show_apworlds" {%+ if self.room.show_apworlds%} checked {% endif %}>
             <label for="show_apworlds">Show the apworlds page for the room</label>
 
             <hr>
 
-            <formset>
-                <input type="checkbox" name="yaml_limit_per_user" id="yaml_limit_per_user" {% if self.room.yaml_limit_per_user.is_some() %} checked {% endif %} />
+            <fieldset class="formset">
+                <input type="checkbox" name="yaml_limit_per_user" id="yaml_limit_per_user" {%+ if self.room.yaml_limit_per_user.is_some() %} checked {% endif %}>
                 <label for="yaml_limit_per_user">Limit the number of games a user can submit</label>
 
                 <label for="yaml_limit_per_user_nb">Limit:</label>
-                <input type="number" min=1 name="yaml_limit_per_user_nb" id="yaml_limit_per_user_nb" value="{{ self.room.yaml_limit_per_user.unwrap_or(1) }}" />
+                <input type="number" min=1 name="yaml_limit_per_user_nb" id="yaml_limit_per_user_nb" value="{{ self.room.yaml_limit_per_user.unwrap_or(1) }}">
 
-                {%- if base.is_admin %}
+                {% if base.is_admin %}
                 <label for="yaml_limit_bypass_list">YAML limit bypass list:</label>
-                {%- endif %}
-                <input {% if base.is_admin %}type="text"{% else %}type="hidden"{% endif %} name="yaml_limit_bypass_list" id="yaml_limit_bypass_list" value="{{ self.room.yaml_limit_bypass_list|join(",") }}" />
+                {% endif %}
+                <input {%+ if base.is_admin %}type="text"{%+ else %}type="hidden"{% endif +%} name="yaml_limit_bypass_list" id="yaml_limit_bypass_list" value="{{ self.room.yaml_limit_bypass_list|join(",") }}">
 
-                {%- match self.room_id -%}
-                {%- when Some with (room_id) %}
+                {% match self.room_id %}
+                {% when Some with (room_id) %}
                 <hr>
                 <h5>Danger zone</h5>
                 <table class="styled danger-zone">
@@ -66,32 +66,32 @@
                         </td>
                     </tr>
                 </table>
-                {%- when None -%}
-                {%- endmatch %}
-            </formset>
+                {% when None %}
+                {% endmatch %}
+            </fieldset>
         </div>
 
         <div class="options-tab" id="section-apworlds-editor">
         {% include "room_manager/manifest_editor.html" %}
         </div>
-        <input type="hidden" name="tz_offset" id="tz_offset"/>
+        <input type="hidden" name="tz_offset" id="tz_offset">
 
     </div>
 
     <hr>
     <div id="save-button">
-    {%- if self.room_id.is_some() %}
+    {% if self.room_id.is_some() %}
         <button>Save room</button>
-    {%- else %}
+    {% else %}
         <button>Create room</button>
-    {%- endif%}
+    {% endif%}
     </div>
 </form>
 
 {% block scripts %}
     <script src="/static/js/room_editor.js?{{ base.js_version}}"></script>
     <script src="/static/js/room.js?{{ base.js_version}}"></script>
-    <script defer>
+    <script>
         const closeDateEl = document.getElementById("close_date");
         closeDateEl.addEventListener("change", () => {
             refreshTimezoneOffset(new Date(closeDateEl.value + "Z"))

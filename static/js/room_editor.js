@@ -12,8 +12,8 @@ function dateToISOLikeButLocal(date) {
     return isoLocal;
 }
 
-function updateFormset(formset) {
-    const inputs = Array.from(formset.getElementsByTagName("input"));
+function updateFieldset(fieldset) {
+    const inputs = Array.from(fieldset.getElementsByTagName("input"));
     if (!inputs) {
         return;
     }
@@ -40,11 +40,11 @@ function updateFormset(formset) {
     return first_input;
 }
 
-const formsets = document.getElementsByTagName("formset");
-for (const formset of formsets) {
-    const first_input = updateFormset(formset);
+const fieldsets = document.getElementsByTagName("fieldset");
+for (const fieldset of fieldsets) {
+    const first_input = updateFieldset(fieldset);
     if (first_input) {
-        first_input.onchange = () => updateFormset(formset);
+        first_input.onchange = () => updateFieldset(fieldset);
     }
 }
 

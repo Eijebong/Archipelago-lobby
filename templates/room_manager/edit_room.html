@@ -9,8 +9,8 @@
 {% endblock %}
 
 {% block room_navigation %}
-    {%- match room %}
-    {%- when Some with (room) %}
+    {% match room %}
+    {% when Some with (room) %}
         {% let room_url = format!("/room/{}", room.id) %}
         {% call menu::app_menu_item(room.settings.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}
     {% when None %}
