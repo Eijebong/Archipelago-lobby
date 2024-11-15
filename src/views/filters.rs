@@ -41,3 +41,13 @@ fn feature_to_name(feature: &YamlFeature) -> &str {
         YamlFeature::OrbSanity => "Extreme Orbsanity",
     }
 }
+
+pub fn markdown(text: &str) -> askama::Result<String> {
+    let parser = pulldown_cmark::Parser::new_ext(text, pulldown_cmark::Options::all());
+
+    // Expect the output to be at least as big as the input
+    let mut buf = String::with_capacity(text.len());
+    pulldown_cmark::html::push_html(&mut buf, parser);
+
+    Ok(buf)
+}

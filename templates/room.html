@@ -10,7 +10,7 @@
         {% let login_url = format!("/auth/login?redirect={}", room_url) %}
         {% call menu::menu_item("Upload yaml", "", login_url, false, "") %}
     {% endif %}
-    {% if base.is_logged_in && room.show_apworlds %}
+    {% if base.is_logged_in && room.settings.show_apworlds %}
         {% let apworlds_url = format!("/room/{}/worlds", self.room.id) %}
         {% call menu::menu_item("Apworlds", "", apworlds_url, false, "apworldsButton") %}
     {% endif %}
@@ -22,7 +22,7 @@
 
 {% block room_navigation %}
     {% let room_url = format!("/room/{}", self.room.id) %}
-    {% call menu::app_menu_item(room.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}
+    {% call menu::app_menu_item(room.settings.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}
 {% endblock %}
 
 {% block main %}
@@ -32,19 +32,19 @@
 </noscript>
 
 {% if has_room_url %}
-    <p class="message info">Room URL: <a href="{{ room.room_url }}">{{ room.room_url }}</a></p>
+    <p class="message info">Room URL: <a href="{{ room.settings.room_url }}">{{ room.settings.room_url }}</a></p>
 {% endif %}
 
 <table class="styled" id="room-info">
     <tr>
         <td>Room name</td>
-        <td><span title="Organized by @{{author_name}}">{{ room.name }}</span></td>
+        <td><span title="Organized by @{{author_name}}">{{ room.settings.name }}</span></td>
     </tr>
     <tr>
         <td>Closing time</td>
-        <td id="close-date" class="time long-time discord">{{ room.close_date }}</td>
+        <td id="close-date" class="time long-time discord">{{ room.settings.close_date }}</td>
     </tr>
-    {% match room.yaml_limit_per_user%}
+    {% match room.settings.yaml_limit_per_user%}
     {% when Some with (yaml_limit_per_user) %}
     <tr>
         <td>Maximum number of games per player</td>
@@ -57,10 +57,10 @@
         <td><span title="{{unique_player_count}} unique players / {{ unique_game_count }} unique games">{{ player_count }}</span></td>
     </tr>
     <tr>
-    {% if !room.description.is_empty() %}
+    {% if !room.settings.description.is_empty() %}
     <tr>
         <td>Description</td>
-        <td>{{ room.description|markdown }}</td>
+        <td>{{ room.settings.description|markdown }}</td>
     </tr>
     {% endif %}
 </table>

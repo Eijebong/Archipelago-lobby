@@ -78,9 +78,12 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
     let mut games = Vec::with_capacity(documents.len());
 
     for (document, parsed) in documents.iter() {
-        if let Some(yaml_limit_per_user) = room.yaml_limit_per_user {
-            let allow_bypass =
-                session.0.is_admin || room.yaml_limit_bypass_list.contains(&session.user_id());
+        if let Some(yaml_limit_per_user) = room.settings.yaml_limit_per_user {
+            let allow_bypass = session.0.is_admin
+                || room
+                    .settings
+                    .yaml_limit_bypass_list
+                    .contains(&session.user_id());
             if own_games_nb >= yaml_limit_per_user && !allow_bypass {
                 return Err(anyhow::anyhow!(format!(
                     "The room only allows {} game(s) per person. Cannot upload.",
@@ -95,18 +98,18 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
 
         let game_name = validate_game(&parsed.game)?;
 
-        if room.yaml_validation {
+        if room.settings.yaml_validation {
             if let Some(yaml_validator_url) = yaml_validator_url {
                 let unsupported_games = validate_yaml(
                     document,
                     parsed,
-                    &room.manifest,
+                    &room.settings.manifest,
                     index_manager,
                     yaml_validator_url,
                 )
                 .await?;
                 if !unsupported_games.is_empty() {
-                    if room.allow_unsupported {
+                    if room.settings.allow_unsupported {
                         session.0.warning_msg.push(format!(
                             "Uploaded a YAML with unsupported games: {}. Couldn't verify it.",
                             unsupported_games.iter().join("; ")

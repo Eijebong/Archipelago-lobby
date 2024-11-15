@@ -18,12 +18,12 @@
     {% for room in open_rooms %}
         {% if !room.is_closed() %}
             <tr>
-                <td><a href="/room/{{room.id}}">{{ room.name }}</a></td>
-                {% if room.private %}
-                <td><span class="time long-time">{{room.close_date}}</span></td>
+                <td><a href="/room/{{room.id}}">{{ room.settings.name }}</a></td>
+                {% if room.settings.private %}
+                <td><span class="time long-time">{{room.settings.close_date}}</span></td>
                 <td><i class="room-lock fa-solid fa-lock"></i></td>
                 {% else %}
-                <td colspan=2><span class="time long-time">{{room.close_date}}</span></td>
+                <td colspan=2><span class="time long-time">{{room.settings.close_date}}</span></td>
                 {% endif %}
             </tr>
         {% endif %}
@@ -46,12 +46,12 @@
     {% for room in closed_rooms.iter() %}
         {% if room.is_closed() %}
             <tr>
-                <td><a href="/room/{{room.id}}">{{ room.name }}</a></td>
-                {% if room.private %}
-                <td><span class="time long-time">{{room.close_date}}</span></td>
+                <td><a href="/room/{{room.id}}">{{ room.settings.name }}</a></td>
+                {% if room.settings.private %}
+                <td><span class="time long-time">{{room.settings.close_date}}</span></td>
                 <td><i class="room-lock fa-solid fa-lock"></i></td>
                 {% else %}
-                <td colspan=2><span class="time long-time">{{room.close_date}}</span></td>
+                <td colspan=2><span class="time long-time">{{room.settings.close_date}}</span></td>
                 {% endif %}
             </tr>
         {% endif %}

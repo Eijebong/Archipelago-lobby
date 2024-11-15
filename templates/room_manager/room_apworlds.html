@@ -19,12 +19,12 @@
 
 {% block room_navigation %}
     {% let room_url = format!("/room/{}", self.room.id) %}
-    {% call menu::app_menu_item(room.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}
+    {% call menu::app_menu_item(room.settings.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}
 {% endblock %}
 
 {% block main %}
 <table class="styled" id="room-info">
-    {% if !room.yaml_validation %}
+    {% if !room.settings.yaml_validation %}
         <tr>
             <td colspan=2>
                 The room doesn't have YAML validation on. The following list is
@@ -41,7 +41,7 @@
                 to know what the author's stance on that is.
             </td>
         </tr>
-        {% if room.allow_unsupported %}
+        {% if room.settings.allow_unsupported %}
             <tr>
                 <td colspan=2>
                     The room author has allowed uploading YAMLs for games not

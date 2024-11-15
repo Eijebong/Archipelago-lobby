@@ -42,6 +42,7 @@ pub struct Context {
 const CSS_VERSION: &str = std::env!("CSS_VERSION");
 const JS_VERSION: &str = std::env!("JS_VERSION");
 
+#[derive(Clone)]
 struct TplContext<'a> {
     is_admin: bool,
     is_logged_in: bool,
@@ -178,7 +179,7 @@ async fn main() -> anyhow::Result<()> {
         .expect("Failed to register query histogram");
 
     let index_manager = IndexManager::new()?;
-    index_manager.update().await?;
+    //index_manager.update().await?;
 
     rocket::custom(figment.clone())
         .attach(prometheus.clone())

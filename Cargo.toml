@@ -9,8 +9,8 @@ default-run = "ap-lobby"
 [dependencies]
 apwm = { git = "https://github.com/Eijebong/APWM.git" }
 anyhow = "1.0.86"
-askama = { version = "0.12.1", features = ["with-rocket", "markdown"] }
-askama_rocket = "0.12.0"
+askama = { git = "https://github.com/djc/askama", features = ["with-rocket"] }
+askama_rocket = { git = "https://github.com/djc/askama" }
 chrono = "0.4.38"
 diesel = { version = "2.2.2", features = ["uuid", "chrono", "serde_json"] }
 diesel-async = { version = "0.5", features = ["postgres", "deadpool", "async-connection-wrapper"] }
@@ -52,6 +52,7 @@ tracing-subscriber = "0.3.18"
 opentelemetry-semantic-conventions = "0.16.0"
 opentelemetry-http = "0.13.0"
 counter = "0.6.0"
+pulldown-cmark = { version = "0.12.2", default-features = false, features = ["html", "simd"] }
 
 [profile.dev.package.askama_derive]
 opt-level = 3

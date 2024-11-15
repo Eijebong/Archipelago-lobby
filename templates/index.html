@@ -17,17 +17,17 @@
             {% for room in open_rooms %}
             <tr>
                 <td>
-                    <a href="/room/{{room.id}}">{{ room.name }}</a>
+                    <a href="/room/{{room.id}}">{{ room.settings.name }}</a>
                 </td>
 
-                {% if room.private %}
+                {% if room.settings.private %}
                     <td>
-                        <span class="time long-time">{{room.close_date}}</span>
+                        <span class="time long-time">{{room.settings.close_date}}</span>
                     </td>
                     <td><i class="room-lock fa-solid fa-lock"></i></td>
                 {% else %}
                     <td colspan=2>
-                        <span class="time long-time">{{room.close_date}}</span>
+                        <span class="time long-time">{{room.settings.close_date}}</span>
                     </td>
                 {% endif %}
             </tr>
@@ -48,14 +48,14 @@
             </thead>
                 {% for room in your_rooms %}
                 <tr>
-                    {% if room.private %}
+                    {% if room.settings.private %}
                         <td>
-                            <a href="/room/{{room.id}}">{{ room.name }}</a>
+                            <a href="/room/{{room.id}}">{{ room.settings.name }}</a>
                         </td>
                         <td><i class="room-lock fa-solid fa-lock"></i></td>
                     {% else %}
                         <td colspan=2>
-                            <a href="/room/{{room.id}}">{{ room.name }}</a>
+                            <a href="/room/{{room.id}}">{{ room.settings.name }}</a>
                         </td>
                     {% endif %}
                 </tr>

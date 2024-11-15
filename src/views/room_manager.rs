@@ -4,7 +4,6 @@ use ap_lobby::db::{self, Author, NewRoom, Room, RoomFilter};
 use ap_lobby::error::{RedirectTo, Result};
 use ap_lobby::index_manager::IndexManager;
 use ap_lobby::session::LoggedInSession;
-use apwm::Manifest;
 use askama::Template;
 use chrono::{DateTime, TimeZone, Utc};
 use rocket::form::Form;
@@ -18,14 +17,15 @@ use uuid::Uuid;
 use crate::{Context, TplContext};
 use rocket::State;
 
-use super::manifest_editor::{manifest_from_form, ManifestForm, ManifestFormBuilder};
+use super::manifest_editor::{manifest_from_form, ManifestForm};
+use super::room_settings::RoomSettingsBuilder;
 
 #[derive(Template)]
-#[template(path = "room_manager/create_room.html")]
+#[template(path = "room_manager/edit_room.html")]
 struct EditRoom<'a> {
     base: TplContext<'a>,
     room: Option<Room>,
-    manifest_builder: ManifestFormBuilder,
+    room_settings_form: RoomSettingsBuilder<'a>,
 }
 
 #[derive(FromForm, Debug)]
@@ -96,12 +96,12 @@ async fn create_room<'a>(
     cookies: &CookieJar<'_>,
 ) -> Result<EditRoom<'a>> {
     let index = index_manager.index.read().await;
-    let manifest = Manifest::from_index_with_latest_versions(&index)?;
 
+    let base = TplContext::from_session("create-room", session.0, cookies);
     Ok(EditRoom {
-        base: TplContext::from_session("create-room", session.0, cookies),
         room: None,
-        manifest_builder: ManifestFormBuilder::new(index.clone(), manifest),
+        room_settings_form: RoomSettingsBuilder::new(base.clone(), &index)?,
+        base,
     })
 }
 
@@ -175,18 +175,23 @@ async fn edit_room<'a>(
 ) -> Result<EditRoom<'a>> {
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn).await?;
-    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
+    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.settings.author_id);
 
     if !is_my_room {
         return Err(anyhow::anyhow!("You're not allowed to edit this room").into());
     }
 
     let index = index_manager.index.read().await;
+    let base = TplContext::from_session("room", session.0, cookies);
 
     Ok(EditRoom {
-        base: TplContext::from_session("room", session.0, cookies),
-        manifest_builder: ManifestFormBuilder::new(index.clone(), room.manifest.0.clone()),
+        room_settings_form: RoomSettingsBuilder::new_with_room(
+            base.clone(),
+            index.clone(),
+            room.clone(),
+        ),
         room: Some(room),
+        base,
     })
 }
 
@@ -199,7 +204,7 @@ async fn delete_room<'a>(
 ) -> Result<Redirect> {
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn).await?;
-    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
+    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.settings.author_id);
 
     if !is_my_room {
         return Err(anyhow::anyhow!("You're not allowed to delete this room").into());
@@ -224,7 +229,7 @@ async fn edit_room_submit<'a>(
 
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn).await?;
-    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
+    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.settings.author_id);
     if !is_my_room {
         return Err(anyhow::anyhow!("You're not allowed to edit this room").into());
     }

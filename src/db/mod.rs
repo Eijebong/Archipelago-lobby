@@ -5,8 +5,9 @@ use crate::error::Result;
 use crate::extractor::YamlFeatures;
 use crate::schema::{discord_users, rooms, yamls};
 
-use apwm::Manifest;
-use chrono::NaiveDateTime;
+use anyhow::Context;
+use apwm::{Index, Manifest};
+use chrono::{NaiveDateTime, Timelike};
 use diesel::connection::Instrumentation;
 use diesel::dsl::{exists, now, AsSelect, SqlTypeOf};
 use diesel::pg::Pg;
@@ -50,9 +51,18 @@ pub struct NewYaml<'a> {
     features: json::Json<YamlFeatures>,
 }
 
-#[derive(Debug, diesel::Queryable, diesel::Selectable)]
+#[derive(Debug, Clone, diesel::Queryable, diesel::Selectable)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Room {
     pub id: Uuid,
+    #[diesel(embed)]
+    pub settings: RoomSettings,
+}
+
+#[derive(Debug, Clone, diesel::Queryable, diesel::Selectable)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name=rooms)]
+pub struct RoomSettings {
     pub name: String,
     pub close_date: NaiveDateTime,
     pub description: String,
@@ -67,9 +77,31 @@ pub struct Room {
     pub show_apworlds: bool,
 }
 
+impl RoomSettings {
+    pub fn default(index: &Index) -> Result<Self> {
+        Ok(Self {
+            name: "".to_string(),
+            close_date: chrono::Utc::now()
+                .naive_utc()
+                .with_second(0)
+                .context("Failed to create default datetime")?,
+            description: "".to_string(),
+            room_url: "".to_string(),
+            author_id: -1,
+            private: true,
+            yaml_validation: true,
+            allow_unsupported: false,
+            yaml_limit_per_user: None,
+            yaml_limit_bypass_list: vec![],
+            manifest: Json(Manifest::from_index_with_latest_versions(index)?),
+            show_apworlds: true,
+        })
+    }
+}
+
 impl Room {
     pub fn is_closed(&self) -> bool {
-        self.close_date < chrono::offset::Utc::now().naive_utc()
+        self.settings.close_date < chrono::offset::Utc::now().naive_utc()
     }
 }
 
@@ -175,7 +207,11 @@ pub async fn get_yamls_for_room_with_author_names(
     uuid: uuid::Uuid,
     conn: &mut AsyncPgConnection,
 ) -> Result<Vec<(YamlWithoutContent, String)>> {
-    let room = rooms::table.find(uuid).first::<Room>(conn).await;
+    let room = rooms::table
+        .find(uuid)
+        .select(Room::as_select())
+        .first::<Room>(conn)
+        .await;
     let Ok(_room) = room else {
         Err(anyhow::anyhow!("Couldn't get room"))?
     };
@@ -193,7 +229,11 @@ pub async fn get_yamls_for_room(
     uuid: uuid::Uuid,
     conn: &mut AsyncPgConnection,
 ) -> Result<Vec<Yaml>> {
-    let room = rooms::table.find(uuid).first::<Room>(conn).await;
+    let room = rooms::table
+        .find(uuid)
+        .select(Room::as_select())
+        .first::<Room>(conn)
+        .await;
     let Ok(_room) = room else {
         Err(anyhow::anyhow!("Couldn't get room"))?
     };
@@ -207,7 +247,11 @@ pub async fn get_yamls_for_room(
 
 #[tracing::instrument(skip(conn))]
 pub async fn get_room(uuid: uuid::Uuid, conn: &mut AsyncPgConnection) -> Result<Room> {
-    Ok(rooms::table.find(uuid).first::<Room>(conn).await?)
+    Ok(rooms::table
+        .find(uuid)
+        .select(Room::as_select())
+        .first::<Room>(conn)
+        .await?)
 }
 
 #[tracing::instrument(skip(conn))]

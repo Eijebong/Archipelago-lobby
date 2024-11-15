@@ -31,6 +31,7 @@ pub mod auth;
 pub mod filters;
 pub mod manifest_editor;
 pub mod room_manager;
+pub mod room_settings;
 
 #[derive(Template)]
 #[template(path = "room.html")]
@@ -121,7 +122,7 @@ async fn room<'a>(
         .unique_by(|yaml| &yaml.0.game)
         .count();
 
-    let is_my_room = session.is_admin || session.user_id == Some(room.author_id);
+    let is_my_room = session.is_admin || session.user_id == Some(room.settings.author_id);
     let current_user_has_yaml_in_room = yamls
         .iter()
         .any(|yaml| Some(yaml.0.owner_id) == session.user_id)
@@ -133,7 +134,7 @@ async fn room<'a>(
         unique_player_count,
         unique_game_count,
         is_closed: room.is_closed(),
-        has_room_url: !room.room_url.is_empty() && current_user_has_yaml_in_room,
+        has_room_url: !room.settings.room_url.is_empty() && current_user_has_yaml_in_room,
         author_name,
         room,
         yamls,
@@ -224,7 +225,7 @@ async fn delete_yaml(
 
     let yaml = db::get_yaml_by_id(yaml_id, &mut conn).await?;
 
-    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
+    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.settings.author_id);
     if yaml.owner_id != session.user_id() && !is_my_room {
         Err(anyhow::anyhow!("Can't delete a yaml file that isn't yours"))?
     }
@@ -276,7 +277,7 @@ async fn download_yamls<'a>(
     let res = writer.finish()?;
     let value = format!(
         "attachment; filename=\"yamls-{}.zip\"",
-        room.close_date.format("%Y-%m-%d_%H_%M_%S")
+        room.settings.close_date.format("%Y-%m-%d_%H_%M_%S")
     );
 
     Ok(ZipFile {
@@ -299,10 +300,10 @@ async fn room_worlds<'a>(
 
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn).await?;
-    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.author_id);
+    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.settings.author_id);
 
     let index = index_manager.index.read().await.clone();
-    let (worlds, resolve_errors) = room.manifest.resolve_with(&index);
+    let (worlds, resolve_errors) = room.settings.manifest.resolve_with(&index);
     if !resolve_errors.is_empty() {
         Err(anyhow::anyhow!(
             "Error while resolving apworlds for this room: {}",
@@ -342,7 +343,9 @@ async fn room_download_all_worlds<'a>(
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn).await?;
 
-    Ok(index_manager.download_apworlds(&room.manifest).await?)
+    Ok(index_manager
+        .download_apworlds(&room.settings.manifest)
+        .await?)
 }
 
 #[derive(rocket::Responder)]
