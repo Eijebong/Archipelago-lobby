@@ -1,7 +1,6 @@
 use crate::error::Result;
 use anyhow::anyhow;
-use headers::authorization::{Basic, Credentials};
-use headers::HeaderValue;
+use base64::Engine;
 use rocket::http::{Cookie, CookieJar, SameSite, Status};
 use rocket::request::{FromRequest, Outcome};
 use rocket::time::ext::NumericalDuration;
@@ -49,6 +48,20 @@ impl LoggedInSession {
     }
 }
 
+fn decode_basic_auth(value: &str) -> Option<(String, String)> {
+    if !value.starts_with("Basic ") {
+        return None;
+    }
+    let bytes = &value.as_bytes()["Basic ".len()..].trim_ascii_start();
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(bytes)
+        .ok()?;
+    let decoded = String::from_utf8(decoded).ok()?;
+    decoded
+        .split_once(":")
+        .map(|(u, p)| (u.to_string(), p.to_string()))
+}
+
 impl Session {
     #[tracing::instrument("parse_session", skip_all)]
     pub fn from_request_sync(request: &Request) -> Self {
@@ -57,9 +70,9 @@ impl Session {
 
         let authorization = request.headers().get_one("Authorization");
         if let Some(authorization) = authorization {
-            let creds = Basic::decode(&HeaderValue::from_str(authorization).unwrap());
-            if let Some(creds) = creds {
-                if creds.username() == "admin" && Some(creds.password()) == admin_token {
+            let creds = decode_basic_auth(authorization);
+            if let Some((username, password)) = creds {
+                if username == "admin" && Some(password.as_str()) == admin_token {
                     tracing::info!("Admin logged with authorization header");
                     return Session {
                         is_admin: true,

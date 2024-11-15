@@ -4,7 +4,7 @@ use crate::{Context, Discord};
 use anyhow::anyhow;
 use ap_lobby::error::Result;
 use ap_lobby::session::Session;
-use headers::HeaderValue;
+use http::HeaderValue;
 use reqwest::Url;
 use rocket::figment::{Figment, Profile, Provider};
 use rocket::http::CookieJar;

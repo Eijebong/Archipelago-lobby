@@ -11,12 +11,12 @@ apwm = { git = "https://github.com/Eijebong/APWM.git" }
 anyhow = "1.0.86"
 askama = { git = "https://github.com/djc/askama", features = ["with-rocket"] }
 askama_rocket = { git = "https://github.com/djc/askama" }
+base64 = "0.22"
 chrono = "0.4.38"
 diesel = { version = "2.2.2", features = ["uuid", "chrono", "serde_json"] }
 diesel-async = { version = "0.5", features = ["postgres", "deadpool", "async-connection-wrapper"] }
 diesel_migrations = { version = "2.2.0", features = ["postgres"] }
 dotenvy = "0.15.7"
-headers = "0.4.0"
 http = "1.1.0"
 itertools = "0.13.0"
 once_cell = "1.19.0"
