@@ -100,7 +100,6 @@ hr
 .manifest-editor
   input[type=checkbox] + label
     margin-bottom: 0
-    margin-right: 1
     width: 0
 
   label
@@ -316,80 +315,6 @@ label + select
 
 option
   color: black
-
-
-/* == GENERIC CLASSES == */
-
-.flex-container
-  display: flex
-  flex-direction: row
-
-
-.flex1-3
-  display: block
-  width: 33.33%
-
-
-.flex2-3
-  display: block
-  width: 66.66%
-  padding-right: 2em
-
-
-.flex1-2
-  display: block
-  flex: 0 0 50%
-
-
-.fancy-list
-  list-style: none
-
-  li
-    border-bottom: 1px solid hsla(0,0%,0%,0.3)
-    padding: 10px 5px
-    vertical-align: middle
-
-    &:first-child:hover
-      margin-top: -1px
-      border-top: 1px solid hsla(0,0%,0%,0.3)
-
-    &:hover
-      box-shadow: inset 0 1px 0px hsla(0,0%,100%,0.075)
-      background-color: hsla(0,0%,100%,0.025)
-
-
-ul.nostyle
-  list-style: none
-  padding: 0px
-
-
-.float-right
-  float: right
-
-
-.center
-  text-align: center
-
-
-.center-box
-  margin: auto
-
-
-
-.half-size
-  width: 50%
-
-
-.quarter-size
-  width: 25%
-
-
-.dual-column
-  -moz-column-count: 2
-  -webkit-column-count: 2
-  column-count: 2
-
-
 
 
 /* == NAVIGATION MENU == */
@@ -682,17 +607,6 @@ h6
       background: linear-gradient(hsl(135, 0%, 40%), hsl(135, 0%, 30%) )
 
 
-@media screen and (max-width:1024px)
-  .flex-container
-    display: block
-
-  .flex1-3, .flex1-2, .flex2-3
-    width: 100%
-    margin: 0
-    padding: 0
-
-
-
 @media screen and (max-width:768px)
   #navigation
     max-width: 3em
@@ -710,23 +624,10 @@ h6
   z-index: 2
   height: auto
 
-  @keyframes slideDown
-  from
-    height: 0
-
-  to
-    height: auto
-
 .message
   padding: 0.5em 1em
   font-weight: bold
   color: white
-
-  animation-delay: 0.2s
-  animation-timing-function: ease-out
-  animation-duration: 5s
-  animation-iteration-count: 1
-
 
   i
     vertical-align: middle
@@ -859,7 +760,7 @@ body:has(dialog[open])
   font-size: 0.8em
   padding-left: 1em
   color: #bbb
-  vertical-align: center
+  vertical-align: middle
   word-break: break-word
   align-content: center
 
