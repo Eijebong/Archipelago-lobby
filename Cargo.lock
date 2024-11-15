@@ -359,9 +359,9 @@ dependencies = [
 
 [[package]]
 name = "axum"
-version = "0.7.7"
+version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "504e3947307ac8326a5437504c517c4b56716c9d98fac0028c2acc7ca47d70ae"
+checksum = "49c41b948da08fb481a94546cd874843adc1142278b0af4badf9b1b78599d68d"
 dependencies = [
  "async-trait",
  "axum-core",
@@ -2820,7 +2820,7 @@ dependencies = [
 [[package]]
 name = "rocket"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#dfb5830ba60bdc269a46e1002c23f54fdb48a172"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#61a3deee0977d9b6b9a0ab5c82bc2ebd58f3cd21"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -2868,7 +2868,7 @@ dependencies = [
 [[package]]
 name = "rocket_codegen"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#dfb5830ba60bdc269a46e1002c23f54fdb48a172"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#61a3deee0977d9b6b9a0ab5c82bc2ebd58f3cd21"
 dependencies = [
  "devise",
  "glob",
@@ -2884,7 +2884,7 @@ dependencies = [
 [[package]]
 name = "rocket_http"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#dfb5830ba60bdc269a46e1002c23f54fdb48a172"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#61a3deee0977d9b6b9a0ab5c82bc2ebd58f3cd21"
 dependencies = [
  "cookie",
  "either",
@@ -3060,9 +3060,9 @@ checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
 
 [[package]]
 name = "s2n-codec"
-version = "0.44.1"
+version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c382c1af7d30e05e5dff064557042aad5b25a887ed2e6ecfd1f91b66d9b8f5b"
+checksum = "5d13164318e22dae500fc06642d3c7064692b797be32fa2b2b207b500622a41e"
 dependencies = [
  "byteorder",
  "zerocopy",
@@ -3105,9 +3105,9 @@ dependencies = [
 
 [[package]]
 name = "s2n-quic-core"
-version = "0.44.1"
+version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8560dfdce73812df5a7e63224a112aab1575f3bd9c214ed2c8dee9c5d12d003d"
+checksum = "5d5f5c09558c2eece5eeffa27f1a7c9e8f03942081ba713415f3ffb4d5d7404b"
 dependencies = [
  "byteorder",
  "cfg-if",
@@ -3115,7 +3115,7 @@ dependencies = [
  "num-rational",
  "num-traits",
  "pin-project-lite",
- "s2n-codec 0.44.1",
+ "s2n-codec 0.45.0",
  "subtle",
  "zerocopy",
 ]
@@ -3159,13 +3159,13 @@ dependencies = [
 [[package]]
 name = "s2n-quic-h3"
 version = "0.1.0"
-source = "git+https://github.com/SergioBenitez/s2n-quic-h3.git?rev=7aa3be0#7aa3be0cc58eed500c208b2abf0437e8a84e090f"
+source = "git+https://github.com/SergioBenitez/s2n-quic-h3.git?rev=6613956#66139567216fd59c44c58ca792711f755fdfaa2b"
 dependencies = [
  "bytes",
  "futures",
  "h3",
  "s2n-quic",
- "s2n-quic-core 0.44.1",
+ "s2n-quic-core 0.45.0",
  "tracing",
 ]
 
