@@ -33,7 +33,7 @@ pub struct Extractor<'a> {
     yaml: &'a Value,
 }
 
-fn is_true(option: &Value) -> bool {
+fn is_trueish(option: &Value) -> bool {
     if let Some(value) = option.as_bool() {
         return value;
     }
@@ -42,7 +42,12 @@ fn is_true(option: &Value) -> bool {
         return value != 0;
     }
 
-    option.as_str() == Some("true")
+    let option_str = option.as_str();
+    if let Some(value) = option_str.and_then(|v| v.parse::<i64>().ok()) {
+        return value != 0;
+    }
+
+    option_str == Some("true")
 }
 
 impl<'a> Extractor<'a> {
@@ -60,7 +65,7 @@ impl<'a> Extractor<'a> {
     }
 
     pub fn register_feature(&mut self, feature: YamlFeature, path: &str) -> Result<()> {
-        let option_probability = self.get_option_probability(path, is_true)?;
+        let option_probability = self.get_option_probability(path, is_trueish)?;
         let new_value = self.get_weighted_probality(option_probability);
 
         if new_value != 0 {
@@ -374,6 +379,26 @@ Test:
 Test:
   deathlink: 0
   trainersanity: 1
+  other_option: 100
+        "#;
+        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let mut extractor = Extractor::new(&yaml)?;
+        extractor.set_game("Test", 10000)?;
+        game_extractor.extract_features(&mut extractor)?;
+
+        let expected = HashMap::from([(YamlFeature::TrainerSanity, 10000)]);
+        assert_eq!(extractor.finalize(), expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_extract_str_int() -> Result<()> {
+        let game_extractor = TestExtractor {};
+        let raw_yaml = r#"
+Test:
+  deathlink: 0
+  trainersanity: '1'
   other_option: 100
         "#;
         let yaml: Value = serde_yaml::from_str(raw_yaml)?;
