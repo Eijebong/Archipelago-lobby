@@ -65,6 +65,7 @@ walkdir = "2.5.0"
 [patch.crates-io]
 rocket = { git = "https://github.com/Eijebong/Rocket.git", branch = "0.6.0-dev" }
 rocket_prometheus = { git = "https://github.com/Eijebong/rocket_prometheus.git", branch = "0.6.0-dev" }
+rocket_oauth2 = { git = "https://github.com/jebrosen/rocket_oauth2.git" }
 
 #[patch."https://github.com/Eijebong/APWM.git"]
 #apwm = { path = "../apwm" }

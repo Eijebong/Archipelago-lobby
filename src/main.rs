@@ -21,6 +21,7 @@ use rocket::{Data, Route};
 use rocket_oauth2::OAuth2;
 use rocket_prometheus::PrometheusMetrics;
 use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
+use rustls::crypto::ring;
 use rustls::pki_types::{ServerName, UnixTime};
 use rustls::Error as TLSError;
 use rustls::{DigitallySignedStruct, SignatureScheme};
@@ -119,6 +120,9 @@ async fn main() -> anyhow::Result<()> {
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "debug");
     }
+    ring::default_provider()
+        .install_default()
+        .expect("Failed to set ring as crypto provider");
     let otlp_endpoint = std::env::var("OTLP_ENDPOINT").ok();
     let _guard = otlp::init_tracing_subscriber(otlp_endpoint);
 
