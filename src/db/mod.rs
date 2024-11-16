@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::schema::{discord_users, rooms, yamls};
+use crate::schema::{rooms, yamls};
 
 use diesel::dsl::{exists, now, AsSelect, SqlTypeOf};
 use diesel::pg::Pg;
@@ -9,10 +9,12 @@ use diesel_async::{AsyncPgConnection, RunQueryDsl};
 pub mod instrumentation;
 mod json;
 mod room;
+mod user;
 mod yaml;
 
 pub use json::Json;
 pub use room::*;
+pub use user::*;
 pub use yaml::*;
 
 #[derive(Clone, Copy, Debug)]
@@ -44,35 +46,6 @@ pub async fn list_rooms(
     let query = room_filter.as_query();
 
     Ok(query.load::<Room>(conn).await.unwrap())
-}
-
-#[derive(Insertable, Queryable)]
-#[diesel(table_name=discord_users)]
-pub struct DiscordUser {
-    pub id: i64,
-    pub username: String,
-}
-
-#[tracing::instrument(skip(conn, discord_id), fields(%discord_id))]
-pub async fn upsert_discord_user(
-    discord_id: i64,
-    username: &str,
-    conn: &mut AsyncPgConnection,
-) -> Result<()> {
-    let discord_user = DiscordUser {
-        id: discord_id,
-        username: username.to_string(),
-    };
-
-    diesel::insert_into(discord_users::table)
-        .values(&discord_user)
-        .on_conflict(discord_users::id)
-        .do_update()
-        .set(discord_users::username.eq(username))
-        .execute(conn)
-        .await?;
-
-    Ok(())
 }
 
 #[derive(Debug)]
