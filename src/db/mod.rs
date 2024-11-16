@@ -1,63 +1,19 @@
-use std::collections::HashMap;
-
 use crate::error::Result;
-use crate::extractor::YamlFeatures;
 use crate::schema::{discord_users, rooms, yamls};
 
 use diesel::dsl::{exists, now, AsSelect, SqlTypeOf};
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
-use uuid::Uuid;
 
 pub mod instrumentation;
 mod json;
 mod room;
+mod yaml;
 
 pub use json::Json;
 pub use room::*;
-
-#[derive(Insertable)]
-#[diesel(table_name=yamls)]
-pub struct NewYaml<'a> {
-    id: Uuid,
-    room_id: Uuid,
-    owner_id: i64,
-    content: &'a str,
-    player_name: &'a str,
-    game: &'a str,
-    features: json::Json<YamlFeatures>,
-}
-
-#[derive(Debug, diesel::Selectable, diesel::Queryable)]
-pub struct Yaml {
-    pub content: String,
-    pub player_name: String,
-    pub owner_id: i64,
-}
-
-#[derive(Debug, diesel::Selectable, diesel::Queryable)]
-#[diesel(table_name = yamls)]
-pub struct YamlWithoutContent {
-    pub id: Uuid,
-    pub player_name: String,
-    pub game: String,
-    pub owner_id: i64,
-    pub features: json::Json<YamlFeatures>,
-}
-
-#[derive(serde::Deserialize, Debug)]
-#[serde(untagged)]
-pub enum YamlGame {
-    Name(String),
-    Map(HashMap<String, f64>),
-}
-
-#[derive(serde::Deserialize, Debug)]
-pub struct YamlFile {
-    pub game: YamlGame,
-    pub name: String,
-}
+pub use yaml::*;
 
 #[derive(Clone, Copy, Debug)]
 pub enum RoomStatus {
@@ -88,101 +44,6 @@ pub async fn list_rooms(
     let query = room_filter.as_query();
 
     Ok(query.load::<Room>(conn).await.unwrap())
-}
-
-#[tracing::instrument(skip(conn))]
-pub async fn get_yamls_for_room_with_author_names(
-    uuid: uuid::Uuid,
-    conn: &mut AsyncPgConnection,
-) -> Result<Vec<(YamlWithoutContent, String)>> {
-    let room = rooms::table
-        .find(uuid)
-        .select(Room::as_select())
-        .first::<Room>(conn)
-        .await;
-    let Ok(_room) = room else {
-        Err(anyhow::anyhow!("Couldn't get room"))?
-    };
-
-    Ok(yamls::table
-        .filter(yamls::room_id.eq(uuid))
-        .inner_join(discord_users::table)
-        .select((YamlWithoutContent::as_select(), discord_users::username))
-        .get_results(conn)
-        .await?)
-}
-
-#[tracing::instrument(skip(conn))]
-pub async fn get_yamls_for_room(
-    uuid: uuid::Uuid,
-    conn: &mut AsyncPgConnection,
-) -> Result<Vec<Yaml>> {
-    let room = rooms::table
-        .find(uuid)
-        .select(Room::as_select())
-        .first::<Room>(conn)
-        .await;
-    let Ok(_room) = room else {
-        Err(anyhow::anyhow!("Couldn't get room"))?
-    };
-
-    Ok(yamls::table
-        .filter(yamls::room_id.eq(uuid))
-        .select(Yaml::as_select())
-        .get_results::<Yaml>(conn)
-        .await?)
-}
-
-#[tracing::instrument(skip(conn, content))]
-pub async fn add_yaml_to_room(
-    room_id: uuid::Uuid,
-    owner_id: i64,
-    game_name: &str,
-    content: &str,
-    parsed: &YamlFile,
-    features: YamlFeatures,
-    conn: &mut AsyncPgConnection,
-) -> Result<()> {
-    let new_yaml = NewYaml {
-        id: Uuid::new_v4(),
-        owner_id,
-        room_id,
-        content,
-        player_name: &parsed.name,
-        game: game_name,
-        features: Json(features),
-    };
-
-    diesel::insert_into(yamls::table)
-        .values(new_yaml)
-        .execute(conn)
-        .await?;
-
-    Ok(())
-}
-
-#[tracing::instrument(skip(conn))]
-pub async fn remove_yaml(yaml_id: uuid::Uuid, conn: &mut AsyncPgConnection) -> Result<()> {
-    diesel::delete(yamls::table.find(yaml_id))
-        .execute(conn)
-        .await?;
-
-    Ok(())
-}
-
-#[tracing::instrument(skip(conn))]
-pub async fn get_yaml_by_id(yaml_id: Uuid, conn: &mut AsyncPgConnection) -> Result<Yaml> {
-    Ok(yamls::table
-        .find(yaml_id)
-        .select(Yaml::as_select())
-        .first::<Yaml>(conn)
-        .await?)
-}
-
-impl Yaml {
-    pub fn sanitized_name(&self) -> String {
-        self.player_name.replace(['/', '\\'], "_")
-    }
 }
 
 #[derive(Insertable, Queryable)]
