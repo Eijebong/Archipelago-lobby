@@ -57,9 +57,9 @@ pub struct RoomFilter {
     pub max: i64,
 }
 
-impl RoomFilter {
-    pub fn new() -> Self {
-        RoomFilter {
+impl Default for RoomFilter {
+    fn default() -> Self {
+        Self {
             show_private: false,
             with_yaml_from: WithYaml::Any,
             author: Author::Any,
@@ -67,7 +67,8 @@ impl RoomFilter {
             max: 50,
         }
     }
-
+}
+impl RoomFilter {
     pub fn as_query<'f>(&self) -> rooms::BoxedQuery<'f, Pg, SqlTypeOf<AsSelect<Room, Pg>>> {
         let query = rooms::table
             .select(Room::as_select())

@@ -71,7 +71,7 @@ async fn my_rooms<'a>(
     Ok(ListRoomsTpl {
         base: TplContext::from_session("rooms", session.0, cookies),
         open_rooms: db::list_rooms(
-            RoomFilter::new()
+            RoomFilter::default()
                 .with_status(db::RoomStatus::Open)
                 .with_author(author_filter)
                 .with_private(true),
@@ -79,7 +79,7 @@ async fn my_rooms<'a>(
         )
         .await?,
         closed_rooms: db::list_rooms(
-            RoomFilter::new()
+            RoomFilter::default()
                 .with_status(db::RoomStatus::Closed)
                 .with_author(author_filter)
                 .with_private(true),

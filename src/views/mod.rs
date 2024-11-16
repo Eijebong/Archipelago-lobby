@@ -74,7 +74,9 @@ async fn root<'a>(
     session: Session,
     ctx: &State<Context>,
 ) -> Result<IndexTpl<'a>> {
-    let open_rooms_filter = RoomFilter::new().with_status(RoomStatus::Open).with_max(10);
+    let open_rooms_filter = RoomFilter::default()
+        .with_status(RoomStatus::Open)
+        .with_max(10);
     let open_rooms_filter = if let Some(player_id) = session.user_id {
         open_rooms_filter
             .with_yamls_from(db::WithYaml::AndFor(player_id))
@@ -86,7 +88,7 @@ async fn root<'a>(
     let open_rooms = db::list_rooms(open_rooms_filter, &mut conn).await?;
 
     let your_rooms = if let Some(player_id) = session.user_id {
-        let your_rooms_filter = RoomFilter::new()
+        let your_rooms_filter = RoomFilter::default()
             .with_status(RoomStatus::Closed)
             .with_max(10)
             .with_yamls_from(db::WithYaml::OnlyFor(player_id))
