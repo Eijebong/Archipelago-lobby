@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use ap_lobby::db::{DbInstrumentation, QUERY_HISTOGRAM};
+use ap_lobby::db::instrumentation::{DbInstrumentation, QUERY_HISTOGRAM};
 use ap_lobby::session::{AdminSession, AdminToken, Session};
 use diesel::{ConnectionError, ConnectionResult};
 use diesel_async::async_connection_wrapper::AsyncConnectionWrapper;
