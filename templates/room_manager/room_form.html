@@ -21,11 +21,6 @@
 
             <label for="room_url">Room URL:</label>
             <input type="text" id="room_url" name="room_url" value="{{self.room.room_url}}">
-
-            <hr>
-
-            <input type="checkbox" name="private" id="private" {%+ if self.room.private %}checked{% endif %}>
-            <label for="private">Private room | {% call utils::hint_text("A private room will not be displayed on the index page unless you already have a YAML file uploaded to it. The link to the room will need to be shared to other participants manually.") %}</label>
         </div>
 
         <div class="options-tab" id="section-advanced-options">

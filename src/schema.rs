@@ -15,7 +15,6 @@ diesel::table! {
         description -> Text,
         room_url -> Varchar,
         author_id -> Int8,
-        private -> Bool,
         yaml_validation -> Bool,
         allow_unsupported -> Bool,
         yaml_limit_per_user -> Nullable<Int4>,

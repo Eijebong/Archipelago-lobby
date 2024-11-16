@@ -10,7 +10,6 @@
             <tr>
                 <td>Room name</td>
                 <td>Closing date</td>
-                <td></td>
             </tr>
         </thead>
         {% if open_rooms.len() != 0 %}
@@ -20,16 +19,9 @@
                     <a href="/room/{{room.id}}">{{ room.settings.name }}</a>
                 </td>
 
-                {% if room.settings.private %}
-                    <td>
-                        <span class="time long-time">{{room.settings.close_date}}</span>
-                    </td>
-                    <td><i class="room-lock fa-solid fa-lock"></i></td>
-                {% else %}
-                    <td colspan=2>
-                        <span class="time long-time">{{room.settings.close_date}}</span>
-                    </td>
-                {% endif %}
+                <td>
+                    <span class="time long-time">{{room.settings.close_date}}</span>
+                </td>
             </tr>
             {% endfor %}
         {% else %}
@@ -48,16 +40,9 @@
             </thead>
                 {% for room in your_rooms %}
                 <tr>
-                    {% if room.settings.private %}
-                        <td>
-                            <a href="/room/{{room.id}}">{{ room.settings.name }}</a>
-                        </td>
-                        <td><i class="room-lock fa-solid fa-lock"></i></td>
-                    {% else %}
-                        <td colspan=2>
-                            <a href="/room/{{room.id}}">{{ room.settings.name }}</a>
-                        </td>
-                    {% endif %}
+                    <td>
+                        <a href="/room/{{room.id}}">{{ room.settings.name }}</a>
+                    </td>
                 </tr>
                 {% endfor %}
         </table>

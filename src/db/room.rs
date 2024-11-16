@@ -22,7 +22,6 @@ pub struct NewRoom<'a> {
     pub author_id: Option<i64>,
     #[diesel(treat_none_as_null = true)]
     pub yaml_limit_per_user: Option<i32>,
-    pub private: bool,
     pub yaml_validation: bool,
     pub allow_unsupported: bool,
     pub yaml_limit_bypass_list: Vec<i64>,
@@ -47,7 +46,6 @@ pub struct RoomSettings {
     pub description: String,
     pub room_url: String,
     pub author_id: i64,
-    pub private: bool,
     pub yaml_validation: bool,
     pub allow_unsupported: bool,
     pub yaml_limit_per_user: Option<i32>,
@@ -67,7 +65,6 @@ impl RoomSettings {
             description: "".to_string(),
             room_url: "".to_string(),
             author_id: -1,
-            private: true,
             yaml_validation: true,
             allow_unsupported: false,
             yaml_limit_per_user: None,

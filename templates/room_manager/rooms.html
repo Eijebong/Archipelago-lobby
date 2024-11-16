@@ -11,7 +11,6 @@
             <tr>
                 <td>Room name</td>
                 <td>Closing date</td>
-                <td></td>
             </tr>
         </thead>
         <tbody>
@@ -19,12 +18,7 @@
         {% if !room.is_closed() %}
             <tr>
                 <td><a href="/room/{{room.id}}">{{ room.settings.name }}</a></td>
-                {% if room.settings.private %}
                 <td><span class="time long-time">{{room.settings.close_date}}</span></td>
-                <td><i class="room-lock fa-solid fa-lock"></i></td>
-                {% else %}
-                <td colspan=2><span class="time long-time">{{room.settings.close_date}}</span></td>
-                {% endif %}
             </tr>
         {% endif %}
     {% endfor %}
@@ -39,7 +33,6 @@
             <tr>
                 <td>Room name</td>
                 <td>Closing date</td>
-                <td></td>
             </tr>
         </thead>
         <tbody>
@@ -47,12 +40,7 @@
         {% if room.is_closed() %}
             <tr>
                 <td><a href="/room/{{room.id}}">{{ room.settings.name }}</a></td>
-                {% if room.settings.private %}
                 <td><span class="time long-time">{{room.settings.close_date}}</span></td>
-                <td><i class="room-lock fa-solid fa-lock"></i></td>
-                {% else %}
-                <td colspan=2><span class="time long-time">{{room.settings.close_date}}</span></td>
-                {% endif %}
             </tr>
         {% endif %}
     {% endfor %}

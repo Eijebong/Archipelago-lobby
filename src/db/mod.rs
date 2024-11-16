@@ -50,7 +50,6 @@ pub async fn list_rooms(
 
 #[derive(Debug)]
 pub struct RoomFilter {
-    pub show_private: bool,
     pub with_yaml_from: WithYaml,
     pub author: Author,
     pub room_status: RoomStatus,
@@ -60,7 +59,6 @@ pub struct RoomFilter {
 impl Default for RoomFilter {
     fn default() -> Self {
         Self {
-            show_private: false,
             with_yaml_from: WithYaml::Any,
             author: Author::Any,
             room_status: RoomStatus::Any,
@@ -74,12 +72,6 @@ impl RoomFilter {
             .select(Room::as_select())
             .limit(self.max)
             .into_boxed();
-
-        let query = if !self.show_private {
-            query.filter(rooms::private.eq(false))
-        } else {
-            query
-        };
 
         let query = match self.author {
             Author::User(user_id) => query.filter(rooms::author_id.eq(user_id)),
@@ -133,11 +125,6 @@ impl RoomFilter {
 
     pub fn with_author(mut self, author: Author) -> Self {
         self.author = author;
-        self
-    }
-
-    pub fn with_private(mut self, private: bool) -> Self {
-        self.show_private = private;
         self
     }
 }

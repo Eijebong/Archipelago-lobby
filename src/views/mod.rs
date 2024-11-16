@@ -74,25 +74,26 @@ async fn root<'a>(
     session: Session,
     ctx: &State<Context>,
 ) -> Result<IndexTpl<'a>> {
-    let open_rooms_filter = RoomFilter::default()
-        .with_status(RoomStatus::Open)
-        .with_max(10);
-    let open_rooms_filter = if let Some(player_id) = session.user_id {
-        open_rooms_filter
-            .with_yamls_from(db::WithYaml::AndFor(player_id))
-            .with_author(db::Author::IncludeUser(player_id))
-    } else {
-        open_rooms_filter
-    };
     let mut conn = ctx.db_pool.get().await?;
-    let open_rooms = db::list_rooms(open_rooms_filter, &mut conn).await?;
+
+    let open_rooms = if let Some(player_id) = session.user_id {
+        let open_rooms_filter = RoomFilter::default()
+            .with_status(RoomStatus::Open)
+            .with_max(10)
+            .with_yamls_from(db::WithYaml::AndFor(player_id))
+            .with_author(db::Author::IncludeUser(player_id));
+
+        let open_rooms = db::list_rooms(open_rooms_filter, &mut conn).await?;
+        open_rooms
+    } else {
+        vec![]
+    };
 
     let your_rooms = if let Some(player_id) = session.user_id {
         let your_rooms_filter = RoomFilter::default()
             .with_status(RoomStatus::Closed)
             .with_max(10)
-            .with_yamls_from(db::WithYaml::OnlyFor(player_id))
-            .with_private(true);
+            .with_yamls_from(db::WithYaml::OnlyFor(player_id));
         db::list_rooms(your_rooms_filter, &mut conn).await?
     } else {
         vec![]

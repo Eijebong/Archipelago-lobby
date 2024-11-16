@@ -35,7 +35,6 @@ struct CreateRoomForm<'a> {
     close_date: &'a str,
     tz_offset: i32,
     room_url: &'a str,
-    private: bool,
     yaml_validation: bool,
     allow_unsupported: bool,
     yaml_limit_per_user: bool,
@@ -73,16 +72,14 @@ async fn my_rooms<'a>(
         open_rooms: db::list_rooms(
             RoomFilter::default()
                 .with_status(db::RoomStatus::Open)
-                .with_author(author_filter)
-                .with_private(true),
+                .with_author(author_filter),
             &mut conn,
         )
         .await?,
         closed_rooms: db::list_rooms(
             RoomFilter::default()
                 .with_status(db::RoomStatus::Closed)
-                .with_author(author_filter)
-                .with_private(true),
+                .with_author(author_filter),
             &mut conn,
         )
         .await?,
@@ -143,7 +140,6 @@ async fn create_room_submit<'a>(
         description: room_form.room_description.trim(),
         room_url: "",
         author_id: Some(author_id),
-        private: room_form.private,
         yaml_validation: room_form.yaml_validation,
         allow_unsupported: room_form.allow_unsupported,
         yaml_limit_per_user: room_form
@@ -248,7 +244,6 @@ async fn edit_room_submit<'a>(
         close_date: parse_date(room_form.close_date, room_form.tz_offset)?.naive_utc(),
         room_url: room_form.room_url,
         author_id: None, // (Skips updating that field)
-        private: room_form.private,
         yaml_validation: room_form.yaml_validation,
         allow_unsupported: room_form.allow_unsupported,
         yaml_limit_per_user: room_form
