@@ -270,6 +270,8 @@ pub fn diff_dir(from: &Path, to: &Path) -> Result<String> {
     let out = Command::new("git")
         .arg("diff")
         .arg("--no-index")
+        .arg("--ignore-cr-at-eol")
+        .arg("--ignore-space-at-eol")
         .arg(from)
         .arg(to)
         .output()?;
