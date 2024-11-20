@@ -1,2 +1,10 @@
 [print_schema]
-patch_file = "schema.diff"
+import_types = [ "diesel::sql_types::*", "crate::db::types::sql::*" ]
+
+[print_schema.patches.rooms]
+yaml_limit_bypass_list = { type = "Array<Int8>" }
+id = { type = "SqlRoomId" }
+
+[print_schema.patches.yamls]
+id = { type = "SqlYamlId" }
+room_id = { type = "SqlRoomId" }

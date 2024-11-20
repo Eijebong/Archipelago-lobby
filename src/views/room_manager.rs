@@ -1,6 +1,6 @@
 #![allow(clippy::blocks_in_conditions)]
 
-use ap_lobby::db::{self, Author, NewRoom, Room, RoomFilter};
+use ap_lobby::db::{self, Author, NewRoom, Room, RoomFilter, RoomId};
 use ap_lobby::error::{RedirectTo, Result};
 use ap_lobby::index_manager::IndexManager;
 use ap_lobby::session::LoggedInSession;
@@ -12,7 +12,6 @@ use rocket::http::{self, CookieJar};
 use rocket::response::Redirect;
 use rocket::{get, post, FromForm};
 use std::str::FromStr;
-use uuid::Uuid;
 
 use crate::{Context, TplContext};
 use rocket::State;
@@ -134,7 +133,7 @@ async fn create_room_submit<'a>(
     let author_id = session.user_id();
     let close_date = parse_date(room_form.close_date, room_form.tz_offset)?;
     let new_room = NewRoom {
-        id: Uuid::new_v4(),
+        id: RoomId::new_v4(),
         name: room_form.room_name.trim(),
         close_date: close_date.naive_utc(),
         description: room_form.room_description.trim(),
@@ -164,7 +163,7 @@ async fn create_room_submit<'a>(
 #[tracing::instrument(skip(ctx, session, cookies, index_manager))]
 async fn edit_room<'a>(
     ctx: &State<Context>,
-    room_id: Uuid,
+    room_id: RoomId,
     session: LoggedInSession,
     index_manager: &State<IndexManager>,
     cookies: &CookieJar<'a>,
@@ -195,7 +194,7 @@ async fn edit_room<'a>(
 #[tracing::instrument(skip(ctx, session))]
 async fn delete_room<'a>(
     ctx: &State<Context>,
-    room_id: Uuid,
+    room_id: RoomId,
     session: LoggedInSession,
 ) -> Result<Redirect> {
     let mut conn = ctx.db_pool.get().await?;
@@ -206,7 +205,7 @@ async fn delete_room<'a>(
         return Err(anyhow::anyhow!("You're not allowed to delete this room").into());
     }
 
-    db::delete_room(&room_id, &mut conn).await?;
+    db::delete_room(room_id, &mut conn).await?;
 
     Ok(Redirect::to("/"))
 }
@@ -215,7 +214,7 @@ async fn delete_room<'a>(
 #[tracing::instrument(skip(redirect_to, room_form, index_manager, ctx, session))]
 async fn edit_room_submit<'a>(
     redirect_to: &RedirectTo,
-    room_id: Uuid,
+    room_id: RoomId,
     mut room_form: Form<CreateRoomForm<'a>>,
     ctx: &State<Context>,
     index_manager: &State<IndexManager>,

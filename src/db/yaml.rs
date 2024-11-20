@@ -4,9 +4,8 @@ use diesel::prelude::*;
 use diesel::{Insertable, Queryable, Selectable};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use serde::Deserialize;
-use uuid::Uuid;
 
-use crate::db::{Json, Room};
+use crate::db::{Json, Room, RoomId, YamlId};
 use crate::error::Result;
 use crate::extractor::YamlFeatures;
 use crate::schema::{discord_users, rooms, yamls};
@@ -14,8 +13,8 @@ use crate::schema::{discord_users, rooms, yamls};
 #[derive(Insertable)]
 #[diesel(table_name=yamls)]
 pub struct NewYaml<'a> {
-    id: Uuid,
-    room_id: Uuid,
+    id: YamlId,
+    room_id: RoomId,
     owner_id: i64,
     content: &'a str,
     player_name: &'a str,
@@ -33,7 +32,7 @@ pub struct Yaml {
 #[derive(Debug, Selectable, Queryable)]
 #[diesel(table_name = yamls)]
 pub struct YamlWithoutContent {
-    pub id: Uuid,
+    pub id: YamlId,
     pub player_name: String,
     pub game: String,
     pub owner_id: i64,
@@ -55,11 +54,11 @@ pub struct YamlFile {
 
 #[tracing::instrument(skip(conn))]
 pub async fn get_yamls_for_room_with_author_names(
-    uuid: uuid::Uuid,
+    room_id: RoomId,
     conn: &mut AsyncPgConnection,
 ) -> Result<Vec<(YamlWithoutContent, String)>> {
     let room = rooms::table
-        .find(uuid)
+        .find(&room_id)
         .select(Room::as_select())
         .first::<Room>(conn)
         .await;
@@ -68,7 +67,7 @@ pub async fn get_yamls_for_room_with_author_names(
     };
 
     Ok(yamls::table
-        .filter(yamls::room_id.eq(uuid))
+        .filter(yamls::room_id.eq(&room_id))
         .inner_join(discord_users::table)
         .select((YamlWithoutContent::as_select(), discord_users::username))
         .get_results(conn)
@@ -77,11 +76,11 @@ pub async fn get_yamls_for_room_with_author_names(
 
 #[tracing::instrument(skip(conn))]
 pub async fn get_yamls_for_room(
-    uuid: uuid::Uuid,
+    room_id: RoomId,
     conn: &mut AsyncPgConnection,
 ) -> Result<Vec<Yaml>> {
     let room = rooms::table
-        .find(uuid)
+        .find(&room_id)
         .select(Room::as_select())
         .first::<Room>(conn)
         .await;
@@ -90,7 +89,7 @@ pub async fn get_yamls_for_room(
     };
 
     Ok(yamls::table
-        .filter(yamls::room_id.eq(uuid))
+        .filter(yamls::room_id.eq(&room_id))
         .select(Yaml::as_select())
         .get_results::<Yaml>(conn)
         .await?)
@@ -98,7 +97,7 @@ pub async fn get_yamls_for_room(
 
 #[tracing::instrument(skip(conn, content))]
 pub async fn add_yaml_to_room(
-    room_id: uuid::Uuid,
+    room_id: RoomId,
     owner_id: i64,
     game_name: &str,
     content: &str,
@@ -107,7 +106,7 @@ pub async fn add_yaml_to_room(
     conn: &mut AsyncPgConnection,
 ) -> Result<()> {
     let new_yaml = NewYaml {
-        id: Uuid::new_v4(),
+        id: YamlId::new_v4(),
         owner_id,
         room_id,
         content,
@@ -125,7 +124,7 @@ pub async fn add_yaml_to_room(
 }
 
 #[tracing::instrument(skip(conn))]
-pub async fn remove_yaml(yaml_id: uuid::Uuid, conn: &mut AsyncPgConnection) -> Result<()> {
+pub async fn remove_yaml(yaml_id: YamlId, conn: &mut AsyncPgConnection) -> Result<()> {
     diesel::delete(yamls::table.find(yaml_id))
         .execute(conn)
         .await?;
@@ -134,7 +133,7 @@ pub async fn remove_yaml(yaml_id: uuid::Uuid, conn: &mut AsyncPgConnection) -> R
 }
 
 #[tracing::instrument(skip(conn))]
-pub async fn get_yaml_by_id(yaml_id: Uuid, conn: &mut AsyncPgConnection) -> Result<Yaml> {
+pub async fn get_yaml_by_id(yaml_id: YamlId, conn: &mut AsyncPgConnection) -> Result<Yaml> {
     Ok(yamls::table
         .find(yaml_id)
         .select(Yaml::as_select())

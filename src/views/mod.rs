@@ -5,7 +5,7 @@ use std::io::{Cursor, Write};
 use std::path::PathBuf;
 
 use crate::{Context, TplContext};
-use ap_lobby::db::{self, Room, RoomFilter, RoomStatus, YamlWithoutContent};
+use ap_lobby::db::{self, Room, RoomFilter, RoomId, RoomStatus, YamlId, YamlWithoutContent};
 use ap_lobby::error::{Error, RedirectTo, Result, WithContext};
 use ap_lobby::index_manager::IndexManager;
 use ap_lobby::session::{LoggedInSession, Session};
@@ -23,7 +23,6 @@ use rocket::routes;
 use rocket::{get, post, uri, State};
 use semver::Version;
 use tracing::Instrument;
-use uuid::Uuid;
 
 pub mod api;
 pub mod apworlds;
@@ -83,8 +82,7 @@ async fn root<'a>(
             .with_yamls_from(db::WithYaml::AndFor(player_id))
             .with_author(db::Author::IncludeUser(player_id));
 
-        let open_rooms = db::list_rooms(open_rooms_filter, &mut conn).await?;
-        open_rooms
+        db::list_rooms(open_rooms_filter, &mut conn).await?
     } else {
         vec![]
     };
@@ -106,17 +104,17 @@ async fn root<'a>(
     })
 }
 
-#[get("/room/<uuid>")]
+#[get("/room/<room_id>")]
 #[tracing::instrument(skip(ctx, session, cookies))]
 async fn room<'a>(
-    uuid: Uuid,
+    room_id: RoomId,
     ctx: &State<Context>,
     session: Session,
     cookies: &CookieJar<'a>,
 ) -> Result<RoomTpl<'a>> {
     let mut conn = ctx.db_pool.get().await?;
-    let (room, author_name) = db::get_room_and_author(uuid, &mut conn).await?;
-    let mut yamls = db::get_yamls_for_room_with_author_names(uuid, &mut conn).await?;
+    let (room, author_name) = db::get_room_and_author(room_id, &mut conn).await?;
+    let mut yamls = db::get_yamls_for_room_with_author_names(room_id, &mut conn).await?;
     yamls.sort_by(|a, b| a.0.game.cmp(&b.0.game));
     let unique_player_count = yamls.iter().unique_by(|yaml| yaml.0.owner_id).count();
     let unique_game_count = yamls
@@ -154,7 +152,7 @@ struct Yamls<'a> {
 #[tracing::instrument(skip(redirect_to, yaml_form, session, cookies, ctx, index_manager))]
 async fn upload_yaml(
     redirect_to: &RedirectTo,
-    room_id: Uuid,
+    room_id: RoomId,
     yaml_form: Form<Yamls<'_>>,
     mut session: LoggedInSession,
     cookies: &CookieJar<'_>,
@@ -211,8 +209,8 @@ async fn upload_yaml(
 #[tracing::instrument(skip(redirect_to, session, ctx))]
 async fn delete_yaml(
     redirect_to: &RedirectTo,
-    room_id: Uuid,
-    yaml_id: Uuid,
+    room_id: RoomId,
+    yaml_id: YamlId,
     session: LoggedInSession,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
@@ -242,7 +240,7 @@ async fn delete_yaml(
 #[tracing::instrument(skip(redirect_to, ctx, _session))]
 async fn download_yamls<'a>(
     redirect_to: &RedirectTo,
-    room_id: Uuid,
+    room_id: RoomId,
     ctx: &State<Context>,
     _session: LoggedInSession,
 ) -> Result<ZipFile<'a>> {
@@ -292,7 +290,7 @@ async fn download_yamls<'a>(
 #[get("/room/<room_id>/worlds")]
 #[tracing::instrument(skip(redirect_to, ctx, index_manager, session, cookies))]
 async fn room_worlds<'a>(
-    room_id: Uuid,
+    room_id: RoomId,
     session: LoggedInSession,
     index_manager: &State<IndexManager>,
     redirect_to: &RedirectTo,
@@ -335,7 +333,7 @@ async fn room_worlds<'a>(
 #[get("/room/<room_id>/worlds/download_all")]
 #[tracing::instrument(skip(ctx, _session, index_manager, redirect_to))]
 async fn room_download_all_worlds<'a>(
-    room_id: Uuid,
+    room_id: RoomId,
     _session: LoggedInSession,
     index_manager: &'a State<IndexManager>,
     redirect_to: &'a RedirectTo,
@@ -362,8 +360,8 @@ pub(crate) struct YamlContent<'a> {
 #[tracing::instrument(skip(redirect_to, ctx))]
 async fn download_yaml<'a>(
     redirect_to: &RedirectTo,
-    room_id: Uuid,
-    yaml_id: Uuid,
+    room_id: RoomId,
+    yaml_id: YamlId,
     ctx: &State<Context>,
 ) -> Result<YamlContent<'a>> {
     redirect_to.set("/");

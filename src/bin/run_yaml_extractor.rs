@@ -1,4 +1,4 @@
-use ap_lobby::db::Json;
+use ap_lobby::db::{Json, YamlId};
 use ap_lobby::error::{Error, Result};
 use ap_lobby::extractor::extract_features;
 use ap_lobby::{db::YamlFile, schema::yamls};
@@ -10,7 +10,6 @@ use diesel_async::{
     AsyncPgConnection, RunQueryDsl,
 };
 use dotenvy::dotenv;
-use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -27,7 +26,7 @@ async fn main() -> Result<()> {
 
     let mut conn = db_pool.get().await?;
 
-    let all_yamls: Vec<(Uuid, String)> = yamls::table
+    let all_yamls: Vec<(YamlId, String)> = yamls::table
         .select((yamls::id, yamls::content))
         .load(&mut conn)
         .await?;

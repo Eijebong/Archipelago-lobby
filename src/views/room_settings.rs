@@ -1,8 +1,7 @@
-use ap_lobby::db::{Room, RoomSettings};
+use ap_lobby::db::{Room, RoomId, RoomSettings};
 use ap_lobby::error::Result;
 use apwm::Manifest;
 use askama::Template;
-use uuid::Uuid;
 
 use crate::TplContext;
 
@@ -14,7 +13,7 @@ pub struct RoomSettingsBuilder<'a> {
     base: TplContext<'a>,
     room: RoomSettings,
     manifest_builder: ManifestFormBuilder,
-    room_id: Option<Uuid>,
+    room_id: Option<RoomId>,
 }
 
 impl<'a> RoomSettingsBuilder<'a> {

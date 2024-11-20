@@ -9,11 +9,13 @@ use diesel_async::{AsyncPgConnection, RunQueryDsl};
 pub mod instrumentation;
 mod json;
 mod room;
+pub mod types;
 mod user;
 mod yaml;
 
 pub use json::Json;
 pub use room::*;
+pub use types::*;
 pub use user::*;
 pub use yaml::*;
 

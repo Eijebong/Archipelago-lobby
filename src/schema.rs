@@ -1,6 +1,9 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use crate::db::types::sql::*;
+
     discord_users (id) {
         id -> Int8,
         username -> Varchar,
@@ -8,8 +11,11 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use crate::db::types::sql::*;
+
     rooms (id) {
-        id -> Uuid,
+        id -> SqlRoomId,
         name -> Varchar,
         close_date -> Timestamp,
         description -> Text,
@@ -25,9 +31,12 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use crate::db::types::sql::*;
+
     yamls (id) {
-        id -> Uuid,
-        room_id -> Uuid,
+        id -> SqlYamlId,
+        room_id -> SqlRoomId,
         content -> Text,
         player_name -> Varchar,
         game -> Varchar,

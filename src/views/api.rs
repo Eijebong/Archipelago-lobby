@@ -4,20 +4,19 @@ use rocket::{
     http::{Header, Status},
     routes, State,
 };
-use uuid::Uuid;
 
 use crate::views::YamlContent;
 use crate::Context;
 use ap_lobby::{
-    db,
+    db::{self, RoomId, YamlId},
     error::{ApiResult, WithContext, WithStatus},
 };
 
 #[get("/room/<room_id>/download/<yaml_id>")]
 #[tracing::instrument(skip(ctx))]
 pub(crate) async fn download_yaml<'a>(
-    room_id: Uuid,
-    yaml_id: Uuid,
+    room_id: RoomId,
+    yaml_id: YamlId,
     ctx: &State<Context>,
 ) -> ApiResult<YamlContent<'a>> {
     let mut conn = ctx.db_pool.get().await?;

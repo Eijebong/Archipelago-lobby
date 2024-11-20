@@ -1,3 +1,4 @@
+use crate::db::RoomId;
 use anyhow::Context;
 use apwm::{Index, Manifest};
 use chrono::{NaiveDateTime, Timelike};
@@ -5,16 +6,14 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::{AsChangeset, Insertable, Queryable, Selectable};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
-use uuid::Uuid;
 
 use crate::db::Json;
 use crate::error::Result;
 use crate::schema::{discord_users, rooms};
-
 #[derive(Insertable, AsChangeset, Debug)]
 #[diesel(table_name=rooms)]
 pub struct NewRoom<'a> {
-    pub id: Uuid,
+    pub id: RoomId,
     pub name: &'a str,
     pub close_date: NaiveDateTime,
     pub description: &'a str,
@@ -32,7 +31,7 @@ pub struct NewRoom<'a> {
 #[derive(Debug, Clone, Queryable, Selectable)]
 #[diesel(check_for_backend(Pg))]
 pub struct Room {
-    pub id: Uuid,
+    pub id: RoomId,
     #[diesel(embed)]
     pub settings: RoomSettings,
 }
@@ -99,7 +98,7 @@ pub async fn update_room<'a>(
     conn: &mut AsyncPgConnection,
 ) -> Result<()> {
     diesel::update(rooms::table)
-        .filter(rooms::id.eq(new_room.id))
+        .filter(rooms::id.eq(&new_room.id))
         .set(new_room)
         .execute(conn)
         .await?;
@@ -108,7 +107,7 @@ pub async fn update_room<'a>(
 }
 
 #[tracing::instrument(skip(conn))]
-pub async fn delete_room(room_id: &uuid::Uuid, conn: &mut AsyncPgConnection) -> Result<()> {
+pub async fn delete_room(room_id: RoomId, conn: &mut AsyncPgConnection) -> Result<()> {
     diesel::delete(rooms::table)
         .filter(rooms::id.eq(room_id))
         .execute(conn)
@@ -118,9 +117,9 @@ pub async fn delete_room(room_id: &uuid::Uuid, conn: &mut AsyncPgConnection) -> 
 }
 
 #[tracing::instrument(skip(conn))]
-pub async fn get_room(uuid: uuid::Uuid, conn: &mut AsyncPgConnection) -> Result<Room> {
+pub async fn get_room(room_id: RoomId, conn: &mut AsyncPgConnection) -> Result<Room> {
     Ok(rooms::table
-        .find(uuid)
+        .find(room_id)
         .select(Room::as_select())
         .first::<Room>(conn)
         .await?)
@@ -128,11 +127,11 @@ pub async fn get_room(uuid: uuid::Uuid, conn: &mut AsyncPgConnection) -> Result<
 
 #[tracing::instrument(skip(conn))]
 pub async fn get_room_and_author(
-    uuid: uuid::Uuid,
+    room_id: RoomId,
     conn: &mut AsyncPgConnection,
 ) -> Result<(Room, String)> {
     Ok(rooms::table
-        .find(uuid)
+        .find(room_id)
         .inner_join(discord_users::table)
         .select((Room::as_select(), discord_users::username))
         .first(conn)
