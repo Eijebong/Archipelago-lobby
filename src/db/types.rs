@@ -1,5 +1,6 @@
 use diesel::{deserialize::FromSql, pg::Pg, query_builder::QueryId, serialize::ToSql};
 use diesel::{AsExpression, FromSqlRow, SqlType};
+use rocket::form::FromForm;
 use rocket::request::FromParam;
 use rocket::UriDisplayPath;
 use std::fmt::Display;
@@ -21,7 +22,7 @@ macro_rules! new_id_type {
 
         use sql::*;
         $(
-            #[derive(Clone, Copy, Debug, UriDisplayPath)]
+            #[derive(Clone, Copy, Debug, UriDisplayPath, FromForm)]
             #[derive(FromSqlRow, AsExpression)]
             #[diesel(sql_type=$sql_type)]
             pub struct $rust_type(Uuid);
@@ -41,6 +42,10 @@ macro_rules! new_id_type {
             impl $rust_type {
                 pub fn new_v4() -> Self {
                     Self(Uuid::new_v4())
+                }
+
+                pub fn as_generic_id(&self) -> uuid::Uuid {
+                    self.0
                 }
             }
 
@@ -64,4 +69,5 @@ macro_rules! new_id_type {
 new_id_type!(
     SqlRoomId => RoomId,
     SqlYamlId => YamlId,
+    SqlRoomTemplateId => RoomTemplateId,
 );

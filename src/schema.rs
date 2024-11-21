@@ -14,6 +14,26 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::db::types::sql::*;
 
+    room_templates (id) {
+        id -> SqlRoomTemplateId,
+        name -> Varchar,
+        close_date -> Timestamp,
+        description -> Text,
+        room_url -> Varchar,
+        author_id -> Int8,
+        yaml_validation -> Bool,
+        allow_unsupported -> Bool,
+        yaml_limit_per_user -> Nullable<Int4>,
+        yaml_limit_bypass_list -> Array<Int8>,
+        manifest -> Jsonb,
+        show_apworlds -> Bool,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::db::types::sql::*;
+
     rooms (id) {
         id -> SqlRoomId,
         name -> Varchar,
@@ -45,8 +65,9 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(room_templates -> discord_users (author_id));
 diesel::joinable!(rooms -> discord_users (author_id));
 diesel::joinable!(yamls -> discord_users (owner_id));
 diesel::joinable!(yamls -> rooms (room_id));
 
-diesel::allow_tables_to_appear_in_same_query!(discord_users, rooms, yamls,);
+diesel::allow_tables_to_appear_in_same_query!(discord_users, room_templates, rooms, yamls,);

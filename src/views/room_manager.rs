@@ -1,7 +1,7 @@
 #![allow(clippy::blocks_in_conditions)]
 
-use ap_lobby::db::{self, Author, NewRoom, Room, RoomFilter, RoomId};
-use ap_lobby::error::{RedirectTo, Result};
+use ap_lobby::db::{self, Author, NewRoom, Room, RoomFilter, RoomId, RoomTemplateId};
+use ap_lobby::error::{RedirectTo, Result, WithContext};
 use ap_lobby::index_manager::IndexManager;
 use ap_lobby::session::LoggedInSession;
 use askama::Template;
@@ -18,6 +18,7 @@ use rocket::State;
 
 use super::manifest_editor::{manifest_from_form, ManifestForm};
 use super::room_settings::RoomSettingsBuilder;
+use super::room_settings::RoomSettingsType;
 
 #[derive(Template)]
 #[template(path = "room_manager/edit_room.html")]
@@ -28,19 +29,19 @@ struct EditRoom<'a> {
 }
 
 #[derive(FromForm, Debug)]
-struct CreateRoomForm<'a> {
-    room_name: &'a str,
-    room_description: &'a str,
-    close_date: &'a str,
-    tz_offset: i32,
-    room_url: &'a str,
-    yaml_validation: bool,
-    allow_unsupported: bool,
-    yaml_limit_per_user: bool,
-    yaml_limit_per_user_nb: i32,
-    yaml_limit_bypass_list: &'a str,
-    show_apworlds: bool,
-    me: ManifestForm<'a>,
+pub struct CreateRoomForm<'a> {
+    pub room_name: &'a str,
+    pub room_description: &'a str,
+    pub close_date: &'a str,
+    pub tz_offset: i32,
+    pub room_url: &'a str,
+    pub yaml_validation: bool,
+    pub allow_unsupported: bool,
+    pub yaml_limit_per_user: bool,
+    pub yaml_limit_per_user_nb: i32,
+    pub yaml_limit_bypass_list: &'a str,
+    pub show_apworlds: bool,
+    pub me: ManifestForm<'a>,
 }
 
 #[derive(Template)]
@@ -84,24 +85,42 @@ async fn my_rooms<'a>(
         .await?,
     })
 }
-#[get("/create-room")]
+
+#[get("/create-room?<from_template>")]
 #[tracing::instrument(skip_all)]
 async fn create_room<'a>(
+    from_template: Option<RoomTemplateId>,
     session: LoggedInSession,
     index_manager: &State<IndexManager>,
+    ctx: &State<Context>,
     cookies: &CookieJar<'_>,
 ) -> Result<EditRoom<'a>> {
+    let current_user_id = session.user_id();
+    let base = TplContext::from_session("create-room", session.0, cookies);
     let index = index_manager.index.read().await;
 
-    let base = TplContext::from_session("create-room", session.0, cookies);
+    let form_builder = if let Some(template_id) = from_template {
+        let mut conn = ctx.db_pool.get().await?;
+        let template = db::get_room_template_by_id(template_id, &mut conn)
+            .await
+            .context("Couldn't get the specified template")?;
+        if template.settings.author_id != current_user_id {
+            RoomSettingsBuilder::new(base.clone(), &index, RoomSettingsType::Room)?
+        } else {
+            RoomSettingsBuilder::room_from_template(base.clone(), index.clone(), template)?
+        }
+    } else {
+        RoomSettingsBuilder::new(base.clone(), &index, RoomSettingsType::Room)?
+    };
+
     Ok(EditRoom {
         room: None,
-        room_settings_form: RoomSettingsBuilder::new(base.clone(), &index)?,
+        room_settings_form: form_builder,
         base,
     })
 }
 
-fn parse_date(date: &str, tz_offset: i32) -> Result<DateTime<Utc>> {
+pub fn parse_date(date: &str, tz_offset: i32) -> Result<DateTime<Utc>> {
     let offset = chrono::FixedOffset::west_opt(tz_offset * 60)
         .ok_or_else(|| ap_lobby::error::Error(anyhow::anyhow!("Wrong timezone offset")))?;
     let datetime = chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%dT%H:%M")?;
@@ -190,7 +209,7 @@ async fn edit_room<'a>(
     })
 }
 
-#[get("/delete-room/<room_id>")]
+#[get("/edit-room/<room_id>/delete")]
 #[tracing::instrument(skip(ctx, session))]
 async fn delete_room<'a>(
     ctx: &State<Context>,
@@ -262,7 +281,7 @@ async fn edit_room_submit<'a>(
     Ok(Redirect::to(format!("/room/{}", room_id)))
 }
 
-fn validate_room_form(room_form: &mut Form<CreateRoomForm<'_>>) -> Result<()> {
+pub fn validate_room_form(room_form: &mut Form<CreateRoomForm<'_>>) -> Result<()> {
     if room_form.room_name.trim().is_empty() {
         return Err(anyhow::anyhow!("The room name shouldn't be empty").into());
     }
@@ -302,11 +321,11 @@ fn validate_room_form(room_form: &mut Form<CreateRoomForm<'_>>) -> Result<()> {
 
 pub fn routes() -> Vec<rocket::Route> {
     rocket::routes![
-        create_room,
         my_rooms,
-        create_room_submit,
+        create_room,
         edit_room,
         delete_room,
+        create_room_submit,
         edit_room_submit
     ]
 }

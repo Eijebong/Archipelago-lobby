@@ -32,6 +32,8 @@
                 {% endif %}
 
                 {% call menu::app_menu_item("Create new room", "fa fa-plus", "/create-room", "create-room", base.cur_module) %}
+                {% call menu::app_menu_item("Templates", "fa fa-code", "/room-templates", "room-templates", base.cur_module) %}
+                <span class="separator"></span>
                 {% call menu::app_menu_item("Logout", "fa fa-sign-out", "/auth/logout", "logout", base.cur_module) %}
             {% else %}
                 {% call menu::app_menu_item("Login", "fa fa-sign-in", "/auth/login", "login", base.cur_module) %}

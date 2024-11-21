@@ -8,3 +8,7 @@ id = { type = "SqlRoomId" }
 [print_schema.patches.yamls]
 id = { type = "SqlYamlId" }
 room_id = { type = "SqlRoomId" }
+
+[print_schema.patches.room_templates]
+id = { type = "SqlRoomTemplateId" }
+yaml_limit_bypass_list = { type = "Array<Int8>" }

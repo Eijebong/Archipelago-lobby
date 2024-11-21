@@ -31,6 +31,7 @@ pub mod filters;
 pub mod manifest_editor;
 pub mod room_manager;
 pub mod room_settings;
+pub mod room_templates;
 
 #[derive(Template)]
 #[template(path = "room.html")]

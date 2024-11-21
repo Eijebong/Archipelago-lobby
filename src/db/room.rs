@@ -2,14 +2,18 @@ use crate::db::RoomId;
 use anyhow::Context;
 use apwm::{Index, Manifest};
 use chrono::{NaiveDateTime, Timelike};
-use diesel::pg::Pg;
+use diesel::backend::Backend;
+use diesel::deserialize::FromStaticSqlRow;
 use diesel::prelude::*;
 use diesel::{AsChangeset, Insertable, Queryable, Selectable};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
 use crate::db::Json;
 use crate::error::Result;
-use crate::schema::{discord_users, rooms};
+use crate::schema::{discord_users, room_templates, rooms};
+
+use super::RoomTemplateId;
+
 #[derive(Insertable, AsChangeset, Debug)]
 #[diesel(table_name=rooms)]
 pub struct NewRoom<'a> {
@@ -28,17 +32,13 @@ pub struct NewRoom<'a> {
     pub show_apworlds: bool,
 }
 
-#[derive(Debug, Clone, Queryable, Selectable)]
-#[diesel(check_for_backend(Pg))]
-pub struct Room {
-    pub id: RoomId,
-    #[diesel(embed)]
+#[derive(Debug, Clone)]
+pub struct GenericRoom<T: Clone> {
+    pub id: T,
     pub settings: RoomSettings,
 }
 
-#[derive(Debug, Clone, Queryable, Selectable)]
-#[diesel(check_for_backend(Pg))]
-#[diesel(table_name=rooms)]
+#[derive(Debug, Clone)]
 pub struct RoomSettings {
     pub name: String,
     pub close_date: NaiveDateTime,
@@ -53,14 +53,83 @@ pub struct RoomSettings {
     pub show_apworlds: bool,
 }
 
+pub type Room = GenericRoom<RoomId>;
+pub type RoomTemplate = GenericRoom<RoomTemplateId>;
+
+impl<DB: Backend> Selectable<DB> for GenericRoom<RoomId> {
+    type SelectExpression = <rooms::table as Table>::AllColumns;
+
+    fn construct_selection() -> Self::SelectExpression {
+        rooms::all_columns
+    }
+}
+
+impl<DB: Backend> Selectable<DB> for GenericRoom<RoomTemplateId> {
+    type SelectExpression = <room_templates::table as Table>::AllColumns;
+
+    fn construct_selection() -> Self::SelectExpression {
+        room_templates::all_columns
+    }
+}
+
+impl<T: Clone, DB: Backend, ST0, ST1, ST2, ST3, ST4, ST5, ST6, ST7, ST8, ST9, ST10, ST11>
+    Queryable<(ST0, ST1, ST2, ST3, ST4, ST5, ST6, ST7, ST8, ST9, ST10, ST11), DB> for GenericRoom<T>
+where
+    (
+        T,
+        String,
+        NaiveDateTime,
+        String,
+        String,
+        i64,
+        bool,
+        bool,
+        Option<i32>,
+        Vec<i64>,
+        Json<Manifest>,
+        bool,
+    ): FromStaticSqlRow<(ST0, ST1, ST2, ST3, ST4, ST5, ST6, ST7, ST8, ST9, ST10, ST11), DB>,
+{
+    type Row = (
+        T,
+        String,
+        NaiveDateTime,
+        String,
+        String,
+        i64,
+        bool,
+        bool,
+        Option<i32>,
+        Vec<i64>,
+        Json<Manifest>,
+        bool,
+    );
+
+    fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
+        Ok(GenericRoom {
+            id: row.0,
+            settings: RoomSettings {
+                name: row.1,
+                close_date: row.2,
+                description: row.3,
+                room_url: row.4,
+                author_id: row.5,
+                yaml_validation: row.6,
+                allow_unsupported: row.7,
+                yaml_limit_per_user: row.8,
+                yaml_limit_bypass_list: row.9,
+                manifest: row.10,
+                show_apworlds: row.11,
+            },
+        })
+    }
+}
+
 impl RoomSettings {
     pub fn default(index: &Index) -> Result<Self> {
         Ok(Self {
             name: "".to_string(),
-            close_date: chrono::Utc::now()
-                .naive_utc()
-                .with_second(0)
-                .context("Failed to create default datetime")?,
+            close_date: Self::default_close_date()?,
             description: "".to_string(),
             room_url: "".to_string(),
             author_id: -1,
@@ -71,6 +140,13 @@ impl RoomSettings {
             manifest: Json(Manifest::from_index_with_latest_versions(index)?),
             show_apworlds: true,
         })
+    }
+
+    pub fn default_close_date() -> Result<NaiveDateTime> {
+        Ok(chrono::Utc::now()
+            .naive_utc()
+            .with_second(0)
+            .context("Failed to create default datetime")?)
     }
 }
 

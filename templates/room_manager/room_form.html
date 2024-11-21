@@ -2,7 +2,7 @@
 
 {% match self.room_id %}
 {% when Some with (room_id) %}
-<form method="POST" action="/edit-room/{{room_id}}" id="room-form">
+<form method="POST" action="{{ ty.as_route_base() }}/{{room_id}}" id="room-form">
 {% when None %}
 <form method="POST" id="room-form">
 {% endmatch %}
@@ -11,8 +11,12 @@
             <label for="room_name">Room name:</label>
             <input type="text" name="room_name" id="room_name" value="{{self.room.name}}" minlength="1" required>
 
-            <label for="close_date">Submission limit:</label>
-            <input type="datetime-local" id="close_date" name="close_date">
+            {% if self.ty.is_room() %}
+                <label for="close_date">Submission limit:</label>
+                <input type="datetime-local" id="close_date" name="close_date">
+            {% else %}
+                <input style="display: none" type="datetime-local" id="close_date" name="close_date">
+            {% endif %}
 
             <label for="room_description">Description:</label>
             <textarea name="room_description" id="room_description">
@@ -55,9 +59,9 @@
                 <h5>Danger zone</h5>
                 <table class="styled danger-zone">
                     <tr>
-                        <td>Delete this room. This will delete all associated YAMLs, there is no going back.</td>
+                        <td>Delete this {{+ self.ty }}? {%+ if self.ty.is_room() %} This will delete all associated YAMLs, there is no going back. {% endif %}</td>
                         <td>
-                            <a href="/delete-room/{{room_id}}" class="cancel-button" data-confirm-del=true data-resource-type="room" data-resource-name="{{self.room.name}}">Delete room</a>
+                            <a href="{{ ty.as_route_base() }}/{{room_id}}/delete" class="cancel-button" data-confirm-del=true data-resource-type="{{ self.ty }}" data-resource-name="{{self.room.name}}">Delete {{+ self.ty }}</a>
                         </td>
                     </tr>
                 </table>
@@ -76,9 +80,9 @@
     <hr>
     <div id="save-button">
     {% if self.room_id.is_some() %}
-        <button>Save room</button>
+        <button>Save {{+ self.ty }}</button>
     {% else %}
-        <button>Create room</button>
+        <button>Create {{+ self.ty }}</button>
     {% endif%}
     </div>
 </form>

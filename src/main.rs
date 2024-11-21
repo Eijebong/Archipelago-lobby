@@ -191,6 +191,7 @@ async fn main() -> anyhow::Result<()> {
         .attach(prometheus.clone())
         .mount("/", views::routes())
         .mount("/", views::room_manager::routes())
+        .mount("/", views::room_templates::routes())
         .mount("/", views::apworlds::routes())
         .mount("/auth/", views::auth::routes())
         .mount("/api/", views::api::routes())

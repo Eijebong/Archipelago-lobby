@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% import "menu.html.tera" as menu %}
+
+{% block menu %}
+    {% call menu::menu_item("Templates", "", "/room-templates", true, "room-templates") %}
+    {% call menu::menu_item("Create template", "", "/room-templates/create", false, "create-room-template") %}
+{% endblock %}
+
+{% block main %}
+
+{% if room_templates.len() != 0 %}
+    <table class="styled" id="templates-table">
+        <thead>
+            <tr>
+                <th>Template name</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tpl in room_templates %}
+                <tr>
+                    <td><a href="/room-templates/{{tpl.id}}">{{ tpl.settings.name }}</a></td>
+                    <td><a href="/create-room?from_template={{tpl.id}}"><i class="fa fa-plus"></i>&nbsp;Create room</a></td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+You don't have any room template at the moment.
+{% endif %}
+
+{%endblock%}
