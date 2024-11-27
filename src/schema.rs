@@ -51,6 +51,7 @@ diesel::table! {
         show_apworlds -> Bool,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        from_template_id -> Nullable<SqlRoomTemplateId>,
     }
 }
 
@@ -73,6 +74,7 @@ diesel::table! {
 
 diesel::joinable!(room_templates -> discord_users (author_id));
 diesel::joinable!(rooms -> discord_users (author_id));
+diesel::joinable!(rooms -> room_templates (from_template_id));
 diesel::joinable!(yamls -> discord_users (owner_id));
 diesel::joinable!(yamls -> rooms (room_id));
 

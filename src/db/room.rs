@@ -33,12 +33,6 @@ pub struct NewRoom<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct GenericRoom<T: Clone> {
-    pub id: T,
-    pub settings: RoomSettings,
-}
-
-#[derive(Debug, Clone)]
 pub struct RoomSettings {
     pub name: String,
     pub close_date: NaiveDateTime,
@@ -55,10 +49,20 @@ pub struct RoomSettings {
     pub updated_at: NaiveDateTime,
 }
 
-pub type Room = GenericRoom<RoomId>;
-pub type RoomTemplate = GenericRoom<RoomTemplateId>;
+#[derive(Debug, Clone)]
+pub struct Room {
+    pub id: RoomId,
+    pub settings: RoomSettings,
+    pub from_template_id: Option<RoomTemplateId>,
+}
 
-impl<DB: Backend> Selectable<DB> for GenericRoom<RoomId> {
+#[derive(Debug, Clone)]
+pub struct RoomTemplate {
+    pub id: RoomTemplateId,
+    pub settings: RoomSettings,
+}
+
+impl<DB: Backend> Selectable<DB> for Room {
     type SelectExpression = <rooms::table as Table>::AllColumns;
 
     fn construct_selection() -> Self::SelectExpression {
@@ -66,7 +70,7 @@ impl<DB: Backend> Selectable<DB> for GenericRoom<RoomId> {
     }
 }
 
-impl<DB: Backend> Selectable<DB> for GenericRoom<RoomTemplateId> {
+impl<DB: Backend> Selectable<DB> for RoomTemplate {
     type SelectExpression = <room_templates::table as Table>::AllColumns;
 
     fn construct_selection() -> Self::SelectExpression {
@@ -75,7 +79,6 @@ impl<DB: Backend> Selectable<DB> for GenericRoom<RoomTemplateId> {
 }
 
 impl<
-        T: Clone,
         DB: Backend,
         ST0,
         ST1,
@@ -91,7 +94,107 @@ impl<
         ST11,
         ST12,
         ST13,
+        ST14,
     >
+    Queryable<
+        (
+            ST0,
+            ST1,
+            ST2,
+            ST3,
+            ST4,
+            ST5,
+            ST6,
+            ST7,
+            ST8,
+            ST9,
+            ST10,
+            ST11,
+            ST12,
+            ST13,
+            ST14,
+        ),
+        DB,
+    > for Room
+where
+    (
+        RoomId,
+        String,
+        NaiveDateTime,
+        String,
+        String,
+        i64,
+        bool,
+        bool,
+        Option<i32>,
+        Vec<i64>,
+        Json<Manifest>,
+        bool,
+        NaiveDateTime,
+        NaiveDateTime,
+        Option<RoomTemplateId>,
+    ): FromStaticSqlRow<
+        (
+            ST0,
+            ST1,
+            ST2,
+            ST3,
+            ST4,
+            ST5,
+            ST6,
+            ST7,
+            ST8,
+            ST9,
+            ST10,
+            ST11,
+            ST12,
+            ST13,
+            ST14,
+        ),
+        DB,
+    >,
+{
+    type Row = (
+        RoomId,
+        String,
+        NaiveDateTime,
+        String,
+        String,
+        i64,
+        bool,
+        bool,
+        Option<i32>,
+        Vec<i64>,
+        Json<Manifest>,
+        bool,
+        NaiveDateTime,
+        NaiveDateTime,
+        Option<RoomTemplateId>,
+    );
+
+    fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
+        Ok(Room {
+            id: row.0,
+            settings: RoomSettings {
+                name: row.1,
+                close_date: row.2,
+                description: row.3,
+                room_url: row.4,
+                author_id: row.5,
+                yaml_validation: row.6,
+                allow_unsupported: row.7,
+                yaml_limit_per_user: row.8,
+                yaml_limit_bypass_list: row.9,
+                manifest: row.10,
+                show_apworlds: row.11,
+                created_at: row.12,
+                updated_at: row.13,
+            },
+            from_template_id: row.14,
+        })
+    }
+}
+impl<DB: Backend, ST0, ST1, ST2, ST3, ST4, ST5, ST6, ST7, ST8, ST9, ST10, ST11, ST12, ST13>
     Queryable<
         (
             ST0,
@@ -110,10 +213,10 @@ impl<
             ST13,
         ),
         DB,
-    > for GenericRoom<T>
+    > for RoomTemplate
 where
     (
-        T,
+        RoomTemplateId,
         String,
         NaiveDateTime,
         String,
@@ -148,7 +251,7 @@ where
     >,
 {
     type Row = (
-        T,
+        RoomTemplateId,
         String,
         NaiveDateTime,
         String,
@@ -165,7 +268,7 @@ where
     );
 
     fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
-        Ok(GenericRoom {
+        Ok(RoomTemplate {
             id: row.0,
             settings: RoomSettings {
                 name: row.1,
