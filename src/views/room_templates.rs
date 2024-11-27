@@ -143,9 +143,9 @@ async fn edit_template<'a>(
 
     let index = index_manager.index.read().await;
 
-    let base = TplContext::from_session("room-templates", session.0, cookies);
+    let base = TplContext::from_session("template", session.0, cookies);
     Ok(EditRoomTemplateTpl {
-        tpl: None,
+        tpl: Some(template.clone()),
         tpl_settings_form: RoomSettingsBuilder::new_with_template(
             base.clone(),
             index.clone(),
@@ -245,7 +245,7 @@ pub async fn list_associated_rooms<'a>(
 
     let rooms = db::list_rooms_from_template(tpl_id, &mut conn).await?;
     Ok(AssociatedRoomsTpl {
-        base: TplContext::from_session("room-templates", session.0, cookies),
+        base: TplContext::from_session("template", session.0, cookies),
         tpl,
         rooms,
     })

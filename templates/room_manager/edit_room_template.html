@@ -8,11 +8,11 @@
     {% call menu::menu_item("Apworlds", "", "#", false, "apworlds-editor") %}
 {% endblock %}
 
-{% block room_navigation %}
+{% block template_navigation %}
     {% match tpl %}
     {% when Some with (tpl) %}
         {% let tpl_url = format!("/room-templates/{}", tpl.id) %}
-        {% call menu::app_menu_item(tpl.settings.name, "menu-indented fa-classic fa-angle-right", tpl_url, "room", base.cur_module) %}
+        {% call menu::app_menu_item(tpl.settings.name, "menu-indented fa-classic fa-angle-right", tpl_url, "template", base.cur_module) %}
     {% when None %}
     {% endmatch %}
 {% endblock %}
