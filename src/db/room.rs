@@ -51,6 +51,8 @@ pub struct RoomSettings {
     pub yaml_limit_bypass_list: Vec<i64>,
     pub manifest: Json<Manifest>,
     pub show_apworlds: bool,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 pub type Room = GenericRoom<RoomId>;
@@ -72,8 +74,43 @@ impl<DB: Backend> Selectable<DB> for GenericRoom<RoomTemplateId> {
     }
 }
 
-impl<T: Clone, DB: Backend, ST0, ST1, ST2, ST3, ST4, ST5, ST6, ST7, ST8, ST9, ST10, ST11>
-    Queryable<(ST0, ST1, ST2, ST3, ST4, ST5, ST6, ST7, ST8, ST9, ST10, ST11), DB> for GenericRoom<T>
+impl<
+        T: Clone,
+        DB: Backend,
+        ST0,
+        ST1,
+        ST2,
+        ST3,
+        ST4,
+        ST5,
+        ST6,
+        ST7,
+        ST8,
+        ST9,
+        ST10,
+        ST11,
+        ST12,
+        ST13,
+    >
+    Queryable<
+        (
+            ST0,
+            ST1,
+            ST2,
+            ST3,
+            ST4,
+            ST5,
+            ST6,
+            ST7,
+            ST8,
+            ST9,
+            ST10,
+            ST11,
+            ST12,
+            ST13,
+        ),
+        DB,
+    > for GenericRoom<T>
 where
     (
         T,
@@ -88,7 +125,27 @@ where
         Vec<i64>,
         Json<Manifest>,
         bool,
-    ): FromStaticSqlRow<(ST0, ST1, ST2, ST3, ST4, ST5, ST6, ST7, ST8, ST9, ST10, ST11), DB>,
+        NaiveDateTime,
+        NaiveDateTime,
+    ): FromStaticSqlRow<
+        (
+            ST0,
+            ST1,
+            ST2,
+            ST3,
+            ST4,
+            ST5,
+            ST6,
+            ST7,
+            ST8,
+            ST9,
+            ST10,
+            ST11,
+            ST12,
+            ST13,
+        ),
+        DB,
+    >,
 {
     type Row = (
         T,
@@ -103,6 +160,8 @@ where
         Vec<i64>,
         Json<Manifest>,
         bool,
+        NaiveDateTime,
+        NaiveDateTime,
     );
 
     fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
@@ -120,6 +179,8 @@ where
                 yaml_limit_bypass_list: row.9,
                 manifest: row.10,
                 show_apworlds: row.11,
+                created_at: row.12,
+                updated_at: row.13,
             },
         })
     }
@@ -139,6 +200,8 @@ impl RoomSettings {
             yaml_limit_bypass_list: vec![],
             manifest: Json(Manifest::from_index_with_latest_versions(index)?),
             show_apworlds: true,
+            created_at: Self::default_close_date()?,
+            updated_at: Self::default_close_date()?,
         })
     }
 

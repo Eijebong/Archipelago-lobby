@@ -27,6 +27,8 @@ diesel::table! {
         yaml_limit_bypass_list -> Array<Int8>,
         manifest -> Jsonb,
         show_apworlds -> Bool,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -47,6 +49,8 @@ diesel::table! {
         yaml_limit_bypass_list -> Array<Int8>,
         manifest -> Jsonb,
         show_apworlds -> Bool,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -62,6 +66,8 @@ diesel::table! {
         game -> Varchar,
         owner_id -> Int8,
         features -> Json,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 

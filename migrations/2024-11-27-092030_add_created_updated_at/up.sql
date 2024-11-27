@@ -1,0 +1,25 @@
+-- Your SQL goes here
+
+ALTER TABLE rooms ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT NOW();
+ALTER TABLE yamls ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT NOW();
+ALTER TABLE room_templates ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT NOW();
+
+ALTER TABLE rooms ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT NOW();
+ALTER TABLE yamls ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT NOW();
+ALTER TABLE room_templates ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT NOW();
+
+CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger AS $$
+BEGIN
+    IF (
+        NEW IS DISTINCT FROM OLD AND
+        NEW.updated_at IS NOT DISTINCT FROM OLD.updated_at
+    ) THEN
+        NEW.updated_at := current_timestamp;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON rooms FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON yamls FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON room_templates FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
