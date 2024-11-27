@@ -8,7 +8,7 @@
 {% endmatch %}
     <div id='option-pages'>
         <div class="options-tab" id="section-room-options">
-            <label for="room_name">Room name:</label>
+            <label for="room_name">{{ self.ty|capitalize +}} name:</label>
             <input type="text" name="room_name" id="room_name" value="{{self.room.name}}" minlength="1" required>
 
             {% if self.ty.is_room() %}
