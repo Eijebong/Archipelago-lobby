@@ -4,8 +4,9 @@ use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
 use crate::error::Result;
+use crate::schema::rooms;
 use crate::{
-    db::{Json, RoomTemplate, RoomTemplateId},
+    db::{Json, Room, RoomTemplate, RoomTemplateId},
     schema::room_templates,
 };
 
@@ -88,4 +89,16 @@ pub async fn delete_room_template(
         .await?;
 
     Ok(())
+}
+
+#[tracing::instrument(skip(conn))]
+pub async fn list_rooms_from_template(
+    tpl_id: RoomTemplateId,
+    conn: &mut AsyncPgConnection,
+) -> Result<Vec<Room>> {
+    Ok(rooms::table
+        .filter(rooms::from_template_id.eq(Some(tpl_id)))
+        .select(Room::as_select())
+        .get_results(conn)
+        .await?)
 }
