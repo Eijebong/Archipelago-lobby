@@ -132,9 +132,10 @@ pub fn parse_date(date: &str, tz_offset: i32) -> Result<DateTime<Utc>> {
     Ok(date.into())
 }
 
-#[post("/create-room", data = "<room_form>")]
+#[post("/create-room?<from_template>", data = "<room_form>")]
 #[tracing::instrument(skip_all)]
 async fn create_room_submit<'a>(
+    from_template: Option<RoomTemplateId>,
     redirect_to: &RedirectTo,
     ctx: &State<Context>,
     index_manager: &State<IndexManager>,
@@ -170,9 +171,19 @@ async fn create_room_submit<'a>(
             .collect(),
         manifest: db::Json(room_manifest),
         show_apworlds: room_form.show_apworlds,
+        from_template_id: Some(from_template),
     };
 
     let mut conn = ctx.db_pool.get().await?;
+    if let Some(template_id) = from_template {
+        let tpl = db::get_room_template_by_id(template_id, &mut conn)
+            .await
+            .context("The given template couldn't be found")?;
+        if tpl.settings.author_id != session.user_id() {
+            Err(anyhow::anyhow!("The given template couldn't be found"))?
+        }
+    }
+
     let new_room = db::create_room(&new_room, &mut conn).await?;
 
     Ok(Redirect::to(format!("/room/{}", new_room.id)))
@@ -274,6 +285,7 @@ async fn edit_room_submit<'a>(
             .collect(),
         manifest: db::Json(room_manifest),
         show_apworlds: room_form.show_apworlds,
+        from_template_id: None,
     };
 
     db::update_room(&new_room, &mut conn).await?;

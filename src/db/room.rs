@@ -30,6 +30,7 @@ pub struct NewRoom<'a> {
     pub yaml_limit_bypass_list: Vec<i64>,
     pub manifest: Json<Manifest>,
     pub show_apworlds: bool,
+    pub from_template_id: Option<Option<RoomTemplateId>>,
 }
 
 #[derive(Debug, Clone)]
