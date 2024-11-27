@@ -13,14 +13,19 @@
         <thead>
             <tr>
                 <th>Template name</th>
-                <th></th>
+                <th colspan=2></th>
             </tr>
         </thead>
         <tbody>
             {% for tpl in room_templates %}
                 <tr>
                     <td><a href="/room-templates/{{tpl.id}}">{{ tpl.settings.name }}</a></td>
-                    <td><a href="/create-room?from_template={{tpl.id}}"><i class="fa fa-plus"></i>&nbsp;Create room</a></td>
+                    <td>
+                        <a href="/room-templates/{{tpl.id}}/rooms"><i class="fa fa-list"></i>&nbsp;Associated rooms</a>
+                    </td>
+                    <td>
+                        <a href="/create-room?from_template={{tpl.id}}"><i class="fa fa-plus"></i>&nbsp;Create room</a>
+                    </td>
                 </tr>
             {% endfor %}
         </tbody>

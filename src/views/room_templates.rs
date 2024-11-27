@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use ap_lobby::db::Room;
 use ap_lobby::error::Result;
 use ap_lobby::{
     db::{self, NewRoomTemplate, RoomTemplate, RoomTemplateId},
@@ -31,6 +32,14 @@ pub struct EditRoomTemplateTpl<'a> {
     base: TplContext<'a>,
     tpl: Option<RoomTemplate>,
     tpl_settings_form: RoomSettingsBuilder<'a>,
+}
+
+#[derive(Template)]
+#[template(path = "room_manager/room_templates_associated.html")]
+pub struct AssociatedRoomsTpl<'a> {
+    base: TplContext<'a>,
+    tpl: RoomTemplate,
+    rooms: Vec<Room>,
 }
 
 #[get("/room-templates")]
@@ -218,6 +227,30 @@ async fn delete_template<'a>(
     Ok(Redirect::to("/room-templates"))
 }
 
+#[get("/room-templates/<tpl_id>/rooms")]
+#[tracing::instrument(skip(ctx, session))]
+pub async fn list_associated_rooms<'a>(
+    ctx: &State<Context>,
+    tpl_id: RoomTemplateId,
+    session: LoggedInSession,
+    cookies: &CookieJar<'a>,
+) -> Result<AssociatedRoomsTpl<'a>> {
+    let mut conn = ctx.db_pool.get().await?;
+    let tpl = db::get_room_template_by_id(tpl_id, &mut conn).await?;
+    let is_my_tpl = session.0.is_admin || session.0.user_id == Some(tpl.settings.author_id);
+
+    if !is_my_tpl {
+        return Err(anyhow::anyhow!("Couldn't find the given template").into());
+    }
+
+    let rooms = db::list_rooms_from_template(tpl_id, &mut conn).await?;
+    Ok(AssociatedRoomsTpl {
+        base: TplContext::from_session("room-templates", session.0, cookies),
+        tpl,
+        rooms,
+    })
+}
+
 pub fn routes() -> Vec<rocket::Route> {
     rocket::routes![
         list_templates,
@@ -226,5 +259,6 @@ pub fn routes() -> Vec<rocket::Route> {
         delete_template,
         create_tpl_submit,
         edit_tpl_submit,
+        list_associated_rooms,
     ]
 }
