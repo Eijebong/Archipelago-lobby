@@ -45,6 +45,7 @@ pub struct RoomSettingsBuilder<'a> {
     manifest_builder: ManifestFormBuilder,
     room_id: Option<Uuid>,
     ty: RoomSettingsType,
+    read_only: bool,
 }
 
 impl<'a> RoomSettingsBuilder<'a> {
@@ -59,6 +60,7 @@ impl<'a> RoomSettingsBuilder<'a> {
             room: room.settings,
             room_id: Some(room.id.as_generic_id()),
             ty: RoomSettingsType::Room,
+            read_only: false,
         }
     }
 
@@ -81,6 +83,7 @@ impl<'a> RoomSettingsBuilder<'a> {
             room: tpl.settings,
             room_id: None,
             ty: RoomSettingsType::Room,
+            read_only: false,
         })
     }
 
@@ -95,6 +98,7 @@ impl<'a> RoomSettingsBuilder<'a> {
             room: tpl.settings,
             room_id: Some(tpl.id.as_generic_id()),
             ty: RoomSettingsType::Template,
+            read_only: false,
         }
     }
 
@@ -111,6 +115,12 @@ impl<'a> RoomSettingsBuilder<'a> {
             room_id: None,
             room: RoomSettings::default(index)?,
             ty,
+            read_only: false,
         })
+    }
+
+    pub fn read_only(mut self, ro: bool) -> Self {
+        self.read_only = ro;
+        self
     }
 }

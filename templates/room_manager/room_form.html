@@ -1,5 +1,18 @@
 {% import "utils.html.tera" as utils %}
 
+{% let ro %}
+{% if self.read_only %}
+    {% let ro = " disabled " %}
+{% else %}
+    {% let ro = " " %}
+{% endif %}
+
+{% if self.read_only %}
+    <div class="message info">
+    This is a read-only version of the {{+ self.ty }}.
+    </div>
+{% endif %}
+
 {% match self.room_id %}
 {% when Some with (room_id) %}
 <form method="POST" action="{{ ty.as_route_base() }}/{{room_id}}" id="room-form">
@@ -9,82 +22,91 @@
     <div id='option-pages'>
         <div class="options-tab" id="section-room-options">
             <label for="room_name">{{ self.ty|capitalize +}} name:</label>
-            <input type="text" name="room_name" id="room_name" value="{{self.room.name}}" minlength="1" required>
+            <input {{ro}} type="text" name="room_name" id="room_name" value="{{self.room.name}}" minlength="1" required>
 
             {% if self.ty.is_room() %}
                 <label for="close_date">Submission limit:</label>
-                <input type="datetime-local" id="close_date" name="close_date">
+                <input {{ ro }} type="datetime-local" id="close_date" name="close_date">
             {% else %}
-                <input style="display: none" type="datetime-local" id="close_date" name="close_date">
+                <input {{ ro }} style="display: none" type="datetime-local" id="close_date" name="close_date">
             {% endif %}
 
             <label for="room_description">Description:</label>
-            <textarea name="room_description" id="room_description">
+            <textarea {{ ro }} name="room_description" id="room_description">
                 {{- self.room.description -}}
             </textarea>
 
-            <label for="room_url">Room URL:</label>
-            <input type="text" id="room_url" name="room_url" value="{{self.room.room_url}}">
+            {% if self.ty.is_room() %}
+                <label for="room_url">Room URL:</label>
+                <input {{ ro }} type="text" id="room_url" name="room_url" value="{{self.room.room_url}}">
+            {% else %}
+                <input {{ ro }} type="hidden" id="room_url" name="room_url" value="{{self.room.room_url}}">
+            {% endif %}
         </div>
 
         <div class="options-tab" id="section-advanced-options">
             <fieldset class="formset">
-                <input type="checkbox" name="yaml_validation" id="yaml_validation" {%+ if self.room.yaml_validation %} checked {% endif %}>
+                <input {{ ro }} type="checkbox" name="yaml_validation" id="yaml_validation" {%+ if self.room.yaml_validation %} checked {% endif %}>
                 <label for="yaml_validation">Validate uploaded YAML files</label>
 
-                <input type="checkbox" name="allow_unsupported" id="allow_unsupported" {%+ if self.room.allow_unsupported%} checked {% endif %}>
+                <input {{ ro }} type="checkbox" name="allow_unsupported" id="allow_unsupported" {%+ if self.room.allow_unsupported%} checked {% endif %}>
                 <label for="allow_unsupported">Allow bypassing validation for games not on the lobby</label>
             </fieldset>
 
-            <input type="checkbox" name="show_apworlds" id="show_apworlds" {%+ if self.room.show_apworlds%} checked {% endif %}>
+            <input {{ ro }} type="checkbox" name="show_apworlds" id="show_apworlds" {%+ if self.room.show_apworlds%} checked {% endif %}>
             <label for="show_apworlds">Show the apworlds page for the room</label>
 
             <hr>
 
             <fieldset class="formset">
-                <input type="checkbox" name="yaml_limit_per_user" id="yaml_limit_per_user" {%+ if self.room.yaml_limit_per_user.is_some() %} checked {% endif %}>
+                <input {{ ro }} type="checkbox" name="yaml_limit_per_user" id="yaml_limit_per_user" {%+ if self.room.yaml_limit_per_user.is_some() %} checked {% endif %}>
                 <label for="yaml_limit_per_user">Limit the number of games a user can submit</label>
 
                 <label for="yaml_limit_per_user_nb">Limit:</label>
-                <input type="number" min=1 name="yaml_limit_per_user_nb" id="yaml_limit_per_user_nb" value="{{ self.room.yaml_limit_per_user.unwrap_or(1) }}">
+                <input {{ ro }} type="number" min=1 name="yaml_limit_per_user_nb" id="yaml_limit_per_user_nb" value="{{ self.room.yaml_limit_per_user.unwrap_or(1) }}">
 
                 {% if base.is_admin %}
                 <label for="yaml_limit_bypass_list">YAML limit bypass list:</label>
                 {% endif %}
-                <input {%+ if base.is_admin %}type="text"{%+ else %}type="hidden"{% endif +%} name="yaml_limit_bypass_list" id="yaml_limit_bypass_list" value="{{ self.room.yaml_limit_bypass_list|join(",") }}">
+                <input {{ ro }} {%+ if base.is_admin %}type="text"{%+ else %}type="hidden"{% endif +%} name="yaml_limit_bypass_list" id="yaml_limit_bypass_list" value="{{ self.room.yaml_limit_bypass_list|join(",") }}">
 
-                {% match self.room_id %}
-                {% when Some with (room_id) %}
-                <hr>
-                <h5>Danger zone</h5>
-                <table class="styled danger-zone">
-                    <tr>
-                        <td>Delete this {{+ self.ty }}? {%+ if self.ty.is_room() %} This will delete all associated YAMLs, there is no going back. {% endif %}</td>
-                        <td>
-                            <a href="{{ ty.as_route_base() }}/{{room_id}}/delete" class="cancel-button" data-confirm-del=true data-resource-type="{{ self.ty }}" data-resource-name="{{self.room.name}}">Delete {{+ self.ty }}</a>
-                        </td>
-                    </tr>
-                </table>
-                {% when None %}
-                {% endmatch %}
+
+                {% if !self.read_only %}
+                    {% match self.room_id %}
+                    {% when Some with (room_id) %}
+                    <hr>
+                    <h5>Danger zone</h5>
+                    <table class="styled danger-zone">
+                        <tr>
+                            <td>Delete this {{+ self.ty }}? {%+ if self.ty.is_room() %} This will delete all associated YAMLs, there is no going back. {% endif %}</td>
+                            <td>
+                                <a href="{{ ty.as_route_base() }}/{{room_id}}/delete" class="cancel-button" data-confirm-del=true data-resource-type="{{ self.ty }}" data-resource-name="{{self.room.name}}">Delete {{+ self.ty }}</a>
+                            </td>
+                        </tr>
+                    </table>
+                    {% when None %}
+                    {% endmatch %}
+                {% endif %}
             </fieldset>
         </div>
 
         <div class="options-tab" id="section-apworlds-editor">
         {% include "room_manager/manifest_editor.html" %}
         </div>
-        <input type="hidden" name="tz_offset" id="tz_offset">
+        <input {{ ro }} type="hidden" name="tz_offset" id="tz_offset">
 
     </div>
 
-    <hr>
-    <div id="save-button">
-    {% if self.room_id.is_some() %}
-        <button>Save {{+ self.ty }}</button>
-    {% else %}
-        <button>Create {{+ self.ty }}</button>
-    {% endif%}
-    </div>
+    {% if !self.read_only %}
+        <hr>
+        <div id="save-button">
+        {% if self.room_id.is_some() %}
+            <button>Save {{+ self.ty }}</button>
+        {% else %}
+            <button>Create {{+ self.ty }}</button>
+        {% endif%}
+        </div>
+    {% endif %}
 </form>
 
 {% block scripts %}

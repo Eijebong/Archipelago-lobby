@@ -34,7 +34,11 @@ pub async fn get_room_templates_for_author(
     conn: &mut AsyncPgConnection,
 ) -> Result<Vec<RoomTemplate>> {
     Ok(room_templates::table
-        .filter(room_templates::author_id.eq(author_id))
+        .filter(
+            room_templates::author_id
+                .eq(author_id)
+                .or(room_templates::global.eq(true)),
+        )
         .select(RoomTemplate::as_select())
         .get_results(conn)
         .await?)
@@ -94,10 +98,15 @@ pub async fn delete_room_template(
 #[tracing::instrument(skip(conn))]
 pub async fn list_rooms_from_template(
     tpl_id: RoomTemplateId,
+    author_id: i64,
     conn: &mut AsyncPgConnection,
 ) -> Result<Vec<Room>> {
     Ok(rooms::table
-        .filter(rooms::from_template_id.eq(Some(tpl_id)))
+        .filter(
+            rooms::from_template_id
+                .eq(Some(tpl_id))
+                .and(rooms::author_id.eq(author_id)),
+        )
         .select(Room::as_select())
         .get_results(conn)
         .await?)

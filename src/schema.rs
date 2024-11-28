@@ -29,6 +29,7 @@ diesel::table! {
         show_apworlds -> Bool,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        global -> Bool,
     }
 }
 

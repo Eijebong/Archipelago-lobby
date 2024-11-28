@@ -137,7 +137,7 @@ async fn edit_template<'a>(
     let mut conn = ctx.db_pool.get().await?;
     let template = db::get_room_template_by_id(tpl_id, &mut conn).await?;
     let is_my_template = template.settings.author_id == session.user_id();
-    if !is_my_template {
+    if !is_my_template && !template.global {
         Err(anyhow!("You are not allowed to edit this template"))?;
     }
 
@@ -150,7 +150,8 @@ async fn edit_template<'a>(
             base.clone(),
             index.clone(),
             template,
-        ),
+        )
+        .read_only(!is_my_template),
         base,
     })
 }
@@ -237,13 +238,14 @@ pub async fn list_associated_rooms<'a>(
 ) -> Result<AssociatedRoomsTpl<'a>> {
     let mut conn = ctx.db_pool.get().await?;
     let tpl = db::get_room_template_by_id(tpl_id, &mut conn).await?;
-    let is_my_tpl = session.0.is_admin || session.0.user_id == Some(tpl.settings.author_id);
+    let is_my_tpl =
+        tpl.global || session.0.is_admin || session.0.user_id == Some(tpl.settings.author_id);
 
     if !is_my_tpl {
         return Err(anyhow::anyhow!("Couldn't find the given template").into());
     }
 
-    let rooms = db::list_rooms_from_template(tpl_id, &mut conn).await?;
+    let rooms = db::list_rooms_from_template(tpl_id, session.user_id(), &mut conn).await?;
     Ok(AssociatedRoomsTpl {
         base: TplContext::from_session("template", session.0, cookies),
         tpl,

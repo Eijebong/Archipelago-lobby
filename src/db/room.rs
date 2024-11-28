@@ -61,6 +61,7 @@ pub struct Room {
 pub struct RoomTemplate {
     pub id: RoomTemplateId,
     pub settings: RoomSettings,
+    pub global: bool,
 }
 
 impl<DB: Backend> Selectable<DB> for Room {
@@ -195,7 +196,25 @@ where
         })
     }
 }
-impl<DB: Backend, ST0, ST1, ST2, ST3, ST4, ST5, ST6, ST7, ST8, ST9, ST10, ST11, ST12, ST13>
+
+impl<
+        DB: Backend,
+        ST0,
+        ST1,
+        ST2,
+        ST3,
+        ST4,
+        ST5,
+        ST6,
+        ST7,
+        ST8,
+        ST9,
+        ST10,
+        ST11,
+        ST12,
+        ST13,
+        ST14,
+    >
     Queryable<
         (
             ST0,
@@ -212,6 +231,7 @@ impl<DB: Backend, ST0, ST1, ST2, ST3, ST4, ST5, ST6, ST7, ST8, ST9, ST10, ST11, 
             ST11,
             ST12,
             ST13,
+            ST14,
         ),
         DB,
     > for RoomTemplate
@@ -231,6 +251,7 @@ where
         bool,
         NaiveDateTime,
         NaiveDateTime,
+        bool,
     ): FromStaticSqlRow<
         (
             ST0,
@@ -247,6 +268,7 @@ where
             ST11,
             ST12,
             ST13,
+            ST14,
         ),
         DB,
     >,
@@ -266,6 +288,7 @@ where
         bool,
         NaiveDateTime,
         NaiveDateTime,
+        bool,
     );
 
     fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
@@ -286,6 +309,7 @@ where
                 created_at: row.12,
                 updated_at: row.13,
             },
+            global: row.14,
         })
     }
 }
