@@ -30,6 +30,11 @@ struct EditRoom<'a> {
 
 #[derive(FromForm, Debug)]
 pub struct CreateRoomForm<'a> {
+    room: RoomSettingsForm<'a>,
+}
+
+#[derive(FromForm, Debug)]
+pub struct RoomSettingsForm<'a> {
     pub room_name: &'a str,
     pub room_description: &'a str,
     pub close_date: &'a str,
@@ -144,33 +149,35 @@ async fn create_room_submit<'a>(
 ) -> Result<Redirect> {
     redirect_to.set("/create-room");
 
-    validate_room_form(&mut room_form)?;
+    validate_room_form(&mut room_form.room)?;
     let room_manifest = {
         let index = index_manager.index.read().await;
-        manifest_from_form(&room_form.me, &index)
+        manifest_from_form(&room_form.room.me, &index)
     }?;
 
     let author_id = session.user_id();
-    let close_date = parse_date(room_form.close_date, room_form.tz_offset)?;
+    let close_date = parse_date(room_form.room.close_date, room_form.room.tz_offset)?;
     let new_room = NewRoom {
         id: RoomId::new_v4(),
-        name: room_form.room_name.trim(),
+        name: room_form.room.room_name.trim(),
         close_date: close_date.naive_utc(),
-        description: room_form.room_description.trim(),
+        description: room_form.room.room_description.trim(),
         room_url: "",
         author_id: Some(author_id),
-        yaml_validation: room_form.yaml_validation,
-        allow_unsupported: room_form.allow_unsupported,
+        yaml_validation: room_form.room.yaml_validation,
+        allow_unsupported: room_form.room.allow_unsupported,
         yaml_limit_per_user: room_form
+            .room
             .yaml_limit_per_user
-            .then_some(room_form.yaml_limit_per_user_nb),
+            .then_some(room_form.room.yaml_limit_per_user_nb),
         yaml_limit_bypass_list: room_form
+            .room
             .yaml_limit_bypass_list
             .split(',')
             .filter_map(|id| i64::from_str(id).ok())
             .collect(),
         manifest: db::Json(room_manifest),
-        show_apworlds: room_form.show_apworlds,
+        show_apworlds: room_form.room.show_apworlds,
         from_template_id: Some(from_template),
     };
 
@@ -259,32 +266,34 @@ async fn edit_room_submit<'a>(
         return Err(anyhow::anyhow!("You're not allowed to edit this room").into());
     }
 
-    validate_room_form(&mut room_form)?;
+    validate_room_form(&mut room_form.room)?;
 
     let room_manifest = {
         let index = index_manager.index.read().await;
-        manifest_from_form(&room_form.me, &index)
+        manifest_from_form(&room_form.room.me, &index)
     }?;
 
     let new_room = NewRoom {
         id: room_id,
-        name: room_form.room_name.trim(),
-        description: room_form.room_description.trim(),
-        close_date: parse_date(room_form.close_date, room_form.tz_offset)?.naive_utc(),
-        room_url: room_form.room_url,
+        name: room_form.room.room_name.trim(),
+        description: room_form.room.room_description.trim(),
+        close_date: parse_date(room_form.room.close_date, room_form.room.tz_offset)?.naive_utc(),
+        room_url: room_form.room.room_url,
         author_id: None, // (Skips updating that field)
-        yaml_validation: room_form.yaml_validation,
-        allow_unsupported: room_form.allow_unsupported,
+        yaml_validation: room_form.room.yaml_validation,
+        allow_unsupported: room_form.room.allow_unsupported,
         yaml_limit_per_user: room_form
+            .room
             .yaml_limit_per_user
-            .then_some(room_form.yaml_limit_per_user_nb),
+            .then_some(room_form.room.yaml_limit_per_user_nb),
         yaml_limit_bypass_list: room_form
+            .room
             .yaml_limit_bypass_list
             .split(',')
             .filter_map(|id| i64::from_str(id).ok())
             .collect(),
         manifest: db::Json(room_manifest),
-        show_apworlds: room_form.show_apworlds,
+        show_apworlds: room_form.room.show_apworlds,
         from_template_id: None,
     };
 
@@ -293,7 +302,7 @@ async fn edit_room_submit<'a>(
     Ok(Redirect::to(format!("/room/{}", room_id)))
 }
 
-pub fn validate_room_form(room_form: &mut Form<CreateRoomForm<'_>>) -> Result<()> {
+pub fn validate_room_form(room_form: &mut RoomSettingsForm<'_>) -> Result<()> {
     if room_form.room_name.trim().is_empty() {
         return Err(anyhow::anyhow!("The room name shouldn't be empty").into());
     }

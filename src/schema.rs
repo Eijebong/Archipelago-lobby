@@ -30,6 +30,7 @@ diesel::table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         global -> Bool,
+        tpl_name -> Varchar,
     }
 }
 

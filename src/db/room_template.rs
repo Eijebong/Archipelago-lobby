@@ -14,6 +14,7 @@ use crate::{
 #[diesel(table_name=room_templates)]
 pub struct NewRoomTemplate<'a> {
     pub id: RoomTemplateId,
+    pub tpl_name: &'a str,
     pub name: &'a str,
     pub close_date: NaiveDateTime,
     pub description: &'a str,
@@ -26,6 +27,7 @@ pub struct NewRoomTemplate<'a> {
     pub yaml_limit_bypass_list: Vec<i64>,
     pub manifest: Json<Manifest>,
     pub show_apworlds: bool,
+    pub global: bool,
 }
 
 #[tracing::instrument(skip(conn))]
@@ -40,6 +42,7 @@ pub async fn get_room_templates_for_author(
                 .or(room_templates::global.eq(true)),
         )
         .select(RoomTemplate::as_select())
+        .order_by((room_templates::global.desc(), room_templates::created_at))
         .get_results(conn)
         .await?)
 }

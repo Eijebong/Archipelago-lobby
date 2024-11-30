@@ -46,6 +46,28 @@ pub struct RoomSettingsBuilder<'a> {
     room_id: Option<Uuid>,
     ty: RoomSettingsType,
     read_only: bool,
+    tpl: Option<RoomTemplateBuilder>,
+}
+
+pub struct RoomTemplateBuilder {
+    pub name: String,
+    pub global: bool,
+}
+
+impl RoomTemplateBuilder {
+    fn from_template(tpl: &RoomTemplate) -> Self {
+        Self {
+            name: tpl.tpl_name.clone(),
+            global: tpl.global,
+        }
+    }
+
+    fn new() -> Self {
+        Self {
+            name: "".to_string(),
+            global: false,
+        }
+    }
 }
 
 impl<'a> RoomSettingsBuilder<'a> {
@@ -61,6 +83,7 @@ impl<'a> RoomSettingsBuilder<'a> {
             room_id: Some(room.id.as_generic_id()),
             ty: RoomSettingsType::Room,
             read_only: false,
+            tpl: None,
         }
     }
 
@@ -84,6 +107,7 @@ impl<'a> RoomSettingsBuilder<'a> {
             room_id: None,
             ty: RoomSettingsType::Room,
             read_only: false,
+            tpl: None,
         })
     }
 
@@ -95,6 +119,7 @@ impl<'a> RoomSettingsBuilder<'a> {
         Self {
             base,
             manifest_builder: ManifestFormBuilder::new(index, tpl.settings.manifest.0.clone()),
+            tpl: Some(RoomTemplateBuilder::from_template(&tpl)),
             room: tpl.settings,
             room_id: Some(tpl.id.as_generic_id()),
             ty: RoomSettingsType::Template,
@@ -107,6 +132,12 @@ impl<'a> RoomSettingsBuilder<'a> {
         index: &apwm::Index,
         ty: RoomSettingsType,
     ) -> Result<RoomSettingsBuilder<'a>> {
+        let tpl = if ty.is_room() {
+            None
+        } else {
+            Some(RoomTemplateBuilder::new())
+        };
+
         let default_manifest = Manifest::from_index_with_latest_versions(index)?;
 
         Ok(Self {
@@ -116,6 +147,7 @@ impl<'a> RoomSettingsBuilder<'a> {
             room: RoomSettings::default(index)?,
             ty,
             read_only: false,
+            tpl,
         })
     }
 

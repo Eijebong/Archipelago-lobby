@@ -20,55 +20,58 @@
 <form method="POST" id="room-form">
 {% endmatch %}
     <div id='option-pages'>
+        {% if !self.ty.is_room() %}
+        {% include "room_manager/room_form_tpl_section.html" %}
+        {% endif %}
         <div class="options-tab" id="section-room-options">
-            <label for="room_name">{{ self.ty|capitalize +}} name:</label>
-            <input {{ro}} type="text" name="room_name" id="room_name" value="{{self.room.name}}" minlength="1" required>
+            <label for="room_name">Room name:</label>
+            <input {{ro}} type="text" name="room.room_name" id="room_name" value="{{self.room.name}}" minlength="1" required>
 
             {% if self.ty.is_room() %}
                 <label for="close_date">Submission limit:</label>
-                <input {{ ro }} type="datetime-local" id="close_date" name="close_date">
+                <input {{ ro }} type="datetime-local" id="close_date" name="room.close_date">
             {% else %}
-                <input {{ ro }} style="display: none" type="datetime-local" id="close_date" name="close_date">
+                <input {{ ro }} style="display: none" type="datetime-local" id="close_date" name="room.close_date">
             {% endif %}
 
             <label for="room_description">Description:</label>
-            <textarea {{ ro }} name="room_description" id="room_description">
+            <textarea {{ ro }} name="room.room_description" id="room_description">
                 {{- self.room.description -}}
             </textarea>
 
             {% if self.ty.is_room() %}
                 <label for="room_url">Room URL:</label>
-                <input {{ ro }} type="text" id="room_url" name="room_url" value="{{self.room.room_url}}">
+                <input {{ ro }} type="text" id="room_url" name="room.room_url" value="{{self.room.room_url}}">
             {% else %}
-                <input {{ ro }} type="hidden" id="room_url" name="room_url" value="{{self.room.room_url}}">
+                <input {{ ro }} type="hidden" id="room_url" name="room.room_url" value="{{self.room.room_url}}">
             {% endif %}
         </div>
 
         <div class="options-tab" id="section-advanced-options">
             <fieldset class="formset">
-                <input {{ ro }} type="checkbox" name="yaml_validation" id="yaml_validation" {%+ if self.room.yaml_validation %} checked {% endif %}>
+                <input {{ ro }} type="checkbox" name="room.yaml_validation" id="yaml_validation" {%+ if self.room.yaml_validation %} checked {% endif %}>
                 <label for="yaml_validation">Validate uploaded YAML files</label>
 
-                <input {{ ro }} type="checkbox" name="allow_unsupported" id="allow_unsupported" {%+ if self.room.allow_unsupported%} checked {% endif %}>
+                <input {{ ro }} type="checkbox" name="room.allow_unsupported" id="allow_unsupported" {%+ if self.room.allow_unsupported%} checked {% endif %}>
                 <label for="allow_unsupported">Allow bypassing validation for games not on the lobby</label>
             </fieldset>
 
-            <input {{ ro }} type="checkbox" name="show_apworlds" id="show_apworlds" {%+ if self.room.show_apworlds%} checked {% endif %}>
+            <input {{ ro }} type="checkbox" name="room.show_apworlds" id="show_apworlds" {%+ if self.room.show_apworlds%} checked {% endif %}>
             <label for="show_apworlds">Show the apworlds page for the room</label>
 
             <hr>
 
             <fieldset class="formset">
-                <input {{ ro }} type="checkbox" name="yaml_limit_per_user" id="yaml_limit_per_user" {%+ if self.room.yaml_limit_per_user.is_some() %} checked {% endif %}>
+                <input {{ ro }} type="checkbox" name="room.yaml_limit_per_user" id="yaml_limit_per_user" {%+ if self.room.yaml_limit_per_user.is_some() %} checked {% endif %}>
                 <label for="yaml_limit_per_user">Limit the number of games a user can submit</label>
 
                 <label for="yaml_limit_per_user_nb">Limit:</label>
-                <input {{ ro }} type="number" min=1 name="yaml_limit_per_user_nb" id="yaml_limit_per_user_nb" value="{{ self.room.yaml_limit_per_user.unwrap_or(1) }}">
+                <input {{ ro }} type="number" min=1 name="room.yaml_limit_per_user_nb" id="yaml_limit_per_user_nb" value="{{ self.room.yaml_limit_per_user.unwrap_or(1) }}">
 
                 {% if base.is_admin %}
                 <label for="yaml_limit_bypass_list">YAML limit bypass list:</label>
                 {% endif %}
-                <input {{ ro }} {%+ if base.is_admin %}type="text"{%+ else %}type="hidden"{% endif +%} name="yaml_limit_bypass_list" id="yaml_limit_bypass_list" value="{{ self.room.yaml_limit_bypass_list|join(",") }}">
+                <input {{ ro }} {%+ if base.is_admin %}type="text"{%+ else %}type="hidden"{% endif +%} name="room.yaml_limit_bypass_list" id="yaml_limit_bypass_list" value="{{ self.room.yaml_limit_bypass_list|join(",") }}">
 
 
                 {% if !self.read_only %}
@@ -93,7 +96,7 @@
         <div class="options-tab" id="section-apworlds-editor">
         {% include "room_manager/manifest_editor.html" %}
         </div>
-        <input {{ ro }} type="hidden" name="tz_offset" id="tz_offset">
+        <input {{ ro }} type="hidden" name="room.tz_offset" id="tz_offset">
 
     </div>
 

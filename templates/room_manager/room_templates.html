@@ -19,7 +19,10 @@
         <tbody>
             {% for tpl in room_templates %}
                 <tr>
-                    <td><a href="/room-templates/{{tpl.id}}">{{ tpl.settings.name }}</a></td>
+                    <td>
+                        {% if tpl.global %}<i title="global template" class="fa fa-globe"></i>&nbsp;{% endif %}
+                        <a href="/room-templates/{{tpl.id}}">{{ tpl.tpl_name }}</a>
+                    </td>
                     <td>
                         <a href="/room-templates/{{tpl.id}}/rooms"><i class="fa fa-list"></i>&nbsp;Associated rooms</a>
                     </td>

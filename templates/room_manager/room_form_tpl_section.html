@@ -1,0 +1,13 @@
+{% match self.tpl %}
+{% when Some with (tpl) %}
+<label for="tpl_name">Template name:</label>
+<input {{ ro }} name="tpl_name" id="tpl_name" type="text" value="{{ tpl.name }}" minlength=1 required>
+
+{% if base.is_admin %}
+<input {{ ro }} type="checkbox" name="tpl_global" id="tpl_global" {% if tpl.global +%}checked{% endif %}>
+<label for="tpl_global">Global template</label>
+{% endif %}
+
+<hr>
+{% when None %}
+{% endmatch %}
