@@ -4,9 +4,6 @@
 {% block menu %}
     {% let room_url = format!("/room/{}", self.room.id) %}
     {% call menu::menu_item("Room", "", room_url, false, "") %}
-    {% if !is_closed && base.is_logged_in %}
-        {% call menu::menu_item("Upload yaml", "", "#upload", false, "uploadButton") %}
-    {% endif %}
     {% if base.is_logged_in %}
         {% let apworlds_url = format!("/room/{}/worlds", self.room.id) %}
         {% call menu::menu_item("Apworlds", "", apworlds_url, true, "apworldsButton") %}

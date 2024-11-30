@@ -53,7 +53,6 @@ struct RoomTpl<'a> {
 struct RoomApworldsTpl<'a> {
     base: TplContext<'a>,
     is_my_room: bool,
-    is_closed: bool,
     supported_apworlds: Vec<(String, (World, Version))>,
     unsupported_apworlds: Vec<(String, (World, Version))>,
     room: Room,
@@ -324,7 +323,6 @@ async fn room_worlds<'a>(
     Ok(RoomApworldsTpl {
         base: TplContext::from_session("room", session.0, cookies),
         is_my_room,
-        is_closed: room.is_closed(),
         supported_apworlds,
         unsupported_apworlds,
         room,
