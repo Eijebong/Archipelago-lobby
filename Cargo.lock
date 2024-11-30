@@ -150,6 +150,7 @@ dependencies = [
  "askama_rocket",
  "base64",
  "chrono",
+ "comrak",
  "counter",
  "deadpool",
  "diesel",
@@ -169,7 +170,6 @@ dependencies = [
  "opentelemetry-semantic-conventions",
  "opentelemetry_sdk",
  "prometheus",
- "pulldown-cmark",
  "reqwest",
  "rocket",
  "rocket_oauth2",
@@ -229,7 +229,7 @@ dependencies = [
 [[package]]
 name = "askama"
 version = "0.13.0"
-source = "git+https://github.com/djc/askama#a7e108cd76a2a89dfdf0dfb87b1286ec3a523f08"
+source = "git+https://github.com/djc/askama#704f8f14678c0ce62920f2c8f1374fef56d21e7f"
 dependencies = [
  "askama_derive",
  "askama_escape",
@@ -241,7 +241,7 @@ dependencies = [
 [[package]]
 name = "askama_derive"
 version = "0.13.0"
-source = "git+https://github.com/djc/askama#a7e108cd76a2a89dfdf0dfb87b1286ec3a523f08"
+source = "git+https://github.com/djc/askama#704f8f14678c0ce62920f2c8f1374fef56d21e7f"
 dependencies = [
  "askama_parser",
  "basic-toml",
@@ -256,12 +256,12 @@ dependencies = [
 [[package]]
 name = "askama_escape"
 version = "0.11.0"
-source = "git+https://github.com/djc/askama#a7e108cd76a2a89dfdf0dfb87b1286ec3a523f08"
+source = "git+https://github.com/djc/askama#704f8f14678c0ce62920f2c8f1374fef56d21e7f"
 
 [[package]]
 name = "askama_parser"
 version = "0.3.1"
-source = "git+https://github.com/djc/askama#a7e108cd76a2a89dfdf0dfb87b1286ec3a523f08"
+source = "git+https://github.com/djc/askama#704f8f14678c0ce62920f2c8f1374fef56d21e7f"
 dependencies = [
  "nom",
 ]
@@ -269,7 +269,7 @@ dependencies = [
 [[package]]
 name = "askama_rocket"
 version = "0.13.0"
-source = "git+https://github.com/djc/askama#a7e108cd76a2a89dfdf0dfb87b1286ec3a523f08"
+source = "git+https://github.com/djc/askama#704f8f14678c0ce62920f2c8f1374fef56d21e7f"
 dependencies = [
  "askama",
  "rocket",
@@ -495,6 +495,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "bon"
+version = "3.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e47d5c63335658326076cf7c81795af665c534ea552da69526d6cef51b12ed9"
+dependencies = [
+ "bon-macros",
+ "rustversion",
+]
+
+[[package]]
+name = "bon-macros"
+version = "3.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b162272b6d55562ea30cc937d74ef4d07399e507bfd6eb3860f6a845c7264eef"
+dependencies = [
+ "darling",
+ "ident_case",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -537,6 +562,16 @@ dependencies = [
  "cc",
  "libc",
  "pkg-config",
+]
+
+[[package]]
+name = "caseless"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "808dab3318747be122cb31d36de18d4d1c81277a76f8332a02b81a3d73463d7f"
+dependencies = [
+ "regex",
+ "unicode-normalization",
 ]
 
 [[package]]
@@ -614,6 +649,23 @@ name = "colorchoice"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
+
+[[package]]
+name = "comrak"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "453dcb42e33f7b474d7e0db12e0b8d82802c88f35cf5a1d8c297d0dfcecb154f"
+dependencies = [
+ "bon",
+ "caseless",
+ "entities",
+ "memchr",
+ "once_cell",
+ "regex",
+ "slug",
+ "typed-arena",
+ "unicode_categories",
+]
 
 [[package]]
 name = "const-oid"
@@ -828,6 +880,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "deunicode"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "339544cc9e2c4dc3fc7149fd630c5f22263a4fdf18a98afd0075784968b5cf00"
+
+[[package]]
 name = "devise"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -985,6 +1043,12 @@ checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
 dependencies = [
  "cfg-if",
 ]
+
+[[package]]
+name = "entities"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5320ae4c3782150d900b79807611a59a99fc9a1d61d686faafc24b93fc8d7ca"
 
 [[package]]
 name = "env_filter"
@@ -2582,24 +2646,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pulldown-cmark"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f86ba2052aebccc42cbbb3ed234b8b13ce76f75c3551a303cb2bcffcff12bb14"
-dependencies = [
- "bitflags",
- "memchr",
- "pulldown-cmark-escape",
- "unicase",
-]
-
-[[package]]
-name = "pulldown-cmark-escape"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "007d8adb5ddab6f8e3f491ac63566a7d5002cc7ed73901f72057943fa71ae1ae"
-
-[[package]]
 name = "quote"
 version = "1.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3446,6 +3492,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "slug"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "882a80f72ee45de3cc9a5afeb2da0331d58df69e4e7d8eeb5d3c7784ae67e724"
+dependencies = [
+ "deunicode",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "smallvec"
 version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3992,6 +4048,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
+name = "typed-arena"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6af6ae20167a9ece4bcb41af5b80f8a1f1df981f6391189ce00fd257af04126a"
+
+[[package]]
 name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4054,6 +4116,12 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+
+[[package]]
+name = "unicode_categories"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39ec24b3121d976906ece63c9daad25b85969647682eee313cb5779fdd69e14e"
 
 [[package]]
 name = "universal-hash"

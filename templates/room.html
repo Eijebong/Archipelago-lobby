@@ -59,7 +59,7 @@
     {% if !room.settings.description.is_empty() %}
     <tr>
         <td>Description</td>
-        <td>{{ room.settings.description|markdown }}</td>
+        <td>{{ room.settings.description|markdown|safe }}</td>
     </tr>
     {% endif %}
 </table>

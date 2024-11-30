@@ -1,3 +1,6 @@
+use std::convert::Infallible;
+
+use askama::{Html, MarkupDisplay};
 use itertools::Itertools;
 
 use ap_lobby::db::Json;
@@ -42,12 +45,18 @@ fn feature_to_name(feature: &YamlFeature) -> &str {
     }
 }
 
-pub fn markdown(text: &str) -> askama::Result<String> {
-    let parser = pulldown_cmark::Parser::new_ext(text, pulldown_cmark::Options::all());
+pub fn markdown(text: &str) -> askama::Result<MarkupDisplay<Html, String>, Infallible>
+where
+{
+    use comrak::{markdown_to_html, Options};
 
-    // Expect the output to be at least as big as the input
-    let mut buf = String::with_capacity(text.len());
-    pulldown_cmark::html::push_html(&mut buf, parser);
+    let mut defaults = Options::default();
+    defaults.extension.strikethrough = true;
+    defaults.extension.tagfilter = true;
+    defaults.extension.table = true;
+    defaults.extension.autolink = true;
+    defaults.render.escape = true;
 
-    Ok(buf)
+    let s = markdown_to_html(text.as_ref(), &defaults);
+    Ok(MarkupDisplay::new_safe(s, Html))
 }
