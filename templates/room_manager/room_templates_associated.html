@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "menu.html.tera" as menu %}
+{% import "shared/room_list.html" as room_list %}
 
 {% block template_navigation %}
     {% let tpl_url = format!("/room-templates/{}/rooms", self.tpl.id) %}
@@ -8,26 +9,11 @@
 
 {% block main %}
 
+<h6 style="margin: 0;">List of rooms created from the template {{+ tpl.settings.name }}</h6>
 {% if rooms.len() != 0 %}
-    <h6 style="margin: 0;">List of rooms created from the template {{+ tpl.settings.name }}</h6>
-    <table class="styled">
-        <thead>
-            <tr>
-                <td>Room name</td>
-                <td>Closing date</td>
-            </tr>
-        </thead>
-        <tbody>
-    {% for room in rooms %}
-        <tr>
-            <td><a href="/room/{{room.id}}">{{ room.settings.name }}</a></td>
-            <td><span class="time long-time">{{room.settings.close_date}}</span></td>
-        </tr>
-    {% endfor %}
-        </tbody>
-    </table>
+    {% call room_list::paginated_rooms_table(rooms, current_page, max_pages) %}
 {% else %}
-You haven't used this template to open any room yet.
+    You haven't used this template to open any room yet.
 {% endif %}
 
 {%endblock%}

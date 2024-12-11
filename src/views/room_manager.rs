@@ -53,15 +53,17 @@ pub struct RoomSettingsForm<'a> {
 #[template(path = "room_manager/rooms.html")]
 struct ListRoomsTpl<'a> {
     base: TplContext<'a>,
-    open_rooms: Vec<Room>,
-    closed_rooms: Vec<Room>,
+    rooms: Vec<Room>,
+    current_page: u64,
+    max_pages: u64,
 }
 
-#[get("/rooms")]
+#[get("/rooms?<page>")]
 #[tracing::instrument(skip_all)]
 async fn my_rooms<'a>(
     ctx: &State<Context>,
     session: LoggedInSession,
+    page: Option<u64>,
     cookies: &CookieJar<'a>,
 ) -> Result<ListRoomsTpl<'a>> {
     let author_filter = if session.0.is_admin {
@@ -71,23 +73,20 @@ async fn my_rooms<'a>(
     };
 
     let mut conn = ctx.db_pool.get().await?;
+    let current_page = page.unwrap_or(1);
+
+    let (rooms, max_pages) = db::list_rooms(
+        RoomFilter::default().with_author(author_filter),
+        current_page,
+        &mut conn,
+    )
+    .await?;
 
     Ok(ListRoomsTpl {
         base: TplContext::from_session("rooms", session.0, cookies),
-        open_rooms: db::list_rooms(
-            RoomFilter::default()
-                .with_status(db::RoomStatus::Open)
-                .with_author(author_filter),
-            &mut conn,
-        )
-        .await?,
-        closed_rooms: db::list_rooms(
-            RoomFilter::default()
-                .with_status(db::RoomStatus::Closed)
-                .with_author(author_filter),
-            &mut conn,
-        )
-        .await?,
+        rooms,
+        current_page,
+        max_pages,
     })
 }
 

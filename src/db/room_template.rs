@@ -6,7 +6,7 @@ use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use crate::error::Result;
 use crate::schema::rooms;
 use crate::{
-    db::{Json, Room, RoomTemplate, RoomTemplateId},
+    db::{Json, Paginate, Room, RoomTemplate, RoomTemplateId},
     schema::room_templates,
 };
 
@@ -102,8 +102,9 @@ pub async fn delete_room_template(
 pub async fn list_rooms_from_template(
     tpl_id: RoomTemplateId,
     author_id: i64,
+    page: u64,
     conn: &mut AsyncPgConnection,
-) -> Result<Vec<Room>> {
+) -> Result<(Vec<Room>, u64)> {
     Ok(rooms::table
         .filter(
             rooms::from_template_id
@@ -111,6 +112,7 @@ pub async fn list_rooms_from_template(
                 .and(rooms::author_id.eq(author_id)),
         )
         .select(Room::as_select())
-        .get_results(conn)
+        .paginate(page)
+        .load_and_count_pages(conn)
         .await?)
 }

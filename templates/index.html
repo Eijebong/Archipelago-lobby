@@ -1,51 +1,9 @@
 {% extends "base.html" %}
 {% import "menu.html.tera" as menu %}
-{% block menu %}
-{% endblock %}
+{% import "shared/room_list.html" as room_list %}
+
 {% block main %}
-<div>
-    <h6 style="margin: 0;">List of open rooms</h6>
-    <table class="styled">
-        <thead>
-            <tr>
-                <td>Room name</td>
-                <td>Closing date</td>
-            </tr>
-        </thead>
-        {% if open_rooms.len() != 0 %}
-            {% for room in open_rooms %}
-            <tr>
-                <td>
-                    <a href="/room/{{room.id}}">{{ room.settings.name }}</a>
-                </td>
 
-                <td>
-                    <span class="time long-time">{{room.settings.close_date}}</span>
-                </td>
-            </tr>
-            {% endfor %}
-        {% else %}
-        <tr><td colspan=2>There's no open room at the moment</td></tr>
-        {% endif %}
-    </table>
+{% call room_list::paginated_rooms_table(rooms, current_page, max_pages) %}
 
-    {% if your_rooms.len() != 0 %}
-        <h6 style="margin: 0;">List of rooms you previously participated in</h6>
-        <table class="styled">
-            <thead>
-                <tr>
-                    <td>Room name</td>
-                    <td></td>
-                </tr>
-            </thead>
-                {% for room in your_rooms %}
-                <tr>
-                    <td>
-                        <a href="/room/{{room.id}}">{{ room.settings.name }}</a>
-                    </td>
-                </tr>
-                {% endfor %}
-        </table>
-    {% endif %}
-</div>
 {%endblock%}

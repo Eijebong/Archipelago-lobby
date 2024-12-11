@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "menu.html.tera" as menu %}
+
 {% block menu %}
     {% let room_url = format!("/room/{}", self.room.id) %}
     {% call menu::menu_item("Room", "", room_url, true, "room-menu") %}

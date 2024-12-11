@@ -50,6 +50,8 @@ pub struct AssociatedRoomsTpl<'a> {
     base: TplContext<'a>,
     tpl: RoomTemplate,
     rooms: Vec<Room>,
+    current_page: u64,
+    max_pages: u64,
 }
 
 #[get("/room-templates")]
@@ -246,11 +248,12 @@ async fn delete_template<'a>(
     Ok(Redirect::to("/room-templates"))
 }
 
-#[get("/room-templates/<tpl_id>/rooms")]
+#[get("/room-templates/<tpl_id>/rooms?<page>")]
 #[tracing::instrument(skip(ctx, session))]
 pub async fn list_associated_rooms<'a>(
     ctx: &State<Context>,
     tpl_id: RoomTemplateId,
+    page: Option<u64>,
     session: LoggedInSession,
     cookies: &CookieJar<'a>,
 ) -> Result<AssociatedRoomsTpl<'a>> {
@@ -263,11 +266,15 @@ pub async fn list_associated_rooms<'a>(
         return Err(anyhow::anyhow!("Couldn't find the given template").into());
     }
 
-    let rooms = db::list_rooms_from_template(tpl_id, session.user_id(), &mut conn).await?;
+    let current_page = page.unwrap_or(1);
+    let (rooms, max_pages) =
+        db::list_rooms_from_template(tpl_id, session.user_id(), current_page, &mut conn).await?;
     Ok(AssociatedRoomsTpl {
         base: TplContext::from_session("template", session.0, cookies),
         tpl,
         rooms,
+        current_page,
+        max_pages,
     })
 }
 

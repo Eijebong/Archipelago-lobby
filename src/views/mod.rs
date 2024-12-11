@@ -5,7 +5,7 @@ use std::io::{Cursor, Write};
 use std::path::PathBuf;
 
 use crate::{Context, TplContext};
-use ap_lobby::db::{self, Room, RoomFilter, RoomId, RoomStatus, YamlId, YamlWithoutContent};
+use ap_lobby::db::{self, Author, Room, RoomFilter, RoomId, YamlId, YamlWithoutContent};
 use ap_lobby::error::{Error, RedirectTo, Result, WithContext};
 use ap_lobby::index_manager::IndexManager;
 use ap_lobby::session::{LoggedInSession, Session};
@@ -62,45 +62,41 @@ struct RoomApworldsTpl<'a> {
 #[template(path = "index.html")]
 struct IndexTpl<'a> {
     base: TplContext<'a>,
-    open_rooms: Vec<Room>,
-    your_rooms: Vec<Room>,
+    rooms: Vec<Room>,
+    current_page: u64,
+    max_pages: u64,
 }
 
-#[get("/")]
+#[get("/?<page>")]
 #[tracing::instrument(skip_all)]
 async fn root<'a>(
-    cookies: &CookieJar<'a>,
+    page: Option<u64>,
     session: Session,
-    ctx: &State<Context>,
+    cookies: &'a CookieJar<'_>,
+    ctx: &'a State<Context>,
 ) -> Result<IndexTpl<'a>> {
     let mut conn = ctx.db_pool.get().await?;
+    let current_page = page.unwrap_or(1);
 
-    let open_rooms = if let Some(player_id) = session.user_id {
-        let open_rooms_filter = RoomFilter::default()
-            .with_status(RoomStatus::Open)
-            .with_max(10)
-            .with_yamls_from(db::WithYaml::AndFor(player_id))
-            .with_author(db::Author::IncludeUser(player_id));
-
-        db::list_rooms(open_rooms_filter, &mut conn).await?
-    } else {
-        vec![]
-    };
-
-    let your_rooms = if let Some(player_id) = session.user_id {
+    let (rooms, max_pages) = if let Some(user_id) = session.user_id {
         let your_rooms_filter = RoomFilter::default()
-            .with_status(RoomStatus::Closed)
-            .with_max(10)
-            .with_yamls_from(db::WithYaml::OnlyFor(player_id));
-        db::list_rooms(your_rooms_filter, &mut conn).await?
+            .with_author(Author::User(user_id))
+            .with_yamls_from(db::WithYaml::AndFor(user_id));
+
+        db::list_rooms(your_rooms_filter, current_page, &mut conn).await?
     } else {
-        vec![]
+        (vec![], 1)
     };
+
+    if rooms.is_empty() && current_page != 1 {
+        return Box::pin(root(None, session, cookies, ctx)).await;
+    }
 
     Ok(IndexTpl {
         base: TplContext::from_session("index", session, cookies),
-        open_rooms,
-        your_rooms,
+        rooms,
+        current_page,
+        max_pages,
     })
 }
 

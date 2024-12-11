@@ -1,0 +1,38 @@
+{% macro paginated_rooms_table(rooms, page, max_page) %}
+    <table class="styled rooms-table">
+        <thead>
+            <tr>
+                <th>Room name</th>
+                <th>Closing date</th>
+            </tr>
+        </thead>
+        {% if rooms.len() != 0 %}
+            {% for room in rooms %}
+            <tr>
+                <td>
+                    <a href="/room/{{room.id}}">{{ room.settings.name }}</a>
+                    {% if room.is_closed() %}
+                    <i class="room-lock fa-solid fa-lock" title="the room is closed"></i>
+                    {% endif %}
+                </td>
+
+                <td>
+                    <span class="time long-time">{{room.settings.close_date}}</span>
+                </td>
+            </tr>
+            {% endfor %}
+        {% else %}
+        <tr><td colspan=2>There's nothing here (yet).</td></tr>
+        {% endif %}
+    </table>
+
+    <div class="paginator">
+        {% if page != 1 %}
+        <a class="button-emulator" href="?page={{page-1}}">Previous</a>
+        {% endif %}
+        Page {{+page+}} of {{+max_page}}
+        {% if page != max_page %}
+        <a class="button-emulator" href="?page={{page+1}}">Next</a>
+        {% endif %}
+    </div>
+{% endmacro %}
