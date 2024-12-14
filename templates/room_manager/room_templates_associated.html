@@ -4,7 +4,7 @@
 
 {% block template_navigation %}
     {% let tpl_url = format!("/room-templates/{}/rooms", self.tpl.id) %}
-    {% call menu::app_menu_item(tpl.settings.name, "menu-indented fa-classic fa-angle-right", tpl_url, "template", base.cur_module) %}
+    {% call menu::app_menu_item(tpl.tpl_name, "menu-indented fa-classic fa-angle-right", tpl_url, "template", base.cur_module) %}
 {% endblock %}
 
 {% block main %}
