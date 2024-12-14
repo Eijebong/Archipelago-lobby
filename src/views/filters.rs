@@ -57,6 +57,6 @@ where
     defaults.extension.autolink = true;
     defaults.render.escape = true;
 
-    let s = markdown_to_html(text.as_ref(), &defaults);
+    let s = markdown_to_html(text, &defaults);
     Ok(MarkupDisplay::new_safe(s, Html))
 }

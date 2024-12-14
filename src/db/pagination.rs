@@ -47,6 +47,7 @@ impl<T: Query> Paginated<T> {
 
         async move {
             let results = results.await?;
+            #[allow(clippy::get_first)]
             let total = results.get(0).map(|x| x.1).unwrap_or(0);
             let records = results.into_iter().map(|x| x.0).collect();
             let total_pages = (total as f64 / per_page as f64).ceil() as u64;
