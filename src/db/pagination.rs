@@ -23,7 +23,7 @@ impl<T> Paginate for T {
     }
 }
 
-const DEFAULT_PER_PAGE: i64 = 10;
+const DEFAULT_PER_PAGE: i64 = 20;
 
 #[derive(Debug, Clone, Copy, QueryId)]
 pub struct Paginated<T> {
