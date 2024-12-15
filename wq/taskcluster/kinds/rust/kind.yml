@@ -1,0 +1,16 @@
+loader: taskgraph.loader.transform:loader
+
+kind-dependencies:
+  - docker-image
+
+transforms:
+    - eije_taskgraph.transforms.rust:transforms
+    - taskgraph.transforms.task:transforms
+    - eije_taskgraph.transforms.common:transforms
+
+tasks:
+    ap-lobby:
+      worker-type-fmt: linux-small
+      worker-type-build: linux-medium
+      with-tests: true
+      tests-only: true
