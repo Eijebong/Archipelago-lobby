@@ -1,20 +1,22 @@
 use crate::db::{self, Room, YamlFile, YamlGame};
 use crate::error::{Error, Result, WithContext};
 use crate::extractor::YamlFeatures;
+use crate::jobs::{YamlValidationParams, YamlValidationQueue};
 use crate::session::LoggedInSession;
 
 use crate::index_manager::IndexManager;
+use anyhow::anyhow;
 use apwm::Manifest;
 use counter::Counter;
 use diesel_async::AsyncPgConnection;
 use itertools::Itertools;
-use opentelemetry_http::HeaderInjector;
-use reqwest::Url;
 use rocket::http::CookieJar;
 use semver::Version;
 use std::collections::{HashMap, HashSet};
 use std::io::BufReader;
+use std::time::Duration;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
+use wq::JobStatus;
 
 pub fn parse_raw_yamls(yamls: &[&str]) -> Result<Vec<(String, YamlFile)>> {
     let yaml = yamls
@@ -55,7 +57,7 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
     documents: &'a [(String, YamlFile)],
     session: &mut LoggedInSession,
     cookies: &CookieJar<'_>,
-    yaml_validator_url: &Option<Url>,
+    yaml_validation_queue: &YamlValidationQueue,
     index_manager: &IndexManager,
     conn: &mut AsyncPgConnection,
 ) -> Result<Vec<(String, &'a String, &'a YamlFile, YamlFeatures)>> {
@@ -99,37 +101,35 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
         let game_name = validate_game(&parsed.game)?;
 
         if room.settings.yaml_validation {
-            if let Some(yaml_validator_url) = yaml_validator_url {
-                let unsupported_games = validate_yaml(
-                    document,
-                    parsed,
-                    &room.settings.manifest,
-                    index_manager,
-                    yaml_validator_url,
-                )
-                .await?;
-                if !unsupported_games.is_empty() {
-                    if room.settings.allow_unsupported {
-                        session.0.warning_msg.push(format!(
-                            "Uploaded a YAML with unsupported games: {}. Couldn't verify it.",
-                            unsupported_games.iter().join("; ")
-                        ));
-                        session.0.save(cookies)?;
-                    } else {
-                        let index = index_manager.index.read().await;
-                        let err = format!("Error:\n{}",
-                            unsupported_games.iter().map(|game| {
-                                let is_game_in_index = index.get_world_by_name(game).is_some();
-                                if is_game_in_index {
-                                    format!("Uploaded a game for game {} which has been disabled for this room", game)
-                                } else {
-                                    format!("Uploaded a game for game {} which is not supported on this lobby", game)
-                                }
-                            }).join("\n")
-                        );
+            let unsupported_games = validate_yaml(
+                document,
+                parsed,
+                &room.settings.manifest,
+                index_manager,
+                yaml_validation_queue,
+            )
+            .await?;
+            if !unsupported_games.is_empty() {
+                if room.settings.allow_unsupported {
+                    session.0.warning_msg.push(format!(
+                        "Uploaded a YAML with unsupported games: {}. Couldn't verify it.",
+                        unsupported_games.iter().join("; ")
+                    ));
+                    session.0.save(cookies)?;
+                } else {
+                    let index = index_manager.index.read().await;
+                    let err = format!("Error: {}",
+                        unsupported_games.iter().map(|game| {
+                            let is_game_in_index = index.get_world_by_name(game).is_some();
+                            if is_game_in_index {
+                                format!("Uploaded a game for game {} which has been disabled for this room", game)
+                            } else {
+                                format!("Uploaded a game for game {} which is not supported on this lobby", game)
+                            }
+                        }).join("\n")
+                    );
 
-                        Err(anyhow::anyhow!(err))?
-                    }
+                    Err(anyhow::anyhow!(err))?
                 }
             }
         }
@@ -199,50 +199,56 @@ async fn validate_yaml(
     parsed: &YamlFile,
     manifest: &Manifest,
     index_manager: &IndexManager,
-    yaml_validator_url: &Url,
+    yaml_validation_queue: &YamlValidationQueue,
 ) -> Result<Vec<String>> {
-    #[derive(serde::Deserialize)]
-    struct ValidationResponse {
-        error: Option<String>,
-        unsupported: Option<Vec<String>>,
-    }
-
-    let client = reqwest::Client::new();
-
     let apworlds = match get_apworlds_for_games(index_manager, manifest, &parsed.game).await {
         Ok(apworlds) => apworlds,
         Err(unsupported) => return Ok(unsupported),
     };
 
-    let form = reqwest::multipart::Form::new()
-        .text("data", yaml.to_string())
-        .text("apworlds", serde_json::to_string(&apworlds)?);
+    let mut params = YamlValidationParams {
+        apworlds,
+        yaml: yaml.to_string(),
+        otlp_context: HashMap::new(),
+    };
 
     let cx = tracing::Span::current().context();
-
-    let mut req = client
-        .post(yaml_validator_url.join("/check_yaml")?)
-        .multipart(form)
-        .build()?;
-
     opentelemetry::global::get_text_map_propagator(|propagator| {
-        propagator.inject_context(&cx, &mut HeaderInjector(req.headers_mut()))
+        propagator.inject_context(&cx, &mut params.otlp_context)
     });
 
-    tracing::event!(tracing::Level::INFO, "Request to yaml-checker started");
-    let response = client
-        .execute(req)
-        .await
-        .map_err(|_| anyhow::anyhow!("Error while communicating with the YAML validator."))?
-        .error_for_status()?
-        .json::<ValidationResponse>()
+    let job_id = yaml_validation_queue
+        .enqueue_job(&params, wq::Priority::Normal, Duration::from_secs(30))
         .await?;
 
-    if let Some(error) = response.error {
-        return Err(anyhow::anyhow!(error).into());
+    let Some(status) = yaml_validation_queue
+        .wait_for_job(&job_id, Some(Duration::from_secs(30)))
+        .await?
+    else {
+        // TODO: alert, this is not normal
+        yaml_validation_queue.cancel_job(job_id).await?;
+        Err(anyhow!("Timed out while validating this YAML. Either generation is very slow or the service is overloaded. Try again a bit later."))?
+    };
+
+    if matches!(status, JobStatus::InternalError) {
+        yaml_validation_queue.cancel_job(job_id).await?;
+        // TODO: Alert, this is not normal either
+        Err(anyhow!("Internal error while validating this YAML. This should not happen, please report the bug."))?
     }
 
-    Ok(response.unsupported.unwrap_or(vec![]))
+    if matches!(status, JobStatus::Failure) {
+        let result = yaml_validation_queue.get_job_result(job_id).await?;
+        Err(anyhow!(
+            "Error: {}",
+            result.error.unwrap_or_else(|| "Internal error".to_string())
+        ))?
+    }
+
+    assert_eq!(status, JobStatus::Success);
+
+    // TODO: Maybe show warnings from validation?
+
+    return Ok(vec![]);
 }
 
 fn get_ap_player_name<'a>(

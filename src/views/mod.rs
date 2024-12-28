@@ -8,6 +8,7 @@ use crate::{Context, TplContext};
 use ap_lobby::db::{self, Author, Room, RoomFilter, RoomId, YamlId, YamlWithoutContent};
 use ap_lobby::error::{Error, RedirectTo, Result, WithContext};
 use ap_lobby::index_manager::IndexManager;
+use ap_lobby::jobs::YamlValidationQueue;
 use ap_lobby::session::{LoggedInSession, Session};
 use ap_lobby::utils::ZipFile;
 use apwm::{World, WorldOrigin};
@@ -29,6 +30,7 @@ pub mod apworlds;
 pub mod auth;
 pub mod filters;
 pub mod manifest_editor;
+pub mod queues;
 pub mod room_manager;
 pub mod room_settings;
 pub mod room_templates;
@@ -145,7 +147,15 @@ struct Yamls<'a> {
 }
 
 #[post("/room/<room_id>/upload", data = "<yaml_form>")]
-#[tracing::instrument(skip(redirect_to, yaml_form, session, cookies, ctx, index_manager))]
+#[tracing::instrument(skip(
+    redirect_to,
+    yaml_form,
+    session,
+    cookies,
+    ctx,
+    index_manager,
+    yaml_validation_queue
+))]
 async fn upload_yaml(
     redirect_to: &RedirectTo,
     room_id: RoomId,
@@ -153,6 +163,7 @@ async fn upload_yaml(
     mut session: LoggedInSession,
     cookies: &CookieJar<'_>,
     index_manager: &State<IndexManager>,
+    yaml_validation_queue: &State<YamlValidationQueue>,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/room/{}", room_id));
@@ -171,7 +182,7 @@ async fn upload_yaml(
         &documents,
         &mut session,
         cookies,
-        &ctx.yaml_validator_url,
+        &*yaml_validation_queue,
         index_manager,
         &mut conn,
     )

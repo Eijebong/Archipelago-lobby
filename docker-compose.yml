@@ -6,3 +6,9 @@ services:
     environment:
       POSTGRES_DB: aplobby
       POSTGRES_PASSWORD: postgres
+
+  valkey:
+    image: valkey/valkey
+    ports:
+      - "26379:6379"
+

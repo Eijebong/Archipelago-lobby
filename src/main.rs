@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
+use anyhow::Context as _;
 use ap_lobby::db::instrumentation::{DbInstrumentation, QUERY_HISTOGRAM};
 use ap_lobby::session::{AdminSession, AdminToken, Session};
 use diesel::{ConnectionError, ConnectionResult};
@@ -11,7 +13,6 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use dotenvy::dotenv;
 use futures_util::future::BoxFuture;
 use futures_util::FutureExt;
-use reqwest::Url;
 use rocket::data::{Limits, ToByteUnit};
 use rocket::http::{CookieJar, Method, Status};
 use rocket::response::Redirect;
@@ -27,6 +28,8 @@ use rustls::Error as TLSError;
 use rustls::{DigitallySignedStruct, SignatureScheme};
 
 use ap_lobby::index_manager::IndexManager;
+use ap_lobby::jobs::YamlValidationQueue;
+use views::queues::QueueTokens;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
 
@@ -37,7 +40,6 @@ pub struct Discord;
 
 pub struct Context {
     db_pool: Pool<AsyncPgConnection>,
-    yaml_validator_url: Option<Url>,
 }
 
 const CSS_VERSION: &str = std::env!("CSS_VERSION");
@@ -126,9 +128,10 @@ async fn main() -> anyhow::Result<()> {
     let otlp_endpoint = std::env::var("OTLP_ENDPOINT").ok();
     let _guard = otlp::init_tracing_subscriber(otlp_endpoint);
 
-    let db_url = std::env::var("DATABASE_URL").expect("Plox provide a DATABASE_URL env variable");
+    let db_url = std::env::var("DATABASE_URL").expect("Provide a DATABASE_URL env variable");
+    let valkey_url = std::env::var("VALKEY_URL").expect("Provide a VALKEY_URL env variable");
     let admin_token =
-        AdminToken(std::env::var("ADMIN_TOKEN").expect("Plox provide a ADMIN_TOKEN env variable"));
+        AdminToken(std::env::var("ADMIN_TOKEN").expect("Provide a ADMIN_TOKEN env variable"));
 
     diesel::connection::set_default_instrumentation(|| {
         Some(Box::new(DbInstrumentation::default()))
@@ -157,20 +160,7 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     }
 
-    let yaml_validator_url = if let Ok(yaml_validator_url) = std::env::var("YAML_VALIDATOR_URL") {
-        Some(
-            yaml_validator_url
-                .parse()
-                .expect("Failed to parse YAML_VALIDATOR_URL"),
-        )
-    } else {
-        None
-    };
-
-    let ctx = Context {
-        db_pool,
-        yaml_validator_url,
-    };
+    let ctx = Context { db_pool };
 
     let limits = Limits::default().limit("string", 2.megabytes());
 
@@ -187,6 +177,17 @@ async fn main() -> anyhow::Result<()> {
         index_manager.update().await?;
     }
 
+    let yaml_validation_queue = YamlValidationQueue::builder("yaml_validation")
+        .build(&valkey_url)
+        .await
+        .expect("Failed to create job queue for yaml validation");
+    yaml_validation_queue.start_reclaim_checker();
+
+    let queue_tokens = QueueTokens(HashMap::from([(
+        "yaml_validation",
+        std::env::var("YAML_VALIDATION_QUEUE_TOKEN").context("YAML_VALIDATION_QUEUE_TOKEN")?,
+    )]));
+
     rocket::custom(figment.clone())
         .attach(prometheus.clone())
         .mount("/", views::routes())
@@ -196,11 +197,14 @@ async fn main() -> anyhow::Result<()> {
         .mount("/auth/", views::auth::routes())
         .mount("/api/", views::api::routes())
         .mount("/metrics", AdminOnlyRoute(prometheus))
+        .mount("/queues", views::queues::routes())
         .register("/", catchers![unauthorized])
         .manage(ctx)
         .manage(figment)
         .manage(admin_token)
         .manage(index_manager)
+        .manage(yaml_validation_queue)
+        .manage(queue_tokens)
         .attach(OAuth2::<Discord>::fairing("discord"))
         .launch()
         .await
