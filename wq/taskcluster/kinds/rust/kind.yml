@@ -9,7 +9,7 @@ transforms:
     - eije_taskgraph.transforms.common:transforms
 
 tasks:
-    ap-lobby:
+    wq:
       worker-type-fmt: linux-small
       worker-type-build: linux-medium
       with-tests: true
