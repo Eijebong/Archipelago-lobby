@@ -165,8 +165,10 @@ async fn main() -> anyhow::Result<()> {
     let limits = Limits::default().limit("string", 2.megabytes());
 
     let figment = rocket::Config::figment().merge(("limits", limits));
-    let prometheus =
-        PrometheusMetrics::new().with_request_filter(|request| request.uri().path() != "/metrics");
+    let prometheus = PrometheusMetrics::new().with_request_filter(|request| {
+        request.uri().path() != "/metrics"
+            && request.uri().path().segments().last() != Some("claim_job")
+    });
     prometheus
         .registry()
         .register(Box::new(QUERY_HISTOGRAM.clone()))
