@@ -18,10 +18,12 @@ use uuid::Uuid;
 mod builder;
 mod claim;
 mod result;
+mod stats;
 
 pub use builder::WorkQueueBuilder;
 pub use claim::Claim;
 pub use result::JobResult;
+pub use stats::QueueStats;
 
 #[repr(i8)]
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -56,6 +58,16 @@ pub struct JobDesc<P> {
 impl JobStatus {
     pub fn is_resolved(&self) -> bool {
         matches!(self, Self::Success | Self::Failure | Self::InternalError)
+    }
+
+    pub fn as_stat_name(&self) -> &str {
+        assert!(self.is_resolved());
+        match self {
+            JobStatus::Success => "succeeded",
+            JobStatus::Failure => "failed",
+            JobStatus::InternalError => "errored",
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -139,6 +151,7 @@ pub struct WorkQueue<
     queue_key: String,
     claims_key: String,
     results_key: String,
+    stats_key: String,
     client: MultiplexedConnection,
     reclaim_timeout: Duration,
     claim_timeout: Duration,
@@ -267,6 +280,7 @@ impl<
             .del(self.get_job_key(&job_id))
             .del(self.get_claim_key(&job_id))
             .set::<_, JobResult<R>>(self.get_result_key(&job_id), job_result)
+            .incr(self.get_stats_key(status.as_stat_name()), 1)
             .publish::<_, u8>(self.get_result_key(&job_id), status as u8)
             .exec_async(&mut conn)
             .await?;
@@ -505,6 +519,38 @@ impl<
         Ok(())
     }
 
+    pub async fn get_stats(&self) -> Result<QueueStats> {
+        let mut conn = self.client.clone();
+
+        let jobs_failed = conn
+            .get::<_, Option<u64>>(self.get_stats_key("failed"))
+            .await?
+            .unwrap_or(0);
+        let jobs_succeeded = conn
+            .get::<_, Option<u64>>(self.get_stats_key("succeeded"))
+            .await?
+            .unwrap_or(0);
+        let jobs_errored = conn
+            .get::<_, Option<u64>>(self.get_stats_key("errored"))
+            .await?
+            .unwrap_or(0);
+        let jobs_scheduled = conn
+            .zcount::<_, _, _, u64>(&self.queue_key, Priority::High as i8, Priority::Low as i8)
+            .await?;
+        let queue_claim_keys = conn
+            .keys::<_, Vec<String>>(format!("{}:*", self.claims_key))
+            .await?;
+        let jobs_claimed = queue_claim_keys.len() as u64;
+
+        Ok(QueueStats {
+            jobs_failed,
+            jobs_succeeded,
+            jobs_errored,
+            jobs_scheduled,
+            jobs_claimed,
+        })
+    }
+
     pub fn get_job_key(&self, job_id: &JobId) -> String {
         format!("{}:{}", self.queue_key, &job_id)
     }
@@ -515,6 +561,10 @@ impl<
 
     pub fn get_result_key(&self, job_id: &JobId) -> String {
         format!("{}:{}", self.results_key, &job_id)
+    }
+
+    pub fn get_stats_key(&self, stat_name: &str) -> String {
+        format!("{}:{}", self.stats_key, stat_name)
     }
 
     pub fn builder(name: &str) -> WorkQueueBuilder<P, R> {

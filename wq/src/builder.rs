@@ -40,6 +40,7 @@ impl<
         Ok(WorkQueue {
             claims_key: format!("wq:{}:claims", self.queue_name),
             results_key: format!("wq:{}:results", self.queue_name),
+            stats_key: format!("wq:{}:stats", self.queue_name),
             queue_key,
             reclaim_timeout: self.reclaim_timeout,
             claim_timeout: self.claim_timeout,
