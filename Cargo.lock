@@ -1958,7 +1958,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -2674,7 +2674,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "157c5a9d7ea5c2ed2d9fb8f495b64759f7816c7eaea54ba3978f0d63000162e3"
 dependencies = [
  "anyhow",
- "itertools 0.13.0",
+ "itertools 0.12.1",
  "proc-macro2",
  "quote",
  "syn",
@@ -4676,7 +4676,7 @@ dependencies = [
 [[package]]
 name = "wq"
 version = "0.1.0"
-source = "git+https://github.com/Eijebong/wq.git#8d101e31963f0f5e333e3cb123535aadda9d71e1"
+source = "git+https://github.com/Eijebong/wq.git#e7a1c39b16fff8ef261b92be82741869e334fd18"
 dependencies = [
  "anyhow",
  "chrono",
