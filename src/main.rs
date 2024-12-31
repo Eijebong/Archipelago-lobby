@@ -13,6 +13,7 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use dotenvy::dotenv;
 use futures_util::future::BoxFuture;
 use futures_util::FutureExt;
+use instrumentation::QueueCounters;
 use rocket::data::{Limits, ToByteUnit};
 use rocket::http::{CookieJar, Method, Status};
 use rocket::response::Redirect;
@@ -33,6 +34,7 @@ use views::queues::QueueTokens;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
 
+mod instrumentation;
 mod otlp;
 mod views;
 
@@ -97,27 +99,32 @@ fn unauthorized(req: &Request) -> ap_lobby::error::Result<Redirect> {
 }
 
 #[derive(Clone)]
-struct AdminOnlyRoute<R: Handler + Clone>(R);
+struct MetricsRoute(PrometheusMetrics, QueueCounters);
 
 #[rocket::async_trait]
-impl<R: Handler + Clone> Handler for AdminOnlyRoute<R> {
+impl Handler for MetricsRoute {
     async fn handle<'r>(&self, req: &'r Request<'_>, data: Data<'r>) -> Outcome<'r> {
-        let guard = req.guard::<AdminSession>().await;
-        match guard {
-            rocket::request::Outcome::Success(..) => self.0.handle(req, data).await,
-            _ => Outcome::Error(Status::Forbidden),
-        }
+        let rocket::outcome::Outcome::Success(_admin_session) = req.guard::<AdminSession>().await
+        else {
+            return Outcome::Error(Status::Forbidden);
+        };
+
+        let yaml_validation_queue = req.rocket().state::<YamlValidationQueue>().unwrap();
+        let stats = yaml_validation_queue.get_stats().await.unwrap();
+        self.1.update_queue("yaml_validation", stats);
+
+        self.0.handle(req, data).await
     }
 }
 
-impl<R: Handler + Clone> From<AdminOnlyRoute<R>> for Vec<Route> {
-    fn from(val: AdminOnlyRoute<R>) -> Self {
+impl From<MetricsRoute> for Vec<Route> {
+    fn from(val: MetricsRoute) -> Self {
         vec![Route::new(Method::Get, "/", val)]
     }
 }
 
 #[rocket::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> ap_lobby::error::Result<()> {
     dotenv().ok();
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "debug");
@@ -189,6 +196,7 @@ async fn main() -> anyhow::Result<()> {
         "yaml_validation",
         std::env::var("YAML_VALIDATION_QUEUE_TOKEN").context("YAML_VALIDATION_QUEUE_TOKEN")?,
     )]));
+    let queue_counters = QueueCounters::new(prometheus.registry())?;
 
     rocket::custom(figment.clone())
         .attach(prometheus.clone())
@@ -198,7 +206,7 @@ async fn main() -> anyhow::Result<()> {
         .mount("/", views::apworlds::routes())
         .mount("/auth/", views::auth::routes())
         .mount("/api/", views::api::routes())
-        .mount("/metrics", AdminOnlyRoute(prometheus))
+        .mount("/metrics", MetricsRoute(prometheus, queue_counters))
         .mount("/queues", views::queues::routes())
         .register("/", catchers![unauthorized])
         .manage(ctx)
