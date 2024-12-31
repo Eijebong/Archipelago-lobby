@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fmt::Display,
     marker::PhantomData,
     str::from_utf8,
@@ -173,25 +174,20 @@ impl<
         loop {
             tokio::time::sleep(reclaim_timeout / 2).await;
 
-            let queue_claim_keys = match conn
-                .keys::<_, Vec<String>>(format!("{}:*", claims_key))
-                .await
-            {
-                Ok(queue_claim_keys) => queue_claim_keys,
+            let queue_claims = match conn.hgetall::<_, HashMap<String, Claim>>(&claims_key).await {
+                Ok(claims) => claims,
                 Err(e) => {
                     tracing::error!("Error while listing claims for queue {}: {}", queue_key, e);
                     continue;
                 }
             };
 
-            if queue_claim_keys.is_empty() {
+            if queue_claims.is_empty() {
                 continue;
             }
 
-            let queue_claims = conn.mget::<_, Vec<Claim>>(queue_claim_keys).await.unwrap();
-
             let now = Utc::now();
-            for claim in &queue_claims {
+            for claim in queue_claims.values() {
                 if now
                     .signed_duration_since(claim.time)
                     .abs()
@@ -240,12 +236,15 @@ impl<
     pub async fn reclaim_job(&self, job_id: &JobId, worker_id: &str) -> Result<()> {
         let mut conn = self.client.clone();
 
-        let claim_key = self.get_claim_key(job_id);
-        let Some(mut current_claim) = conn.get::<_, Option<Claim>>(&claim_key).await? else {
+        let Some(mut current_claim) = conn
+            .hget::<_, _, Option<Claim>>(&self.claims_key, job_id.to_string())
+            .await?
+        else {
             bail!("Job has been cancelled");
         };
         current_claim.refresh(worker_id)?;
-        conn.set::<_, _, ()>(claim_key, current_claim).await?;
+        conn.hset::<_, _, _, ()>(&self.claims_key, job_id.to_string(), current_claim)
+            .await?;
 
         Ok(())
     }
@@ -265,8 +264,10 @@ impl<
             bail!("Trying to report a status that doesn't resolve the job");
         }
 
-        let claim_key = self.get_claim_key(&job_id);
-        let Some(current_claim) = conn.get::<_, Option<Claim>>(&claim_key).await? else {
+        let Some(current_claim) = conn
+            .hget::<_, _, Option<Claim>>(&self.claims_key, job_id.to_string())
+            .await?
+        else {
             bail!("Trying to resolve a job that isn't claimed");
         };
 
@@ -278,7 +279,7 @@ impl<
 
         redis::pipe()
             .del(self.get_job_key(&job_id))
-            .del(self.get_claim_key(&job_id))
+            .hdel(&self.claims_key, job_id.to_string())
             .set::<_, JobResult<R>>(self.get_result_key(&job_id), job_result)
             .incr(self.get_stats_key(status.as_stat_name()), 1)
             .publish::<_, u8>(self.get_result_key(&job_id), status as u8)
@@ -296,7 +297,7 @@ impl<
 
         let (is_resolved, is_claimed, is_queued): (bool, bool, bool) = redis::pipe()
             .exists(self.get_result_key(job_id))
-            .exists(self.get_claim_key(job_id))
+            .hexists(&self.claims_key, job_id.to_string())
             .exists(self.get_job_key(job_id))
             .query_async(&mut conn)
             .await?;
@@ -451,9 +452,9 @@ impl<
             remaining_time = new_remaining_time;
         };
 
-        let claim_key = self.get_claim_key(&job_id);
         let claim = Claim::new(worker_id, job_id, priority);
-        conn.set::<_, _, ()>(claim_key, claim).await?;
+        conn.hset::<_, _, _, ()>(&self.claims_key, job_id.to_string(), claim)
+            .await?;
         tracing::info!("Gave job {} to worker {}", job_id, worker_id);
 
         let job = Job { job_id, params };
@@ -512,7 +513,7 @@ impl<
         redis::pipe()
             .zrem(&self.queue_key, job_id.to_string())
             .del(self.get_job_key(&job_id))
-            .del(self.get_claim_key(&job_id))
+            .hdel(&self.claims_key, job_id.to_string())
             .exec_async(&mut conn)
             .await?;
 
@@ -535,12 +536,9 @@ impl<
             .await?
             .unwrap_or(0);
         let jobs_scheduled = conn
-            .zcount::<_, _, _, u64>(&self.queue_key, Priority::High as i8, Priority::Low as i8)
+            .zcount(&self.queue_key, Priority::High as i8, Priority::Low as i8)
             .await?;
-        let queue_claim_keys = conn
-            .keys::<_, Vec<String>>(format!("{}:*", self.claims_key))
-            .await?;
-        let jobs_claimed = queue_claim_keys.len() as u64;
+        let jobs_claimed = conn.hlen(&self.claims_key).await?;
 
         Ok(QueueStats {
             jobs_failed,
@@ -553,10 +551,6 @@ impl<
 
     pub fn get_job_key(&self, job_id: &JobId) -> String {
         format!("{}:{}", self.queue_key, &job_id)
-    }
-
-    pub fn get_claim_key(&self, job_id: &JobId) -> String {
-        format!("{}:{}", self.claims_key, &job_id)
     }
 
     pub fn get_result_key(&self, job_id: &JobId) -> String {

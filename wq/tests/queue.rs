@@ -119,13 +119,13 @@ async fn test_reclaim() -> Result<()> {
 
     assert_eq!(job.job_id, expected_job_id);
 
-    let claim = redis.get::<_, Claim>(queue.get_claim_key(&job.job_id))?;
+    let claim = redis.hget::<_, _, Claim>("wq:test_reclaim:claims", job.job_id.to_string())?;
     let first_claim_time = claim.time.clone();
     assert_eq!(claim.worker_id, "test");
 
     queue.reclaim_job(&job.job_id, "test").await?;
 
-    let claim = redis.get::<_, Claim>(queue.get_claim_key(&job.job_id))?;
+    let claim = redis.hget::<_, _, Claim>("wq:test_reclaim:claims", job.job_id.to_string())?;
     let second_claim_time = claim.time.clone();
     assert_eq!(claim.worker_id, "test");
     assert!(second_claim_time > first_claim_time);
