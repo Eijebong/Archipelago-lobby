@@ -129,6 +129,24 @@ async fn main() -> ap_lobby::error::Result<()> {
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "debug");
     }
+
+    let _sentry_guard = if let Ok(sentry_dsn) = std::env::var("SENTRY_DSN") {
+        Some(sentry::init((
+            sentry_dsn,
+            sentry::ClientOptions {
+                release: Some(format!("{}@{}", env!("CARGO_PKG_NAME"), env!("GIT_VERSION")).into()),
+                environment: Some(
+                    std::env::var("ROCKET_PROFILE")
+                        .unwrap_or_else(|_| "dev".to_string())
+                        .into(),
+                ),
+                ..Default::default()
+            },
+        )))
+    } else {
+        None
+    };
+
     ring::default_provider()
         .install_default()
         .expect("Failed to set ring as crypto provider");

@@ -54,6 +54,7 @@ opentelemetry-http = "0.13.0"
 counter = "0.6.0"
 comrak = { version = "0.31", default-features = false }
 wq = { git = "https://github.com/Eijebong/wq.git" }
+sentry = "0.35.0"
 
 [profile.dev.package.askama_derive]
 opt-level = 3
@@ -62,6 +63,7 @@ opt-level = 3
 anyhow = "1.0.86"
 sha2 = "0.10.8"
 walkdir = "2.5.0"
+git2 = "0.19"
 
 [patch.crates-io]
 rocket = { git = "https://github.com/Eijebong/Rocket.git", branch = "0.6.0-dev" }
