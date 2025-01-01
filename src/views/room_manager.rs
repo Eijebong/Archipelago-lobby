@@ -185,7 +185,7 @@ async fn create_room_submit<'a>(
         let tpl = db::get_room_template_by_id(template_id, &mut conn)
             .await
             .context("The given template couldn't be found")?;
-        if tpl.settings.author_id != session.user_id() {
+        if !tpl.global && tpl.settings.author_id != session.user_id() {
             Err(anyhow::anyhow!("The given template couldn't be found"))?
         }
     }
