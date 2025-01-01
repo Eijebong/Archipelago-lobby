@@ -260,6 +260,7 @@ fn get_ap_player_name<'a>(
     let number = player_counter[original_name];
     let player = player_counter.total::<usize>();
 
+    #[allow(clippy::literal_string_with_formatting_args)]
     let new_name = original_name
         .replace("{number}", &format!("{}", number))
         .replace(

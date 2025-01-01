@@ -182,7 +182,7 @@ async fn upload_yaml(
         &documents,
         &mut session,
         cookies,
-        &*yaml_validation_queue,
+        yaml_validation_queue,
         index_manager,
         &mut conn,
     )
