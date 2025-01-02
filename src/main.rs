@@ -16,6 +16,7 @@ use dotenvy::dotenv;
 use futures_util::future::BoxFuture;
 use futures_util::FutureExt;
 use instrumentation::QueueCounters;
+use otlp::TracingFairing;
 use rocket::data::{Limits, ToByteUnit};
 use rocket::http::{CookieJar, Method, Status};
 use rocket::response::Redirect;
@@ -142,6 +143,7 @@ async fn main() -> ap_lobby::error::Result<()> {
                         .unwrap_or_else(|_| "dev".to_string())
                         .into(),
                 ),
+                traces_sample_rate: 1.0,
                 ..Default::default()
             },
         )))
@@ -219,6 +221,7 @@ async fn main() -> ap_lobby::error::Result<()> {
     let queue_counters = QueueCounters::new(prometheus.registry())?;
 
     rocket::custom(figment.clone())
+        .attach(TracingFairing)
         .attach(prometheus.clone())
         .mount("/", views::routes())
         .mount("/", views::room_manager::routes())

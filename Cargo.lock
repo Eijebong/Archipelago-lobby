@@ -179,6 +179,7 @@ dependencies = [
  "rustls-pki-types",
  "semver",
  "sentry",
+ "sentry-tracing",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -187,6 +188,7 @@ dependencies = [
  "tokio-postgres",
  "tokio-postgres-rustls",
  "tracing",
+ "tracing-core",
  "tracing-opentelemetry",
  "tracing-subscriber",
  "uuid",
@@ -1187,9 +1189,9 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "foldhash"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f81ec6369c545a7d40e4589b5597581fa1c441fe1cce96dd1de43159910a36a2"
+checksum = "a0d2fde1f7b3d48b8395d5f2de76c18a528bd6a9cdde438df747bfcba3e05d6f"
 
 [[package]]
 name = "foreign-types"
@@ -2971,7 +2973,7 @@ dependencies = [
 [[package]]
 name = "rocket"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#61a3deee0977d9b6b9a0ab5c82bc2ebd58f3cd21"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#60c414e883a037cb773a80224d465cd93f1f3ac3"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -3020,7 +3022,7 @@ dependencies = [
 [[package]]
 name = "rocket_codegen"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#61a3deee0977d9b6b9a0ab5c82bc2ebd58f3cd21"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#60c414e883a037cb773a80224d465cd93f1f3ac3"
 dependencies = [
  "devise",
  "glob",
@@ -3036,7 +3038,7 @@ dependencies = [
 [[package]]
 name = "rocket_http"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#61a3deee0977d9b6b9a0ab5c82bc2ebd58f3cd21"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#60c414e883a037cb773a80224d465cd93f1f3ac3"
 dependencies = [
  "cookie",
  "either",
@@ -3220,16 +3222,6 @@ checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
 
 [[package]]
 name = "s2n-codec"
-version = "0.45.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d13164318e22dae500fc06642d3c7064692b797be32fa2b2b207b500622a41e"
-dependencies = [
- "byteorder",
- "zerocopy",
-]
-
-[[package]]
-name = "s2n-codec"
 version = "0.51.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "385bc02730502bb5f4b37927c235163e7790d1ba7a9fd4e7ac595d0ce655d6a4"
@@ -3252,8 +3244,8 @@ dependencies = [
  "hash_hasher",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "s2n-codec 0.51.0",
- "s2n-quic-core 0.51.0",
+ "s2n-codec",
+ "s2n-quic-core",
  "s2n-quic-crypto",
  "s2n-quic-platform",
  "s2n-quic-rustls",
@@ -3261,23 +3253,6 @@ dependencies = [
  "tokio",
  "zerocopy",
  "zeroize",
-]
-
-[[package]]
-name = "s2n-quic-core"
-version = "0.45.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d5f5c09558c2eece5eeffa27f1a7c9e8f03942081ba713415f3ffb4d5d7404b"
-dependencies = [
- "byteorder",
- "cfg-if",
- "hex-literal",
- "num-rational",
- "num-traits",
- "pin-project-lite",
- "s2n-codec 0.45.0",
- "subtle",
- "zerocopy",
 ]
 
 [[package]]
@@ -3296,7 +3271,7 @@ dependencies = [
  "num-traits",
  "once_cell",
  "pin-project-lite",
- "s2n-codec 0.51.0",
+ "s2n-codec",
  "subtle",
  "tracing",
  "zerocopy",
@@ -3311,21 +3286,20 @@ dependencies = [
  "aws-lc-rs",
  "cfg-if",
  "lazy_static",
- "s2n-codec 0.51.0",
- "s2n-quic-core 0.51.0",
+ "s2n-codec",
+ "s2n-quic-core",
  "zeroize",
 ]
 
 [[package]]
 name = "s2n-quic-h3"
 version = "0.1.0"
-source = "git+https://github.com/SergioBenitez/s2n-quic-h3.git?rev=6613956#66139567216fd59c44c58ca792711f755fdfaa2b"
+source = "git+https://github.com/SergioBenitez/s2n-quic-h3.git?rev=f832471#f83247128132c968d57a99fa5e76ac7f1528ea10"
 dependencies = [
  "bytes",
  "futures",
  "h3",
  "s2n-quic",
- "s2n-quic-core 0.45.0",
  "tracing",
 ]
 
@@ -3339,7 +3313,7 @@ dependencies = [
  "futures",
  "lazy_static",
  "libc",
- "s2n-quic-core 0.51.0",
+ "s2n-quic-core",
  "socket2",
  "tokio",
 ]
@@ -3353,8 +3327,8 @@ dependencies = [
  "bytes",
  "rustls",
  "rustls-pemfile",
- "s2n-codec 0.51.0",
- "s2n-quic-core 0.51.0",
+ "s2n-codec",
+ "s2n-quic-core",
  "s2n-quic-crypto",
 ]
 
@@ -3370,8 +3344,8 @@ dependencies = [
  "hashbrown 0.15.2",
  "intrusive-collections",
  "once_cell",
- "s2n-codec 0.51.0",
- "s2n-quic-core 0.51.0",
+ "s2n-codec",
+ "s2n-quic-core",
  "siphasher 1.0.1",
  "smallvec",
 ]
@@ -3463,8 +3437,7 @@ dependencies = [
 [[package]]
 name = "sentry"
 version = "0.35.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "016958f51b96861dead7c1e02290f138411d05e94fad175c8636a835dee6e51e"
+source = "git+http://github.com/Eijebong/sentry-rust#427bba743709a13421f9d339a3010db853d8b9ea"
 dependencies = [
  "httpdate",
  "native-tls",
@@ -3482,8 +3455,7 @@ dependencies = [
 [[package]]
 name = "sentry-backtrace"
 version = "0.35.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e57712c24e99252ef175b4b06c485294f10ad6bc5b5e1567ff3803ee7a0b7d3f"
+source = "git+http://github.com/Eijebong/sentry-rust#427bba743709a13421f9d339a3010db853d8b9ea"
 dependencies = [
  "backtrace",
  "once_cell",
@@ -3494,8 +3466,7 @@ dependencies = [
 [[package]]
 name = "sentry-contexts"
 version = "0.35.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eba8754ec3b9279e00aa6d64916f211d44202370a1699afde1db2c16cbada089"
+source = "git+http://github.com/Eijebong/sentry-rust#427bba743709a13421f9d339a3010db853d8b9ea"
 dependencies = [
  "hostname",
  "libc",
@@ -3508,8 +3479,7 @@ dependencies = [
 [[package]]
 name = "sentry-core"
 version = "0.35.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9f8b6dcd4fbae1e3e22b447f32670360b27e31b62ab040f7fb04e0f80c04d92"
+source = "git+http://github.com/Eijebong/sentry-rust#427bba743709a13421f9d339a3010db853d8b9ea"
 dependencies = [
  "once_cell",
  "rand 0.8.5",
@@ -3521,8 +3491,7 @@ dependencies = [
 [[package]]
 name = "sentry-debug-images"
 version = "0.35.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8982a69133d3f5e4efdbfa0776937fca43c3a2e275a8fe184f50b1b0aa92e07c"
+source = "git+http://github.com/Eijebong/sentry-rust#427bba743709a13421f9d339a3010db853d8b9ea"
 dependencies = [
  "findshlibs",
  "once_cell",
@@ -3532,8 +3501,7 @@ dependencies = [
 [[package]]
 name = "sentry-panic"
 version = "0.35.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de296dae6f01e931b65071ee5fe28d66a27909857f744018f107ed15fd1f6b25"
+source = "git+http://github.com/Eijebong/sentry-rust#427bba743709a13421f9d339a3010db853d8b9ea"
 dependencies = [
  "sentry-backtrace",
  "sentry-core",
@@ -3542,8 +3510,7 @@ dependencies = [
 [[package]]
 name = "sentry-tracing"
 version = "0.35.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "263f73c757ed7915d3e1e34625eae18cad498a95b4261603d4ce3f87b159a6f0"
+source = "git+http://github.com/Eijebong/sentry-rust#427bba743709a13421f9d339a3010db853d8b9ea"
 dependencies = [
  "sentry-backtrace",
  "sentry-core",
@@ -3554,8 +3521,7 @@ dependencies = [
 [[package]]
 name = "sentry-types"
 version = "0.35.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a71ed3a389948a6a6d92b98e997a2723ca22f09660c5a7b7388ecd509a70a527"
+source = "git+http://github.com/Eijebong/sentry-rust#427bba743709a13421f9d339a3010db853d8b9ea"
 dependencies = [
  "debugid",
  "hex",

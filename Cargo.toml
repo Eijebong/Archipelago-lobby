@@ -55,6 +55,8 @@ counter = "0.6.0"
 comrak = { version = "0.31", default-features = false }
 wq = { git = "https://github.com/Eijebong/wq.git" }
 sentry = "0.35.0"
+sentry-tracing = "0.35.0"
+tracing-core = "0.1.33"
 
 [profile.dev.package.askama_derive]
 opt-level = 3
@@ -69,6 +71,8 @@ git2 = "0.19"
 rocket = { git = "https://github.com/Eijebong/Rocket.git", branch = "0.6.0-dev" }
 rocket_prometheus = { git = "https://github.com/Eijebong/rocket_prometheus.git", branch = "0.6.0-dev" }
 rocket_oauth2 = { git = "https://github.com/jebrosen/rocket_oauth2.git" }
+sentry-tracing = { git = "http://github.com/Eijebong/sentry-rust" }
+sentry = { git = "http://github.com/Eijebong/sentry-rust" }
 
 #[patch."https://github.com/Eijebong/APWM.git"]
 #apwm = { path = "../apwm" }
