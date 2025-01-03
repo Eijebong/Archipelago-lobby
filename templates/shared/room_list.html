@@ -26,13 +26,15 @@
         {% endif %}
     </table>
 
-    <div class="paginator">
-        {% if page != 1 %}
-        <a class="button-emulator" href="?page={{page-1}}">Previous</a>
-        {% endif %}
-        Page {{+page+}} of {{+max_page}}
-        {% if page != max_page %}
-        <a class="button-emulator" href="?page={{page+1}}">Next</a>
-        {% endif %}
-    </div>
+    {% if max_page > 1 %}
+        <div class="paginator">
+            {% if page != 1 %}
+            <a class="button-emulator" href="?page={{page-1}}">Previous</a>
+            {% endif %}
+            Page {{+page+}} of {{+max_page}}
+            {% if page != max_page %}
+            <a class="button-emulator" href="?page={{page+1}}">Next</a>
+            {% endif %}
+        </div>
+    {% endif %}
 {% endmacro %}
