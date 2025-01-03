@@ -55,7 +55,7 @@
     {% endmatch %}
     <tr>
         <td>Players</td>
-        <td><span title="{{unique_player_count}} unique players / {{ unique_game_count }} unique games">{{ player_count }}</span></td>
+        <td><span title="{{unique_player_count+}} unique players / {{+ unique_game_count +}} unique games">{{ player_count }}</span></td>
     </tr>
     {% if !room.settings.description.is_empty() %}
     <tr>
