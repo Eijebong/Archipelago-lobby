@@ -31,14 +31,10 @@ fn main() -> Result<()> {
 }
 
 fn derive_git_version() -> Result<String> {
-    let mut branch_name = "unknown";
-
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")?;
     let repo = git2::Repository::open(manifest_dir)?;
     let head = repo.head()?;
-    if head.is_branch() {
-        branch_name = head.name().unwrap().strip_prefix("refs/heads/").unwrap();
-    }
+    let branch_name = head.name().unwrap().strip_prefix("refs/heads/").unwrap_or("unknown");
 
     let mut walk = repo.revwalk()?;
     walk.push(head.target().unwrap())?;
