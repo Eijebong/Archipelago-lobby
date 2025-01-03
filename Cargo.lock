@@ -1994,7 +1994,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -3437,7 +3437,7 @@ dependencies = [
 [[package]]
 name = "sentry"
 version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#e19c8f1a8fce68e079a2ae6b1eb98e9742fae2d2"
+source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
 dependencies = [
  "httpdate",
  "native-tls",
@@ -3455,7 +3455,7 @@ dependencies = [
 [[package]]
 name = "sentry-backtrace"
 version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#e19c8f1a8fce68e079a2ae6b1eb98e9742fae2d2"
+source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
 dependencies = [
  "backtrace",
  "once_cell",
@@ -3466,7 +3466,7 @@ dependencies = [
 [[package]]
 name = "sentry-contexts"
 version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#e19c8f1a8fce68e079a2ae6b1eb98e9742fae2d2"
+source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
 dependencies = [
  "hostname",
  "libc",
@@ -3479,7 +3479,7 @@ dependencies = [
 [[package]]
 name = "sentry-core"
 version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#e19c8f1a8fce68e079a2ae6b1eb98e9742fae2d2"
+source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
 dependencies = [
  "once_cell",
  "rand 0.8.5",
@@ -3491,7 +3491,7 @@ dependencies = [
 [[package]]
 name = "sentry-debug-images"
 version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#e19c8f1a8fce68e079a2ae6b1eb98e9742fae2d2"
+source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
 dependencies = [
  "findshlibs",
  "once_cell",
@@ -3501,7 +3501,7 @@ dependencies = [
 [[package]]
 name = "sentry-panic"
 version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#e19c8f1a8fce68e079a2ae6b1eb98e9742fae2d2"
+source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
 dependencies = [
  "sentry-backtrace",
  "sentry-core",
@@ -3510,7 +3510,7 @@ dependencies = [
 [[package]]
 name = "sentry-tracing"
 version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#e19c8f1a8fce68e079a2ae6b1eb98e9742fae2d2"
+source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
 dependencies = [
  "sentry-backtrace",
  "sentry-core",
@@ -3521,7 +3521,7 @@ dependencies = [
 [[package]]
 name = "sentry-types"
 version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#e19c8f1a8fce68e079a2ae6b1eb98e9742fae2d2"
+source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
 dependencies = [
  "debugid",
  "hex",
