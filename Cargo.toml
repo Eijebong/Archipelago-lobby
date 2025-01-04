@@ -78,4 +78,4 @@ sentry = { git = "http://github.com/Eijebong/sentry-rust" }
 #apwm = { path = "../apwm" }
 
 #[patch."https://github.com/Eijebong/wq.git"]
-#apwm = { path = "../wq" }
+#wq = { path = "../wq" }

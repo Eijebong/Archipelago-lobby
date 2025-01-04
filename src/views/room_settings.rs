@@ -99,10 +99,11 @@ impl<'a> RoomSettingsBuilder<'a> {
         // XXX: In the future we might want to use the time part of the tpl close date, set to the
         // current day.
         tpl.settings.close_date = RoomSettings::default_close_date()?;
+        let new_manifest = tpl.settings.manifest.0.updated_with_index(&index)?;
 
         Ok(Self {
             base,
-            manifest_builder: ManifestFormBuilder::new(index, tpl.settings.manifest.0.clone()),
+            manifest_builder: ManifestFormBuilder::new(index, new_manifest),
             room: tpl.settings,
             room_id: None,
             ty: RoomSettingsType::Room,
