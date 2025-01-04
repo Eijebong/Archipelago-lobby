@@ -108,7 +108,7 @@ async fn create_room<'a>(
         let template = db::get_room_template_by_id(template_id, &mut conn)
             .await
             .context("Couldn't get the specified template")?;
-        if template.settings.author_id != current_user_id {
+        if !template.global && template.settings.author_id != current_user_id {
             RoomSettingsBuilder::new(base.clone(), &index, RoomSettingsType::Room)?
         } else {
             RoomSettingsBuilder::room_from_template(base.clone(), index.clone(), template)?
