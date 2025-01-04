@@ -1,31 +1,15 @@
 {% macro paginated_rooms_table(rooms, page, max_page) %}
-    <table class="styled rooms-table">
-        <thead>
-            <tr>
-                <th>Room name</th>
-                <th>Closing date</th>
-            </tr>
-        </thead>
-        {% if rooms.len() != 0 %}
-            {% for room in rooms %}
-            <tr>
-                <td>
-                    <a href="/room/{{room.id}}">{{ room.settings.name }}</a>
-                    {% if room.is_closed() %}
-                    <i class="room-lock fa-solid fa-lock" title="the room is closed"></i>
-                    {% endif %}
-                </td>
+    {% let (closed_rooms, open_rooms) = crate::views::utils::partition_rooms_by_closed(rooms) %}
+    {% if open_rooms.len() != 0 %}
+        {% call rooms_table(open_rooms, "List of open rooms") %}
+    {% endif %}
+    {% if closed_rooms.len() != 0 %}
+        {% call rooms_table(closed_rooms, "List of rooms you previously participated in") %}
+    {% endif %}
 
-                <td>
-                    <span class="time long-time">{{room.settings.close_date}}</span>
-                </td>
-            </tr>
-            {% endfor %}
-        {% else %}
-        <tr><td colspan=2>There's nothing here (yet).</td></tr>
-        {% endif %}
-    </table>
-
+    {% if rooms.len() == 0 %}
+        <div>Nothing to see here (yet)</div>
+    {% endif %}
     {% if max_page > 1 %}
         <div class="paginator">
             {% if page != 1 %}
@@ -37,4 +21,27 @@
             {% endif %}
         </div>
     {% endif %}
+{% endmacro %}
+
+{% macro rooms_table(rooms, title) %}
+    <h6 style="margin: 0;">{{title}}</h6>
+    <table class="styled rooms-table">
+        <thead>
+            <tr>
+                <th>Room name</th>
+                <th>Closing date</th>
+            </tr>
+        </thead>
+        {% for room in rooms %}
+        <tr>
+            <td>
+                <a href="/room/{{room.id}}">{{ room.settings.name }}</a>
+            </td>
+
+            <td>
+                <span class="time long-time">{{room.settings.close_date}}</span>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
 {% endmacro %}

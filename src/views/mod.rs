@@ -34,6 +34,7 @@ pub mod queues;
 pub mod room_manager;
 pub mod room_settings;
 pub mod room_templates;
+mod utils;
 
 #[derive(Template)]
 #[template(path = "room.html")]
