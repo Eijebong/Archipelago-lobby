@@ -15,7 +15,7 @@ pub enum VersionReq {
     Specific(Version),
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub enum NewApworldPolicy {
     #[default]
     Enable,
@@ -109,6 +109,19 @@ impl Manifest {
 
         let manifest: Manifest = serde_path_to_error::deserialize(deser)?;
         Ok(manifest)
+    }
+
+    pub fn updated_with_index(&self, index: &Index) -> Result<Self> {
+        let mut result = Self::new();
+        result.new_apworld_policy = self.new_apworld_policy;
+
+        for (world_name, _) in &index.worlds {
+            result
+                .worlds
+                .insert(world_name.to_string(), self.get_version_req(world_name));
+        }
+
+        Ok(result)
     }
 
     pub fn resolve_with(
