@@ -37,8 +37,7 @@ fn derive_git_version() -> Result<String> {
     let branch_name = head
         .name()
         .unwrap()
-        .strip_prefix("refs/heads/")
-        .unwrap_or("unknown");
+        .trim_start_matches("refs/heads/");
 
     let mut walk = repo.revwalk()?;
     walk.push(head.target().unwrap())?;
