@@ -33,6 +33,7 @@ fn feature_to_icon(feature: &YamlFeature) -> &str {
         YamlFeature::TrainerSanity => "trainersanity.svg",
         YamlFeature::DexSanity => "dexsanity.svg",
         YamlFeature::OrbSanity => "jd-orb.svg",
+        YamlFeature::GrassSanity => "grasssanity.svg",
     }
 }
 
@@ -42,6 +43,7 @@ fn feature_to_name(feature: &YamlFeature) -> &str {
         YamlFeature::TrainerSanity => "Trainersanity",
         YamlFeature::DexSanity => "Dexsanity",
         YamlFeature::OrbSanity => "Extreme Orbsanity",
+        YamlFeature::GrassSanity => "Grasssanity",
     }
 }
 

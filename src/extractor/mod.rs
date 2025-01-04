@@ -10,6 +10,7 @@ use crate::db::YamlFile;
 
 mod jd;
 mod pokemon;
+mod tunic;
 
 #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum YamlFeature {
@@ -17,6 +18,7 @@ pub enum YamlFeature {
     TrainerSanity,
     DexSanity,
     OrbSanity,
+    GrassSanity,
 }
 
 pub type YamlFeatures = HashMap<YamlFeature, u32>;
@@ -254,6 +256,7 @@ pub static EXTRACTORS: Lazy<HashMap<&'static str, Box<dyn FeatureExtractor + Sen
         register!(pokemon::PokemonCrystal);
         register!(pokemon::PokemonFrLg);
         register!(jd::JakAndDaxter);
+        register!(tunic::Tunic);
 
         extractors
     });
