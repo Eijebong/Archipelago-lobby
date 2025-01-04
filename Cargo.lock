@@ -1994,7 +1994,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -2973,7 +2973,7 @@ dependencies = [
 [[package]]
 name = "rocket"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#60c414e883a037cb773a80224d465cd93f1f3ac3"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#d2b29f06ea87cec8b2903f81c7d61dbf7568a4b7"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -3000,6 +3000,7 @@ dependencies = [
  "rocket_http",
  "rustls",
  "s2n-quic-h3",
+ "sentry",
  "serde",
  "serde_json",
  "state",
@@ -3022,7 +3023,7 @@ dependencies = [
 [[package]]
 name = "rocket_codegen"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#60c414e883a037cb773a80224d465cd93f1f3ac3"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#d2b29f06ea87cec8b2903f81c7d61dbf7568a4b7"
 dependencies = [
  "devise",
  "glob",
@@ -3038,7 +3039,7 @@ dependencies = [
 [[package]]
 name = "rocket_http"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#60c414e883a037cb773a80224d465cd93f1f3ac3"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#d2b29f06ea87cec8b2903f81c7d61dbf7568a4b7"
 dependencies = [
  "cookie",
  "either",
