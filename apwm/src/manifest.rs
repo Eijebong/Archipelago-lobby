@@ -133,7 +133,7 @@ impl Manifest {
         let mut result = Self::new();
         result.new_apworld_policy = self.new_apworld_policy;
 
-        for (world_name, _) in &index.worlds {
+        for world_name in index.worlds.keys() {
             result
                 .worlds
                 .insert(world_name.to_string(), self.get_version_req(world_name));

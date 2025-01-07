@@ -58,6 +58,7 @@ pub struct CombinedDiff {
     pub diffs: BTreeMap<VersionRange, Diff>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn diff_world_and_write(
     from: Option<&World>,
     to: Option<&World>,
@@ -223,6 +224,7 @@ fn find_closest_version(target_version: &Version, mut versions: Vec<&Version>) -
     candidate_version.cloned()
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn diff_version(
     from_world: &World,
     from_version: Option<Version>,
