@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ap_lobby::error::Result;
-use apwm::{Index, Manifest, NewApworldPolicy, VersionReq};
+use apwm::{Index, Manifest, NewApworldPolicy, VersionReq, World};
 use rocket::FromForm;
 
 #[derive(Debug, FromForm)]
@@ -19,9 +19,8 @@ pub struct ManifestFormBuilder {
 #[derive(Debug)]
 pub struct ManifestFormRow<'a> {
     pub apworld_name: &'a str,
-    pub display_name: &'a str,
+    pub world: &'a World,
     pub enabled: bool,
-    pub supported: bool,
     pub current_version: VersionReq,
     pub valid_versions: Vec<VersionReq>,
 }
@@ -59,8 +58,7 @@ impl ManifestFormBuilder {
 
             let row = ManifestFormRow {
                 apworld_name,
-                display_name: &world.display_name,
-                supported: world.supported,
+                world,
                 enabled,
                 current_version,
                 valid_versions: self.valid_options_for_apworld(apworld_name),
@@ -68,7 +66,7 @@ impl ManifestFormBuilder {
 
             rows.push(row);
         }
-        rows.sort_by_key(|row| row.display_name);
+        rows.sort_by_key(|row| &row.world.display_name);
 
         rows
     }

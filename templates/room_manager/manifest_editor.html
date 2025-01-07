@@ -2,18 +2,18 @@
 <select {{ ro }} name="room.me.version.{{row.apworld_name}}">
     {% for version in row.valid_versions %}
     {% let is_current = (version.clone() == row.current_version) %}
-    <option value="{{ version.to_string() }}" {%+ if is_current %}selected{% endif %}>{{ version.to_string() }}</option>
+    <option value="{{ version.to_string() }}" {%+ if is_current %}selected{% endif %}>{{ version.to_string_pretty(row.world) }}</option>
     {% endfor %}
 </select>
 {% endmacro %}
 
 {% macro emit_apworld_row(row) %}
-<tr data-supported={{ row.supported }}>
+<tr data-supported={{ row.world.supported }}>
     <td>
         <input {{ ro }} type="checkbox" id="me-enabled-{{row.apworld_name}}" class="me-enabled" name="room.me.enabled.{{row.apworld_name}}" {%+ if row.enabled %}checked{% endif %}>
         <label class="unstyled" for="me-enabled-{{row.apworld_name}}"></label>
     </td>
-    <td>{{ row.display_name }}</td>
+    <td>{{ row.world.display_name }}</td>
     <td>{% call emit_apworld_version_select(row) %}
 </tr>
 {% endmacro %}
