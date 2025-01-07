@@ -63,6 +63,24 @@ impl VersionReq {
             s => Self::Specific(Version::parse(s)?),
         })
     }
+
+    pub fn to_string_pretty(&self, world: &World) -> String {
+        match self {
+            Self::Latest => {
+                let Some((version, _)) = world.get_latest_release() else {
+                    return self.to_string();
+                };
+                format!("Latest ({})", version)
+            }
+            Self::LatestSupported => {
+                let Some((version, _)) = world.get_latest_supported_release() else {
+                    return self.to_string();
+                };
+                format!("Supported ({})", version)
+            }
+            _ => self.to_string(),
+        }
+    }
 }
 
 impl Display for VersionReq {
