@@ -20,7 +20,7 @@ impl FeatureExtractor for JakAndDaxter {
                 extractor.register_ranged_feature(
                     YamlFeature::OrbSanity,
                     "global_orbsanity_bundle_size",
-                    20,
+                    10,
                     400,
                     orb_value_to_u64,
                 )?;
