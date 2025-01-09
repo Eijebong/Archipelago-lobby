@@ -10,6 +10,9 @@ use apwm::Manifest;
 use counter::Counter;
 use diesel_async::AsyncPgConnection;
 use itertools::Itertools;
+use once_cell::sync::Lazy;
+use regex::Regex;
+
 use rocket::http::CookieJar;
 use semver::Version;
 use std::collections::{HashMap, HashSet};
@@ -154,6 +157,17 @@ fn validate_player_name<'a>(
             "Your YAML contains an invalid name: {}.",
             original_player_name
         ))));
+    }
+
+    static RE_NAME_CURLY_BRACES: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{(.*?)\}").unwrap());
+    let allowed_in_curly_brances: HashSet<&str> =
+        HashSet::from(["{PLAYER}", "{player}", "{NUMBER}", "{number}"]);
+    // AP 0.5.1 doesn't like having `{.*}` if the inner value isn't NUMBER/number/PLAYER/player
+    let curly_matches = RE_NAME_CURLY_BRACES.find_iter(&original_player_name);
+    for m in curly_matches {
+        if !allowed_in_curly_brances.contains(m.as_str()) {
+            return Err(Error(anyhow::anyhow!(format!("Your YAML contains an invalid name: {}. Archipelago doesn't allow having anything in curly braces within a name other than player/PLAYER/number/NUMBER. Found {}", original_player_name, m.as_str()))));
+        }
     }
 
     let player_name = get_ap_player_name(original_player_name, player_counter);

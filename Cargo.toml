@@ -57,6 +57,7 @@ wq = { git = "https://github.com/Eijebong/wq.git" }
 sentry = "0.35.0"
 sentry-tracing = "0.35.0"
 tracing-core = "0.1.33"
+regex = "1.11.1"
 
 [profile.dev.package.askama_derive]
 opt-level = 3
