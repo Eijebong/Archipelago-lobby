@@ -163,7 +163,7 @@ fn validate_player_name<'a>(
     let allowed_in_curly_brances: HashSet<&str> =
         HashSet::from(["{PLAYER}", "{player}", "{NUMBER}", "{number}"]);
     // AP 0.5.1 doesn't like having `{.*}` if the inner value isn't NUMBER/number/PLAYER/player
-    let curly_matches = RE_NAME_CURLY_BRACES.find_iter(&original_player_name);
+    let curly_matches = RE_NAME_CURLY_BRACES.find_iter(original_player_name);
     for m in curly_matches {
         if !allowed_in_curly_brances.contains(m.as_str()) {
             return Err(Error(anyhow::anyhow!(format!("Your YAML contains an invalid name: {}. Archipelago doesn't allow having anything in curly braces within a name other than player/PLAYER/number/NUMBER. Found {}", original_player_name, m.as_str()))));
