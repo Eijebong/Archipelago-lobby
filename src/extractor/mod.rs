@@ -321,6 +321,7 @@ mod tests {
 
         fn extract_features(&self, extractor: &mut super::Extractor) -> crate::error::Result<()> {
             extractor.register_feature(YamlFeature::DeathLink, "deathlink")?;
+            extractor.register_feature(YamlFeature::DeathLink, "death_link")?;
             extractor.register_feature(YamlFeature::TrainerSanity, "trainersanity")?;
             extractor.register_ranged_feature(YamlFeature::OrbSanity, "orbulons", 2, 5, |v| {
                 Ok(v.as_u64().ok_or_else(|| anyhow!("Nope"))?)
@@ -492,7 +493,6 @@ Other:
         game_extractor.extract_features(&mut extractor)?;
         extractor.set_game("Other", 1000)?;
         game_extractor.extract_features(&mut extractor)?;
-        DefaultExtractor {}.extract_features(&mut extractor)?;
 
         let expected = HashMap::from([
             (YamlFeature::DeathLink, 5400),
@@ -650,6 +650,57 @@ Test:
         let yaml: Value = serde_yaml::from_str(raw_yaml)?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
+        game_extractor.extract_features(&mut extractor)?;
+
+        let expected = HashMap::from([(YamlFeature::DeathLink, 5000)]);
+        assert_eq!(extractor.finalize(), expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_double_deathlink() -> Result<()> {
+        let game_extractor = TestExtractor {};
+        let raw_yaml = r#"
+Test:
+  deathlink:
+    true: 50
+    false: 50
+  death_link:
+    true: 50
+    false: 50
+        "#;
+        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let mut extractor = Extractor::new(&yaml)?;
+        extractor.set_game("Test", 10000)?;
+        game_extractor.extract_features(&mut extractor)?;
+
+        let expected = HashMap::from([(YamlFeature::DeathLink, 7500)]);
+        assert_eq!(extractor.finalize(), expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_double_deathlink_in_games() -> Result<()> {
+        let game_extractor = TestExtractor {};
+        let raw_yaml = r#"
+games:
+    Test: 50
+    Other: 50
+Test:
+  deathlink:
+    true: 50
+    false: 50
+Other:
+  deathlink:
+    true: 50
+    false: 50
+        "#;
+        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let mut extractor = Extractor::new(&yaml)?;
+        extractor.set_game("Test", 5000)?;
+        extractor.set_game("Other", 5000)?;
         game_extractor.extract_features(&mut extractor)?;
 
         let expected = HashMap::from([(YamlFeature::DeathLink, 5000)]);
