@@ -62,6 +62,8 @@ pub struct World {
     pub disabled: bool,
     #[serde(default)]
     pub supported: bool,
+    #[serde(default)]
+    pub internal: bool,
 }
 
 impl World {
