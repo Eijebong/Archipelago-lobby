@@ -109,6 +109,9 @@ impl Manifest {
             if world.get_latest_release().is_none() {
                 bail!(format!("World `{}` has no known release", name));
             };
+            if world.internal {
+                continue;
+            }
 
             result.worlds.insert(name.to_string(), VersionReq::Latest);
         }
@@ -133,7 +136,11 @@ impl Manifest {
         let mut result = Self::new();
         result.new_apworld_policy = self.new_apworld_policy;
 
-        for world_name in index.worlds.keys() {
+        for (world_name, world) in &index.worlds {
+            if world.internal {
+                continue;
+            }
+
             result
                 .worlds
                 .insert(world_name.to_string(), self.get_version_req(world_name));
@@ -150,6 +157,10 @@ impl Manifest {
         let mut ret = BTreeMap::new();
 
         for (world_name, world) in &index.worlds {
+            if world.internal {
+                continue;
+            }
+
             let version_requirement = self.get_version_req(world_name);
             if version_requirement == VersionReq::Disabled {
                 continue;
