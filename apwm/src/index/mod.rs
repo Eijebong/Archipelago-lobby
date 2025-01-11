@@ -28,7 +28,7 @@ pub struct Index {
     pub index_homepage: String,
     pub index_dir: PathBuf,
     #[serde(default)]
-    pub(crate) worlds: BTreeMap<String, World>,
+    pub worlds: BTreeMap<String, World>,
 }
 
 impl Index {
@@ -170,13 +170,5 @@ impl Index {
 
     pub fn get_world_by_name(&self, game_name: &str) -> Option<&World> {
         self.worlds.values().find(|game| game.name == game_name)
-    }
-
-    pub fn worlds(&self) -> BTreeMap<String, World> {
-        self.worlds
-            .clone()
-            .into_iter()
-            .filter(|(_, world)| !world.internal)
-            .collect()
     }
 }
