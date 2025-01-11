@@ -144,8 +144,16 @@ async fn diff(
         match old_worlds.get(name) {
             // This is a new world, diff from nothing
             None => {
+                let mut from = None;
+
+                // If the new world is a manual and we're diffing it from nothing, try diffing it
+                // against an empty manual instead. This will provide a lot of relief on reviewing
+                // effort.
+                if world.name.starts_with("Manual_") {
+                    from = new_worlds.get("manual");
+                }
                 diff_world_and_write(
-                    None,
+                    from,
                     Some(world),
                     name,
                     output,
