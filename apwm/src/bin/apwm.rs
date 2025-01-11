@@ -137,10 +137,10 @@ async fn diff(
     let old_index = apwm::Index::new(&old_index_toml)?;
     let old_index_lock = apwm::IndexLock::new(&old_index_lock)?;
 
-    let old_worlds = old_index.worlds;
-    let new_worlds = new_index.worlds;
+    let old_worlds = old_index.worlds_with_internal();
+    let new_worlds = new_index.worlds_with_internal();
 
-    for (name, world) in &new_worlds {
+    for (name, world) in new_worlds {
         match old_worlds.get(name) {
             // This is a new world, diff from nothing
             None => {
@@ -186,7 +186,7 @@ async fn diff(
         }
     }
 
-    for (name, world) in &old_worlds {
+    for (name, world) in old_worlds {
         if !new_worlds.contains_key(name.as_str()) {
             diff_world_and_write(
                 Some(world),
@@ -230,7 +230,7 @@ async fn install(
     std::fs::create_dir_all(destination).context("While creating destination dir")?;
     let target = apworld_version_from_precise(precise)?;
 
-    for (world_name, world) in &index.worlds {
+    for (world_name, world) in index.worlds_with_internal() {
         let version = if let Some((ref target_apworld, ref target_version)) = target {
             if target_apworld != world_name {
                 continue;

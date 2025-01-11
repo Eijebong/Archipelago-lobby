@@ -179,4 +179,8 @@ impl Index {
             .filter(|(_, world)| !world.internal)
             .collect()
     }
+
+    pub fn worlds_with_internal(&self) -> &BTreeMap<String, World> {
+        &self.worlds
+    }
 }
