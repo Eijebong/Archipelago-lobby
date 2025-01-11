@@ -17,9 +17,9 @@ pub struct ManifestFormBuilder {
 }
 
 #[derive(Debug)]
-pub struct ManifestFormRow<'a> {
-    pub apworld_name: &'a str,
-    pub world: &'a World,
+pub struct ManifestFormRow {
+    pub apworld_name: String,
+    pub world: World,
     pub enabled: bool,
     pub current_version: VersionReq,
     pub valid_versions: Vec<VersionReq>,
@@ -31,9 +31,8 @@ impl ManifestFormBuilder {
     }
 
     fn valid_options_for_apworld(&self, apworld_name: &str) -> Vec<VersionReq> {
-        let world = self
-            .index
-            .worlds
+        let worlds = self.index.worlds();
+        let world = worlds
             .get(apworld_name)
             .expect("Tried to get a world that doesn't exist");
         let latest_versions = &[VersionReq::Latest][..];
@@ -51,22 +50,23 @@ impl ManifestFormBuilder {
     }
 
     pub fn rows(&self) -> Vec<ManifestFormRow> {
-        let mut rows = Vec::with_capacity(self.index.worlds.len());
-        for (apworld_name, world) in &self.index.worlds {
-            let enabled = self.manifest.is_enabled(apworld_name);
-            let current_version = self.manifest.get_version_req(apworld_name);
+        let worlds = self.index.worlds();
+        let mut rows = Vec::with_capacity(worlds.len());
+        for (apworld_name, world) in worlds {
+            let enabled = self.manifest.is_enabled(&apworld_name);
+            let current_version = self.manifest.get_version_req(&apworld_name);
 
             let row = ManifestFormRow {
-                apworld_name,
+                apworld_name: apworld_name.clone(),
                 world,
                 enabled,
                 current_version,
-                valid_versions: self.valid_options_for_apworld(apworld_name),
+                valid_versions: self.valid_options_for_apworld(&apworld_name),
             };
 
             rows.push(row);
         }
-        rows.sort_by_key(|row| &row.world.display_name);
+        rows.sort_by_cached_key(|row| row.world.display_name.clone());
 
         rows
     }
@@ -81,7 +81,8 @@ pub fn manifest_from_form(form: &ManifestForm, index: &Index) -> Result<Manifest
     };
 
     new_manifest.new_apworld_policy = new_apworld_policy;
-    for world_name in index.worlds.keys() {
+    let worlds = index.worlds();
+    for world_name in worlds.keys() {
         let enabled = form.enabled.contains_key(world_name.as_str());
         if !enabled {
             new_manifest.add_version_req(world_name, VersionReq::Disabled);
