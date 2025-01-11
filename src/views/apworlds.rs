@@ -84,8 +84,8 @@ async fn download_world<'a>(
 ) -> Result<APWorldResponse<'a>> {
     let index = index_manager.index.read().await;
 
-    let worlds = index.worlds();
-    let world = worlds
+    let world = index
+        .worlds
         .get(world_name)
         .context("This APworld doesn't seem to exist")?;
 
@@ -126,8 +126,9 @@ async fn download_cached_world<'a>(
 ) -> Result<APWorldResponse<'a>> {
     let index = index_manager.index.read().await;
 
-    let worlds = index.worlds();
-    let world = worlds
+    dbg!(&world_name);
+    let world = index
+        .worlds
         .get(world_name)
         .context("This APworld doesn't seem to exist")?;
 
