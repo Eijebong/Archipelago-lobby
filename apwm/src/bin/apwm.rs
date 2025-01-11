@@ -150,7 +150,7 @@ async fn diff(
                 // against an empty manual instead. This will provide a lot of relief on reviewing
                 // effort.
                 if world.name.starts_with("Manual_") {
-                    from = new_worlds.get("manual");
+                    from = new_worlds.get("manual_ultimatemarvelvscapcom3_manualteam");
                 }
                 diff_world_and_write(
                     from,
