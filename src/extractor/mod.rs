@@ -11,6 +11,7 @@ use crate::db::YamlFile;
 mod jd;
 mod pokemon;
 mod tunic;
+mod kh;
 
 #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum YamlFeature {
@@ -22,6 +23,7 @@ pub enum YamlFeature {
 }
 
 pub type YamlFeatures = HashMap<YamlFeature, u32>;
+pub type YamlGameFeatures = HashMap<String, YamlFeatures>;
 
 pub trait FeatureExtractor {
     fn game(&self) -> &'static str;
@@ -29,8 +31,8 @@ pub trait FeatureExtractor {
 }
 
 pub struct Extractor<'a> {
-    features: YamlFeatures,
-    current_game: Option<(&'a Value, u32)>,
+    game_features: YamlGameFeatures,
+    current_game: Option<(&'a str, &'a Value, u32)>,
     current_weight: u32,
     yaml: &'a Value,
 }
@@ -59,7 +61,7 @@ impl<'a> Extractor<'a> {
         };
 
         Ok(Self {
-            features: YamlFeatures::new(),
+            game_features: YamlGameFeatures::new(),
             yaml,
             current_game: None,
             current_weight: 10000,
@@ -67,12 +69,20 @@ impl<'a> Extractor<'a> {
     }
 
     pub fn register_feature(&mut self, feature: YamlFeature, path: &str) -> Result<()> {
+
+        let Some((game_name, _, _)) = self.current_game else {
+            panic!("You should call set_game before")
+        };
+
         let option_probability = self.get_option_probability(path, is_trueish)?;
         let new_value = self.get_weighted_probality(option_probability);
 
         if new_value != 0 {
-            let current_value = self.features.entry(feature).or_default();
-            *current_value += new_value;
+            let current_game_features = self.game_features.entry(game_name.to_owned()).or_default();
+            let current_value = current_game_features.entry(feature).or_default();
+            let not_current = 10000 - *current_value;
+            let not_new = 10000 - new_value;
+            *current_value = 10000 - ((not_current * not_new) / 10000);
         }
 
         Ok(())
@@ -83,7 +93,7 @@ impl<'a> Extractor<'a> {
         path: &str,
         is_true_callback: fn(&Value) -> bool,
     ) -> Result<u32> {
-        let Some((game_yaml, _)) = self.current_game else {
+        let Some((_, game_yaml, _)) = self.current_game else {
             panic!("You should call set_game before")
         };
 
@@ -102,7 +112,7 @@ impl<'a> Extractor<'a> {
         max: u64,
         transform: fn(&Value) -> Result<u64>,
     ) -> Result<()> {
-        let Some((game_yaml, _)) = self.current_game else {
+        let Some((game_name, game_yaml, _)) = self.current_game else {
             panic!("You should call set_game before")
         };
 
@@ -127,8 +137,11 @@ impl<'a> Extractor<'a> {
         let new_value = self.get_weighted_probality(actual_probability);
 
         if new_value != 0 {
-            let current_value = self.features.entry(feature).or_default();
-            *current_value += new_value;
+            let current_game_features = self.game_features.entry(game_name.to_owned()).or_default();
+            let current_value = current_game_features.entry(feature).or_default();
+            let not_current = 10000 - *current_value;
+            let not_new = 10000 - new_value;
+            *current_value = 10000 - ((not_current * not_new) / 10000);
         }
 
         Ok(())
@@ -153,13 +166,13 @@ impl<'a> Extractor<'a> {
                 game_name
             )))?
         };
-        self.current_game = Some((game_yaml, probability));
+        self.current_game = Some((game_name, game_yaml, probability));
 
         Ok(())
     }
 
     fn get_weighted_probality(&self, probability: u32) -> u32 {
-        let Some((_, game_probability)) = self.current_game else {
+        let Some((_, _, game_probability)) = self.current_game else {
             panic!("You should call set_game before")
         };
 
@@ -169,7 +182,16 @@ impl<'a> Extractor<'a> {
     }
 
     fn finalize(self) -> YamlFeatures {
-        self.features
+        let mut finalized_features = YamlFeatures::new();
+
+        for (_, features) in self.game_features {
+            for (feature, probability) in features {
+                let current_value = finalized_features.entry(feature).or_default();
+                *current_value += probability
+            }
+        }
+
+        finalized_features
     }
 }
 
@@ -257,6 +279,7 @@ pub static EXTRACTORS: Lazy<HashMap<&'static str, Box<dyn FeatureExtractor + Sen
         register!(pokemon::PokemonFrLg);
         register!(jd::JakAndDaxter);
         register!(tunic::Tunic);
+        register!(kh::KingdomHearts);
 
         extractors
     });
@@ -700,6 +723,7 @@ Other:
         let yaml: Value = serde_yaml::from_str(raw_yaml)?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 5000)?;
+        game_extractor.extract_features(&mut extractor)?;
         extractor.set_game("Other", 5000)?;
         game_extractor.extract_features(&mut extractor)?;
 
