@@ -10,7 +10,6 @@ use std::ops::Deref;
 
 #[derive(FromSqlRow, AsExpression, Serialize, Deserialize, Debug, Clone)]
 #[serde(transparent)]
-#[diesel(sql_type = sql_types::Json)]
 #[diesel(sql_type = sql_types::Jsonb)]
 pub struct Json<T: Sized>(pub T);
 

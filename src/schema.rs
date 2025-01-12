@@ -68,7 +68,7 @@ diesel::table! {
         player_name -> Varchar,
         game -> Varchar,
         owner_id -> Int8,
-        features -> Json,
+        features -> Jsonb,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
