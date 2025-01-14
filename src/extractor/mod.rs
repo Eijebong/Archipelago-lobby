@@ -1,4 +1,3 @@
-use core::panic;
 use std::collections::HashMap;
 
 use crate::error::Result;
@@ -134,12 +133,13 @@ impl<'a> Extractor<'a> {
     }
 
     pub fn with_weight(&mut self, weight: u32, inner: fn(&mut Self) -> Result<()>) -> Result<()> {
-        if weight > MAX_WEIGHT {
-            panic!(
-                "Maximum weight: {}, Supplied weight: {}",
-                MAX_WEIGHT, weight
-            )
-        }
+        assert!(
+            weight <= MAX_WEIGHT,
+            "Maximum weight: {}, supplied weight: {}",
+            MAX_WEIGHT,
+            weight
+        );
+
         self.current_weight = weight;
         inner(self)?;
         self.current_weight = MAX_WEIGHT;
