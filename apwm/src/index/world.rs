@@ -231,7 +231,7 @@ impl World {
         let api_key = std::env::var("LOBBY_API_KEY")?;
         let client = Client::new();
         let url = format!(
-            "{}/worlds/download/{}/{}",
+            "{}/worlds/download_cached/{}/{}",
             lobby_url,
             self.get_ap_name()?,
             version
