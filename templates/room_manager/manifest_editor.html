@@ -87,7 +87,7 @@ function freezeVersions() {
     forEachApworld((row) => {
         const currentVersion = row.versions.value;
         if (currentVersion == "Latest") {
-            for (const option of row.versions.options) {
+            for (const option of [...row.versions.options].reverse()) {
                 if (option.value != "Latest") {
                     row.versions.value = option.value;
                     break;
