@@ -8,6 +8,7 @@ use serde_yaml::Value;
 
 use crate::db::YamlFile;
 
+mod ffxiv;
 mod jd;
 mod kh;
 mod pokemon;
@@ -303,6 +304,7 @@ pub static EXTRACTORS: Lazy<HashMap<&'static str, Box<dyn FeatureExtractor + Sen
         register!(tunic::Tunic);
         register!(kh::KingdomHearts);
         register!(sv::StardewValley);
+        register!(ffxiv::FFXIV);
 
         extractors
     });
