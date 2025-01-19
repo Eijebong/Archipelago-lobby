@@ -143,6 +143,7 @@ pub async fn get_yaml_by_id(yaml_id: YamlId, conn: &mut AsyncPgConnection) -> Re
 
 impl Yaml {
     pub fn sanitized_name(&self) -> String {
-        self.player_name.replace(['/', '\\'], "_")
+        self.player_name
+            .replace(['/', '\\', '<', '>', ':', '?', '*', '|', '"'], "_")
     }
 }
