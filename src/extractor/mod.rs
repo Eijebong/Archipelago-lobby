@@ -11,6 +11,7 @@ use crate::db::YamlFile;
 mod jd;
 mod kh;
 mod pokemon;
+mod sv;
 mod tunic;
 
 #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Ord, PartialOrd)]
@@ -20,6 +21,7 @@ pub enum YamlFeature {
     DexSanity,
     OrbSanity,
     GrassSanity,
+    FishSanity,
 }
 
 pub type YamlFeatures = HashMap<YamlFeature, u32>;
@@ -71,6 +73,20 @@ impl<'a> Extractor<'a> {
     }
 
     pub fn register_feature(&mut self, feature: YamlFeature, path: &str) -> Result<()> {
+        let option_probability = self.get_option_probability(path, is_trueish)?;
+        let feature_probability = self.get_weighted_probality(option_probability);
+
+        self.add_feature_to_current_game(feature, feature_probability);
+
+        Ok(())
+    }
+
+    pub fn register_feature_with_custom_truth(
+        &mut self,
+        feature: YamlFeature,
+        path: &str,
+        is_trueish: fn(&Value) -> bool,
+    ) -> Result<()> {
         let option_probability = self.get_option_probability(path, is_trueish)?;
         let feature_probability = self.get_weighted_probality(option_probability);
 
@@ -286,6 +302,7 @@ pub static EXTRACTORS: Lazy<HashMap<&'static str, Box<dyn FeatureExtractor + Sen
         register!(jd::JakAndDaxter);
         register!(tunic::Tunic);
         register!(kh::KingdomHearts);
+        register!(sv::StardewValley);
 
         extractors
     });
