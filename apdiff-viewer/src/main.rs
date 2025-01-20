@@ -33,7 +33,7 @@ mod filters {
     }
 
     pub fn dashify(original: &str) -> askama::Result<String> {
-        return Ok(original.replace(' ', "-").replace('\'', "-"));
+        Ok(original.replace([' ', '\'', '&', ';'], "-"))
     }
 }
 
