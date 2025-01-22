@@ -23,4 +23,3 @@ COPY run-task/hgrc /etc/mercurial/hgrc.d/mozilla.rc
 COPY --chmod=755 build-result /usr/local/bin/apwm
 
 VOLUME /builds/worker/checkouts
-VOLUME /builds/worker/.cache

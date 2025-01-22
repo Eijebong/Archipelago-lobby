@@ -18,6 +18,5 @@ ENV SHELL=/bin/bash \
 VOLUME /builds/worker/checkouts
 VOLUME /builds/worker/target
 VOLUME /builds/worker/.cargo/registry
-VOLUME /builds/worker/.cache
 
 WORKDIR /builds/worker
