@@ -63,3 +63,25 @@ default_url = "https://github.com/AliceMousie/Archipelago/releases/download/{{ve
 "2.0.0" = {}
 "2.1.0" = {}
 ```
+
+#### Default Versions
+
+You can specify a default version for a world as follows:
+
+```toml
+name = "Pokemon Crystal"
+home = "https://discord.com/channels/731205301247803413/1057476528419647572"
+default_url = "https://github.com/AliceMousie/Archipelago/releases/download/{{version}}/pokemon_crystal.apworld"
+default_version = "2.0.0"
+[versions]
+"2.0.0" = {}
+"2.1.0" = {}
+```
+
+This instructs any consumer of this world to treat that version as default, if
+it is not provided then the latest version will be used.
+
+Additionally, `default_version` can also be:
+ - `"latest"`: Uses the latest version. 
+ - `"latest_supported"`: Uses the latest supported version. Only valid for supported worlds.
+ - `"disabled"`: Disables the world by default.

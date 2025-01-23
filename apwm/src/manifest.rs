@@ -116,6 +116,34 @@ impl Manifest {
         Ok(result)
     }
 
+    pub fn from_index_with_default_versions(index: &Index) -> Result<Self> {
+        let mut result = Self::new();
+
+        for (name, world) in &index.worlds {
+            if world.get_latest_release().is_none() {
+                bail!(format!("World `{}` has no known release", name));
+            };
+
+            let version_req = world
+                .default_version
+                .clone()
+                .map(|v| -> Result<VersionReq> {
+                    let version = v.as_str();
+                    Ok(match version {
+                        "latest" => VersionReq::Latest,
+                        "latest_supported" => VersionReq::LatestSupported,
+                        "disabled" => VersionReq::Disabled,
+                        _ => VersionReq::Specific(Version::parse(version)?),
+                    })
+                })
+                .unwrap_or(Ok(VersionReq::Latest));
+
+            result.worlds.insert(name.to_string(), version_req?);
+        }
+
+        Ok(result)
+    }
+
     pub fn parse_file(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
 

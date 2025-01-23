@@ -55,6 +55,8 @@ pub struct World {
     #[serde(with = "http_serde::option::uri", default)]
     pub default_url: Option<Uri>,
     #[serde(deserialize_with = "de::empty_string_as_none", default)]
+    pub default_version: Option<String>,
+    #[serde(deserialize_with = "de::empty_string_as_none", default)]
     pub home: Option<String>,
     #[serde(deserialize_with = "de::map_with_default_value", default)]
     pub versions: BTreeMap<Version, WorldOrigin>,
