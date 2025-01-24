@@ -2,11 +2,11 @@ use std::{collections::BTreeMap, fmt::Display, path::Path};
 
 use anyhow::{bail, Result};
 use semver::Version;
-use serde::{Deserialize, Serialize};
+use serde::{de::Error, Deserialize, Serialize};
 
 use crate::{Index, World};
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
 pub enum VersionReq {
     Disabled,
     #[default]
@@ -94,6 +94,26 @@ impl Display for VersionReq {
     }
 }
 
+impl<'de> Deserialize<'de> for VersionReq {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let o: Option<String> = Option::deserialize(deserializer)?;
+
+        o.map(|v| {
+            let version = v.as_str();
+            Ok(match version {
+                "latest" => VersionReq::Latest,
+                "latest_supported" => VersionReq::LatestSupported,
+                "disabled" => VersionReq::Disabled,
+                _ => VersionReq::Specific(Version::parse(version).map_err(D::Error::custom)?),
+            })
+        })
+        .unwrap_or(Ok(VersionReq::Latest))
+    }
+}
+
 impl Manifest {
     pub fn new() -> Self {
         Self {
@@ -124,21 +144,9 @@ impl Manifest {
                 bail!(format!("World `{}` has no known release", name));
             };
 
-            let version_req = world
-                .default_version
-                .clone()
-                .map(|v| -> Result<VersionReq> {
-                    let version = v.as_str();
-                    Ok(match version {
-                        "latest" => VersionReq::Latest,
-                        "latest_supported" => VersionReq::LatestSupported,
-                        "disabled" => VersionReq::Disabled,
-                        _ => VersionReq::Specific(Version::parse(version)?),
-                    })
-                })
-                .unwrap_or(Ok(VersionReq::Latest));
-
-            result.worlds.insert(name.to_string(), version_req?);
+            result
+                .worlds
+                .insert(name.to_string(), world.default_version.clone());
         }
 
         Ok(result)

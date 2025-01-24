@@ -1,6 +1,6 @@
 use crate::{
     utils::{de, git_clone_shallow},
-    IndexLock,
+    IndexLock, VersionReq,
 };
 use anyhow::{bail, Context, Result};
 use http::Uri;
@@ -54,8 +54,8 @@ pub struct World {
     pub display_name: String,
     #[serde(with = "http_serde::option::uri", default)]
     pub default_url: Option<Uri>,
-    #[serde(deserialize_with = "de::empty_string_as_none", default)]
-    pub default_version: Option<String>,
+    #[serde(default)]
+    pub default_version: VersionReq,
     #[serde(deserialize_with = "de::empty_string_as_none", default)]
     pub home: Option<String>,
     #[serde(deserialize_with = "de::map_with_default_value", default)]

@@ -290,7 +290,7 @@ mod tests {
     use std::io::Write;
     use std::str::FromStr;
 
-    use crate::{IndexLock, World, WorldOrigin};
+    use crate::{IndexLock, VersionReq, World, WorldOrigin};
     use anyhow::Result;
     use semver::Version;
     use tempfile::{tempdir, TempDir};
@@ -337,7 +337,7 @@ mod tests {
             name: "New World".into(),
             display_name: "New World".into(),
             default_url: None,
-            default_version: None,
+            default_version: VersionReq::Latest,
             versions,
             home: None,
             disabled: false,
@@ -392,7 +392,7 @@ mod tests {
             name: "Old World".into(),
             display_name: "Old World".into(),
             default_url: None,
-            default_version: None,
+            default_version: VersionReq::Latest,
             versions,
             home: None,
             disabled: false,
@@ -431,7 +431,7 @@ mod tests {
             name: "World".into(),
             display_name: "World".into(),
             default_url: None,
-            default_version: None,
+            default_version: VersionReq::Latest,
             versions: old_versions,
             home: None,
             disabled: false,
@@ -445,7 +445,7 @@ mod tests {
             name: "World".into(),
             display_name: "World".into(),
             default_url: None,
-            default_version: None,
+            default_version: VersionReq::Latest,
             versions: new_versions,
             home: None,
             disabled: false,
