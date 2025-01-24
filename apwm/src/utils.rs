@@ -6,14 +6,32 @@ pub(crate) mod de {
     use std::collections::BTreeMap;
     use std::marker::PhantomData;
 
+    use semver::Version;
     use serde::de::{MapAccess, Visitor};
-    use serde::{Deserialize, Deserializer};
+    use serde::{de::Error, Deserialize, Deserializer};
+
+    use crate::VersionReq;
 
     pub fn empty_string_as_none<'de, D: Deserializer<'de>>(
         d: D,
     ) -> Result<Option<String>, D::Error> {
         let o: Option<String> = Option::deserialize(d)?;
         Ok(o.filter(|s| !s.is_empty()))
+    }
+
+    pub fn version_req_external<'de, D: Deserializer<'de>>(d: D) -> Result<VersionReq, D::Error> {
+        let o: Option<String> = Option::deserialize(d)?;
+
+        o.map(|v| {
+            let version = v.as_str();
+            Ok(match version {
+                "latest" => VersionReq::Latest,
+                "latest_supported" => VersionReq::LatestSupported,
+                "disabled" => VersionReq::Disabled,
+                _ => VersionReq::Specific(Version::parse(version).map_err(D::Error::custom)?),
+            })
+        })
+        .unwrap_or(Ok(VersionReq::default()))
     }
 
     struct DefaultMapVisitor<K, V> {

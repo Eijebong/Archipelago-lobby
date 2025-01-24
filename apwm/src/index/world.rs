@@ -54,7 +54,7 @@ pub struct World {
     pub display_name: String,
     #[serde(with = "http_serde::option::uri", default)]
     pub default_url: Option<Uri>,
-    #[serde(default)]
+    #[serde(deserialize_with = "de::version_req_external", default)]
     pub default_version: VersionReq,
     #[serde(deserialize_with = "de::empty_string_as_none", default)]
     pub home: Option<String>,

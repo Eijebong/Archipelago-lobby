@@ -2,11 +2,11 @@ use std::{collections::BTreeMap, fmt::Display, path::Path};
 
 use anyhow::{bail, Result};
 use semver::Version;
-use serde::{de::Error, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{Index, World};
 
-#[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub enum VersionReq {
     Disabled,
     #[default]
@@ -94,26 +94,6 @@ impl Display for VersionReq {
     }
 }
 
-impl<'de> Deserialize<'de> for VersionReq {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let o: Option<String> = Option::deserialize(deserializer)?;
-
-        o.map(|v| {
-            let version = v.as_str();
-            Ok(match version {
-                "latest" => VersionReq::Latest,
-                "latest_supported" => VersionReq::LatestSupported,
-                "disabled" => VersionReq::Disabled,
-                _ => VersionReq::Specific(Version::parse(version).map_err(D::Error::custom)?),
-            })
-        })
-        .unwrap_or(Ok(VersionReq::Latest))
-    }
-}
-
 impl Manifest {
     pub fn new() -> Self {
         Self {
@@ -170,9 +150,10 @@ impl Manifest {
         result.new_apworld_policy = self.new_apworld_policy;
 
         for world_name in index.worlds.keys() {
-            result
-                .worlds
-                .insert(world_name.to_string(), self.get_version_req(world_name));
+            result.worlds.insert(
+                world_name.to_string(),
+                self.get_version_req(world_name, index),
+            );
         }
 
         Ok(result)
@@ -186,7 +167,7 @@ impl Manifest {
         let mut ret = BTreeMap::new();
 
         for (world_name, world) in &index.worlds {
-            let version_requirement = self.get_version_req(world_name);
+            let version_requirement = self.get_version_req(world_name, index);
             if version_requirement == VersionReq::Disabled {
                 continue;
             }
@@ -216,7 +197,7 @@ impl Manifest {
             return Err(ResolveError::WorldNotFound(game_name));
         };
 
-        let version_requirement = self.get_version_req(apworld_name);
+        let version_requirement = self.get_version_req(apworld_name, index);
         self.resolve_world_version(world, &version_requirement)
     }
 
@@ -261,12 +242,15 @@ impl Manifest {
         }
     }
 
-    pub fn get_version_req(&self, apworld_name: &str) -> VersionReq {
+    pub fn get_version_req(&self, apworld_name: &str, index: &Index) -> VersionReq {
         self.worlds
             .get(apworld_name)
             .cloned()
             .unwrap_or_else(|| match self.new_apworld_policy {
-                NewApworldPolicy::Enable => VersionReq::Latest,
+                NewApworldPolicy::Enable => index
+                    .get_world_by_name(apworld_name)
+                    .map(|w| w.default_version.clone())
+                    .unwrap_or_default(),
                 NewApworldPolicy::Disable => VersionReq::Disabled,
             })
     }
