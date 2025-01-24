@@ -8,9 +8,7 @@ use http::header::CONTENT_DISPOSITION;
 use rocket::fs::NamedFile;
 use rocket::http::CookieJar;
 use rocket::http::Header;
-use rocket::response::Redirect;
 use rocket::routes;
-use rocket::Responder;
 use rocket::State;
 use semver::Version;
 
@@ -27,13 +25,6 @@ struct WorldsListTpl<'a> {
     index: Index,
     supported_apworlds: Vec<(String, (World, Version))>,
     unsupported_apworlds: Vec<(String, (World, Version))>,
-}
-
-#[derive(Responder)]
-#[allow(clippy::large_enum_variant)]
-enum APWorldResponse<'a> {
-    NamedFile(RenamedFile<'a>),
-    Redirect(Redirect),
 }
 
 #[rocket::get("/worlds")]
@@ -81,52 +72,9 @@ async fn download_world<'a>(
     version: &str,
     world_name: &str,
     _session: LoggedInSession,
-) -> Result<APWorldResponse<'a>> {
+) -> Result<RenamedFile<'a>> {
     let index = index_manager.index.read().await;
 
-    let world = index
-        .worlds
-        .get(world_name)
-        .context("This APworld doesn't seem to exist")?;
-
-    let version = semver::Version::parse(version).context("The passed version isn't valid")?;
-
-    let origin = world
-        .get_version(&version)
-        .context("The specified version doesn't exist for this apworld")?;
-
-    if origin.is_local() || origin.has_patches() {
-        let apworld_path = world.get_path_for_origin(origin)?;
-        if !apworld_path.exists() {
-            return Err(anyhow::anyhow!(
-                "This apworld seems to be in the host's index but not in their apworld folder."
-            )
-            .into());
-        }
-
-        let value = format!("attachment; filename=\"{}.apworld\"", world_name);
-        return Ok(APWorldResponse::NamedFile(RenamedFile {
-            inner: NamedFile::open(&apworld_path).await?,
-            headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
-        }));
-    }
-
-    return Ok(APWorldResponse::Redirect(Redirect::to(
-        world.get_url_for_version(&version)?,
-    )));
-}
-
-#[rocket::get("/worlds/download_cached/<world_name>/<version>")]
-#[tracing::instrument(skip(index_manager, _session))]
-async fn download_cached_world<'a>(
-    index_manager: &State<IndexManager>,
-    version: &str,
-    world_name: &str,
-    _session: AdminSession,
-) -> Result<APWorldResponse<'a>> {
-    let index = index_manager.index.read().await;
-
-    dbg!(&world_name);
     let world = index
         .worlds
         .get(world_name)
@@ -150,10 +98,10 @@ async fn download_cached_world<'a>(
     }
 
     let value = format!("attachment; filename=\"{}.apworld\"", world_name);
-    return Ok(APWorldResponse::NamedFile(RenamedFile {
+    return Ok(RenamedFile {
         inner: NamedFile::open(&apworld_path).await?,
         headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
-    }));
+    });
 }
 
 #[rocket::get("/worlds/refresh")]
@@ -169,7 +117,6 @@ pub fn routes() -> Vec<rocket::Route> {
         list_worlds,
         download_all,
         download_world,
-        download_cached_world,
         refresh_worlds
     ]
 }
