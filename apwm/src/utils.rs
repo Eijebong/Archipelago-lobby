@@ -20,18 +20,14 @@ pub(crate) mod de {
     }
 
     pub fn version_req_external<'de, D: Deserializer<'de>>(d: D) -> Result<VersionReq, D::Error> {
-        let o: Option<String> = Option::deserialize(d)?;
+        let v = String::deserialize(d)?;
 
-        o.map(|v| {
-            let version = v.as_str();
-            Ok(match version {
-                "latest" => VersionReq::Latest,
-                "latest_supported" => VersionReq::LatestSupported,
-                "disabled" => VersionReq::Disabled,
-                _ => VersionReq::Specific(Version::parse(version).map_err(D::Error::custom)?),
-            })
+        Ok(match v.as_str() {
+            "latest" => VersionReq::Latest,
+            "latest_supported" => VersionReq::LatestSupported,
+            "disabled" => VersionReq::Disabled,
+            _ => VersionReq::Specific(Version::parse(v.as_str()).map_err(D::Error::custom)?),
         })
-        .unwrap_or(Ok(VersionReq::default()))
     }
 
     struct DefaultMapVisitor<K, V> {
