@@ -3,7 +3,9 @@ use std::{borrow::Cow, collections::HashMap, ffi::OsStr, io::Cursor, path::PathB
 use apwm::diff::CombinedDiff;
 use askama::Template;
 use rocket::{
-    http::{ContentType, Status}, response::{self, Responder}, routes, Request, Response, State
+    http::{ContentType, Status},
+    response::{self, Responder},
+    routes, Request, Response, State,
 };
 use serde::Deserialize;
 use taskcluster::{ClientBuilder, Queue};
@@ -95,7 +97,6 @@ async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
 
     Ok(Index { diffs })
 }
-
 
 #[derive(Deserialize)]
 struct TestResult {
