@@ -149,8 +149,20 @@ impl World {
             .truncate(true)
             .open(&apworld_path)?;
 
-        let checksum = self.copy_to(version, &apworld_file).await?;
         let apworld_name = self.get_ap_name()?;
+        let checksum = if let Ok(checksum) = self.copy_to(version, &apworld_file).await {
+            checksum
+        } else if let Some(lobby_url) = lobby_url {
+            self.download_from_lobby(lobby_url, version, &apworld_file)
+                .await?
+        } else {
+            bail!(
+                "Couldn't get world for `{}`, version `{}`",
+                apworld_name,
+                version
+            );
+        };
+
         let expected_checksum = lock_file.get_checksum(&apworld_name, version);
 
         if let Some(expected_checksum) = expected_checksum {
@@ -227,7 +239,7 @@ impl World {
         lobby_url: &Url,
         version: &Version,
         mut destination: &File,
-    ) -> Result<()> {
+    ) -> Result<String> {
         let api_key = std::env::var("LOBBY_API_KEY")?;
         let client = Client::new();
         let url = format!(
@@ -244,7 +256,7 @@ impl World {
         let body = req.bytes().await?;
 
         destination.write_all(&body)?;
-
-        Ok(())
+        let checksum = Sha256::digest(&body);
+        Ok(format!("{:x}", checksum))
     }
 }
