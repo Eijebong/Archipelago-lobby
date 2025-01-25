@@ -1,12 +1,11 @@
-use std::{borrow::Cow, ffi::OsStr, io::Cursor, path::PathBuf};
+use std::{borrow::Cow, collections::HashMap, ffi::OsStr, io::Cursor, path::PathBuf};
 
 use apwm::diff::CombinedDiff;
 use askama::Template;
 use rocket::{
-    http::{ContentType, Status},
-    response::{self, Responder},
-    routes, Request, Response, State,
+    http::{ContentType, Status}, response::{self, Responder}, routes, Request, Response, State
 };
+use serde::Deserialize;
 use taskcluster::{ClientBuilder, Queue};
 
 mod filters {
@@ -66,6 +65,12 @@ struct Index {
     diffs: Vec<CombinedDiff>,
 }
 
+#[derive(Template)]
+#[template(path = "tests.html")]
+struct TestPage {
+    results: TestResults,
+}
+
 #[rocket::get("/<task_id>")]
 async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
     let artifacts = get_task_artifacts(queue, task_id).await?;
@@ -89,6 +94,41 @@ async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
     }
 
     Ok(Index { diffs })
+}
+
+
+#[derive(Deserialize)]
+struct TestResult {
+    traceback: String,
+    description: String,
+}
+
+#[derive(Deserialize)]
+struct TestResults {
+    failures: HashMap<String, TestResult>,
+    errors: HashMap<String, TestResult>,
+    version: String,
+    world_name: String,
+}
+
+#[rocket::get("/tests/<task_id>")]
+async fn get_test_results(task_id: &str, queue: &State<Queue>) -> Result<TestPage> {
+    let artifacts = get_task_artifacts(queue, task_id).await?;
+    let Some(aptest_name) = artifacts
+        .iter()
+        .find(|path| path.starts_with("public/test_results/"))
+    else {
+        Err(anyhow::anyhow!(
+            "This doesn't look like a supported task, it contains no test_results"
+        ))?
+    };
+
+    let aptest_url = queue.getLatestArtifact_url(task_id, aptest_name)?;
+    let aptest = reqwest::get(&aptest_url).await?.text().await?;
+    let mut deser = serde_json::Deserializer::from_str(&aptest);
+    let results: TestResults = serde_path_to_error::deserialize(&mut deser)?;
+
+    Ok(TestPage { results })
 }
 
 #[derive(rust_embed::RustEmbed)]
@@ -117,7 +157,7 @@ async fn main() -> anyhow::Result<()> {
 
     rocket::build()
         .manage(queue)
-        .mount("/", routes![get_task_diffs, dist])
+        .mount("/", routes![get_task_diffs, dist, get_test_results])
         .launch()
         .await?;
 

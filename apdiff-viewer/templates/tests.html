@@ -1,0 +1,44 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="/static/css/github-dark.min.css"/>
+        <link rel="stylesheet" type="text/css" href="/static/css/diff2html.min.css" />
+        <script type="text/javascript" src="/static/js/diff2html-ui-slim.min.js"></script>
+        <link rel="stylesheet" type="text/css" href="/static/css/main.css" />
+    </head>
+    <body>
+        <h3>Test results for {{results.world_name}} version {{results.version}}</h3>
+        {% if !results.failures.is_empty() %}
+            <hr>
+            <h4>Failures</h4>
+            {% for (test_id, test) in results.failures.iter() %}
+            <details>
+                <summary>{{test_id}}</summary>
+                <div>
+                  <p>{{ test.description }}</p>
+                  <pre>
+                  {{ test.traceback|trim }}
+                  </pre>
+                </div>
+            </details>
+            <hr>
+            {% endfor %}
+        {% endif %}
+
+        {% if !results.errors.is_empty() %}
+            <hr>
+            <h4>Errors</h4>
+            {% for (test_id, test) in results.errors.iter() %}
+            <details>
+                <summary>{{test_id}}</summary>
+                <div>
+                  <p>{{ test.description }}</p>
+                  <pre>
+                  {{ test.traceback|trim }}
+                  </pre>
+                </div>
+            </details>
+            <hr>
+            {% endfor %}
+        {% endif %}
+    </body>
+</html>
