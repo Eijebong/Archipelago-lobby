@@ -82,6 +82,6 @@ This instructs any consumer of this world to treat that version as default, if
 it is not provided then the latest version will be used.
 
 Additionally, `default_version` can also be:
- - `"latest"`: Uses the latest version. 
+ - `"latest"`: Uses the latest version.
  - `"latest_supported"`: Uses the latest supported version. Only valid for supported worlds.
  - `"disabled"`: Disables the world by default.
