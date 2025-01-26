@@ -44,7 +44,7 @@ async fn list_worlds<'a>(
     cookies: &CookieJar<'a>,
 ) -> Result<WorldsListTpl<'a>> {
     let index = index_manager.index.read().await.clone();
-    let manifest = Manifest::from_index_with_latest_versions(&index)?;
+    let manifest = Manifest::from_index_with_default_versions(&index)?;
     let (worlds, _) = manifest.resolve_with(&index);
 
     let (mut supported_apworlds, mut unsupported_apworlds): (Vec<_>, Vec<_>) =
@@ -70,7 +70,7 @@ async fn download_all(
     _session: LoggedInSession,
 ) -> Result<ZipFile> {
     let index = index_manager.index.read().await.clone();
-    let manifest = Manifest::from_index_with_latest_versions(&index)?;
+    let manifest = Manifest::from_index_with_default_versions(&index)?;
     Ok(index_manager.download_apworlds(&manifest).await?)
 }
 

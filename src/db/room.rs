@@ -333,7 +333,7 @@ impl RoomSettings {
             allow_unsupported: false,
             yaml_limit_per_user: None,
             yaml_limit_bypass_list: vec![],
-            manifest: Json(Manifest::from_index_with_latest_versions(index)?),
+            manifest: Json(Manifest::from_index_with_default_versions(index)?),
             show_apworlds: true,
             created_at: Self::default_close_date()?,
             updated_at: Self::default_close_date()?,

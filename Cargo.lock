@@ -202,7 +202,7 @@ dependencies = [
 [[package]]
 name = "apwm"
 version = "0.1.0"
-source = "git+https://github.com/Eijebong/APWM.git#da4ac39dbc18149f7b5d293798b07b2994100f8b"
+source = "git+https://github.com/Eijebong/APWM.git#08103a72101a9f23f5093f67720dfff80892679a"
 dependencies = [
  "anyhow",
  "git2",
@@ -1995,7 +1995,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
