@@ -92,24 +92,34 @@ impl World {
         self.versions.get(version)
     }
 
-    pub async fn copy_to(&self, version: &Version, mut destination: &File) -> Result<String> {
+    pub async fn copy_to(
+        &self,
+        version: &Version,
+        mut destination: &File,
+        expected_checksum: Option<String>,
+    ) -> Result<String> {
         let url = self.get_url_for_version(version)?;
 
         let origin = self.versions.get(version).with_context(|| {
             format!("Unable to find version {} for world {}", self.name, version)
         })?;
         match origin {
-            WorldOrigin::Default | WorldOrigin::Url(_) => self.download_to(&url, destination).await,
+            WorldOrigin::Default | WorldOrigin::Url(_) => {
+                self.download_to(&url, destination, expected_checksum).await
+            }
             WorldOrigin::Local(_) => {
                 let full_path = self.get_path_for_origin(origin)?;
-                let mut src = std::fs::File::open(full_path)?;
+                let mut src = std::fs::File::open(&full_path)?;
                 let mut buf = Vec::new();
                 src.read_to_end(&mut buf)?;
+                let checksum = format!("{:x}", Sha256::digest(&buf));
+                if expected_checksum.is_some() && Some(&checksum) != expected_checksum.as_ref() {
+                    bail!("Error while copying apworld {:?}. Checksum didn't match what was expected.", full_path);
+                }
 
                 destination.write_all(&buf[..])?;
 
-                let checksum = Sha256::digest(&buf);
-                Ok(format!("{:x}", checksum))
+                Ok(checksum)
             }
             WorldOrigin::Supported => Ok("none".into()),
         }
@@ -152,30 +162,22 @@ impl World {
             .open(&apworld_path)?;
 
         let apworld_name = self.get_ap_name()?;
-        let checksum = if let Ok(checksum) = self.copy_to(version, &apworld_file).await {
-            checksum
-        } else if let Some(lobby_url) = lobby_url {
-            self.download_from_lobby(lobby_url, version, &apworld_file)
-                .await?
-        } else {
-            bail!(
-                "Couldn't get world for `{}`, version `{}`",
-                apworld_name,
-                version
-            );
-        };
-
         let expected_checksum = lock_file.get_checksum(&apworld_name, version);
-
-        if let Some(expected_checksum) = expected_checksum {
-            if checksum != expected_checksum {
+        let checksum = self
+            .copy_to(version, &apworld_file, expected_checksum)
+            .await;
+        if checksum.is_err() {
+            if let Some(lobby_url) = lobby_url {
                 apworld_file.set_len(0)?;
-                if let Some(lobby_url) = lobby_url {
-                    self.download_from_lobby(lobby_url, version, &apworld_file)
-                        .await?;
-                } else {
-                    bail!("The source checksum doesn't match the current index for the apworld `{}`, version `{}`", apworld_name, version);
-                }
+                self.download_from_lobby(lobby_url, version, &apworld_file)
+                    .await?;
+            } else {
+                bail!(
+                    "Couldn't get world for `{}`, version `{}`. {}",
+                    apworld_name,
+                    version,
+                    checksum.unwrap_err()
+                );
             }
         }
 
@@ -227,13 +229,24 @@ impl World {
         }
     }
 
-    async fn download_to(&self, uri: &str, mut destination: &File) -> Result<String> {
+    async fn download_to(
+        &self,
+        uri: &str,
+        mut destination: &File,
+        expected_checksum: Option<String>,
+    ) -> Result<String> {
         let req = reqwest::get(uri).await?.error_for_status()?;
         let body = req.bytes().await?;
+        let checksum = format!("{:x}", Sha256::digest(&body));
+        if expected_checksum.is_some() && Some(&checksum) != expected_checksum.as_ref() {
+            bail!(
+                "Error while downloading apworld from {}. Checksum didn't match what was expected.",
+                uri
+            );
+        }
 
         destination.write_all(&body)?;
-        let checksum = Sha256::digest(&body);
-        Ok(format!("{:x}", checksum))
+        Ok(checksum)
     }
 
     async fn download_from_lobby(

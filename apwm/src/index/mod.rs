@@ -151,7 +151,9 @@ impl Index {
                     .create(true)
                     .truncate(true)
                     .open(&apworld_destination_path)?;
-                let checksum = world.copy_to(version, &apworld_destination).await?;
+                let checksum = world
+                    .copy_to(version, &apworld_destination, expected_checksum)
+                    .await?;
                 new_lock.set_checksum(apworld_name, version, &checksum);
             }
         }
