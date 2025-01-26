@@ -139,7 +139,7 @@ impl<'a> RoomSettingsBuilder<'a> {
             Some(RoomTemplateBuilder::new())
         };
 
-        let default_manifest = Manifest::from_index_with_latest_versions(index)?;
+        let default_manifest = Manifest::from_index_with_default_versions(index)?;
 
         Ok(Self {
             base,

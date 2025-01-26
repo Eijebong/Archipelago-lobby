@@ -54,7 +54,7 @@ impl ManifestFormBuilder {
         let mut rows = Vec::with_capacity(self.index.worlds.len());
         for (apworld_name, world) in &self.index.worlds {
             let enabled = self.manifest.is_enabled(apworld_name);
-            let current_version = self.manifest.get_version_req(apworld_name);
+            let current_version = self.manifest.get_version_req(apworld_name, &self.index);
 
             let row = ManifestFormRow {
                 apworld_name,
