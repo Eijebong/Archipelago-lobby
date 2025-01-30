@@ -113,10 +113,5 @@ async fn refresh_worlds(index_manager: &State<IndexManager>, _session: AdminSess
 }
 
 pub fn routes() -> Vec<rocket::Route> {
-    routes![
-        list_worlds,
-        download_all,
-        download_world,
-        refresh_worlds
-    ]
+    routes![list_worlds, download_all, download_world, refresh_worlds]
 }
