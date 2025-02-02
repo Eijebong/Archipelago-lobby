@@ -301,7 +301,7 @@ fn get_ap_player_name<'a>(
 }
 
 fn is_reserved_name(player_name: &str) -> bool {
-    player_name == "meta" || player_name == "Archipelago"
+    player_name.to_lowercase() == "meta" || player_name.to_lowercase() == "archipelago"
 }
 
 async fn get_apworlds_for_games(
