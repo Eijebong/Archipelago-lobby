@@ -152,8 +152,6 @@ async fn diff_world(
         }
         // World changed
         (Some(old_world), Some(new_world)) => {
-            //let mut previous_version = None;
-
             let mut result = CombinedDiff {
                 apworld_name: new_world
                     .path
