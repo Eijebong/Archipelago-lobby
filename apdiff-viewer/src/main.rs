@@ -101,7 +101,7 @@ async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
 #[derive(Deserialize)]
 struct TestResult {
     traceback: String,
-    description: String,
+    description: Option<String>,
 }
 
 #[derive(Deserialize)]

@@ -14,7 +14,9 @@
             <details>
                 <summary>{{test_id}}</summary>
                 <div>
-                  <p>{{ test.description }}</p>
+                  {% if let Some(description) = test.description %}
+                    <p>{{ description }}</p>
+                  {% endif %}
                   <pre>
                   {{ test.traceback|trim }}
                   </pre>
@@ -31,7 +33,9 @@
             <details>
                 <summary>{{test_id}}</summary>
                 <div>
-                  <p>{{ test.description }}</p>
+                  {% if let Some(description) = test.description %}
+                    <p>{{ description }}</p>
+                  {% endif %}
                   <pre>
                   {{ test.traceback|trim }}
                   </pre>
