@@ -3,10 +3,10 @@ use std::time::Duration;
 use anyhow::Result;
 use redis::Commands;
 use uuid::Uuid;
-use wq::{Claim, Priority};
+use wq::{Claim, JobStatus, Priority};
 
 mod common;
-use common::{start_valkey, TestWork, DEFAULT_DEADLINE};
+use common::{start_valkey, TestWork, TestWorkResult, DEFAULT_DEADLINE};
 
 #[tokio::test]
 async fn simple_get_pop() -> Result<()> {
@@ -168,6 +168,48 @@ async fn test_no_job() -> Result<()> {
         .await?;
     let job = queue.claim_job("test").await?;
     assert_eq!(None, job);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_delete_result() -> Result<()> {
+    let valkey = start_valkey()?;
+    let client = redis::Client::open(valkey.url())?;
+    let mut conn = client.get_connection()?;
+
+    let queue = wq::WorkQueue::<TestWork, TestWorkResult>::builder("test_delete_result")
+        .with_claim_timeout(Duration::from_millis(1))
+        .build(&valkey.url())
+        .await?;
+
+    let work_param = TestWork(Uuid::new_v4().to_string());
+    let expected_job_id = queue
+        .enqueue_job(&work_param, wq::Priority::Low, DEFAULT_DEADLINE)
+        .await?;
+
+    let job = queue
+        .claim_job("test")
+        .await?
+        .expect("Should've gotten a job");
+
+    assert_eq!(expected_job_id, job.job_id);
+
+    queue
+        .resolve_job(
+            "test",
+            job.job_id,
+            JobStatus::Success,
+            TestWorkResult(job.job_id.to_string()),
+        )
+        .await?;
+
+    let result = conn.get::<_, Option<String>>(queue.get_result_key(&job.job_id))?;
+    assert!(result.is_some());
+
+    queue.delete_job_result(job.job_id).await?;
+    let result = conn.get::<_, Option<String>>(queue.get_result_key(&job.job_id))?;
+    assert!(result.is_none());
 
     Ok(())
 }

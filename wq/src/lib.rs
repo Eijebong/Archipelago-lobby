@@ -411,6 +411,16 @@ impl<
         Ok(serde_json::from_str::<JobResult<R>>(&result_str)?.result)
     }
 
+    /// Delete the job result for the given job id
+    pub async fn delete_job_result(&self, job_id: JobId) -> Result<()> {
+        let mut conn = self.client.clone();
+
+        let result_key = self.get_result_key(&job_id);
+        conn.del::<_, i64>(result_key).await?;
+
+        Ok(())
+    }
+
     /// Tries to getu a job for 30s and returns `Ok(None)` if nothing shows up.
     /// When a job is claimed, register the worker's claim on the job.
     pub async fn claim_job(&self, worker_id: &str) -> Result<Option<Job<P>>> {
