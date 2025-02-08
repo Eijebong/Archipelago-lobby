@@ -32,7 +32,7 @@ use rustls::Error as TLSError;
 use rustls::{DigitallySignedStruct, SignatureScheme};
 
 use ap_lobby::index_manager::IndexManager;
-use ap_lobby::jobs::YamlValidationQueue;
+use ap_lobby::jobs::{get_yaml_validation_callback, YamlValidationQueue};
 use views::queues::QueueTokens;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
@@ -189,8 +189,6 @@ async fn main() -> ap_lobby::error::Result<()> {
         .await?;
     }
 
-    let ctx = Context { db_pool };
-
     let limits = Limits::default().limit("string", 2.megabytes());
 
     let figment = rocket::Config::figment().merge(("limits", limits));
@@ -208,7 +206,13 @@ async fn main() -> ap_lobby::error::Result<()> {
         index_manager.update().await?;
     }
 
+    let (room_events_rx, room_events_tx) = ap_lobby::events::room_events();
+
     let yaml_validation_queue = YamlValidationQueue::builder("yaml_validation")
+        .with_callback(get_yaml_validation_callback(
+            db_pool.clone(),
+            room_events_tx,
+        ))
         .build(&valkey_url)
         .await
         .expect("Failed to create job queue for yaml validation");
@@ -219,6 +223,8 @@ async fn main() -> ap_lobby::error::Result<()> {
         std::env::var("YAML_VALIDATION_QUEUE_TOKEN").context("YAML_VALIDATION_QUEUE_TOKEN")?,
     )]));
     let queue_counters = QueueCounters::new(prometheus.registry())?;
+
+    let ctx = Context { db_pool };
 
     rocket::custom(figment.clone())
         .attach(TracingFairing)
@@ -238,6 +244,7 @@ async fn main() -> ap_lobby::error::Result<()> {
         .manage(index_manager)
         .manage(yaml_validation_queue)
         .manage(queue_tokens)
+        .manage(room_events_rx)
         .attach(OAuth2::<Discord>::fairing("discord"))
         .launch()
         .await

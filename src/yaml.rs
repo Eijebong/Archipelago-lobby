@@ -1,4 +1,4 @@
-use crate::db::{self, Room, YamlFile, YamlGame};
+use crate::db::{self, Room, Yaml, YamlFile, YamlGame, YamlValidationStatus};
 use crate::error::{Error, Result, WithContext};
 use crate::extractor::YamlFeatures;
 use crate::jobs::{YamlValidationParams, YamlValidationQueue};
@@ -6,7 +6,8 @@ use crate::session::LoggedInSession;
 
 use crate::index_manager::IndexManager;
 use anyhow::anyhow;
-use apwm::Manifest;
+use apwm::{Manifest, World};
+use chrono::Utc;
 use counter::Counter;
 use diesel_async::AsyncPgConnection;
 use itertools::Itertools;
@@ -14,8 +15,9 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 
 use rocket::http::CookieJar;
+use rocket::State;
 use semver::Version;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::BufReader;
 use std::time::Duration;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -54,6 +56,16 @@ pub fn parse_raw_yamls(yamls: &[&str]) -> Result<Vec<(String, YamlFile)>> {
     Ok(documents)
 }
 
+pub struct YamlValidationResult<'a> {
+    pub game_name: String,
+    pub document: &'a String,
+    pub parsed: &'a YamlFile,
+    pub features: YamlFeatures,
+    pub validation_status: YamlValidationStatus,
+    pub apworlds: Vec<(String, Version)>,
+    pub error: Option<String>,
+}
+
 #[tracing::instrument(skip_all)]
 pub async fn parse_and_validate_yamls_for_room<'a>(
     room: &Room,
@@ -63,7 +75,7 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
     yaml_validation_queue: &YamlValidationQueue,
     index_manager: &IndexManager,
     conn: &mut AsyncPgConnection,
-) -> Result<Vec<(String, &'a String, &'a YamlFile, YamlFeatures)>> {
+) -> Result<Vec<YamlValidationResult<'a>>> {
     let yamls_in_room = db::get_yamls_for_room(room.id, conn)
         .await
         .context("Couldn't get room yamls")?;
@@ -103,8 +115,8 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
 
         let game_name = validate_game(&parsed.game)?;
 
-        if room.settings.yaml_validation {
-            let unsupported_games = validate_yaml(
+        let (apworlds, validation_status, error) = if room.settings.yaml_validation {
+            let validation_result = validate_yaml(
                 document,
                 parsed,
                 &room.settings.manifest,
@@ -112,17 +124,27 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
                 yaml_validation_queue,
             )
             .await?;
-            if !unsupported_games.is_empty() {
-                if room.settings.allow_unsupported {
-                    session.0.warning_msg.push(format!(
-                        "Uploaded a YAML with unsupported games: {}. Couldn't verify it.",
-                        unsupported_games.iter().join("; ")
-                    ));
-                    session.0.save(cookies)?;
-                } else {
+
+            match validation_result {
+                YamlValidationJobResult::Success(apworlds) => {
+                    (apworlds, YamlValidationStatus::Validated, None)
+                }
+                YamlValidationJobResult::Failure(apworlds, error) => {
+                    if room.settings.allow_invalid_yamls {
+                        session.0.warning_msg.push(format!(
+                            "Invalid YAML:\n{}\n Uploading anyway since the room owner allowed it.",
+                            error
+                        ));
+                        session.0.save(cookies)?;
+                        (apworlds, YamlValidationStatus::Failed, Some(error))
+                    } else {
+                        Err(anyhow::anyhow!(error))?
+                    }
+                }
+                YamlValidationJobResult::Unsupported(worlds) => {
                     let index = index_manager.index.read().await;
-                    let err = format!("Error: {}",
-                        unsupported_games.iter().map(|game| {
+                    let error = format!("Error: {}",
+                        worlds.iter().map(|game| {
                             let is_game_in_index = index.get_world_by_name(game).is_some();
                             if is_game_in_index {
                                 format!("Uploaded a game for game {} which has been disabled for this room", game)
@@ -132,14 +154,35 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
                         }).join("\n")
                     );
 
-                    Err(anyhow::anyhow!(err))?
+                    if room.settings.allow_unsupported {
+                        session.0.warning_msg.push(format!(
+                            "Uploaded a YAML with unsupported games: {}.\n Couldn't verify it.",
+                            worlds.iter().join("; ")
+                        ));
+                        session.0.save(cookies)?;
+
+                        (vec![], YamlValidationStatus::Unsupported, Some(error))
+                    } else {
+                        Err(anyhow::anyhow!(error))?
+                    }
                 }
             }
-        }
+        } else {
+            (vec![], YamlValidationStatus::Unknown, None)
+        };
 
         let features = crate::extractor::extract_features(parsed, document)?;
 
-        games.push((game_name, document, parsed, features));
+        games.push(YamlValidationResult {
+            game_name,
+            document,
+            parsed,
+            features,
+            validation_status,
+            apworlds,
+            error,
+        });
+
         own_games_nb += 1;
     }
 
@@ -207,6 +250,14 @@ fn validate_game(game: &YamlGame) -> Result<String> {
     }
 }
 
+pub type ApworldsErrorsUnsupported = (Vec<(String, Version)>, Vec<String>, Vec<String>);
+
+pub enum YamlValidationJobResult {
+    Success(Vec<(String, Version)>),
+    Failure(Vec<(String, Version)>, String),
+    Unsupported(Vec<String>),
+}
+
 #[tracing::instrument(skip_all)]
 async fn validate_yaml(
     yaml: &str,
@@ -214,16 +265,17 @@ async fn validate_yaml(
     manifest: &Manifest,
     index_manager: &IndexManager,
     yaml_validation_queue: &YamlValidationQueue,
-) -> Result<Vec<String>> {
+) -> Result<YamlValidationJobResult> {
     let apworlds = match get_apworlds_for_games(index_manager, manifest, &parsed.game).await {
         Ok(apworlds) => apworlds,
-        Err(unsupported) => return Ok(unsupported),
+        Err(unsupported) => return Ok(YamlValidationJobResult::Unsupported(unsupported)),
     };
 
     let mut params = YamlValidationParams {
         apworlds,
         yaml: yaml.to_string(),
         otlp_context: HashMap::new(),
+        yaml_id: None,
     };
 
     let cx = tracing::Span::current().context();
@@ -252,17 +304,19 @@ async fn validate_yaml(
 
     if matches!(status, JobStatus::Failure) {
         let result = yaml_validation_queue.get_job_result(job_id).await?;
-        Err(anyhow!(
-            "Error: {}",
-            result.error.unwrap_or_else(|| "Internal error".to_string())
-        ))?
+        yaml_validation_queue.delete_job_result(job_id).await?;
+        return Ok(YamlValidationJobResult::Failure(
+            params.apworlds,
+            result.error.unwrap_or_else(|| "Internal Error".to_string()),
+        ));
     }
 
+    yaml_validation_queue.delete_job_result(job_id).await?;
     assert_eq!(status, JobStatus::Success);
 
     // TODO: Maybe show warnings from validation?
 
-    return Ok(vec![]);
+    Ok(YamlValidationJobResult::Success(params.apworlds))
 }
 
 fn get_ap_player_name<'a>(
@@ -304,7 +358,7 @@ fn is_reserved_name(player_name: &str) -> bool {
     player_name.to_lowercase() == "meta" || player_name.to_lowercase() == "archipelago"
 }
 
-async fn get_apworlds_for_games(
+pub async fn get_apworlds_for_games(
     index_manager: &IndexManager,
     manifest: &Manifest,
     games: &YamlGame,
@@ -339,4 +393,96 @@ async fn get_apworlds_for_games(
             Ok(result)
         }
     }
+}
+
+pub async fn revalidate_yamls_if_necessary(
+    room: &Room,
+    index_manager: &State<IndexManager>,
+    yaml_validation_queue: &State<YamlValidationQueue>,
+    conn: &mut AsyncPgConnection,
+) -> Result<()> {
+    if !room.settings.yaml_validation {
+        return Ok(());
+    }
+
+    let yamls = db::get_yamls_for_room(room.id, conn).await?;
+
+    let (resolved_index, _) = {
+        let index = index_manager.index.read().await.clone();
+        room.settings.manifest.resolve_with(&index)
+    };
+
+    for yaml in &yamls {
+        if should_revalidate_yaml(yaml, &resolved_index) {
+            queue_yaml_validation(yaml, room, index_manager, yaml_validation_queue, conn).await?;
+        }
+    }
+
+    Ok(())
+}
+
+fn should_revalidate_yaml(
+    yaml: &Yaml,
+    resolved_index: &BTreeMap<String, (World, Version)>,
+) -> bool {
+    for (apworld_name, apworld_version) in &yaml.apworlds {
+        if let Some((_, new_version)) = resolved_index.get(apworld_name) {
+            if new_version != apworld_version {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+pub async fn queue_yaml_validation(
+    yaml: &Yaml,
+    room: &Room,
+    index_manager: &State<IndexManager>,
+    yaml_validation_queue: &State<YamlValidationQueue>,
+    conn: &mut AsyncPgConnection,
+) -> Result<()> {
+    let Ok(parsed) = serde_yaml::from_str::<YamlFile>(&yaml.content) else {
+        Err(anyhow!(
+            "Internal error, unable to reparse a YAML that was already parsed before"
+        ))?
+    };
+
+    let apworlds =
+        match get_apworlds_for_games(index_manager, &room.settings.manifest, &parsed.game).await {
+            Ok(apworlds) => apworlds,
+            Err(unsupported) => {
+                let error = format!("Unsupported apworlds: {}", unsupported.join(", "));
+
+                db::update_yaml_status(
+                    yaml.id,
+                    db::YamlValidationStatus::Unsupported,
+                    Some(error),
+                    vec![],
+                    Utc::now(),
+                    conn,
+                )
+                .await?;
+                return Ok(());
+            }
+        };
+
+    let mut params = YamlValidationParams {
+        apworlds,
+        yaml: yaml.content.clone(),
+        otlp_context: HashMap::new(),
+        yaml_id: Some(yaml.id),
+    };
+
+    let cx = tracing::Span::current().context();
+    opentelemetry::global::get_text_map_propagator(|propagator| {
+        propagator.inject_context(&cx, &mut params.otlp_context)
+    });
+
+    yaml_validation_queue
+        .enqueue_job(&params, wq::Priority::Low, Duration::from_secs(600))
+        .await?;
+
+    Ok(())
 }

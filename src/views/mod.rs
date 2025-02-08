@@ -5,20 +5,26 @@ use std::io::{Cursor, Write};
 use std::path::PathBuf;
 
 use crate::{Context, TplContext};
-use ap_lobby::db::{self, Author, Room, RoomFilter, RoomId, YamlId, YamlWithoutContent};
+use ap_lobby::db::{
+    self, Author, Json, NewYaml, Room, RoomFilter, RoomId, YamlId, YamlWithoutContent,
+};
 use ap_lobby::error::{Error, RedirectTo, Result, WithContext};
+use ap_lobby::events::RoomEventsReceiver;
 use ap_lobby::index_manager::IndexManager;
 use ap_lobby::jobs::YamlValidationQueue;
 use ap_lobby::session::{LoggedInSession, Session};
 use ap_lobby::utils::ZipFile;
+use ap_lobby::yaml::YamlValidationResult;
 use apwm::{World, WorldOrigin};
 use askama::Template;
 use diesel_async::scoped_futures::ScopedFutureExt;
 use diesel_async::AsyncConnection;
+use futures_util::stream::StreamExt;
 use http::header::CONTENT_DISPOSITION;
 use itertools::Itertools;
 use rocket::form::Form;
 use rocket::http::{ContentType, CookieJar, Header};
+use rocket::response::stream::{Event, EventStream};
 use rocket::response::Redirect;
 use rocket::routes;
 use rocket::{get, post, uri, State};
@@ -86,7 +92,7 @@ async fn root<'a>(
             .with_author(Author::User(user_id))
             .with_yamls_from(db::WithYaml::AndFor(user_id));
 
-        db::list_rooms(your_rooms_filter, current_page, &mut conn).await?
+        db::list_rooms(your_rooms_filter, Some(current_page), &mut conn).await?
     } else {
         (vec![], 1)
     };
@@ -142,6 +148,21 @@ async fn room<'a>(
     })
 }
 
+#[get("/room/<room_id>/events")]
+fn room_events(
+    room_id: RoomId,
+    room_events_receiver: &State<RoomEventsReceiver>,
+) -> EventStream![] {
+    let stream = room_events_receiver.stream_for_room(room_id);
+
+    EventStream! {
+        futures_util::pin_mut!(stream);
+        while let Some(msg) = stream.next().await {
+            yield Event::json(&msg)
+        }
+    }
+}
+
 #[derive(rocket::form::FromForm)]
 struct Yamls<'a> {
     yamls: Vec<&'a str>,
@@ -191,17 +212,30 @@ async fn upload_yaml(
 
     conn.transaction::<(), Error, _>(|conn| {
         async move {
-            for (game_name, document, parsed, features) in games {
-                db::add_yaml_to_room(
+            for YamlValidationResult {
+                ref game_name,
+                document,
+                parsed,
+                features,
+                validation_status,
+                apworlds,
+                error,
+            } in games
+            {
+                let new_yaml = NewYaml {
+                    id: YamlId::new_v4(),
+                    owner_id: session.user_id(),
                     room_id,
-                    session.0.user_id.unwrap(),
-                    &game_name,
-                    document,
-                    parsed,
-                    features,
-                    conn,
-                )
-                .await?;
+                    content: document,
+                    player_name: &parsed.name,
+                    game: game_name,
+                    features: Json(features),
+                    validation_status,
+                    apworlds,
+                    last_error: error,
+                };
+
+                db::add_yaml_to_room(new_yaml, conn).await?;
             }
             Ok(())
         }
@@ -409,6 +443,7 @@ pub fn routes() -> Vec<rocket::Route> {
     routes![
         root,
         room,
+        room_events,
         room_worlds,
         room_download_all_worlds,
         upload_yaml,

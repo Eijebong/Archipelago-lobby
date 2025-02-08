@@ -51,10 +51,10 @@
                 </nav>
                 <div id="messages">
                     {% for error in base.err_msg %}
-                        <p class="error">{{ error|escape|linebreaksbr|safe }}</p>
+                        <pre class="error">{{ error|escape|linebreaksbr|safe }}</pre>
                     {% endfor %}
                     {% for warning in base.warning_msg %}
-                        <p class="warning">{{ warning }}</p>
+                        <pre class="warning">{{ warning|escape|linebreaksbr|safe }}</pre>
                     {% endfor %}
                     {% block messages %}{% endblock messages %}
                 </div>

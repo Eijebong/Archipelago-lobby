@@ -1,5 +1,6 @@
 pub mod db;
 pub mod error;
+pub mod events;
 pub mod extractor;
 pub mod index_manager;
 pub mod jobs;

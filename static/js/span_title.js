@@ -11,20 +11,12 @@ for (const span of spanElements) {
     const parent = span.parentElement;
 
     parent.addEventListener('mouseover', () => {
-        if (hasTitleShown) {
+        if (hasTitleShown || span.dataset.forcedOn === "true") {
             return
         }
 
         hasTitleShown = true;
-        const titleElem = document.createElement("span");
-        titleElem.innerHTML = " (" + span.title + ")";
-        titleElem.classList = "span-title"
-        titleElem.style.display = 'inline';
-        if (span.nextSibling) {
-            parent.insertBefore(titleElem, span.nextSibling);
-        } else {
-            parent.appendChild(titleElem);
-        }
+        const titleElem = createTitleSpan(span)
 
         parent.addEventListener('mouseleave', () => {
             hasTitleShown = false;
@@ -35,3 +27,17 @@ for (const span of spanElements) {
 
 }
 
+function createTitleSpan(elem) {
+    const parent = elem.parentElement;
+    const titleElem = document.createElement("span");
+    titleElem.innerHTML = " (" + elem.title + ")";
+    titleElem.classList = "span-title"
+    titleElem.style.display = 'inline';
+    if (elem.nextSibling) {
+        parent.insertBefore(titleElem, elem.nextSibling);
+    } else {
+        parent.appendChild(titleElem);
+    }
+
+    return titleElem
+}

@@ -31,6 +31,7 @@ pub struct NewRoom<'a> {
     pub manifest: Json<Manifest>,
     pub show_apworlds: bool,
     pub from_template_id: Option<Option<RoomTemplateId>>,
+    pub allow_invalid_yamls: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -48,6 +49,7 @@ pub struct RoomSettings {
     pub show_apworlds: bool,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub allow_invalid_yamls: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -98,6 +100,7 @@ impl<
         ST12,
         ST13,
         ST14,
+        ST15,
     >
     Queryable<
         (
@@ -116,6 +119,7 @@ impl<
             ST12,
             ST13,
             ST14,
+            ST15,
         ),
         DB,
     > for Room
@@ -136,6 +140,7 @@ where
         NaiveDateTime,
         NaiveDateTime,
         Option<RoomTemplateId>,
+        bool,
     ): FromStaticSqlRow<
         (
             ST0,
@@ -153,6 +158,7 @@ where
             ST12,
             ST13,
             ST14,
+            ST15,
         ),
         DB,
     >,
@@ -173,6 +179,7 @@ where
         NaiveDateTime,
         NaiveDateTime,
         Option<RoomTemplateId>,
+        bool,
     );
 
     fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
@@ -192,6 +199,7 @@ where
                 show_apworlds: row.11,
                 created_at: row.12,
                 updated_at: row.13,
+                allow_invalid_yamls: row.15,
             },
             from_template_id: row.14,
         })
@@ -216,6 +224,7 @@ impl<
         ST13,
         ST14,
         ST15,
+        ST16,
     >
     Queryable<
         (
@@ -235,6 +244,7 @@ impl<
             ST13,
             ST14,
             ST15,
+            ST16,
         ),
         DB,
     > for RoomTemplate
@@ -256,6 +266,7 @@ where
         NaiveDateTime,
         bool,
         String,
+        bool,
     ): FromStaticSqlRow<
         (
             ST0,
@@ -274,6 +285,7 @@ where
             ST13,
             ST14,
             ST15,
+            ST16,
         ),
         DB,
     >,
@@ -295,6 +307,7 @@ where
         NaiveDateTime,
         bool,
         String,
+        bool,
     );
 
     fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
@@ -314,6 +327,7 @@ where
                 show_apworlds: row.11,
                 created_at: row.12,
                 updated_at: row.13,
+                allow_invalid_yamls: row.16,
             },
             global: row.14,
             tpl_name: row.15,
@@ -337,6 +351,7 @@ impl RoomSettings {
             show_apworlds: true,
             created_at: Self::default_close_date()?,
             updated_at: Self::default_close_date()?,
+            allow_invalid_yamls: false,
         })
     }
 
@@ -370,14 +385,13 @@ pub async fn create_room<'a>(
 pub async fn update_room<'a>(
     new_room: &'a NewRoom<'a>,
     conn: &mut AsyncPgConnection,
-) -> Result<()> {
-    diesel::update(rooms::table)
+) -> Result<Room> {
+    Ok(diesel::update(rooms::table)
         .filter(rooms::id.eq(&new_room.id))
         .set(new_room)
-        .execute(conn)
-        .await?;
-
-    Ok(())
+        .returning(Room::as_returning())
+        .get_result(conn)
+        .await?)
 }
 
 #[tracing::instrument(skip(conn))]

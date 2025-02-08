@@ -58,6 +58,8 @@ sentry = "0.35.0"
 sentry-tracing = "0.35.0"
 tracing-core = "0.1.33"
 regex = "1.11.1"
+async-stream = "0.3.6"
+futures-core = "0.3.31"
 
 [profile.dev.package.askama_derive]
 opt-level = 3

@@ -1,5 +1,15 @@
 // @generated automatically by Diesel CLI.
 
+pub mod sql_types {
+    #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "apworld"))]
+    pub struct Apworld;
+
+    #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "validation_status"))]
+    pub struct ValidationStatus;
+}
+
 diesel::table! {
     use diesel::sql_types::*;
     use crate::db::types::sql::*;
@@ -31,6 +41,7 @@ diesel::table! {
         updated_at -> Timestamp,
         global -> Bool,
         tpl_name -> Varchar,
+        allow_invalid_yamls -> Bool,
     }
 }
 
@@ -54,12 +65,15 @@ diesel::table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         from_template_id -> Nullable<SqlRoomTemplateId>,
+        allow_invalid_yamls -> Bool,
     }
 }
 
 diesel::table! {
     use diesel::sql_types::*;
     use crate::db::types::sql::*;
+    use super::sql_types::ValidationStatus;
+    use super::sql_types::Apworld;
 
     yamls (id) {
         id -> SqlYamlId,
@@ -71,6 +85,10 @@ diesel::table! {
         features -> Jsonb,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        validation_status -> ValidationStatus,
+        apworlds -> Array<Apworld>,
+        last_validation_time -> Timestamp,
+        last_error -> Nullable<Text>,
     }
 }
 

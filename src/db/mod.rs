@@ -1,10 +1,10 @@
 use crate::error::Result;
 use crate::schema::{rooms, yamls};
 
-use diesel::dsl::{exists, AsSelect, SqlTypeOf};
+use diesel::dsl::{exists, now, AsSelect, SqlTypeOf};
 use diesel::pg::Pg;
 use diesel::prelude::*;
-use diesel_async::AsyncPgConnection;
+use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
 pub mod instrumentation;
 mod json;
@@ -42,21 +42,34 @@ pub enum WithYaml {
     AndFor(i64),
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum OpenState {
+    Any,
+    Open,
+    Closed,
+}
+
 #[tracing::instrument(skip(conn))]
 pub async fn list_rooms(
     room_filter: RoomFilter,
-    page: u64,
+    page: Option<u64>,
     conn: &mut AsyncPgConnection,
 ) -> Result<(Vec<Room>, u64)> {
-    let query = room_filter.as_query().paginate(page);
+    if let Some(page) = page {
+        let query = room_filter.as_query().paginate(page);
 
-    Ok(query.load_and_count_pages::<Room>(conn).await?)
+        Ok(query.load_and_count_pages::<Room>(conn).await?)
+    } else {
+        let query = room_filter.as_query();
+        Ok((query.load::<Room>(conn).await?, 1))
+    }
 }
 
 #[derive(Debug)]
 pub struct RoomFilter {
-    pub with_yaml_from: WithYaml,
-    pub author: Author,
+    with_yaml_from: WithYaml,
+    author: Author,
+    open_state: OpenState,
 }
 
 impl Default for RoomFilter {
@@ -64,9 +77,11 @@ impl Default for RoomFilter {
         Self {
             with_yaml_from: WithYaml::Any,
             author: Author::Any,
+            open_state: OpenState::Any,
         }
     }
 }
+
 impl RoomFilter {
     pub fn as_query<'f>(&self) -> rooms::BoxedQuery<'f, Pg, SqlTypeOf<AsSelect<Room, Pg>>> {
         let query = rooms::table.select(Room::as_select()).into_boxed();
@@ -87,6 +102,12 @@ impl RoomFilter {
             WithYaml::Any => query,
         };
 
+        let query = match self.open_state {
+            OpenState::Any => query,
+            OpenState::Open => query.filter(rooms::close_date.gt(now)),
+            OpenState::Closed => query.filter(rooms::close_date.lt(now)),
+        };
+
         query.order_by(rooms::close_date.desc())
     }
 
@@ -97,6 +118,11 @@ impl RoomFilter {
 
     pub fn with_author(mut self, author: Author) -> Self {
         self.author = author;
+        self
+    }
+
+    pub fn with_open_state(mut self, open_state: OpenState) -> Self {
+        self.open_state = open_state;
         self
     }
 }

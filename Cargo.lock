@@ -148,6 +148,7 @@ dependencies = [
  "apwm",
  "askama",
  "askama_rocket",
+ "async-stream",
  "base64",
  "chrono",
  "comrak",
@@ -158,6 +159,7 @@ dependencies = [
  "diesel_migrations",
  "dotenvy",
  "env_logger",
+ "futures-core",
  "futures-util",
  "git2",
  "http",
@@ -4840,7 +4842,7 @@ dependencies = [
 [[package]]
 name = "wq"
 version = "0.1.0"
-source = "git+https://github.com/Eijebong/wq.git#e7a1c39b16fff8ef261b92be82741869e334fd18"
+source = "git+https://github.com/Eijebong/wq.git#f2fa6b7e4db7cf4dfd7f436ffa9b76d9fca0301f"
 dependencies = [
  "anyhow",
  "chrono",

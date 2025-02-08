@@ -53,7 +53,10 @@
                 <label for="yaml_validation">Validate uploaded YAML files</label>
 
                 <input {{ ro }} type="checkbox" name="room.allow_unsupported" id="allow_unsupported" {%+ if self.room.allow_unsupported%} checked {% endif %}>
-                <label for="allow_unsupported">Allow bypassing validation for games not on the lobby</label>
+                <label for="allow_unsupported">Allow YAMLs with worlds not supported by the lobby</label>
+
+                <input {{ ro }} type="checkbox" name="room.allow_invalid_yamls" id="allow_invalid_yamls" {%+ if self.room.allow_invalid_yamls %} checked {% endif %}>
+                <label for="allow_invalid_yamls">Allow invalid YAMLs to be uploaded</label>
             </fieldset>
 
             <input {{ ro }} type="checkbox" name="room.show_apworlds" id="show_apworlds" {%+ if self.room.show_apworlds%} checked {% endif %}>

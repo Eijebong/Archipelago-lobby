@@ -65,37 +65,61 @@
     {% endif %}
 </table>
 
+<div id="filter-popup" style="display: none">
+    <form action="javascript:void(0);">
+        <input type="text" name="search" placeholder="Search" autocomplete="off"/>
+        <input type="checkbox" id="my-yamls"><label for="my-yamls">My files only</label><br>
+        {% if base.is_logged_in %}
+        <input type="checkbox" id="broken-yamls"><label for="broken-yamls">Invalid yamls only</label><br>
+        <input type="checkbox" id="keep-discord-names"><label for="keep-discord-names">Always show discord names</label><br>
+        {% endif %}
+        {% if is_my_room && !is_closed %}
+        {% endif %}
+
+        <button onclick='document.getElementById("filter-popup").style.display = "none";'>Close</button>
+    </form>
+</div>
+
+
 <table class="styled yamls" id="yamls">
     <thead>
         <tr>
-            <th>Player {%+ if base.is_logged_in  %}(<input type="checkbox" id="my-yamls"><label for="my-yamls">My files only</label>){% endif %}</th>
-            <th>Game</th>
+            <th data-sort-key="player-name"><i id="filter-trigger" class="fa fa-filter"></i> Player {%+ if base.is_logged_in %} <span data-sort-key="discord-name">(@</span>) {% endif %}</th>
+            <th data-sort-key="game-name">Game</th>
             <th>Action</th>
         </tr>
     </thead>
     <tbody>
         {% for yaml in yamls %}
         {% let is_my_yaml = (Some(yaml.0.owner_id) == base.user_id.as_ref()) %}
-        <tr {%+ if is_my_yaml %} data-my-yaml=true {% endif %}>
+        <tr {%+ if is_my_yaml %} data-my-yaml="true" {% endif +%} data-yaml-id="{{ yaml.0.id }}" data-valid-yaml="{{ yaml.0.validation_status.is_valid() }}">
             {% if base.is_logged_in %}
-                <td><span><span title="@{{yaml.1}}">{{yaml.0.player_name}}</span> {{yaml.0.features|yaml_features|safe}}</span></td>
+                <td>
+                    <span>
+                        <span class="validation-result validation-{{yaml.0.validation_status.as_str()}}"></span>
+                        <span class="player-name" title="@{{yaml.1}}">{{yaml.0.player_name}}</span>
+                        {{yaml.0.features|yaml_features|safe}}
+                    </span>
+                </td>
             {% else %}
-                <td><span><span>{{yaml.0.player_name}}</span> {{yaml.0.features|yaml_features|safe}}</span></td>
+                <td colspan=2><span><span class="player-name">{{yaml.0.player_name}}</span> {{yaml.0.features|yaml_features|safe}}</span></td>
             {% endif %}
             <td>{{yaml.0.game}}</td>
             {% if (is_my_yaml || is_my_room) && !is_closed %}
-            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}", "{{yaml.0.player_name}}", "{{yaml.0.game}}")'>View</a> | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}" data-confirm-del=true data-resource-type="YAML file" data-resource-name="{{yaml.0.player_name}} ({{yaml.0.game}})">Delete</a></td>
+            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}")'>View</a> | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}" data-confirm-del=true data-resource-type="YAML file" data-resource-name="{{yaml.0.player_name}} ({{yaml.0.game}})">Delete</a></td>
             {% else %}
-            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}", "{{yaml.0.player_name}}", "{{yaml.0.game}}")'>View</a></td>
+            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showYaml("{{ room.id }}", "{{yaml.0.id}}")'>View</a></td>
             {% endif %}
         </tr>
         {% endfor %}
+    </tbody>
+    <tfoot>
         {% if base.is_logged_in && !yamls.is_empty() %}
         <tr>
             <td colspan="2"></td><td><a class="validation-button" href="/room/{{room.id}}/yamls">Download all YAMLs</a></td>
         </tr>
         {% endif %}
-    </tbody>
+    </tfoot>
 </table>
 
 <form style="display: none" action="/room/{{room.id}}/upload" method="POST" enctype="multipart/form-data">
@@ -120,29 +144,187 @@
         yamlFormButton.click();
     }
 
-    const filter_yamls = document.getElementById("my-yamls");
-    if (filter_yamls !== null) {
-        filter_yamls.checked = false;
-        filter_yamls.onchange = function() {
-            const yamlTable = document.getElementById("yamls").getElementsByTagName("tbody")[0];
-            for(let row of yamlTable.getElementsByTagName("tr")) {
-                if (filter_yamls.checked) {
-                    if (row.dataset.myYaml) {
-                        row.style.display = "table-row"
-                    } else {
-                        row.style.display = "none"
+    window.onload = function() {
+        // Search popup
+        document.getElementById("filter-trigger").onclick = function(event) {
+            event.stopPropagation();
+            const popup = document.getElementById("filter-popup");
+
+            if (popup.style.display === "block") {
+                popup.style.display = "none"
+                return
+            }
+
+            const anchor_bb = event.target.getBoundingClientRect();
+            const element_bb = popup.getBoundingClientRect();
+
+            if (anchor_bb.left + element_bb.width > window.innerWidth) {
+                popup.style.left = window.innerWidth - element_bb.width + "px"
+            } else {
+                popup.style.left = anchor_bb.left + "px"
+            }
+
+            popup.style.top = event.target.parentElement.getBoundingClientRect().bottom + "px"
+            popup.style["min-width"] = anchor_bb.width + "px"
+            popup.style.display = "block"
+            popup.style.position = "absolute"
+        }
+
+        // Search field
+        const search = new SimpleSearch('search', '.yamls tbody > tr', '.player-name');
+
+        // Boolean filters
+        function addFilters(filters) {
+            function refreshFilters() {
+                const yamlTable = document.getElementById("yamls").getElementsByTagName("tbody")[0];
+                for(let row of yamlTable.getElementsByTagName("tr")) {
+                    var hidden = false;
+                    for (const [filterId, filter] of Object.entries(filters)) {
+                        const filterYamls = document.getElementById(filterId);
+                        hidden |= (filterYamls.checked && filter(row))
                     }
-                } else {
-                    row.style.display = "table-row"
+                    row.setAttribute("data-hidden", !!hidden)
+                }
+            }
+
+            for (const [filterId, filter] of Object.entries(filters)) {
+                const filterYamls = document.getElementById(filterId);
+                filterYamls.checked = false;
+                filterYamls.onchange = function() {
+                    refreshFilters()
+                    search.update()
                 }
             }
         }
+
+        addFilters({"my-yamls": (row) => row.dataset.myYaml, "broken-yamls": (row) => row.dataset.validYaml != "false"})
+
+
+        // Always show discord names
+        const keepDiscordNames = document.getElementById("keep-discord-names")
+        if (keepDiscordNames !== null) {
+            keepDiscordNames.checked = false;
+            keepDiscordNames.onchange = function() {
+                const yamlTable = document.getElementById("yamls").getElementsByTagName("tbody")[0];
+                for(let row of yamlTable.getElementsByTagName("tr")) {
+                    const playerName = row.getElementsByClassName("player-name")[0]
+                    if (!playerName) continue
+
+                    playerName.setAttribute("data-forced-on", !!keepDiscordNames.checked)
+
+                    if (keepDiscordNames.checked) {
+                        const titleElem = createTitleSpan(playerName)
+                        keepDiscordNames.addEventListener("change", function() {
+                            titleElem.parentElement.removeChild(titleElem);
+                        }, {once: true})
+                    }
+                }
+            }
+        }
+
+
+        // Table sorting
+        function sortBy(key, elmt) {
+            function getValueToSortWith(row, key) {
+                switch (key) {
+                    case "game-name":
+                        return row.children[1].innerText
+                    case "discord-name":
+                        return row.children[0].getElementsByClassName("player-name")[0].title
+                    case "validation-status":
+                        break
+                    case "player-name":
+                        return row.children[0].getElementsByClassName("player-name")[0].innerText
+                    default:
+                        console.log("Unknown sort-by key: ", key)
+                        return 0
+                }
+            }
+
+            const currentDirection = elmt.dataset.sortDir || 'asc'
+            const direction = currentDirection === 'asc' ? 'desc' : 'asc'
+            elmt.setAttribute('data-sort-dir', direction)
+            const table = document.getElementById('yamls');
+            const compare = (a, b) => {
+                if (direction === 'asc') {
+                    return getValueToSortWith(a, key) > getValueToSortWith(b, key)
+                } else {
+                    return getValueToSortWith(a, key) < getValueToSortWith(b, key)
+                }
+            }
+            const tbody = table.querySelector('tbody');
+            Array.from(tbody.querySelectorAll('tr'))
+                .sort(compare)
+                .forEach(tr => tbody.appendChild(tr));
+
+            const sortIndicator = document.createElement("i")
+            sortIndicator.classList.add(...["fa", "sort-indicator", direction === "asc" ? "fa-sort-up" : "fa-sort-down"])
+            elmt.insertBefore(sortIndicator, elmt.children[1])
+        }
+
+        function removeAllSortableIndicators(elmt) {
+            const sortableIndicators = elmt.querySelectorAll(".sort-indicator")
+            for (const elmt of sortableIndicators) {
+                elmt.parentElement.removeChild(elmt)
+            }
+        }
+
+        function connectSortableElements(table) {
+            const thead = table.querySelector("thead")
+            const elements = thead.querySelectorAll("*")
+            for (const elmt of elements) {
+                const sortKey = elmt.dataset.sortKey
+                if (!sortKey) continue
+
+                elmt.onclick = (event) => {
+                    removeAllSortableIndicators(thead)
+                    sortBy(sortKey, elmt)
+                    event.stopPropagation()
+                }
+            }
+        }
+
+        connectSortableElements(document.getElementById("yamls"))
+
+        const eventSource = new EventSource("/room/{{ room.id }}/events")
+        eventSource.onmessage = (msg) => {
+            const data = JSON.parse(msg.data)
+            switch (data["ty"]) {
+                case "YamlValidationStatusChanged": {
+                    updateYamlValidationStatus(data["yaml_id"], data["new_status"], data["new_error"])
+                    break;
+                }
+                default: {
+                    console.log("Unhandled message type: ", data["ty"])
+                }
+            }
+        }
+
+        function updateYamlValidationStatus(yamlId, newStatus, newError) {
+            const rows = document.querySelectorAll("tr[data-yaml-id='" + yamlId + "']")
+            for (const row of rows) {
+                const statusIndicator = row.getElementsByClassName("validation-result")[0]
+                statusIndicator.className = "validation-result validation-" + newStatus.toLowerCase()
+            }
+            const yamlContentPopup = document.getElementById("yaml-content-popup")
+            if (yamlContentPopup === null) {
+                return
+            }
+
+            if (yamlContentPopup.dataset.yamlId !== yamlId) {
+                return
+            }
+
+            refreshPopupStatus(newStatus, newError)
+        }
     }
 </script>
+
 <script src="/static/contrib/highlight.js/highlight.min.js" defer></script>
 <script src="/static/contrib/highlight.js/yaml.min.js" defer></script>
 <script src="/static/js/viewer.js?{{ base.js_version }}" defer></script>
 <script src="/static/js/room.js?{{ base.js_version }}" defer></script>
+<script src="/static/js/simplesearch.js?{{ base.js_version }}" defer></script>
 {% endblock %}
 
 {% block styles %}

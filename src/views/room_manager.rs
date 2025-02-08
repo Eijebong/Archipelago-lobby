@@ -3,7 +3,9 @@
 use ap_lobby::db::{self, Author, NewRoom, Room, RoomFilter, RoomId, RoomTemplateId};
 use ap_lobby::error::{RedirectTo, Result, WithContext};
 use ap_lobby::index_manager::IndexManager;
+use ap_lobby::jobs::YamlValidationQueue;
 use ap_lobby::session::LoggedInSession;
+use ap_lobby::yaml::revalidate_yamls_if_necessary;
 use askama::Template;
 use chrono::{DateTime, TimeZone, Utc};
 use rocket::form::Form;
@@ -42,6 +44,7 @@ pub struct RoomSettingsForm<'a> {
     pub room_url: &'a str,
     pub yaml_validation: bool,
     pub allow_unsupported: bool,
+    pub allow_invalid_yamls: bool,
     pub yaml_limit_per_user: bool,
     pub yaml_limit_per_user_nb: i32,
     pub yaml_limit_bypass_list: &'a str,
@@ -77,7 +80,7 @@ async fn my_rooms<'a>(
 
     let (rooms, max_pages) = db::list_rooms(
         RoomFilter::default().with_author(author_filter),
-        current_page,
+        Some(current_page),
         &mut conn,
     )
     .await?;
@@ -178,6 +181,7 @@ async fn create_room_submit<'a>(
         manifest: db::Json(room_manifest),
         show_apworlds: room_form.room.show_apworlds,
         from_template_id: Some(from_template),
+        allow_invalid_yamls: room_form.room.allow_invalid_yamls,
     };
 
     let mut conn = ctx.db_pool.get().await?;
@@ -247,13 +251,21 @@ async fn delete_room<'a>(
 }
 
 #[post("/edit-room/<room_id>", data = "<room_form>")]
-#[tracing::instrument(skip(redirect_to, room_form, index_manager, ctx, session))]
+#[tracing::instrument(skip(
+    redirect_to,
+    room_form,
+    index_manager,
+    ctx,
+    session,
+    yaml_validation_queue
+))]
 async fn edit_room_submit<'a>(
     redirect_to: &RedirectTo,
     room_id: RoomId,
     mut room_form: Form<CreateRoomForm<'a>>,
     ctx: &State<Context>,
     index_manager: &State<IndexManager>,
+    yaml_validation_queue: &State<YamlValidationQueue>,
     session: LoggedInSession,
 ) -> Result<Redirect> {
     redirect_to.set(&format!("/edit-room/{}", room_id));
@@ -294,9 +306,11 @@ async fn edit_room_submit<'a>(
         manifest: db::Json(room_manifest),
         show_apworlds: room_form.room.show_apworlds,
         from_template_id: None,
+        allow_invalid_yamls: room_form.room.allow_invalid_yamls,
     };
 
-    db::update_room(&new_room, &mut conn).await?;
+    let room = db::update_room(&new_room, &mut conn).await?;
+    revalidate_yamls_if_necessary(&room, index_manager, yaml_validation_queue, &mut conn).await?;
 
     Ok(Redirect::to(format!("/room/{}", room_id)))
 }

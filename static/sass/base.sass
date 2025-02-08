@@ -530,7 +530,7 @@ h6
 
 
 .error
-  background-color: hsl(0,75%,50%) !important
+  background-color: hsl(0, 90%, 20.0%) !important
   background-image: url("../images/background.png")
   padding: 0.5em
   box-shadow: inset 0 0 0 1px hsla(0,0%,100%,0.2), 0 0 0 1px hsl(0,75%,20%)
@@ -538,9 +538,10 @@ h6
   color: hsl(0,100%,95%) !important
   text-shadow: 1px 1px black !important
   margin: 1em 0
+  font-family: sans-serif
 
 .warning
-  background-color: hsl(30,95%,40%) !important
+  background-color: hsl(30,95%,30%) !important
   background-image: url("../images/background.png")
   padding: 0.5em
   box-shadow: inset 0 0 0 1px hsla(30,0%,100%,0.2), 0 0 0 1px hsl(3,75%,20%)
@@ -548,9 +549,10 @@ h6
   color: hsl(0,100%,95%) !important
   text-shadow: 1px 1px black !important
   margin: 1em 0
+  font-family: sans-serif
 
 .confirm
-  background-color: hsl(125,50%,40%) !important
+  background-color: hsl(125,90%,20%) !important
   background-image: url("../images/background.png") !important
   padding: 0.5em
   box-shadow: inset 0 0 0 1px hsla(0,0%,100%,0.25), 0 0 0 1px hsl(125,50%,5%)
@@ -558,6 +560,7 @@ h6
   color: hsl(125,100%,95%) !important
   text-shadow: 1px 1px black
   margin: 1em 0
+  font-family: sans-serif
 
 
 
@@ -688,10 +691,27 @@ h6
     padding: 0.5em
     border-bottom: 1px solid black
 
+  #yaml-status
+    padding: 0.2em
+    text-align: center
+    cursor: pointer
+
+  #yaml-error
+    overflow-x: scroll
+    flex: 2 0 auto
+    display: none
+
   pre
     display: block
     flex: 1 1 auto
     overflow: scroll
+    margin: 0
+
+  .visible-block
+    &:not(:empty)
+      padding: 1em
+
+  #yaml-content
     padding: 1em
 
   .button-container
@@ -748,6 +768,9 @@ body:has(dialog[open])
 
 .visible-table
   display: table
+
+.visible-block
+  display: block !important
 
 .help
   display: inline-block
@@ -855,3 +878,40 @@ body:has(dialog[open])
     margin: 0.5em
   text-align: center
   margin: auto
+
+.validation-result
+  padding-top: 0.6em
+  padding-bottom: 0.6em
+  padding-left: 0.5em
+  margin-right: 0.2em
+  margin-left: 0.2em
+
+.validation-unsupported
+  background-color: orange
+
+.validation-unknown
+  background-color: gray
+
+.validation-validated
+  background-color: green
+
+.validation-manually_validated
+  background-color: lime
+
+.validation-failed
+  background-color: red
+
+[data-sort-key]
+  cursor: pointer
+
+.sort-indicator
+  margin-left: 0.1em
+  margin-right: 0.3em
+
+#filter-popup
+  padding: 0.3em
+  background: hsl(207, 18%, 23%)
+  box-shadow: 0 0 1px black, inset 0 1px 0px 0px hsla(0,0%,100%,0.15)
+
+.shrink
+  max-width: 1em

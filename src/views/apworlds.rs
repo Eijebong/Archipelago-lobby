@@ -1,4 +1,9 @@
 use anyhow::Context as _;
+use ap_lobby::db;
+use ap_lobby::db::OpenState;
+use ap_lobby::db::RoomFilter;
+use ap_lobby::jobs::YamlValidationQueue;
+use ap_lobby::yaml::revalidate_yamls_if_necessary;
 use apwm::Index;
 use apwm::Manifest;
 use apwm::World;
@@ -12,6 +17,7 @@ use rocket::routes;
 use rocket::State;
 use semver::Version;
 
+use crate::Context;
 use crate::TplContext;
 use ap_lobby::error::Result;
 use ap_lobby::index_manager::IndexManager;
@@ -106,8 +112,27 @@ async fn download_world<'a>(
 
 #[rocket::get("/worlds/refresh")]
 #[tracing::instrument(skip_all)]
-async fn refresh_worlds(index_manager: &State<IndexManager>, _session: AdminSession) -> Result<()> {
+async fn refresh_worlds(
+    index_manager: &State<IndexManager>,
+    yaml_validation_queue: &State<YamlValidationQueue>,
+    ctx: &State<Context>,
+    _session: AdminSession,
+) -> Result<()> {
     index_manager.update().await?;
+
+    let mut conn = ctx.db_pool.get().await?;
+
+    let (open_rooms, _) = db::list_rooms(
+        RoomFilter::default().with_open_state(OpenState::Open),
+        None,
+        &mut conn,
+    )
+    .await?;
+
+    for room in &open_rooms {
+        revalidate_yamls_if_necessary(room, index_manager, yaml_validation_queue, &mut conn)
+            .await?;
+    }
 
     Ok(())
 }

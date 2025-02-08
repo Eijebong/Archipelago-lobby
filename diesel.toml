@@ -9,6 +9,7 @@ from_template_id = { type = "Nullable<SqlRoomTemplateId>" }
 [print_schema.patches.yamls]
 id = { type = "SqlYamlId" }
 room_id = { type = "SqlRoomId" }
+apworlds = { type = "Array<Apworld>" }
 
 [print_schema.patches.room_templates]
 id = { type = "SqlRoomTemplateId" }

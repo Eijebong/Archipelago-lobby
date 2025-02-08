@@ -1,32 +1,47 @@
 use std::collections::HashMap;
 
+use chrono::{DateTime, NaiveDateTime, Utc};
 use diesel::prelude::*;
 use diesel::{Insertable, Queryable, Selectable};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
-use serde::Deserialize;
+use semver::Version;
+use serde::{Deserialize, Serialize};
 
 use crate::db::{Json, Room, RoomId, YamlId};
 use crate::error::Result;
 use crate::extractor::YamlFeatures;
 use crate::schema::{discord_users, rooms, yamls};
 
-#[derive(Insertable)]
+use super::YamlValidationStatus;
+
+#[derive(Insertable, Debug)]
 #[diesel(table_name=yamls)]
 pub struct NewYaml<'a> {
-    id: YamlId,
-    room_id: RoomId,
-    owner_id: i64,
-    content: &'a str,
-    player_name: &'a str,
-    game: &'a str,
-    features: Json<YamlFeatures>,
+    pub id: YamlId,
+    pub room_id: RoomId,
+    pub owner_id: i64,
+    pub content: &'a str,
+    pub player_name: &'a str,
+    pub game: &'a str,
+    pub features: Json<YamlFeatures>,
+    pub validation_status: YamlValidationStatus,
+    pub apworlds: Vec<(String, Version)>,
+    pub last_error: Option<String>,
 }
 
-#[derive(Debug, Selectable, Queryable)]
+#[derive(Debug, Selectable, Queryable, Serialize)]
 pub struct Yaml {
+    pub id: YamlId,
     pub content: String,
+    pub game: String,
     pub player_name: String,
+    #[serde(skip)]
     pub owner_id: i64,
+    pub validation_status: YamlValidationStatus,
+    pub apworlds: Vec<(String, Version)>,
+    #[serde(skip)]
+    pub last_validation_time: NaiveDateTime,
+    pub last_error: Option<String>,
 }
 
 #[derive(Debug, Selectable, Queryable)]
@@ -37,6 +52,7 @@ pub struct YamlWithoutContent {
     pub game: String,
     pub owner_id: i64,
     pub features: Json<YamlFeatures>,
+    pub validation_status: YamlValidationStatus,
 }
 
 #[derive(Deserialize, Debug)]
@@ -95,26 +111,8 @@ pub async fn get_yamls_for_room(
         .await?)
 }
 
-#[tracing::instrument(skip(conn, content))]
-pub async fn add_yaml_to_room(
-    room_id: RoomId,
-    owner_id: i64,
-    game_name: &str,
-    content: &str,
-    parsed: &YamlFile,
-    features: YamlFeatures,
-    conn: &mut AsyncPgConnection,
-) -> Result<()> {
-    let new_yaml = NewYaml {
-        id: YamlId::new_v4(),
-        owner_id,
-        room_id,
-        content,
-        player_name: &parsed.name,
-        game: game_name,
-        features: Json(features),
-    };
-
+#[tracing::instrument(skip_all, fields(new_yaml.room_id))]
+pub async fn add_yaml_to_room(new_yaml: NewYaml<'_>, conn: &mut AsyncPgConnection) -> Result<()> {
     diesel::insert_into(yamls::table)
         .values(new_yaml)
         .execute(conn)
@@ -138,6 +136,27 @@ pub async fn get_yaml_by_id(yaml_id: YamlId, conn: &mut AsyncPgConnection) -> Re
         .find(yaml_id)
         .select(Yaml::as_select())
         .first::<Yaml>(conn)
+        .await?)
+}
+
+#[tracing::instrument(skip(conn))]
+pub async fn update_yaml_status(
+    yaml_id: YamlId,
+    validation_status: YamlValidationStatus,
+    error: Option<String>,
+    apworlds: Vec<(String, Version)>,
+    validation_time: DateTime<Utc>,
+    conn: &mut AsyncPgConnection,
+) -> Result<RoomId> {
+    Ok(diesel::update(yamls::table.find(yaml_id))
+        .set((
+            yamls::validation_status.eq(validation_status),
+            yamls::apworlds.eq(apworlds),
+            yamls::last_error.eq(error),
+            yamls::last_validation_time.eq(validation_time.naive_utc()),
+        ))
+        .returning(yamls::room_id)
+        .get_result(conn)
         .await?)
 }
 
