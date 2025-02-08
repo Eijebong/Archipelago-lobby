@@ -35,6 +35,7 @@ impl FeatureExtractor for PokemonFrLg {
     }
     fn extract_features(&self, extractor: &mut Extractor) -> Result<()> {
         extractor.register_feature(YamlFeature::TrainerSanity, "trainersanity")?;
+        extractor.register_feature(YamlFeature::DexSanity, "dexsanity")?;
         Ok(())
     }
 }

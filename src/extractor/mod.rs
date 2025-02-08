@@ -56,7 +56,11 @@ fn is_trueish(option: &Value) -> bool {
         return value != 0;
     }
 
-    option_str == Some("true")
+    if let Some(value) = option_str {
+        return value == "true" || value == "all" || value.starts_with("random");
+    }
+
+    false
 }
 
 impl<'a> Extractor<'a> {
