@@ -17,6 +17,7 @@ use redis::{
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tokio::{sync::broadcast, task::JoinHandle};
+use tracing::{error, warn};
 use uuid::Uuid;
 
 mod builder;
@@ -238,6 +239,59 @@ impl<
             self.claims_key.clone(),
             self.queue_key.clone(),
         ))
+    }
+
+    pub async fn process_orphaned_job_results(&self) -> Result<()> {
+        let mut conn = self.client.clone();
+        let result_keys = conn
+            .keys::<_, Vec<String>>(format!("{}:*", self.results_key))
+            .await?;
+
+        for result_key in result_keys.into_iter() {
+            let Some(job_id): Option<JobId> = result_key
+                .split(':')
+                .last()
+                .and_then(|key| key.parse::<Uuid>().ok().and_then(|uuid| Some(JobId(uuid))))
+            else {
+                error!("Got an invalid result key: {}", result_key);
+                continue;
+            };
+            if self.result_callback.is_none() {
+                self.delete_job_result(job_id).await?;
+                continue;
+            }
+
+            let job_key = self.get_job_key(&job_id);
+            let Some(params_str) = conn
+                .get::<_, Option<String>>(self.get_job_key(&job_id))
+                .await?
+            else {
+                warn!(
+                    "Orphaned result without job params: {}. Removing the result",
+                    job_id
+                );
+                self.delete_job_result(job_id).await?;
+                continue;
+            };
+            let desc: JobDesc<P> = serde_json::from_str(&params_str)?;
+            let job_result = conn.get::<_, JobResult<R>>(&result_key).await?;
+
+            let callback = self.result_callback.as_ref().unwrap().clone();
+            let mut conn = self.client.clone();
+            tokio::spawn(async move {
+                let processed = callback(desc.params, job_result.result).await?;
+                if !processed {
+                    return Ok(());
+                }
+
+                conn.del::<_, i64>(job_key).await?;
+                conn.del::<_, i64>(result_key).await?;
+
+                Ok::<_, anyhow::Error>(())
+            });
+        }
+
+        Ok(())
     }
 
     pub async fn reclaim_job(&self, job_id: &JobId, worker_id: &str) -> Result<()> {

@@ -345,3 +345,50 @@ async fn test_callback_on_resolve_error() -> Result<()> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn test_callback_orphaned_jobs() -> Result<()> {
+    let valkey = start_valkey()?;
+    let client = redis::Client::open(valkey.url())?;
+    let mut conn = client.get_connection()?;
+
+    let queue = WorkQueue::<TestWork, TestWorkResult>::builder("test_callback_orphaned_jobs")
+        .build(&valkey.url())
+        .await?;
+
+    let job_id = queue_resolve_job(&queue).await?;
+    let result = conn.get::<_, Option<String>>(queue.get_result_key(&job_id))?;
+    let params = conn.get::<_, Option<String>>(queue.get_job_key(&job_id))?;
+    assert!(params.is_some());
+    assert!(result.is_some());
+
+    // Leak the job on purpose here
+    static HAS_BEEN_CALLED: Mutex<bool> = Mutex::new(false);
+
+    fn callback(
+        _params: TestWork,
+        result: TestWorkResult,
+    ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
+        Box::pin(async move {
+            *HAS_BEEN_CALLED.lock().unwrap() = !result.0.is_empty();
+            Ok(true)
+        })
+    }
+
+    let queue = WorkQueue::<TestWork, TestWorkResult>::builder("test_callback_orphaned_jobs")
+        .with_callback(Arc::pin(callback))
+        .build(&valkey.url())
+        .await?;
+
+    queue.process_orphaned_job_results().await?;
+    tokio::time::sleep(Duration::from_millis(5)).await;
+
+    assert_eq!(*HAS_BEEN_CALLED.lock().unwrap(), true);
+
+    let result = conn.get::<_, Option<String>>(queue.get_result_key(&job_id))?;
+    let params = conn.get::<_, Option<String>>(queue.get_job_key(&job_id))?;
+    assert!(params.is_none());
+    assert!(result.is_none());
+
+    Ok(())
+}
