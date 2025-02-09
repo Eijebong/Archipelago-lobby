@@ -253,8 +253,8 @@ impl<
         for result_key in result_keys.into_iter() {
             let Some(job_id): Option<JobId> = result_key
                 .split(':')
-                .last()
-                .and_then(|key| key.parse::<Uuid>().ok().and_then(|uuid| Some(JobId(uuid))))
+                .next_back()
+                .and_then(|key| key.parse::<Uuid>().ok().map(JobId))
             else {
                 error!("Got an invalid result key: {}", result_key);
                 continue;
