@@ -149,8 +149,11 @@ impl FromRedisValue for JobId {
     }
 }
 
-pub type ResolveCallback<T, R> =
-    Pin<Arc<dyn Fn(T, R) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> + Sync + Send>>;
+pub type ResolveCallback<P, R> = Pin<
+    Arc<
+        dyn Fn(P, JobResult<R>) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> + Sync + Send,
+    >,
+>;
 
 pub struct WorkQueue<
     P: Serialize + DeserializeOwned + Send + Sync,
@@ -279,7 +282,7 @@ impl<
             let callback = self.result_callback.as_ref().unwrap().clone();
             let mut conn = self.client.clone();
             tokio::spawn(async move {
-                let processed = callback(desc.params, job_result.result).await?;
+                let processed = callback(desc.params, job_result).await?;
                 if !processed {
                     return Ok(());
                 }
@@ -353,7 +356,7 @@ impl<
             let job_key = self.get_job_key(&job_id);
             let result_key = self.get_result_key(&job_id);
             tokio::spawn(async move {
-                let processed = callback(desc.params, job_result.result).await?;
+                let processed = callback(desc.params, job_result).await?;
                 if !processed {
                     return Ok(());
                 }

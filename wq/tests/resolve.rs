@@ -245,10 +245,10 @@ async fn test_callback_on_resolve_processed() -> Result<()> {
 
     fn callback(
         _params: TestWork,
-        result: TestWorkResult,
+        result: JobResult<TestWorkResult>,
     ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         Box::pin(async move {
-            *HAS_BEEN_CALLED.lock().unwrap() = !result.0.is_empty();
+            *HAS_BEEN_CALLED.lock().unwrap() = !result.result.0.is_empty();
             Ok(true)
         })
     }
@@ -283,10 +283,10 @@ async fn test_callback_on_resolve_not_processed() -> Result<()> {
 
     fn callback(
         _params: TestWork,
-        result: TestWorkResult,
+        result: JobResult<TestWorkResult>,
     ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         Box::pin(async move {
-            *HAS_BEEN_CALLED.lock().unwrap() = !result.0.is_empty();
+            *HAS_BEEN_CALLED.lock().unwrap() = !result.result.0.is_empty();
             Ok(false)
         })
     }
@@ -320,10 +320,10 @@ async fn test_callback_on_resolve_error() -> Result<()> {
 
     fn callback(
         _params: TestWork,
-        result: TestWorkResult,
+        result: JobResult<TestWorkResult>,
     ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         Box::pin(async move {
-            *HAS_BEEN_CALLED.lock().unwrap() = !result.0.is_empty();
+            *HAS_BEEN_CALLED.lock().unwrap() = !result.result.0.is_empty();
             Err(anyhow::anyhow!("oof"))
         })
     }
@@ -367,10 +367,10 @@ async fn test_callback_orphaned_jobs() -> Result<()> {
 
     fn callback(
         _params: TestWork,
-        result: TestWorkResult,
+        result: JobResult<TestWorkResult>,
     ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         Box::pin(async move {
-            *HAS_BEEN_CALLED.lock().unwrap() = !result.0.is_empty();
+            *HAS_BEEN_CALLED.lock().unwrap() = !result.result.0.is_empty();
             Ok(true)
         })
     }

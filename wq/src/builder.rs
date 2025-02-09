@@ -6,7 +6,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{ResolveCallback, WorkQueue};
 
-pub struct WorkQueueBuilder<T, R> {
+pub struct WorkQueueBuilder<T, R: Clone> {
     queue_name: String,
     reclaim_timeout: Duration,
     claim_timeout: Duration,
