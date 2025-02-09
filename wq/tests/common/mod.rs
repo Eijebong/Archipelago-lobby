@@ -5,6 +5,8 @@ use std::{
     sync::atomic::AtomicU16,
     time::Duration,
 };
+use uuid::Uuid;
+use wq::{JobId, JobStatus, WorkQueue};
 pub struct ValkeyInstance {
     port: u16,
     process: Child,
@@ -55,8 +57,35 @@ pub fn start_valkey() -> Result<ValkeyInstance> {
     Ok(instance)
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[allow(unused)]
+pub async fn queue_resolve_job(queue: &WorkQueue<TestWork, TestWorkResult>) -> Result<JobId> {
+    let work_param = TestWork(Uuid::new_v4().to_string());
+
+    let expected_job_id = queue
+        .enqueue_job(&work_param, wq::Priority::Low, DEFAULT_DEADLINE)
+        .await?;
+
+    let job = queue
+        .claim_job("test")
+        .await?
+        .expect("Should've gotten a job");
+
+    assert_eq!(expected_job_id, job.job_id);
+
+    queue
+        .resolve_job(
+            "test",
+            job.job_id,
+            JobStatus::Success,
+            TestWorkResult(job.params.0.clone()),
+        )
+        .await?;
+
+    Ok(expected_job_id)
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct TestWork(pub String);
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct TestWorkResult(pub String);

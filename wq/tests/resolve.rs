@@ -1,9 +1,16 @@
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
+
 use anyhow::Result;
 use redis::Commands;
 use uuid::Uuid;
 
 mod common;
-use common::{start_valkey, TestWork, TestWorkResult, DEFAULT_DEADLINE};
+use common::{queue_resolve_job, start_valkey, TestWork, TestWorkResult, DEFAULT_DEADLINE};
 use wq::{JobId, JobResult, JobStatus, WorkQueue};
 
 #[tokio::test]
@@ -224,6 +231,117 @@ async fn test_get_result() -> Result<()> {
 
     let result = queue.get_job_result(job.job_id).await?;
     assert_eq!(result.0, job.params.0);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_callback_on_resolve_processed() -> Result<()> {
+    let valkey = start_valkey()?;
+    let client = redis::Client::open(valkey.url())?;
+    let mut conn = client.get_connection()?;
+
+    static HAS_BEEN_CALLED: Mutex<bool> = Mutex::new(false);
+
+    fn callback(
+        _params: TestWork,
+        result: TestWorkResult,
+    ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
+        Box::pin(async move {
+            *HAS_BEEN_CALLED.lock().unwrap() = !result.0.is_empty();
+            Ok(true)
+        })
+    }
+
+    let queue =
+        WorkQueue::<TestWork, TestWorkResult>::builder("test_callback_on_resolve_processed")
+            .with_callback(Arc::pin(callback))
+            .build(&valkey.url())
+            .await?;
+
+    let job_id = queue_resolve_job(&queue).await?;
+
+    tokio::time::sleep(Duration::from_millis(5)).await;
+    assert_eq!(*HAS_BEEN_CALLED.lock().unwrap(), true);
+
+    // Check that the result and params are gone after the event has been processed
+    let result = conn.get::<_, Option<String>>(queue.get_result_key(&job_id))?;
+    let params = conn.get::<_, Option<String>>(queue.get_job_key(&job_id))?;
+    assert!(params.is_none());
+    assert!(result.is_none());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_callback_on_resolve_not_processed() -> Result<()> {
+    let valkey = start_valkey()?;
+    let client = redis::Client::open(valkey.url())?;
+    let mut conn = client.get_connection()?;
+
+    static HAS_BEEN_CALLED: Mutex<bool> = Mutex::new(false);
+
+    fn callback(
+        _params: TestWork,
+        result: TestWorkResult,
+    ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
+        Box::pin(async move {
+            *HAS_BEEN_CALLED.lock().unwrap() = !result.0.is_empty();
+            Ok(false)
+        })
+    }
+
+    let queue =
+        WorkQueue::<TestWork, TestWorkResult>::builder("test_callback_on_resolve_not_processed")
+            .with_callback(Arc::pin(callback))
+            .build(&valkey.url())
+            .await?;
+
+    let job_id = queue_resolve_job(&queue).await?;
+
+    tokio::time::sleep(Duration::from_millis(5)).await;
+    assert_eq!(*HAS_BEEN_CALLED.lock().unwrap(), true);
+
+    let result = conn.get::<_, Option<String>>(queue.get_result_key(&job_id))?;
+    let params = conn.get::<_, Option<String>>(queue.get_job_key(&job_id))?;
+    assert!(params.is_some());
+    assert!(result.is_some());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_callback_on_resolve_error() -> Result<()> {
+    let valkey = start_valkey()?;
+    let client = redis::Client::open(valkey.url())?;
+    let mut conn = client.get_connection()?;
+
+    static HAS_BEEN_CALLED: Mutex<bool> = Mutex::new(false);
+
+    fn callback(
+        _params: TestWork,
+        result: TestWorkResult,
+    ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
+        Box::pin(async move {
+            *HAS_BEEN_CALLED.lock().unwrap() = !result.0.is_empty();
+            Err(anyhow::anyhow!("oof"))
+        })
+    }
+
+    let queue = WorkQueue::<TestWork, TestWorkResult>::builder("test_callback_on_resolve_error")
+        .with_callback(Arc::pin(callback))
+        .build(&valkey.url())
+        .await?;
+
+    let job_id = queue_resolve_job(&queue).await?;
+
+    tokio::time::sleep(Duration::from_millis(5)).await;
+    assert_eq!(*HAS_BEEN_CALLED.lock().unwrap(), true);
+
+    let result = conn.get::<_, Option<String>>(queue.get_result_key(&job_id))?;
+    let params = conn.get::<_, Option<String>>(queue.get_job_key(&job_id))?;
+    assert!(params.is_some());
+    assert!(result.is_some());
 
     Ok(())
 }

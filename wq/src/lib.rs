@@ -1,8 +1,11 @@
 use std::{
     collections::HashMap,
     fmt::Display,
+    future::Future,
     marker::PhantomData,
+    pin::Pin,
     str::from_utf8,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -145,9 +148,12 @@ impl FromRedisValue for JobId {
     }
 }
 
+pub type ResolveCallback<T, R> =
+    Pin<Arc<dyn Fn(T, R) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> + Sync + Send>>;
+
 pub struct WorkQueue<
     P: Serialize + DeserializeOwned + Send + Sync,
-    R: Serialize + DeserializeOwned + Send + Sync,
+    R: Serialize + DeserializeOwned + Send + Sync + Clone,
 > {
     queue_key: String,
     claims_key: String,
@@ -157,12 +163,13 @@ pub struct WorkQueue<
     reclaim_timeout: Duration,
     claim_timeout: Duration,
     pubsub_rx: broadcast::Receiver<PushInfo>,
+    result_callback: Option<ResolveCallback<P, R>>,
     _phantom: PhantomData<(P, R)>,
 }
 
 impl<
         P: Serialize + DeserializeOwned + Send + Sync + 'static,
-        R: Serialize + DeserializeOwned + Send + Sync + 'static,
+        R: Serialize + DeserializeOwned + Send + Sync + 'static + Clone,
     > WorkQueue<P, R>
 {
     async fn reclaim_checker_inner(
@@ -276,15 +283,33 @@ impl<
         }
 
         let job_result = JobResult { status, result };
+        let params_str = conn.get::<_, String>(self.get_job_key(&job_id)).await?;
+        let desc: JobDesc<P> = serde_json::from_str(&params_str)?;
 
         redis::pipe()
-            .del(self.get_job_key(&job_id))
             .hdel(&self.claims_key, job_id.to_string())
-            .set::<_, JobResult<R>>(self.get_result_key(&job_id), job_result)
+            .set::<_, JobResult<R>>(self.get_result_key(&job_id), job_result.clone())
             .incr(self.get_stats_key(status.as_stat_name()), 1)
             .publish::<_, u8>(self.get_result_key(&job_id), status as u8)
             .exec_async(&mut conn)
             .await?;
+
+        if let Some(result_callback) = &self.result_callback {
+            let callback = result_callback.clone();
+            let job_key = self.get_job_key(&job_id);
+            let result_key = self.get_result_key(&job_id);
+            tokio::spawn(async move {
+                let processed = callback(desc.params, job_result.result).await?;
+                if !processed {
+                    return Ok(());
+                }
+
+                conn.del::<_, i64>(job_key).await?;
+                conn.del::<_, i64>(result_key).await?;
+
+                Ok::<_, anyhow::Error>(())
+            });
+        }
 
         Ok(())
     }
@@ -406,7 +431,6 @@ impl<
         let mut conn = self.client.clone();
         let result_key = self.get_result_key(&job_id);
         let result_str = conn.get::<_, String>(result_key).await?;
-        dbg!(&result_str);
 
         Ok(serde_json::from_str::<JobResult<R>>(&result_str)?.result)
     }
@@ -416,7 +440,12 @@ impl<
         let mut conn = self.client.clone();
 
         let result_key = self.get_result_key(&job_id);
-        conn.del::<_, i64>(result_key).await?;
+        let job_key = self.get_job_key(&job_id);
+        redis::pipe()
+            .del(result_key)
+            .del(job_key)
+            .exec_async(&mut conn)
+            .await?;
 
         Ok(())
     }

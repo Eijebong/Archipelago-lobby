@@ -4,18 +4,19 @@ use anyhow::Result;
 use redis::AsyncConnectionConfig;
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::WorkQueue;
+use crate::{ResolveCallback, WorkQueue};
 
 pub struct WorkQueueBuilder<T, R> {
     queue_name: String,
     reclaim_timeout: Duration,
     claim_timeout: Duration,
+    result_callback: Option<ResolveCallback<T, R>>,
     _phantom: PhantomData<(T, R)>,
 }
 
 impl<
         T: Serialize + DeserializeOwned + Send + Sync,
-        R: Serialize + DeserializeOwned + Send + Sync,
+        R: Serialize + DeserializeOwned + Send + Sync + Clone,
     > WorkQueueBuilder<T, R>
 {
     pub fn new(queue_name: &str) -> Self {
@@ -23,6 +24,7 @@ impl<
             queue_name: queue_name.to_string(),
             reclaim_timeout: Duration::from_secs(30),
             claim_timeout: Duration::from_secs(30),
+            result_callback: None,
             _phantom: PhantomData,
         }
     }
@@ -46,6 +48,7 @@ impl<
             claim_timeout: self.claim_timeout,
             client,
             pubsub_rx: rx,
+            result_callback: self.result_callback,
             _phantom: PhantomData,
         })
     }
@@ -57,6 +60,11 @@ impl<
 
     pub fn with_claim_timeout(mut self, timeout: Duration) -> Self {
         self.claim_timeout = timeout;
+        self
+    }
+
+    pub fn with_callback(mut self, callback: ResolveCallback<T, R>) -> Self {
+        self.result_callback = Some(callback);
         self
     }
 }
