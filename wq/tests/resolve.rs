@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 mod common;
 use common::{queue_resolve_job, start_valkey, TestWork, TestWorkResult, DEFAULT_DEADLINE};
-use wq::{JobId, JobResult, JobStatus, WorkQueue};
+use wq::{JobDesc, JobId, JobResult, JobStatus, WorkQueue};
 
 #[tokio::test]
 async fn test_resolve_success() -> Result<()> {
@@ -244,7 +244,7 @@ async fn test_callback_on_resolve_processed() -> Result<()> {
     static HAS_BEEN_CALLED: Mutex<bool> = Mutex::new(false);
 
     fn callback(
-        _params: TestWork,
+        _params: JobDesc<TestWork>,
         result: JobResult<TestWorkResult>,
     ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         Box::pin(async move {
@@ -282,7 +282,7 @@ async fn test_callback_on_resolve_not_processed() -> Result<()> {
     static HAS_BEEN_CALLED: Mutex<bool> = Mutex::new(false);
 
     fn callback(
-        _params: TestWork,
+        _params: JobDesc<TestWork>,
         result: JobResult<TestWorkResult>,
     ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         Box::pin(async move {
@@ -319,7 +319,7 @@ async fn test_callback_on_resolve_error() -> Result<()> {
     static HAS_BEEN_CALLED: Mutex<bool> = Mutex::new(false);
 
     fn callback(
-        _params: TestWork,
+        _params: JobDesc<TestWork>,
         result: JobResult<TestWorkResult>,
     ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         Box::pin(async move {
@@ -366,7 +366,7 @@ async fn test_callback_orphaned_jobs() -> Result<()> {
     static HAS_BEEN_CALLED: Mutex<bool> = Mutex::new(false);
 
     fn callback(
-        _params: TestWork,
+        _params: JobDesc<TestWork>,
         result: JobResult<TestWorkResult>,
     ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         Box::pin(async move {

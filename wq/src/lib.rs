@@ -57,6 +57,7 @@ pub struct Job<P> {
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct JobDesc<P> {
     params: P,
+    submitted_at: DateTime<Utc>,
     deadline: DateTime<Utc>,
 }
 
@@ -151,7 +152,9 @@ impl FromRedisValue for JobId {
 
 pub type ResolveCallback<P, R> = Pin<
     Arc<
-        dyn Fn(P, JobResult<R>) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> + Sync + Send,
+        dyn Fn(JobDesc<P>, JobResult<R>) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>>
+            + Sync
+            + Send,
     >,
 >;
 
@@ -282,7 +285,7 @@ impl<
             let callback = self.result_callback.as_ref().unwrap().clone();
             let mut conn = self.client.clone();
             tokio::spawn(async move {
-                let processed = callback(desc.params, job_result).await?;
+                let processed = callback(desc, job_result).await?;
                 if !processed {
                     return Ok(());
                 }
@@ -356,7 +359,7 @@ impl<
             let job_key = self.get_job_key(&job_id);
             let result_key = self.get_result_key(&job_id);
             tokio::spawn(async move {
-                let processed = callback(desc.params, job_result).await?;
+                let processed = callback(desc, job_result).await?;
                 if !processed {
                     return Ok(());
                 }
@@ -578,6 +581,7 @@ impl<
         let job_key = self.get_job_key(&job_id);
         let job_desc = JobDesc {
             params,
+            submitted_at: Utc::now(),
             deadline: Utc::now() + deadline_in,
         };
         let job_desc_str = serde_json::to_string(&job_desc)?;
