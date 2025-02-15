@@ -56,9 +56,9 @@ pub struct Job<P> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct JobDesc<P> {
-    params: P,
-    submitted_at: DateTime<Utc>,
-    deadline: DateTime<Utc>,
+    pub params: P,
+    pub submitted_at: DateTime<Utc>,
+    pub deadline: DateTime<Utc>,
 }
 
 impl JobStatus {
