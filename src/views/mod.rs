@@ -268,10 +268,10 @@ async fn download_yamls<'a>(
         let mut original_file_name = format!("{}.yaml", player_name);
 
         let mut suffix = 0u64;
-        if emitted_names.contains(&original_file_name) {
+        if emitted_names.contains(&original_file_name.to_lowercase()) {
             loop {
                 let new_file_name = format!("{}_{}.yaml", player_name, suffix);
-                if !emitted_names.contains(&new_file_name) {
+                if !emitted_names.contains(&new_file_name.to_lowercase()) {
                     original_file_name = new_file_name;
                     break;
                 }
@@ -279,7 +279,7 @@ async fn download_yamls<'a>(
             }
         }
         writer.start_file(original_file_name.clone(), options)?;
-        emitted_names.insert(original_file_name);
+        emitted_names.insert(original_file_name.to_lowercase());
         writer.write_all(yaml.content.as_bytes())?;
     }
 
