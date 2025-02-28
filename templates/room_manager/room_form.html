@@ -69,7 +69,7 @@
                 <label for="yaml_limit_per_user">Limit the number of games a user can submit</label>
 
                 <label for="yaml_limit_per_user_nb">Limit:</label>
-                <input {{ ro }} type="number" min=1 name="room.yaml_limit_per_user_nb" id="yaml_limit_per_user_nb" value="{{ self.room.yaml_limit_per_user.unwrap_or(1) }}">
+                <input {{ ro }} type="number" min=1 required name="room.yaml_limit_per_user_nb" id="yaml_limit_per_user_nb" value="{{ self.room.yaml_limit_per_user.unwrap_or(1) }}">
 
                 {% if base.is_admin %}
                 <label for="yaml_limit_bypass_list">YAML limit bypass list:</label>
