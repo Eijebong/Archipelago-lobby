@@ -1,4 +1,4 @@
-function showYaml(roomId, yamlId) {
+function showYaml(roomId, yamlId, expandValidation) {
     const url = new URL("/api/room/" + roomId + "/info/" + yamlId, document.location)
     fetch(url)
         .then((response) => {
@@ -10,7 +10,7 @@ function showYaml(roomId, yamlId) {
         })
         .then((body) => {
             const title = body["player_name"] + " | " + body["game"]
-            openYamlPopup(title, body["content"], roomId, yamlId, body["validation_status"], body["last_error"])
+            openYamlPopup(title, body["content"], roomId, yamlId, body["validation_status"], body["last_error"], expandValidation)
         })
 
     return false;
@@ -26,7 +26,7 @@ function showError(msg) {
     setTimeout(() => { error.remove() }, 5000);
 }
 
-function openYamlPopup(title, yaml, roomId, yamlId, validationStatus, error) {
+function openYamlPopup(title, yaml, roomId, yamlId, validationStatus, error, expandValidation) {
     const popup = document.createElement("dialog");
     popup.setAttribute("data-yaml-id", yamlId)
     popup.id = "yaml-content-popup"
@@ -56,6 +56,10 @@ function openYamlPopup(title, yaml, roomId, yamlId, validationStatus, error) {
       if (yamlError !== null) {
         yamlError.classList.toggle("visible-block")
       }
+    }
+
+    if (expandValidation) {
+        errorInfo.classList.toggle("visible-block")
     }
 
     const popupContent = document.createElement("pre");
