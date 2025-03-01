@@ -9,7 +9,6 @@ use ap_lobby::db::{
     self, Author, Json, NewYaml, Room, RoomFilter, RoomId, YamlId, YamlWithoutContent,
 };
 use ap_lobby::error::{Error, RedirectTo, Result, WithContext};
-use ap_lobby::events::RoomEventsReceiver;
 use ap_lobby::index_manager::IndexManager;
 use ap_lobby::jobs::YamlValidationQueue;
 use ap_lobby::session::{LoggedInSession, Session};
@@ -19,12 +18,10 @@ use apwm::{World, WorldOrigin};
 use askama::Template;
 use diesel_async::scoped_futures::ScopedFutureExt;
 use diesel_async::AsyncConnection;
-use futures_util::stream::StreamExt;
 use http::header::CONTENT_DISPOSITION;
 use itertools::Itertools;
 use rocket::form::Form;
 use rocket::http::{ContentType, CookieJar, Header};
-use rocket::response::stream::{Event, EventStream};
 use rocket::response::Redirect;
 use rocket::routes;
 use rocket::{get, post, uri, State};
@@ -146,21 +143,6 @@ async fn room<'a>(
         yamls,
         is_my_room,
     })
-}
-
-#[get("/room/<room_id>/events")]
-fn room_events(
-    room_id: RoomId,
-    room_events_receiver: &State<RoomEventsReceiver>,
-) -> EventStream![] {
-    let stream = room_events_receiver.stream_for_room(room_id);
-
-    EventStream! {
-        futures_util::pin_mut!(stream);
-        while let Some(msg) = stream.next().await {
-            yield Event::json(&msg)
-        }
-    }
 }
 
 #[derive(rocket::form::FromForm)]
@@ -443,7 +425,6 @@ pub fn routes() -> Vec<rocket::Route> {
     routes![
         root,
         room,
-        room_events,
         room_worlds,
         room_download_all_worlds,
         upload_yaml,

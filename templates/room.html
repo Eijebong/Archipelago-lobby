@@ -189,6 +189,7 @@
                         const filterYamls = document.getElementById(filterId);
                         hidden |= (filterYamls.checked && filter(row))
                     }
+
                     row.setAttribute("data-hidden", !!hidden)
                 }
             }
@@ -203,8 +204,7 @@
             }
         }
 
-        addFilters({"my-yamls": (row) => row.dataset.myYaml, "broken-yamls": (row) => row.dataset.validYaml != "false"})
-
+        addFilters({"my-yamls": (row) => row.dataset.myYaml !== "true", "broken-yamls": (row) => row.dataset.validYaml != "false"})
 
         // Always show discord names
         const keepDiscordNames = document.getElementById("keep-discord-names")
@@ -291,41 +291,6 @@
         }
 
         connectSortableElements(document.getElementById("yamls"))
-
-        const eventSource = new EventSource("/room/{{ room.id }}/events")
-        window.addEventListener("beforeunload", () => {
-            eventSource.close()
-        });
-        eventSource.onmessage = (msg) => {
-            const data = JSON.parse(msg.data)
-            switch (data["ty"]) {
-                case "YamlValidationStatusChanged": {
-                    updateYamlValidationStatus(data["yaml_id"], data["new_status"], data["new_error"])
-                    break;
-                }
-                default: {
-                    console.log("Unhandled message type: ", data["ty"])
-                }
-            }
-        }
-
-        function updateYamlValidationStatus(yamlId, newStatus, newError) {
-            const rows = document.querySelectorAll("tr[data-yaml-id='" + yamlId + "']")
-            for (const row of rows) {
-                const statusIndicator = row.getElementsByClassName("validation-result")[0]
-                statusIndicator.className = "validation-result validation-" + newStatus.toLowerCase()
-            }
-            const yamlContentPopup = document.getElementById("yaml-content-popup")
-            if (yamlContentPopup === null) {
-                return
-            }
-
-            if (yamlContentPopup.dataset.yamlId !== yamlId) {
-                return
-            }
-
-            refreshPopupStatus(newStatus, newError)
-        }
     }
 </script>
 

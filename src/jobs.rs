@@ -8,10 +8,7 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 use wq::{JobDesc, JobResult, WorkQueue};
 
-use crate::{
-    db::{self, YamlId, YamlValidationStatus},
-    events::{RoomEventTy, RoomEventsSender},
-};
+use crate::db::{self, YamlId, YamlValidationStatus};
 
 #[derive(Serialize, Deserialize)]
 pub struct YamlValidationParams {
@@ -29,13 +26,11 @@ pub type YamlValidationQueue = WorkQueue<YamlValidationParams, YamlValidationRes
 
 pub fn get_yaml_validation_callback(
     db_pool: Pool<AsyncPgConnection>,
-    room_events_sender: RoomEventsSender,
 ) -> wq::ResolveCallback<YamlValidationParams, YamlValidationResponse> {
     let callback = move |desc: JobDesc<YamlValidationParams>,
                          result: JobResult<YamlValidationResponse>|
           -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         let inner_pool = db_pool.clone();
-        let inner_room_events_sender = room_events_sender.clone();
 
         Box::pin(async move {
             // If the job doesn't specify a yaml ID we have nothing to do, it's a new insertion and
@@ -77,7 +72,7 @@ pub fn get_yaml_validation_callback(
                 _ => unreachable!(),
             };
 
-            let room_id = db::update_yaml_status(
+             db::update_yaml_status(
                 yaml_id,
                 status,
                 error.clone(),
@@ -87,17 +82,6 @@ pub fn get_yaml_validation_callback(
             )
             .await
             .map_err(|e| e.0)?;
-            inner_room_events_sender
-                .send_event(
-                    room_id,
-                    RoomEventTy::YamlValidationStatusChanged {
-                        yaml_id,
-                        new_status: status,
-                        new_error: error,
-                    },
-                )
-                .await
-                .map_err(|e| e.0)?;
 
             Ok(true)
         })

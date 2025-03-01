@@ -160,17 +160,18 @@ pub async fn update_yaml_status(
     apworlds: Vec<(String, Version)>,
     validation_time: DateTime<Utc>,
     conn: &mut AsyncPgConnection,
-) -> Result<RoomId> {
-    Ok(diesel::update(yamls::table.find(yaml_id))
+) -> Result<()> {
+    diesel::update(yamls::table.find(yaml_id))
         .set((
             yamls::validation_status.eq(validation_status),
             yamls::apworlds.eq(apworlds),
             yamls::last_error.eq(error),
             yamls::last_validation_time.eq(validation_time.naive_utc()),
         ))
-        .returning(yamls::room_id)
-        .get_result(conn)
-        .await?)
+        .execute(conn)
+        .await?;
+
+    Ok(())
 }
 
 impl Yaml {

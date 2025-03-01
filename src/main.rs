@@ -206,12 +206,9 @@ async fn main() -> ap_lobby::error::Result<()> {
         index_manager.update().await?;
     }
 
-    let (room_events_rx, room_events_tx) = ap_lobby::events::room_events();
-
     let yaml_validation_queue = YamlValidationQueue::builder("yaml_validation")
         .with_callback(get_yaml_validation_callback(
             db_pool.clone(),
-            room_events_tx,
         ))
         .build(&valkey_url)
         .await
@@ -244,7 +241,6 @@ async fn main() -> ap_lobby::error::Result<()> {
         .manage(index_manager)
         .manage(yaml_validation_queue)
         .manage(queue_tokens)
-        .manage(room_events_rx)
         .attach(OAuth2::<Discord>::fairing("discord"))
         .launch()
         .await
