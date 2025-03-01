@@ -425,6 +425,11 @@ fn should_revalidate_yaml(
     yaml: &Yaml,
     resolved_index: &BTreeMap<String, (World, Version)>,
 ) -> bool {
+    // That YAML either never got validated or it was unsupported at the time.
+    if yaml.apworlds.is_empty() {
+        return true
+    }
+
     for (apworld_name, apworld_version) in &yaml.apworlds {
         if let Some((_, new_version)) = resolved_index.get(apworld_name) {
             if new_version != apworld_version {
