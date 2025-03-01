@@ -391,11 +391,11 @@ pub async fn update_room<'a>(
         diesel::update(yamls::table)
             .filter(yamls::room_id.eq(new_room.id))
             .set((
-                    yamls::validation_status.eq(YamlValidationStatus::Unknown),
-                    yamls::apworlds.eq(Vec::<(String, semver::Version)>::new()),
-                    yamls::last_error.eq(Option::<String>::None),
-                    yamls::last_validation_time.eq(now)
-                ))
+                yamls::validation_status.eq(YamlValidationStatus::Unknown),
+                yamls::apworlds.eq(Vec::<(String, semver::Version)>::new()),
+                yamls::last_error.eq(Option::<String>::None),
+                yamls::last_validation_time.eq(now),
+            ))
             .execute(conn)
             .await?;
     }

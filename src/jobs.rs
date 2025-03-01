@@ -72,7 +72,7 @@ pub fn get_yaml_validation_callback(
                 _ => unreachable!(),
             };
 
-             db::update_yaml_status(
+            db::update_yaml_status(
                 yaml_id,
                 status,
                 error.clone(),

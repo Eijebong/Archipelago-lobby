@@ -207,9 +207,7 @@ async fn main() -> ap_lobby::error::Result<()> {
     }
 
     let yaml_validation_queue = YamlValidationQueue::builder("yaml_validation")
-        .with_callback(get_yaml_validation_callback(
-            db_pool.clone(),
-        ))
+        .with_callback(get_yaml_validation_callback(db_pool.clone()))
         .build(&valkey_url)
         .await
         .expect("Failed to create job queue for yaml validation");
