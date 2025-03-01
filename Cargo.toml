@@ -18,8 +18,8 @@ diesel-async = { version = "0.5", features = ["postgres", "deadpool", "async-con
 diesel_migrations = { version = "2.2.0", features = ["postgres"] }
 dotenvy = "0.15.7"
 http = "1.1.0"
-itertools = "0.13.0"
 once_cell = "1.19.0"
+itertools = "0.14.0"
 prometheus = { version = "0.13.4", default-features = false }
 reqwest = { version = "0.12", features = ["multipart", "json"] }
 rocket = { version = "0.5.1", features = ["uuid", "secrets", "json"] }
@@ -27,10 +27,10 @@ rocket_oauth2 = "0.5.0"
 rocket_prometheus = "0.10.1"
 rustls = "0.23.12"
 tokio-postgres = "0.7.11"
-tokio-postgres-rustls = "0.12.0"
 rust-embed = { version = "8.5.0", features = ["rocket"] }
 serde = { version = "1.0.208", features = ["derive"] }
 serde_json = "1.0.125"
+tokio-postgres-rustls = "0.13.0"
 serde_yaml = "0.9.34"
 uuid = { version = "1.10.0", features = ["v4"] }
 yaml-split = "0.4.0"
@@ -44,15 +44,15 @@ deadpool = "0.12.1"
 futures-util = "0.3.30"
 rustls-pki-types = "1.8.0"
 tracing = "0.1.40"
-opentelemetry = "0.24.0"
-opentelemetry_sdk = { version = "0.24.1", features = ["rt-tokio", "tokio"] }
-opentelemetry-otlp = "0.17.0"
-tracing-opentelemetry = "0.25.0"
-tracing-subscriber = "0.3.18"
-opentelemetry-semantic-conventions = "0.16.0"
-opentelemetry-http = "0.13.0"
+opentelemetry = "0.28.0"
+opentelemetry_sdk = { version = "0.28.0", features = ["rt-tokio", "tokio"] }
+opentelemetry-otlp = { version = "0.28.0", features = ["grpc-tonic", "tonic"] }
+tracing-opentelemetry = "0.29.0"
+tracing-subscriber = "0.3.19"
+opentelemetry-semantic-conventions = { version = "0.28.0", features = ["semconv_experimental"] }
+opentelemetry-http = "0.28.0"
 counter = "0.6.0"
-comrak = { version = "0.31", default-features = false }
+comrak = { version = "0.36", default-features = false }
 wq = { git = "https://github.com/Eijebong/wq.git" }
 sentry = "0.35.0"
 sentry-tracing = "0.35.0"
