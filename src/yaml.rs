@@ -408,7 +408,7 @@ pub async fn revalidate_yamls_if_necessary(
     let yamls = db::get_yamls_for_room(room.id, conn).await?;
 
     let (resolved_index, _) = {
-        let index = index_manager.index.read().await.clone();
+        let index = index_manager.index.read().await;
         room.settings.manifest.resolve_with(&index)
     };
 
