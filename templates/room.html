@@ -293,6 +293,9 @@
         connectSortableElements(document.getElementById("yamls"))
 
         const eventSource = new EventSource("/room/{{ room.id }}/events")
+        window.addEventListener("beforeunload", () => {
+            eventSource.close()
+        });
         eventSource.onmessage = (msg) => {
             const data = JSON.parse(msg.data)
             switch (data["ty"]) {
