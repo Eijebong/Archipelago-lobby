@@ -9,7 +9,8 @@ use anyhow::anyhow;
 use apwm::{Manifest, World};
 use chrono::Utc;
 use counter::Counter;
-use diesel_async::AsyncPgConnection;
+use diesel_async::scoped_futures::ScopedFutureExt;
+use diesel_async::{AsyncConnection, AsyncPgConnection};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -412,11 +413,20 @@ pub async fn revalidate_yamls_if_necessary(
         room.settings.manifest.resolve_with(&index)
     };
 
-    for yaml in &yamls {
-        if should_revalidate_yaml(yaml, &resolved_index) {
-            queue_yaml_validation(yaml, room, index_manager, yaml_validation_queue, conn).await?;
+    conn.transaction::<(), Error, _>(|conn| {
+        async move {
+            for yaml in &yamls {
+                if should_revalidate_yaml(yaml, &resolved_index) {
+                    queue_yaml_validation(yaml, room, index_manager, yaml_validation_queue, conn)
+                        .await?;
+                }
+            }
+
+            Ok(())
         }
-    }
+        .scope_boxed()
+    })
+    .await?;
 
     Ok(())
 }
@@ -427,7 +437,7 @@ fn should_revalidate_yaml(
 ) -> bool {
     // That YAML either never got validated or it was unsupported at the time.
     if yaml.apworlds.is_empty() {
-        return true
+        return true;
     }
 
     for (apworld_name, apworld_version) in &yaml.apworlds {
@@ -472,6 +482,8 @@ pub async fn queue_yaml_validation(
                 return Ok(());
             }
         };
+
+    db::reset_yaml_validation_status(yaml.id, conn).await?;
 
     let mut params = YamlValidationParams {
         apworlds,

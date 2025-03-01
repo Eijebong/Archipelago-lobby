@@ -140,6 +140,19 @@ pub async fn get_yaml_by_id(yaml_id: YamlId, conn: &mut AsyncPgConnection) -> Re
 }
 
 #[tracing::instrument(skip(conn))]
+pub async fn reset_yaml_validation_status(
+    yaml_id: YamlId,
+    conn: &mut AsyncPgConnection,
+) -> Result<()> {
+    diesel::update(yamls::table.find(yaml_id))
+        .set(yamls::validation_status.eq(YamlValidationStatus::Unknown))
+        .execute(conn)
+        .await?;
+
+    Ok(())
+}
+
+#[tracing::instrument(skip(conn))]
 pub async fn update_yaml_status(
     yaml_id: YamlId,
     validation_status: YamlValidationStatus,
