@@ -8,6 +8,7 @@ use serde_yaml::Value;
 
 use crate::db::YamlFile;
 
+mod ahit;
 mod dlcq;
 mod ffxiv;
 mod jd;
@@ -25,6 +26,8 @@ pub enum YamlFeature {
     GrassSanity,
     FishSanity,
     CoinSanity,
+    DeathWish,
+    DeathWishWithBonus,
 }
 
 pub type YamlFeatures = HashMap<YamlFeature, u32>;
@@ -81,9 +84,8 @@ impl<'a> Extractor<'a> {
 
     pub fn register_feature(&mut self, feature: YamlFeature, path: &str) -> Result<()> {
         let option_probability = self.get_option_probability(path, is_trueish)?;
-        let feature_probability = self.get_weighted_probality(option_probability);
 
-        self.add_feature_to_current_game(feature, feature_probability);
+        self.add_feature_to_current_game(feature, option_probability);
 
         Ok(())
     }
@@ -95,9 +97,8 @@ impl<'a> Extractor<'a> {
         is_trueish: fn(&Value) -> bool,
     ) -> Result<()> {
         let option_probability = self.get_option_probability(path, is_trueish)?;
-        let feature_probability = self.get_weighted_probality(option_probability);
 
-        self.add_feature_to_current_game(feature, feature_probability);
+        self.add_feature_to_current_game(feature, option_probability);
 
         Ok(())
     }
@@ -148,9 +149,8 @@ impl<'a> Extractor<'a> {
             })
             .sum();
         let actual_probability = ((probability as f64 / total as f64) * MAX_WEIGHT as f64) as u32;
-        let feature_probability = self.get_weighted_probality(actual_probability);
 
-        self.add_feature_to_current_game(feature, feature_probability);
+        self.add_feature_to_current_game(feature, actual_probability);
 
         Ok(())
     }
@@ -200,6 +200,7 @@ impl<'a> Extractor<'a> {
         let Some((game_name, _, _)) = self.current_game else {
             panic!("You should call set_game before")
         };
+        let feature_probability = self.get_weighted_probality(feature_probability);
 
         if feature_probability != 0 {
             let current_game_features = self.game_features.entry(game_name).or_default();
@@ -302,6 +303,7 @@ pub static EXTRACTORS: Lazy<HashMap<&'static str, Box<dyn FeatureExtractor + Sen
             };
         }
 
+        register!(ahit::Ahit);
         register!(dlcq::DlcQuest);
         register!(pokemon::PokemonRB);
         register!(pokemon::PokemonEmerald);

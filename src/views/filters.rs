@@ -36,6 +36,8 @@ fn feature_to_icon(feature: &YamlFeature) -> &str {
         YamlFeature::GrassSanity => "grasssanity.svg",
         YamlFeature::FishSanity => "feesh.svg",
         YamlFeature::CoinSanity => "coin.svg",
+        YamlFeature::DeathWish => "dw.svg",
+        YamlFeature::DeathWishWithBonus => "dw-bonus.svg",
     }
 }
 
@@ -48,6 +50,8 @@ fn feature_to_name(feature: &YamlFeature) -> &str {
         YamlFeature::GrassSanity => "Grasssanity",
         YamlFeature::FishSanity => "Fishsanity",
         YamlFeature::CoinSanity => "Extreme Coinsanity",
+        YamlFeature::DeathWish => "DeathWish",
+        YamlFeature::DeathWishWithBonus => "DeathWish with bonus",
     }
 }
 

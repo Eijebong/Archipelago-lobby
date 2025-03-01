@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="256"
+   height="256"
+   viewBox="0 0 67.733334 67.733334"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4 (86a8ad7, 2024-10-11)"
+   sodipodi:docname="snatcher5.svg"
+   inkscape:export-filename="snatcher4_bonus.png"
+   inkscape:export-xdpi="90"
+   inkscape:export-ydpi="90"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="true"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="px"
+     showborder="true"
+     inkscape:zoom="0.75494323"
+     inkscape:cx="1.3246029"
+     inkscape:cy="-94.046807"
+     inkscape:window-width="1624"
+     inkscape:window-height="1178"
+     inkscape:window-x="2752"
+     inkscape:window-y="108"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1"
+     showgrid="true"
+     inkscape:export-bgcolor="#00000000">
+    <inkscape:grid
+       id="grid1"
+       units="px"
+       originx="0"
+       originy="0"
+       spacingx="0.26458334"
+       spacingy="0.26458334"
+       empcolor="#0099e5"
+       empopacity="0.30196078"
+       color="#0099e5"
+       opacity="0.14901961"
+       empspacing="5"
+       enabled="true"
+       visible="true"
+       dotted="false"
+       snapvisiblegridlinesonly="true" />
+  </sodipodi:namedview>
+  <defs
+     id="defs1">
+    <inkscape:path-effect
+       effect="powerclip"
+       message=""
+       id="path-effect9"
+       is_visible="true"
+       lpeversion="1"
+       inverse="true"
+       flatten="false"
+       hide_clip="false" />
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath9">
+      <path
+         id="path9"
+         style="display:none;stroke-width:0"
+         inkscape:label="Right Tooth"
+         d="m 38.212083,42.333336 a 3.6141745,7.1624527 0 0 0 3.134273,-3.673258 3.6141745,7.1624527 0 0 0 -0.06968,-7.214931 3.6141745,7.1624527 0 0 0 -3.202905,-3.432878 l 0.116228,7.158749 z m -7.50952,0 a 3.737905,7.1624527 0 0 1 -3.241575,-3.673258 3.737905,7.1624527 0 0 1 0.07207,-7.214931 3.737905,7.1624527 0 0 1 3.312557,-3.432878 l -0.120206,7.158749 z" />
+      <path
+         id="lpe_path-effect9"
+         style="stroke-width:0"
+         class="powerclip"
+         d="M 11.758677,8.210534 H 57.032994 V 52.607237 H 11.758677 Z m 26.453406,34.122802 a 3.6141745,7.1624527 0 0 0 3.134273,-3.673258 3.6141745,7.1624527 0 0 0 -0.06968,-7.214931 3.6141745,7.1624527 0 0 0 -3.202905,-3.432878 l 0.116228,7.158749 z m -7.50952,0 0.02285,-7.162318 0.120206,-7.158749 a 3.737905,7.1624527 0 0 0 -3.312557,3.432878 3.737905,7.1624527 0 0 0 -0.07207,7.214931 3.737905,7.1624527 0 0 0 3.241575,3.673258 z" />
+    </clipPath>
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <ellipse
+       style="display:none;fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:4.10887;stroke-dasharray:none;stroke-opacity:1"
+       id="path1"
+       cx="33.734379"
+       cy="31.578634"
+       inkscape:label="Head"
+       ry="34.162125"
+       rx="29.034107" />
+    <path
+       d="M 26.031438,6.6157677 A 3.8432911,16.550981 0 0 0 22.187816,23.166499 3.8432911,16.550981 0 0 0 26.031438,39.717629 3.8432911,16.550981 0 0 0 29.874682,23.166499 3.8432911,16.550981 0 0 0 26.031438,6.6157677 Z"
+       style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0"
+       id="path3"
+       inkscape:label="Left Eye" />
+    <path
+       d="m 41.453934,6.6157677 a 3.8595446,16.550981 0 0 0 -3.859871,16.5507313 3.8595446,16.550981 0 0 0 3.859871,16.55113 3.8595446,16.550981 0 0 0 3.8595,-16.55113 3.8595446,16.550981 0 0 0 -3.8595,-16.5507313 z"
+       style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0"
+       id="path3-5"
+       inkscape:label="Right Eye" />
+    <path
+       id="path4"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0;stroke-opacity:1"
+       d="m 48.94792,13.210534 c 2.074811,0.897134 3.96875,6.633217 2.645833,17.197917 C 51.073961,34.559464 45.878705,47.48246 34.395835,47.606369 22.912966,47.730279 17.790713,34.549668 17.197918,30.408451 15.875001,21.166668 17.76894,14.107668 19.843751,13.210534 20.792012,16.123049 20.53782,36.890717 34.395835,37.023035 48.25385,37.155353 47.999659,16.123049 48.94792,13.210534 Z"
+       sodipodi:nodetypes="cszsczc"
+       inkscape:label="Mouth"
+       clip-path="url(#clipPath9)"
+       inkscape:path-effect="#path-effect9"
+       inkscape:original-d="m 48.94792,13.210534 c 2.074811,0.897134 3.96875,6.633217 2.645833,17.197917 C 51.073961,34.559464 45.878705,47.48246 34.395835,47.606369 22.912966,47.730279 17.790713,34.549668 17.197918,30.408451 15.875001,21.166668 17.76894,14.107668 19.843751,13.210534 20.792012,16.123049 20.53782,36.890717 34.395835,37.023035 48.25385,37.155353 47.999659,16.123049 48.94792,13.210534 Z"
+       transform="matrix(1.4587796,0,0,1.3687181,-16.441569,-1.6596951)" />
+    <g
+       id="g7"
+       inkscape:label="teeth"
+       transform="matrix(1.382353,0,0,1.3661871,-1.7867195,-2.7533902)" />
+  </g>
+</svg>
