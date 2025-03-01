@@ -822,7 +822,11 @@ body:has(dialog[open])
     td
       &:first-child > span
         display: grid
-        grid-auto-rows: auto
+        justify-content: center
+        grid-template-columns: 1em auto
+
+      .span-title
+        grid-column: -3/3
         text-align: center
 
 .actionable
