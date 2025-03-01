@@ -8,6 +8,7 @@ use serde_yaml::Value;
 
 use crate::db::YamlFile;
 
+mod dlcq;
 mod ffxiv;
 mod jd;
 mod kh;
@@ -23,6 +24,7 @@ pub enum YamlFeature {
     OrbSanity,
     GrassSanity,
     FishSanity,
+    CoinSanity,
 }
 
 pub type YamlFeatures = HashMap<YamlFeature, u32>;
@@ -300,6 +302,7 @@ pub static EXTRACTORS: Lazy<HashMap<&'static str, Box<dyn FeatureExtractor + Sen
             };
         }
 
+        register!(dlcq::DlcQuest);
         register!(pokemon::PokemonRB);
         register!(pokemon::PokemonEmerald);
         register!(pokemon::PokemonCrystal);
