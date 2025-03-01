@@ -4,15 +4,16 @@ use apwm::{Index, Manifest};
 use chrono::{NaiveDateTime, Timelike};
 use diesel::backend::Backend;
 use diesel::deserialize::FromStaticSqlRow;
+use diesel::dsl::now;
 use diesel::prelude::*;
 use diesel::{AsChangeset, Insertable, Queryable, Selectable};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
 use crate::db::Json;
 use crate::error::Result;
-use crate::schema::{discord_users, room_templates, rooms};
+use crate::schema::{discord_users, room_templates, rooms, yamls};
 
-use super::RoomTemplateId;
+use super::{RoomTemplateId, YamlValidationStatus};
 
 #[derive(Insertable, AsChangeset, Debug)]
 #[diesel(table_name=rooms)]
@@ -386,6 +387,19 @@ pub async fn update_room<'a>(
     new_room: &'a NewRoom<'a>,
     conn: &mut AsyncPgConnection,
 ) -> Result<Room> {
+    if !new_room.yaml_validation {
+        diesel::update(yamls::table)
+            .filter(yamls::room_id.eq(new_room.id))
+            .set((
+                    yamls::validation_status.eq(YamlValidationStatus::Unknown),
+                    yamls::apworlds.eq(Vec::<(String, semver::Version)>::new()),
+                    yamls::last_error.eq(Option::<String>::None),
+                    yamls::last_validation_time.eq(now)
+                ))
+            .execute(conn)
+            .await?;
+    }
+
     Ok(diesel::update(rooms::table)
         .filter(rooms::id.eq(&new_room.id))
         .set(new_room)
