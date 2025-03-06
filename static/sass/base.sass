@@ -826,10 +826,18 @@ body:has(dialog[open])
       &:first-child > span
         display: grid
         justify-content: center
-        grid-template-columns: 1em auto
+        grid-template-columns: 1em 100%
 
       .span-title
         grid-column: -3/3
+        text-align: center
+
+      .player-name
+        width: 100%
+        text-align: center
+
+      .yaml-features
+        grid-column: -2/2
         text-align: center
 
 .actionable
