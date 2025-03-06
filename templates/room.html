@@ -96,7 +96,11 @@
             {% if base.is_logged_in %}
                 <td>
                     <span>
-                        <span onclick ='return showRowYaml(this)' class="validation-result validation-{{yaml.0.validation_status.as_str()}}"></span>
+                        {% if room.settings.yaml_validation %}
+                            <span onclick ='return showRowYaml(this)' class="validation-result validation-{{yaml.0.validation_status.as_str()}}"></span>
+                        {% else %}
+                            <span></span>
+                        {% endif %}
                         <span class="player-name" title="@{{yaml.1}}">{{yaml.0.player_name}}</span>
                         {{yaml.0.features|yaml_features|safe}}
                     </span>
