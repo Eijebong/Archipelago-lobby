@@ -1,6 +1,8 @@
 use anyhow::Result;
+use redis::Commands;
 use std::time::Duration;
 use uuid::Uuid;
+use wq::Claim;
 
 mod common;
 use common::{start_valkey, TestWork, DEFAULT_DEADLINE};
@@ -8,6 +10,7 @@ use common::{start_valkey, TestWork, DEFAULT_DEADLINE};
 #[tokio::test]
 async fn test_reclaim_expires() -> Result<()> {
     let valkey = start_valkey()?;
+    let mut redis = redis::Client::open(valkey.url())?;
 
     let queue = std::sync::Arc::new(
         wq::WorkQueue::<TestWork, ()>::builder("test_reclaim_expires")
@@ -36,6 +39,11 @@ async fn test_reclaim_expires() -> Result<()> {
 
     // Let the reclaim loop realize that the job claim expired
     tokio::time::sleep(Duration::from_millis(5)).await;
+
+    // The claim should be gone
+    let claim = redis
+        .hget::<_, _, Option<Claim>>("wq:test_reclaim_expires:claims", job.job_id.to_string())?;
+    assert_eq!(claim, None);
 
     let job = queue
         .claim_job("test-new")

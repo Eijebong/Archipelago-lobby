@@ -220,6 +220,7 @@ impl<
                     let res = redis::pipe()
                         .zadd(&queue_key, claim.job_id.to_string(), claim.priority as i8)
                         .del(job_claim_key)
+                        .hdel(&claims_key, claim.job_id.to_string())
                         .publish(&queue_key, 0)
                         .exec_async(&mut conn)
                         .await;
