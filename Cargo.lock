@@ -178,6 +178,7 @@ dependencies = [
  "rocket",
  "rocket_oauth2",
  "rocket_prometheus",
+ "rocket_ws",
  "rust-embed",
  "rustls",
  "rustls-pki-types",
@@ -205,7 +206,7 @@ dependencies = [
 [[package]]
 name = "apwm"
 version = "0.1.0"
-source = "git+https://github.com/Eijebong/APWM.git#66593d06911386a5d78be19f9246c184b4e96440"
+source = "git+https://github.com/Eijebong/APWM.git#896b9dbd25bea6e30254d4ba3d1d8097ba418f48"
 dependencies = [
  "anyhow",
  "git2",
@@ -821,6 +822,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "data-encoding"
+version = "2.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "575f75dfd25738df5b91b8e43e14d44bda14637a58fae779fd2b064f8bf3e010"
 
 [[package]]
 name = "deadpool"
@@ -3114,6 +3121,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rocket_ws"
+version = "0.1.0"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#d2b29f06ea87cec8b2903f81c7d61dbf7568a4b7"
+dependencies = [
+ "rocket",
+ "tokio-tungstenite",
+]
+
+[[package]]
 name = "rust-embed"
 version = "8.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4096,6 +4112,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-tungstenite"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edc5f74e248dc973e0dbb7b74c7e0d6fcc301c694ff50049504004ef4d0cdcd9"
+dependencies = [
+ "futures-util",
+ "log",
+ "tokio",
+ "tungstenite",
+]
+
+[[package]]
 name = "tokio-util"
 version = "0.7.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4306,6 +4334,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
+name = "tungstenite"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18e5b8366ee7a95b16d32197d0b2604b43a0be89dc5fac9f8e96ccafbaedda8a"
+dependencies = [
+ "byteorder",
+ "bytes",
+ "data-encoding",
+ "http",
+ "httparse",
+ "log",
+ "rand 0.8.5",
+ "sha1",
+ "thiserror 1.0.69",
+ "utf-8",
+]
+
+[[package]]
 name = "typed-arena"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4442,6 +4488,12 @@ dependencies = [
  "percent-encoding",
  "serde",
 ]
+
+[[package]]
+name = "utf-8"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
 
 [[package]]
 name = "utf16_iter"
@@ -4904,7 +4956,7 @@ dependencies = [
 [[package]]
 name = "wq"
 version = "0.1.0"
-source = "git+https://github.com/Eijebong/wq.git#f2fa6b7e4db7cf4dfd7f436ffa9b76d9fca0301f"
+source = "git+https://github.com/Eijebong/wq.git#29ed6a4408705d5716861ca412bfa04ac83cc607"
 dependencies = [
  "anyhow",
  "chrono",

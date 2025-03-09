@@ -32,6 +32,7 @@ pub mod api;
 pub mod apworlds;
 pub mod auth;
 pub mod filters;
+pub mod gen;
 pub mod manifest_editor;
 pub mod queues;
 pub mod room_manager;

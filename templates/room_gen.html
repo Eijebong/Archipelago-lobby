@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% import "menu.html.tera" as menu %}
+
+{% block menu %}
+    {% let room_url = format!("/room/{}", self.room.id) %}
+    {% call menu::menu_item("Room", "", room_url, false, "room-menu") %}
+    {% if base.is_logged_in && room.settings.show_apworlds %}
+        {% let apworlds_url = format!("/room/{}/worlds", self.room.id) %}
+        {% call menu::menu_item("Apworlds", "", apworlds_url, false, "apworldsButton") %}
+    {% endif %}
+    {% let edit_url = format!("/edit-room/{}", self.room.id) %}
+    {% call menu::menu_item("Edit room", "", edit_url, false, "editButton") %}
+    {% let gen_url = format!("/room/{}/generation", self.room.id) %}
+    {% call menu::menu_item("Generation", "", gen_url, true, "genButton") %}
+{% endblock %}
+
+{% block room_navigation %}
+    {% let room_url = format!("/room/{}", self.room.id) %}
+    {% call menu::app_menu_item(room.settings.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}
+{% endblock %}
+
+{% block main %}
+
+{% if let Some(current_gen) = self.current_gen %}
+    <table class="styled">
+        <thead>
+            <tr><th colspan=2>Current generation</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="shrink">Status:</td>
+                <td id="gen-status">{{ current_gen.status.as_str() }}</td>
+            </tr>
+            <tr>
+                <td colspan=2>
+                    <textarea readonly id="gen-logs">Waiting for logs...</textarea>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <a href="/room/{{ self.room.id }}/generation/cancel" class="cancel-button" id="gen-del-button" data-confirm-del="true" data-resource-type="generation" data-resource-name="for room {{+ self.room.settings.name }}">Cancel generation</a>
+    <a href="/room/{{ self.room.id }}/generation/output" style="display: none" class="validation-button" id="gen-output-button">Download generation output</a>
+{% else %}
+    {% let is_ok_for_gen = self.generation_checklist.values().min().copied().unwrap_or_default() %}
+
+    <table class="styled">
+        <thead>
+            <tr><th colspan=2>Generation checklist</th></tr>
+        </thead>
+        <tbody>
+            {% for (label, ok) in self.generation_checklist.iter().sorted() %}
+            <tr>
+                <td class="shrink">{% if ok %}<span style="color: green; font-weight: bold">OK</span> {% else %} <span style="color: red; font-weight: bold">NOK</span>{%endif%}</td>
+                <td>{{ label }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if is_ok_for_gen %}
+        <a class='validation-button' href='/room/{{ self.room.id }}/generation/start' >Start generation</a>
+    {% else %}
+        <a class='cancel-button not-clickable'>Start generation</a>
+    {% endif %}
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    var isWatchingLogs = false;
+    function startLogsWatcher() {
+        if (isWatchingLogs) {
+            return;
+        }
+        isWatchingLogs = true;
+        const logArea = document.getElementById("gen-logs");
+        logArea.value = ""
+
+        fetch("/room/{{ self.room.id }}/generation/logs/stream")
+            .then(async (response) => {
+                if (!response.ok) {
+                    return
+                }
+                const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        break
+                    }
+
+                    logArea.value += value
+                    logArea.scrollTop = logArea.scrollHeight;
+                }
+            })
+    }
+
+
+    {%+ if self.current_gen.is_some() %}
+        function setGenStatusSuccess() {
+            document.getElementById("gen-del-button").innerText = "Delete generation"
+            document.getElementById("gen-output-button").style.display = "inline"
+        }
+
+        function startWs() {
+            const statusElmt = document.getElementById("gen-status");
+            const socket = new WebSocket("/room/{{ room.id }}/generation/status");
+            socket.addEventListener("message", (message) => {
+                const new_status = message.data;
+                if (new_status != "pending") {
+                    startLogsWatcher();
+                }
+
+                statusElmt.innerText = new_status;
+
+                if (new_status == "success") {
+                    setGenStatusSuccess()
+                }
+
+            })
+        }
+        startWs()
+    {% endif %}
+</script>
+<script src="/static/js/room.js?{{ base.js_version }}" defer></script>
+
+{% endblock %}

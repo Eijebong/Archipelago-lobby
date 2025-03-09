@@ -409,6 +409,19 @@ pub async fn update_room<'a>(
 }
 
 #[tracing::instrument(skip(conn))]
+pub async fn update_room_manifest<'a>(
+    room_id: RoomId,
+    new_manifest: &Manifest,
+    conn: &mut AsyncPgConnection,
+) -> Result<()> {
+    diesel::update(rooms::table.find(room_id))
+        .set(rooms::manifest.eq(Json(new_manifest)))
+        .execute(conn)
+        .await?;
+    Ok(())
+}
+
+#[tracing::instrument(skip(conn))]
 pub async fn delete_room(room_id: RoomId, conn: &mut AsyncPgConnection) -> Result<()> {
     diesel::delete(rooms::table)
         .filter(rooms::id.eq(room_id))

@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use ap_lobby::jobs::{YamlValidationParams, YamlValidationResponse};
+use ap_lobby::jobs::{
+    GenerationParams, GenerationResponse, YamlValidationParams, YamlValidationResponse,
+};
 use wq::{JobId, JobStatus};
 
 #[derive(serde::Deserialize)]
@@ -129,5 +131,5 @@ pub struct QueueTokens<'a>(pub HashMap<&'a str, String>);
 
 declare_queues!(
     yaml_validation<YamlValidationParams, YamlValidationResponse>,
-    test<YamlValidationParams, YamlValidationResponse>
+    generation<GenerationParams, GenerationResponse>
 );

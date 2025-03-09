@@ -60,9 +60,11 @@ tracing-core = "0.1.33"
 regex = "1.11.1"
 async-stream = "0.3.6"
 futures-core = "0.3.31"
+rocket_ws = "=0.1.0"
 
-[profile.dev.package.askama_derive]
+[profile.dev.package."*"]
 opt-level = 3
+
 
 [build-dependencies]
 anyhow = "1.0.86"
@@ -72,6 +74,7 @@ git2 = "0.19"
 
 [patch.crates-io]
 rocket = { git = "https://github.com/Eijebong/Rocket.git", branch = "0.6.0-dev" }
+rocket_ws = { git = "https://github.com/Eijebong/Rocket.git", branch = "0.6.0-dev" }
 rocket_prometheus = { git = "https://github.com/Eijebong/rocket_prometheus.git", branch = "0.6.0-dev" }
 rocket_oauth2 = { git = "https://github.com/jebrosen/rocket_oauth2.git" }
 sentry-tracing = { git = "http://github.com/Eijebong/sentry-rust" }

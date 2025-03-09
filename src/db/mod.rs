@@ -6,6 +6,7 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
+mod gen;
 pub mod instrumentation;
 mod json;
 mod pagination;
@@ -15,6 +16,7 @@ pub mod types;
 mod user;
 mod yaml;
 
+pub use gen::*;
 pub use json::Json;
 pub use pagination::{Paginate, Paginated};
 pub use room::*;

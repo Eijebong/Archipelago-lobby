@@ -1,6 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context as _;
@@ -17,6 +18,7 @@ use futures_util::future::BoxFuture;
 use futures_util::FutureExt;
 use instrumentation::QueueCounters;
 use otlp::TracingFairing;
+use rocket::config::ShutdownConfig;
 use rocket::data::{Limits, ToByteUnit};
 use rocket::http::{CookieJar, Method, Status};
 use rocket::response::Redirect;
@@ -32,7 +34,10 @@ use rustls::Error as TLSError;
 use rustls::{DigitallySignedStruct, SignatureScheme};
 
 use ap_lobby::index_manager::IndexManager;
-use ap_lobby::jobs::{get_yaml_validation_callback, YamlValidationQueue};
+use ap_lobby::jobs::{
+    get_generation_callback, get_yaml_validation_callback, GenerationOutDir, GenerationQueue,
+    YamlValidationQueue,
+};
 use views::queues::QueueTokens;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
@@ -115,6 +120,9 @@ impl Handler for MetricsRoute {
         let yaml_validation_queue = req.rocket().state::<YamlValidationQueue>().unwrap();
         let stats = yaml_validation_queue.get_stats().await.unwrap();
         self.1.update_queue("yaml_validation", stats);
+        let generation_queue = req.rocket().state::<GenerationQueue>().unwrap();
+        let stats = generation_queue.get_stats().await.unwrap();
+        self.1.update_queue("generation", stats);
 
         self.0.handle(req, data).await
     }
@@ -161,6 +169,10 @@ async fn main() -> ap_lobby::error::Result<()> {
     let valkey_url = std::env::var("VALKEY_URL").expect("Provide a VALKEY_URL env variable");
     let admin_token =
         AdminToken(std::env::var("ADMIN_TOKEN").expect("Provide a ADMIN_TOKEN env variable"));
+    let generation_out_dir = GenerationOutDir(PathBuf::from(
+        std::env::var("GENERATION_OUTPUT_DIR")
+            .expect("Provide a GENERATION_OUTPUT_DIR env variable"),
+    ));
 
     diesel::connection::set_default_instrumentation(|| {
         Some(Box::new(DbInstrumentation::default()))
@@ -190,8 +202,15 @@ async fn main() -> ap_lobby::error::Result<()> {
     }
 
     let limits = Limits::default().limit("string", 2.megabytes());
+    let shutdown_config = ShutdownConfig {
+        grace: 0,
+        mercy: 0,
+        ..Default::default()
+    };
 
-    let figment = rocket::Config::figment().merge(("limits", limits));
+    let figment = rocket::Config::figment()
+        .merge(("limits", limits))
+        .merge(("shutdown", shutdown_config));
     let prometheus = PrometheusMetrics::new().with_request_filter(|request| {
         request.uri().path() != "/metrics"
             && request.uri().path().segments().last() != Some("claim_job")
@@ -213,10 +232,23 @@ async fn main() -> ap_lobby::error::Result<()> {
         .expect("Failed to create job queue for yaml validation");
     yaml_validation_queue.start_reclaim_checker();
 
-    let queue_tokens = QueueTokens(HashMap::from([(
-        "yaml_validation",
-        std::env::var("YAML_VALIDATION_QUEUE_TOKEN").context("YAML_VALIDATION_QUEUE_TOKEN")?,
-    )]));
+    let generation_queue = GenerationQueue::builder("generation_queue")
+        .with_callback(get_generation_callback(db_pool.clone()))
+        .build(&valkey_url)
+        .await
+        .expect("Failed to create job queue for generation");
+    generation_queue.start_reclaim_checker();
+
+    let queue_tokens = QueueTokens(HashMap::from([
+        (
+            "yaml_validation",
+            std::env::var("YAML_VALIDATION_QUEUE_TOKEN").context("YAML_VALIDATION_QUEUE_TOKEN")?,
+        ),
+        (
+            "generation",
+            std::env::var("GENERATION_QUEUE_TOKEN").context("GENERATION_QUEUE_TOKEN")?,
+        ),
+    ]));
     let queue_counters = QueueCounters::new(prometheus.registry())?;
 
     let ctx = Context { db_pool };
@@ -228,6 +260,7 @@ async fn main() -> ap_lobby::error::Result<()> {
         .mount("/", views::room_manager::routes())
         .mount("/", views::room_templates::routes())
         .mount("/", views::apworlds::routes())
+        .mount("/", views::gen::routes())
         .mount("/auth/", views::auth::routes())
         .mount("/api/", views::api::routes())
         .mount("/metrics", MetricsRoute(prometheus, queue_counters))
@@ -236,8 +269,10 @@ async fn main() -> ap_lobby::error::Result<()> {
         .manage(ctx)
         .manage(figment)
         .manage(admin_token)
+        .manage(generation_out_dir)
         .manage(index_manager)
         .manage(yaml_validation_queue)
+        .manage(generation_queue)
         .manage(queue_tokens)
         .attach(OAuth2::<Discord>::fairing("discord"))
         .launch()

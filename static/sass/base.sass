@@ -75,6 +75,10 @@ hr
     text-align: left
     font-weight: bold
 
+  .shrink
+    width: 0.1%
+    white-space: nowrap
+
 .yamls
   td
     white-space: nowrap
@@ -482,53 +486,6 @@ h6
       background-color: #202a33
 
 
-/* == STANDALONE LOGIN PAGE == */
-
-#standalone-login
-  display: block
-  width: 300px
-  padding-top: 1em
-  margin: auto
-
-  h1
-    font-variant: small-caps
-    position: relative
-    font-size: 1.5em
-
-  input
-    margin-bottom: 0.75em
-
-  div
-    background-color: hsl(0, 0% ,15%)
-    background-image: url("../images/background.png")
-    padding: 15px
-    border: 4px solid black
-    box-shadow: 0 0 4px hsla(0, 0%, 0%, 0.5), inset 0 0 0 1px hsla(0, 0%, 100%, 0.15)
-    margin: auto
-
-  label
-    text-shadow: 1px 1px black
-    font-weight: bold
-    font-size: 14px
-
-
-  button
-    margin-top: 10px
-    width: 100%
-    border: none
-    padding: 3px
-    font-weight: bold
-    color: white
-    text-shadow: 1px 1px black
-    cursor: pointer
-    background: linear-gradient(hsl(135, 0%, 33%), hsl(135, 0%, 24%) )
-    border-radius: 2px
-    box-shadow: 0 0 1px black, inset 0 1px 0px 0px hsla(0,0%,100%,0.15)
-
-    &:hover
-      background: linear-gradient(hsl(135, 0%, 34%), hsl(135, 0%, 26%) )
-
-
 .error
   background-color: hsl(0, 90%, 20.0%) !important
   background-image: url("../images/background.png")
@@ -561,59 +518,6 @@ h6
   text-shadow: 1px 1px black
   margin: 1em 0
   font-family: sans-serif
-
-
-
-/* == GROUP SELECTOR == */
-
-.standalone-group-selector
-  width: 100%
-  border: none
-  color: white
-  border-radius: 2px
-  background: linear-gradient(hsl(135, 0%, 33%), hsl(135, 0%, 24%) )
-  box-shadow: 0 0 1px black, inset 0 1px 0px 0px hsla(0,0%,100%,0.15)
-
-  select
-    cursor: pointer
-    display: inline-block
-    font-weight: bold
-    text-shadow: 1px 1px black
-
-    background: none
-    border: none
-    color: white
-    width: 100%
-    padding: -0.25em
-    padding: 0 0.50em
-    margin: 0
-    margin-right: -10%
-    margin-bottom: -0.75em
-
-    text-shadow: 0 0 0 white, 1px 1px black
-    box-shadow: none
-
-  option
-    padding: 0.25em
-    background-color: hsl(0,0%,15%)
-    color: white
-
-  button
-    width: 10%
-    display: inline-block
-    padding: 0.50em
-    background-color: hsl(200,30%,60%)
-    background-image: url("../images/background.png")
-    border: none
-    cursor: pointer
-    color: white
-    text-shadow: 0 1px black
-    background: linear-gradient(hsl(135, 0%, 33%), hsl(135, 0%, 24%) )
-    box-shadow: inset 0 1px 0px 0px hsla(0,0%,100%,0.15), -1px 0 0 0 black
-    border-radius: 0 2px 2px 0
-
-    &:hover
-      background: linear-gradient(hsl(135, 0%, 40%), hsl(135, 0%, 30%) )
 
 
 @media screen and (max-width:768px)
@@ -764,6 +668,9 @@ body:has(dialog[open])
 
 .clickable
   cursor: pointer
+
+.not-clickable
+  cursor: not-allowed
 
 .hidden-table
   display: none
@@ -933,5 +840,9 @@ body:has(dialog[open])
   box-shadow: 0 0 4px hsla(121, 0%, 0%, 1), inset 0 0 0 1px hsla(0, 0%, 100%, 0.3)
   padding: 0.2em
 
-.shrink
-  max-width: 1em
+#gen-logs
+  background: hsl(207, 18%, 23%)
+  color: white
+  width: 100%
+  border: none
+  height: 80vh

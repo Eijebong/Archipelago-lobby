@@ -14,3 +14,6 @@ apworlds = { type = "Array<Apworld>" }
 [print_schema.patches.room_templates]
 id = { type = "SqlRoomTemplateId" }
 yaml_limit_bypass_list = { type = "Array<Int8>" }
+
+[print_schema.patches.generations]
+room_id = { type = "SqlRoomId" }

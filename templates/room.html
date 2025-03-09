@@ -18,6 +18,8 @@
     {% if is_my_room %}
         {% let edit_url = format!("/edit-room/{}", self.room.id) %}
         {% call menu::menu_item("Edit room", "", edit_url, false, "editButton") %}
+        {% let gen_url = format!("/room/{}/generation", self.room.id) %}
+        {% call menu::menu_item("Generation", "", gen_url, false, "genButton") %}
     {% endif %}
 {% endblock %}
 
