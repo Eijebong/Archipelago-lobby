@@ -122,6 +122,12 @@ impl From<Uuid> for JobId {
     }
 }
 
+impl From<JobId> for Uuid {
+    fn from(value: JobId) -> Self {
+        value.0
+    }
+}
+
 impl JobId {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
