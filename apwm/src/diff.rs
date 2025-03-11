@@ -169,10 +169,10 @@ async fn diff_world(
                     continue;
                 }
 
-                let previous_version =
-                    find_closest_version(version, old_world.versions.keys().collect());
+                let (previous_world, previous_version) =
+                    find_closest_version(version, old_world, new_world);
                 let origin_diff = diff_version(
-                    old_world,
+                    previous_world,
                     previous_version.clone(),
                     new_world,
                     Some(version),
@@ -206,20 +206,33 @@ async fn diff_world(
     }
 }
 
-fn find_closest_version(target_version: &Version, mut versions: Vec<&Version>) -> Option<Version> {
+fn find_closest_version<'a>(
+    target_version: &'a Version,
+    old_world: &'a World,
+    new_world: &'a World,
+) -> (&'a World, Option<Version>) {
     let mut candidate_version = None;
-    versions.sort();
+    let mut candidate_world = old_world;
 
-    for version in versions {
+    let mut versions = old_world
+        .versions
+        .keys()
+        .map(|v| (v, old_world))
+        .chain(new_world.versions.keys().map(|v| (v, new_world)))
+        .collect::<Vec<_>>();
+    versions.sort_by_key(|(v, _)| *v);
+
+    for (version, world) in versions {
         if version < target_version {
             candidate_version = Some(version);
+            candidate_world = world;
             continue;
         }
 
         break;
     }
 
-    candidate_version.cloned()
+    (candidate_world, candidate_version.cloned())
 }
 
 #[allow(clippy::too_many_arguments)]
