@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Context as _;
 use ap_lobby::db::instrumentation::{DbInstrumentation, QUERY_HISTOGRAM};
@@ -227,6 +228,7 @@ async fn main() -> ap_lobby::error::Result<()> {
 
     let yaml_validation_queue = YamlValidationQueue::builder("yaml_validation")
         .with_callback(get_yaml_validation_callback(db_pool.clone()))
+        .with_reclaim_timeout(Duration::from_secs(10))
         .build(&valkey_url)
         .await
         .expect("Failed to create job queue for yaml validation");
@@ -234,6 +236,7 @@ async fn main() -> ap_lobby::error::Result<()> {
 
     let generation_queue = GenerationQueue::builder("generation_queue")
         .with_callback(get_generation_callback(db_pool.clone()))
+        .with_reclaim_timeout(Duration::from_secs(10))
         .build(&valkey_url)
         .await
         .expect("Failed to create job queue for generation");
