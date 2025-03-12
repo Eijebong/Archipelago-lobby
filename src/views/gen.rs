@@ -480,7 +480,7 @@ fn get_generation_info(job_id: JobId, output_dir: &Path) -> Result<GenerationInf
         if file_name.ends_with(".zip") {
             output_file = Some(file_name.clone());
         }
-        if file_name.ends_with(".txt") {
+        if file_name.ends_with(".log") {
             log_file = Some(file_name.clone());
         }
     }
