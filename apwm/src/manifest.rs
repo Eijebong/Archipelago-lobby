@@ -258,4 +258,17 @@ impl Manifest {
     pub fn add_version_req(&mut self, apworld_name: &str, version_req: VersionReq) {
         self.worlds.insert(apworld_name.to_string(), version_req);
     }
+
+    pub fn freeze(&mut self, index: &Index) -> Result<()> {
+        for (world_name, version_req) in self.worlds.iter_mut() {
+            if *version_req == VersionReq::Latest {
+                let Some(world) = index.worlds.get(world_name) else {
+                    continue;
+                };
+                *version_req = VersionReq::Specific(world.get_latest_release().unwrap().0.clone());
+            }
+        }
+
+        Ok(())
+    }
 }
