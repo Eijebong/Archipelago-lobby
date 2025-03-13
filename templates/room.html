@@ -261,9 +261,9 @@
             const table = document.getElementById('yamls');
             const compare = (a, b) => {
                 if (direction === 'asc') {
-                    return getValueToSortWith(a, key) > getValueToSortWith(b, key)
+                    return getValueToSortWith(a, key) > getValueToSortWith(b, key) ? 1 : -1
                 } else {
-                    return getValueToSortWith(a, key) < getValueToSortWith(b, key)
+                    return getValueToSortWith(a, key) < getValueToSortWith(b, key) ? 1 : -1
                 }
             }
             const tbody = table.querySelector('tbody');
