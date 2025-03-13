@@ -29,6 +29,7 @@ pub fn parse_raw_yamls(yamls: &[&str]) -> Result<Vec<(String, YamlFile)>> {
         .iter()
         .map(|yaml| {
             yaml.trim()
+                .trim_start_matches('\u{feff}')
                 .trim_start_matches("---")
                 .trim_end_matches("---")
         })
@@ -44,7 +45,6 @@ pub fn parse_raw_yamls(yamls: &[&str]) -> Result<Vec<(String, YamlFile)>> {
                 anyhow::bail!("Invalid yaml file. Syntax error.")
             };
 
-            let doc = doc.trim_start_matches('\u{feff}').to_string();
             let Ok(parsed) = serde_yaml::from_str(&doc) else {
                 anyhow::bail!(
                     "This does not look like an archipelago YAML. Check that your YAML syntax is valid."
