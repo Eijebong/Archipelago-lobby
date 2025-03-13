@@ -108,7 +108,7 @@
                     </span>
                 </td>
             {% else %}
-                <td colspan=2><span><span class="player-name">{{yaml.0.player_name}}</span> {{yaml.0.features|yaml_features|safe}}</span></td>
+                <td><span><span class="player-name">{{yaml.0.player_name}}</span> {{yaml.0.features|yaml_features|safe}}</span></td>
             {% endif %}
             <td>{{yaml.0.game}}</td>
             {% if (is_my_yaml || is_my_room) && !is_closed %}
