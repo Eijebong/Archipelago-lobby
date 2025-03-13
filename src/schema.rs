@@ -28,6 +28,7 @@ diesel::table! {
         room_id -> SqlRoomId,
         job_id -> Uuid,
         status -> Varchar,
+        created_at -> Timestamp,
     }
 }
 
@@ -53,6 +54,7 @@ diesel::table! {
         global -> Bool,
         tpl_name -> Varchar,
         allow_invalid_yamls -> Bool,
+        meta_file -> Text,
     }
 }
 
@@ -77,6 +79,7 @@ diesel::table! {
         updated_at -> Timestamp,
         from_template_id -> Nullable<SqlRoomTemplateId>,
         allow_invalid_yamls -> Bool,
+        meta_file -> Text,
     }
 }
 

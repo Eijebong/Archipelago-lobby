@@ -415,6 +415,7 @@ async fn enqueue_gen_job(
 
     let mut params = GenerationParams {
         apworlds,
+        meta_file: room.settings.meta_file.clone(),
         room_id: room.id,
         otlp_context: HashMap::new(),
     };

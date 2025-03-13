@@ -1,5 +1,6 @@
 #![allow(clippy::blocks_in_conditions)]
 
+use anyhow::Context as _;
 use ap_lobby::db::{self, Author, NewRoom, Room, RoomFilter, RoomId, RoomTemplateId};
 use ap_lobby::error::{RedirectTo, Result, WithContext};
 use ap_lobby::index_manager::IndexManager;
@@ -50,6 +51,7 @@ pub struct RoomSettingsForm<'a> {
     pub yaml_limit_bypass_list: &'a str,
     pub show_apworlds: bool,
     pub me: ManifestForm<'a>,
+    pub meta_file: String,
 }
 
 #[derive(Template)]
@@ -182,6 +184,7 @@ async fn create_room_submit<'a>(
         show_apworlds: room_form.room.show_apworlds,
         from_template_id: Some(from_template),
         allow_invalid_yamls: room_form.room.allow_invalid_yamls,
+        meta_file: room_form.room.meta_file.clone(),
     };
 
     let mut conn = ctx.db_pool.get().await?;
@@ -307,6 +310,7 @@ async fn edit_room_submit<'a>(
         show_apworlds: room_form.room.show_apworlds,
         from_template_id: None,
         allow_invalid_yamls: room_form.room.allow_invalid_yamls,
+        meta_file: room_form.room.meta_file.clone(),
     };
 
     let room = db::update_room(&new_room, &mut conn).await?;
@@ -350,7 +354,19 @@ pub fn validate_room_form(room_form: &mut RoomSettingsForm<'_>) -> Result<()> {
         }
     }
 
+    room_form.meta_file = room_form.meta_file.trim().to_string();
+    if !room_form.meta_file.is_empty() {
+        serde_yaml::from_str::<MetaFile>(&room_form.meta_file)
+            .context("Failed to parse meta file. Make sure it includes a `meta_description`")?;
+    }
+
     Ok(())
+}
+
+#[derive(serde::Deserialize)]
+#[allow(dead_code)]
+pub struct MetaFile {
+    meta_description: String,
 }
 
 pub fn routes() -> Vec<rocket::Route> {

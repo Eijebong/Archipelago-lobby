@@ -28,6 +28,7 @@ pub type YamlValidationQueue = WorkQueue<YamlValidationParams, YamlValidationRes
 pub struct GenerationParams {
     pub apworlds: Vec<(String, Version)>,
     pub room_id: RoomId,
+    pub meta_file: String,
     pub otlp_context: HashMap<String, String>,
 }
 

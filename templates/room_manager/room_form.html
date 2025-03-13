@@ -99,6 +99,11 @@
         <div class="options-tab" id="section-apworlds-editor">
         {% include "room_manager/manifest_editor.html" %}
         </div>
+
+        <div class="options-tab" id="section-gen-options">
+            <label for="meta_file">Meta file:</label>
+            <textarea {{ ro }} name="room.meta_file" id="meta_file">{{ self.room.meta_file }}</textarea>
+        </div>
         <input {{ ro }} type="hidden" name="room.tz_offset" id="tz_offset">
 
     </div>
@@ -116,8 +121,8 @@
 </form>
 
 {% block scripts %}
-    <script src="/static/js/room_editor.js?{{ base.js_version}}"></script>
     <script src="/static/js/room.js?{{ base.js_version}}"></script>
+    <script src="/static/js/room_editor.js?{{ base.js_version}}"></script>
     <script>
         const closeDateEl = document.getElementById("close_date");
         closeDateEl.addEventListener("change", () => {

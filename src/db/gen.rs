@@ -65,6 +65,11 @@ pub async fn get_generation_for_room(
     conn: &mut AsyncPgConnection,
 ) -> Result<Option<Generation>> {
     Ok(generations::table
+        .select((
+            generations::room_id,
+            generations::job_id,
+            generations::status,
+        ))
         .find(room_id)
         .first::<(RoomId, Uuid, String)>(conn)
         .await

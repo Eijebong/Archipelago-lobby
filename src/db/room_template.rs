@@ -28,6 +28,7 @@ pub struct NewRoomTemplate<'a> {
     pub manifest: Json<Manifest>,
     pub show_apworlds: bool,
     pub global: bool,
+    pub meta_file: String,
 }
 
 #[tracing::instrument(skip(conn))]
