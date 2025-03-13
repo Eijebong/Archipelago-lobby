@@ -193,6 +193,7 @@
                     var hidden = false;
                     for (const [filterId, filter] of Object.entries(filters)) {
                         const filterYamls = document.getElementById(filterId);
+                        if (!filterYamls) continue;
                         hidden |= (filterYamls.checked && filter(row))
                     }
 
@@ -202,6 +203,7 @@
 
             for (const [filterId, filter] of Object.entries(filters)) {
                 const filterYamls = document.getElementById(filterId);
+                if (!filterYamls) continue;
                 filterYamls.checked = false;
                 filterYamls.onchange = function() {
                     refreshFilters()
