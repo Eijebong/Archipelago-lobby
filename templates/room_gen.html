@@ -38,7 +38,13 @@
             </tr>
         </tbody>
     </table>
-    <a href="/room/{{ self.room.id }}/generation/cancel" class="cancel-button" id="gen-del-button" data-confirm-del="true" data-resource-type="generation" data-resource-name="for room {{+ self.room.settings.name }}">Cancel generation</a>
+    <a href="/room/{{ self.room.id }}/generation/cancel" class="cancel-button" id="gen-del-button" data-confirm-del="true" data-resource-type="generation" data-resource-name="for room {{+ self.room.settings.name }}">
+        {% if current_gen.status == GenerationStatus::Pending || current_gen.status == GenerationStatus::Running %}
+        Cancel generation
+        {% else %}
+        Delete generation
+        {% endif %}
+    </a>
     <a href="/room/{{ self.room.id }}/generation/output" style="display: none" class="validation-button" id="gen-output-button">Download generation output</a>
 {% else %}
     {% let is_ok_for_gen = self.generation_checklist.values().min().copied().unwrap_or_default() %}
@@ -103,6 +109,10 @@
             document.getElementById("gen-output-button").style.display = "inline"
         }
 
+        function setGenStatusFailure() {
+            document.getElementById("gen-del-button").innerText = "Delete generation"
+        }
+
         function startWs() {
             const statusElmt = document.getElementById("gen-status");
             const socket = new WebSocket("/room/{{ room.id }}/generation/status");
@@ -116,6 +126,8 @@
 
                 if (new_status == "success") {
                     setGenStatusSuccess()
+                } else if (new_status == "failure") {
+                    setGenStatusFailure()
                 }
 
             })
