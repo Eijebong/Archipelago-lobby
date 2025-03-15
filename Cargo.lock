@@ -3008,7 +3008,7 @@ dependencies = [
 [[package]]
 name = "rocket"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#d2b29f06ea87cec8b2903f81c7d61dbf7568a4b7"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#a8bbef51e917a8c379aa5fd6e0152f70ff45d6ce"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -3058,7 +3058,7 @@ dependencies = [
 [[package]]
 name = "rocket_codegen"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#d2b29f06ea87cec8b2903f81c7d61dbf7568a4b7"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#a8bbef51e917a8c379aa5fd6e0152f70ff45d6ce"
 dependencies = [
  "devise",
  "glob",
@@ -3074,7 +3074,7 @@ dependencies = [
 [[package]]
 name = "rocket_http"
 version = "0.5.1"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#d2b29f06ea87cec8b2903f81c7d61dbf7568a4b7"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#a8bbef51e917a8c379aa5fd6e0152f70ff45d6ce"
 dependencies = [
  "cookie",
  "either",
@@ -3123,7 +3123,7 @@ dependencies = [
 [[package]]
 name = "rocket_ws"
 version = "0.1.0"
-source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#d2b29f06ea87cec8b2903f81c7d61dbf7568a4b7"
+source = "git+https://github.com/Eijebong/Rocket.git?branch=0.6.0-dev#a8bbef51e917a8c379aa5fd6e0152f70ff45d6ce"
 dependencies = [
  "rocket",
  "tokio-tungstenite",
@@ -3481,8 +3481,8 @@ dependencies = [
 
 [[package]]
 name = "sentry"
-version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
+version = "0.36.0"
+source = "git+http://github.com/Eijebong/sentry-rust#75bed993a6ddb9d6f3b5d020eb8469a9ee176f1b"
 dependencies = [
  "httpdate",
  "native-tls",
@@ -3499,8 +3499,8 @@ dependencies = [
 
 [[package]]
 name = "sentry-backtrace"
-version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
+version = "0.36.0"
+source = "git+http://github.com/Eijebong/sentry-rust#75bed993a6ddb9d6f3b5d020eb8469a9ee176f1b"
 dependencies = [
  "backtrace",
  "once_cell",
@@ -3510,8 +3510,8 @@ dependencies = [
 
 [[package]]
 name = "sentry-contexts"
-version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
+version = "0.36.0"
+source = "git+http://github.com/Eijebong/sentry-rust#75bed993a6ddb9d6f3b5d020eb8469a9ee176f1b"
 dependencies = [
  "hostname",
  "libc",
@@ -3523,8 +3523,8 @@ dependencies = [
 
 [[package]]
 name = "sentry-core"
-version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
+version = "0.36.0"
+source = "git+http://github.com/Eijebong/sentry-rust#75bed993a6ddb9d6f3b5d020eb8469a9ee176f1b"
 dependencies = [
  "once_cell",
  "rand 0.8.5",
@@ -3535,8 +3535,8 @@ dependencies = [
 
 [[package]]
 name = "sentry-debug-images"
-version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
+version = "0.36.0"
+source = "git+http://github.com/Eijebong/sentry-rust#75bed993a6ddb9d6f3b5d020eb8469a9ee176f1b"
 dependencies = [
  "findshlibs",
  "once_cell",
@@ -3545,8 +3545,8 @@ dependencies = [
 
 [[package]]
 name = "sentry-panic"
-version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
+version = "0.36.0"
+source = "git+http://github.com/Eijebong/sentry-rust#75bed993a6ddb9d6f3b5d020eb8469a9ee176f1b"
 dependencies = [
  "sentry-backtrace",
  "sentry-core",
@@ -3554,8 +3554,8 @@ dependencies = [
 
 [[package]]
 name = "sentry-tracing"
-version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
+version = "0.36.0"
+source = "git+http://github.com/Eijebong/sentry-rust#75bed993a6ddb9d6f3b5d020eb8469a9ee176f1b"
 dependencies = [
  "sentry-backtrace",
  "sentry-core",
@@ -3565,8 +3565,8 @@ dependencies = [
 
 [[package]]
 name = "sentry-types"
-version = "0.35.0"
-source = "git+http://github.com/Eijebong/sentry-rust#70ea8c9bb598b418d625ede15c9a759f016e836a"
+version = "0.36.0"
+source = "git+http://github.com/Eijebong/sentry-rust#75bed993a6ddb9d6f3b5d020eb8469a9ee176f1b"
 dependencies = [
  "debugid",
  "hex",

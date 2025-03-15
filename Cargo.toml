@@ -54,8 +54,8 @@ opentelemetry-http = "0.28.0"
 counter = "0.6.0"
 comrak = { version = "0.36", default-features = false }
 wq = { git = "https://github.com/Eijebong/wq.git" }
-sentry = "0.35.0"
-sentry-tracing = "0.35.0"
+sentry = "0.36.0"
+sentry-tracing = "0.36.0"
 tracing-core = "0.1.33"
 regex = "1.11.1"
 async-stream = "0.3.6"
