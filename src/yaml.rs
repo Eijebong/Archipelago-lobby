@@ -98,6 +98,7 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
     for (document, parsed) in documents.iter() {
         if let Some(yaml_limit_per_user) = room.settings.yaml_limit_per_user {
             let allow_bypass = session.0.is_admin
+                || room.settings.author_id == session.user_id()
                 || room
                     .settings
                     .yaml_limit_bypass_list
