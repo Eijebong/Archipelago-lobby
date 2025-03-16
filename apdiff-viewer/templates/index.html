@@ -52,7 +52,7 @@
                         <h4> {{ version|fmt_version|safe }}</h4>
                         <div id="{{world.world_name|dashify}}-{{i}}"></div>
                         <script>
-                            var configuration = { drawFileList: false, matching: 'lines', highlight: true, colorScheme: 'dark' };
+                            var configuration = { drawFileList: false, matching: 'none', highlight: true, colorScheme: 'dark' };
                             var targetElement = document.getElementById("{{world.world_name|dashify}}-{{i}}");
                             var diffContent = "{{ diff|base64 }}"
                             var diff2htmlUi = new Diff2HtmlUI(targetElement, atob(diffContent), configuration);
