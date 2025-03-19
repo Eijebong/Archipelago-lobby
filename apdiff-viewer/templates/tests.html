@@ -15,7 +15,7 @@
             {% for (test_id, test) in results.failures.iter() %}
             <details>
                 <summary>{{test_id}}</summary>
-                <div>
+                <div class="test-result">
                   {% if let Some(description) = test.description %}
                     <p>{{ description }}</p>
                   {% endif %}
