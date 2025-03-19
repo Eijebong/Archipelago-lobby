@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap, ffi::OsStr, io::Cursor, path::PathBuf};
+use std::{borrow::Cow, collections::BTreeMap, ffi::OsStr, io::Cursor, path::PathBuf};
 
 use apwm::diff::CombinedDiff;
 use askama::Template;
@@ -42,7 +42,7 @@ mod filters {
 pub struct Error(pub anyhow::Error);
 pub type Result<T> = std::result::Result<T, Error>;
 
-impl<'r> Responder<'r, 'static> for Error {
+impl Responder<'_, 'static> for Error {
     fn respond_to(self, _: &Request<'_>) -> response::Result<'static> {
         let error = self.0.to_string();
         Response::build()
@@ -106,8 +106,8 @@ struct TestResult {
 
 #[derive(Deserialize)]
 struct TestResults {
-    failures: HashMap<String, TestResult>,
-    errors: HashMap<String, TestResult>,
+    failures: BTreeMap<String, TestResult>,
+    errors: BTreeMap<String, TestResult>,
     version: String,
     world_name: String,
 }
