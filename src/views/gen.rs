@@ -426,7 +426,7 @@ async fn enqueue_gen_job(
     });
 
     let job_id = gen_queue
-        .enqueue_job(&params, wq::Priority::Normal, Duration::from_secs(120))
+        .enqueue_job(&params, wq::Priority::Normal, Duration::from_hours(6))
         .await?;
     db::insert_generation_for_room(room.id, job_id, conn).await?;
 
