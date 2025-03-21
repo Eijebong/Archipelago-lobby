@@ -1,20 +1,22 @@
 use crate::error::Result;
+use crate::Context;
 use anyhow::anyhow;
 use base64::Engine;
+use redis::AsyncCommands;
 use rocket::http::{Cookie, CookieJar, SameSite, Status};
 use rocket::request::{FromRequest, Outcome};
 use rocket::time::ext::NumericalDuration;
 use rocket::time::OffsetDateTime;
 use rocket::Request;
+use uuid::Uuid;
 
-#[derive(serde::Serialize, serde::Deserialize, Default)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Session {
     pub is_admin: bool,
     pub is_logged_in: bool,
-    pub err_msg: Vec<String>,
-    pub warning_msg: Vec<String>,
     pub user_id: Option<i64>,
     pub redirect_on_login: Option<String>,
+    pub uuid: uuid::Uuid,
 }
 
 #[derive(serde::Deserialize, Default, Debug)]
@@ -29,10 +31,9 @@ impl From<SessionRecovery> for Session {
         Session {
             is_admin: val.is_admin,
             is_logged_in: val.is_logged_in,
-            err_msg: vec![],
-            warning_msg: vec![],
             user_id: val.user_id,
             redirect_on_login: None,
+            uuid: uuid::Uuid::new_v4(),
         }
     }
 }
@@ -77,7 +78,9 @@ impl Session {
                     return Session {
                         is_admin: true,
                         is_logged_in: true,
-                        ..Default::default()
+                        uuid: Uuid::new_v4(),
+                        user_id: None,
+                        redirect_on_login: None,
                     };
                 }
             }
@@ -89,7 +92,9 @@ impl Session {
             return Session {
                 is_admin: true,
                 is_logged_in: true,
-                ..Default::default()
+                uuid: Uuid::new_v4(),
+                user_id: None,
+                redirect_on_login: None,
             };
         }
 
@@ -117,7 +122,13 @@ impl Session {
             }
         }
 
-        let new_session = Session::default();
+        let new_session = Session {
+            is_admin: false,
+            is_logged_in: false,
+            uuid: Uuid::new_v4(),
+            user_id: None,
+            redirect_on_login: None,
+        };
         new_session.save(cookies).unwrap();
 
         new_session
@@ -134,6 +145,49 @@ impl Session {
         cookies.add_private(cookie);
 
         Ok(())
+    }
+
+    pub async fn push_warning(&self, warning: &str, ctx: &Context) -> Result<()> {
+        let mut redis = ctx.redis_pool.get().await?;
+        let key = format!("warnings:{}", self.uuid);
+
+        redis.lpush::<_, _, ()>(key, warning).await?;
+
+        Ok(())
+    }
+
+    pub async fn push_error(&self, error: &str, ctx: &Context) -> Result<()> {
+        let mut redis = ctx.redis_pool.get().await?;
+        let key = format!("errors:{}", self.uuid);
+
+        redis.rpush::<_, _, ()>(key, error).await?;
+        Ok(())
+    }
+
+    pub async fn retrieve_warnings(&self, ctx: &Context) -> Result<Vec<String>> {
+        let mut redis = ctx.redis_pool.get().await?;
+        let key = format!("warnings:{}", self.uuid);
+
+        Ok(redis::pipe()
+            .lrange(&key, 0, -1)
+            .del(&key)
+            .ignore()
+            .query_async::<(Vec<String>,)>(&mut redis)
+            .await?
+            .0)
+    }
+
+    pub async fn retrieve_errors(&self, ctx: &Context) -> Result<Vec<String>> {
+        let mut redis = ctx.redis_pool.get().await?;
+        let key = format!("errors:{}", self.uuid);
+
+        Ok(redis::pipe()
+            .lrange(&key, 0, -1)
+            .del(&key)
+            .ignore()
+            .query_async::<(Vec<String>,)>(&mut redis)
+            .await?
+            .0)
     }
 }
 

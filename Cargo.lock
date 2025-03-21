@@ -155,6 +155,7 @@ dependencies = [
  "comrak",
  "counter",
  "deadpool",
+ "deadpool-redis",
  "diesel",
  "diesel-async",
  "diesel_migrations",
@@ -173,6 +174,7 @@ dependencies = [
  "opentelemetry-semantic-conventions",
  "opentelemetry_sdk",
  "prometheus",
+ "redis",
  "regex",
  "reqwest",
  "rocket",
@@ -841,10 +843,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "deadpool-redis"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c136f185b3ca9d1f4e4e19c11570e1002f4bfdd592d589053e225716d613851f"
+dependencies = [
+ "deadpool",
+ "redis",
+]
+
+[[package]]
 name = "deadpool-runtime"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
+dependencies = [
+ "tokio",
+]
 
 [[package]]
 name = "debugid"
@@ -1923,15 +1938,6 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
@@ -2003,7 +2009,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -2844,16 +2850,14 @@ dependencies = [
 
 [[package]]
 name = "redis"
-version = "0.27.6"
+version = "0.29.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09d8f99a4090c89cc489a94833c901ead69bfbf3877b4867d5482e321ee875bc"
+checksum = "8034fb926579ff49d3fe58d288d5dcb580bf11e9bccd33224b45adebf0fd0c23"
 dependencies = [
  "arc-swap",
- "async-trait",
  "bytes",
  "combine",
  "futures-util",
- "itertools 0.13.0",
  "itoa",
  "num-bigint",
  "percent-encoding",
@@ -4956,7 +4960,7 @@ dependencies = [
 [[package]]
 name = "wq"
 version = "0.1.0"
-source = "git+https://github.com/Eijebong/wq.git#29ed6a4408705d5716861ca412bfa04ac83cc607"
+source = "git+https://github.com/Eijebong/wq.git#2bbd28c75621e769bb8770082ca5b1656bcacbd5"
 dependencies = [
  "anyhow",
  "chrono",

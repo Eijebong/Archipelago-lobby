@@ -9,7 +9,7 @@ pub struct QueueCounters {
 }
 
 impl QueueCounters {
-    pub fn new(registry: &Registry) -> ap_lobby::error::Result<Self> {
+    pub fn new(registry: &Registry) -> crate::error::Result<Self> {
         let ret = Self {
             jobs_counter: IntCounterVec::new(
                 Opts::new("queue_jobs_count", "The number of jobs per queue"),

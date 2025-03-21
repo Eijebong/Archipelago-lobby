@@ -1,17 +1,17 @@
 #![allow(clippy::blocks_in_conditions)]
 
+use crate::db::{self, Author, NewRoom, Room, RoomFilter, RoomId, RoomTemplateId};
+use crate::error::{RedirectTo, Result, WithContext};
+use crate::index_manager::IndexManager;
+use crate::jobs::YamlValidationQueue;
+use crate::session::LoggedInSession;
+use crate::yaml::revalidate_yamls_if_necessary;
 use anyhow::Context as _;
-use ap_lobby::db::{self, Author, NewRoom, Room, RoomFilter, RoomId, RoomTemplateId};
-use ap_lobby::error::{RedirectTo, Result, WithContext};
-use ap_lobby::index_manager::IndexManager;
-use ap_lobby::jobs::YamlValidationQueue;
-use ap_lobby::session::LoggedInSession;
-use ap_lobby::yaml::revalidate_yamls_if_necessary;
 use askama::Template;
 use chrono::{DateTime, TimeZone, Utc};
 use rocket::form::Form;
+use rocket::http;
 use rocket::http::uri::Absolute;
-use rocket::http::{self, CookieJar};
 use rocket::response::Redirect;
 use rocket::{get, post, FromForm};
 use std::str::FromStr;
@@ -69,7 +69,6 @@ async fn my_rooms<'a>(
     ctx: &State<Context>,
     session: LoggedInSession,
     page: Option<u64>,
-    cookies: &CookieJar<'a>,
 ) -> Result<ListRoomsTpl<'a>> {
     let author_filter = if session.0.is_admin {
         Author::Any
@@ -88,7 +87,7 @@ async fn my_rooms<'a>(
     .await?;
 
     Ok(ListRoomsTpl {
-        base: TplContext::from_session("rooms", session.0, cookies),
+        base: TplContext::from_session("rooms", session.0, ctx).await,
         rooms,
         current_page,
         max_pages,
@@ -102,10 +101,9 @@ async fn create_room<'a>(
     session: LoggedInSession,
     index_manager: &State<IndexManager>,
     ctx: &State<Context>,
-    cookies: &CookieJar<'_>,
 ) -> Result<EditRoom<'a>> {
     let current_user_id = session.user_id();
-    let base = TplContext::from_session("create-room", session.0, cookies);
+    let base = TplContext::from_session("create-room", session.0, ctx).await;
     let index = index_manager.index.read().await;
 
     let form_builder = if let Some(template_id) = from_template {
@@ -131,12 +129,12 @@ async fn create_room<'a>(
 
 pub fn parse_date(date: &str, tz_offset: i32) -> Result<DateTime<Utc>> {
     let offset = chrono::FixedOffset::west_opt(tz_offset * 60)
-        .ok_or_else(|| ap_lobby::error::Error(anyhow::anyhow!("Wrong timezone offset")))?;
+        .ok_or_else(|| crate::error::Error(anyhow::anyhow!("Wrong timezone offset")))?;
     let datetime = chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%dT%H:%M")?;
     let date = offset
         .from_local_datetime(&datetime)
         .single()
-        .ok_or_else(|| ap_lobby::error::Error(anyhow::anyhow!("Cannot parse passed datetime")))?;
+        .ok_or_else(|| crate::error::Error(anyhow::anyhow!("Cannot parse passed datetime")))?;
 
     Ok(date.into())
 }
@@ -203,13 +201,12 @@ async fn create_room_submit<'a>(
 }
 
 #[get("/edit-room/<room_id>")]
-#[tracing::instrument(skip(ctx, session, cookies, index_manager))]
+#[tracing::instrument(skip(ctx, session, index_manager))]
 async fn edit_room<'a>(
     ctx: &State<Context>,
     room_id: RoomId,
     session: LoggedInSession,
     index_manager: &State<IndexManager>,
-    cookies: &CookieJar<'a>,
 ) -> Result<EditRoom<'a>> {
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn).await?;
@@ -220,7 +217,7 @@ async fn edit_room<'a>(
     }
 
     let index = index_manager.index.read().await;
-    let base = TplContext::from_session("room", session.0, cookies);
+    let base = TplContext::from_session("room", session.0, ctx).await;
 
     Ok(EditRoom {
         room_settings_form: RoomSettingsBuilder::new_with_room(

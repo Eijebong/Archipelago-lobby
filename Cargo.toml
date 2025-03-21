@@ -61,6 +61,8 @@ regex = "1.11.1"
 async-stream = "0.3.6"
 futures-core = "0.3.31"
 rocket_ws = "=0.1.0"
+deadpool-redis = "0.20.0"
+redis = "0.29.1"
 
 [profile.dev.package."*"]
 opt-level = 3

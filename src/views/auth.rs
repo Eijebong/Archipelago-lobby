@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
+use crate::error::Result;
+use crate::session::Session;
 use crate::{Context, Discord};
 use anyhow::anyhow;
-use ap_lobby::error::Result;
-use ap_lobby::session::Session;
 use http::HeaderValue;
 use reqwest::Url;
 use rocket::figment::{Figment, Profile, Provider};
@@ -83,7 +83,7 @@ async fn login_discord_callback(
     let discord_id = user.id.parse()?;
 
     let mut conn = ctx.db_pool.get().await?;
-    ap_lobby::db::upsert_discord_user(discord_id, &user.username, &mut conn).await?;
+    crate::db::upsert_discord_user(discord_id, &user.username, &mut conn).await?;
 
     let admins = discord_config
         .get("admins")
@@ -146,8 +146,7 @@ async fn get_discord_user(client: &reqwest::Client, token: &str) -> Result<Disco
 #[get("/logout")]
 #[tracing::instrument(skip_all)]
 fn logout(cookies: &CookieJar) -> Result<Redirect> {
-    let session = Session::default();
-    session.save(cookies)?;
+    cookies.remove_private("session");
 
     Ok(Redirect::to("/"))
 }

@@ -5,6 +5,7 @@ use crate::jobs::{YamlValidationParams, YamlValidationQueue};
 use crate::session::LoggedInSession;
 
 use crate::index_manager::IndexManager;
+use crate::Context;
 use anyhow::anyhow;
 use apwm::{Manifest, World};
 use chrono::Utc;
@@ -15,7 +16,6 @@ use itertools::Itertools;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-use rocket::http::CookieJar;
 use rocket::State;
 use semver::Version;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -72,10 +72,10 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
     room: &Room,
     documents: &'a [(String, YamlFile)],
     session: &mut LoggedInSession,
-    cookies: &CookieJar<'_>,
     yaml_validation_queue: &YamlValidationQueue,
     index_manager: &IndexManager,
     conn: &mut AsyncPgConnection,
+    ctx: &Context,
 ) -> Result<Vec<YamlValidationResult<'a>>> {
     let yamls_in_room = db::get_yamls_for_room(room.id, conn)
         .await
@@ -133,11 +133,11 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
                 }
                 YamlValidationJobResult::Failure(apworlds, error) => {
                     if room.settings.allow_invalid_yamls {
-                        session.0.warning_msg.push(format!(
+                        let warning_msg = format!(
                             "Invalid YAML:\n{}\n Uploading anyway since the room owner allowed it.",
                             error
-                        ));
-                        session.0.save(cookies)?;
+                        );
+                        session.0.push_warning(&warning_msg, ctx).await?;
                         (apworlds, YamlValidationStatus::Failed, Some(error))
                     } else {
                         Err(anyhow::anyhow!(error))?
@@ -157,11 +157,12 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
                     );
 
                     if room.settings.allow_unsupported {
-                        session.0.warning_msg.push(format!(
+                        let warning_msg = format!(
                             "Uploaded a YAML with unsupported games: {}.\n Couldn't verify it.",
                             worlds.iter().join("; ")
-                        ));
-                        session.0.save(cookies)?;
+                        );
+
+                        session.0.push_warning(&warning_msg, ctx).await?;
 
                         (vec![], YamlValidationStatus::Unsupported, Some(error))
                     } else {

@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use ap_lobby::{
+use crate::{
     db::{
         self, Generation, GenerationStatus, Room, RoomId, Yaml, YamlFile, YamlGame,
         YamlValidationStatus,
@@ -20,11 +20,7 @@ use diesel_async::AsyncPgConnection;
 use http::header::CONTENT_DISPOSITION;
 use itertools::Itertools;
 use rocket::tokio::fs::File;
-use rocket::{
-    fs::NamedFile,
-    http::{CookieJar, Header},
-    State,
-};
+use rocket::{fs::NamedFile, http::Header, State};
 use rocket::{
     futures::stream::Stream,
     response::{stream::ByteStream, Redirect},
@@ -33,9 +29,9 @@ use tokio::io::AsyncReadExt;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use wq::{JobId, JobStatus};
 
+use crate::error::Result;
+use crate::utils::RenamedFile;
 use crate::{Context, TplContext};
-use ap_lobby::error::Result;
-use ap_lobby::utils::RenamedFile;
 
 #[derive(Template)]
 #[template(path = "room_gen.html")]
@@ -53,12 +49,11 @@ struct GenerationInfo {
 }
 
 #[rocket::get("/room/<room_id>/generation")]
-async fn gen_room<'a>(
+async fn gen_room(
     room_id: RoomId,
     session: LoggedInSession,
-    cookies: &'a CookieJar<'_>,
-    ctx: &'a State<Context>,
-) -> Result<GenRoomTpl<'a>> {
+    ctx: &State<Context>,
+) -> Result<GenRoomTpl> {
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn).await?;
     let is_my_room = session.0.is_admin || session.user_id() == room.settings.author_id;
@@ -73,7 +68,7 @@ async fn gen_room<'a>(
     let current_gen = db::get_generation_for_room(room_id, &mut conn).await?;
 
     Ok(GenRoomTpl {
-        base: TplContext::from_session("room", session.0, cookies),
+        base: TplContext::from_session("room", session.0, ctx).await,
         generation_checklist,
         room,
         current_gen,
@@ -426,7 +421,11 @@ async fn enqueue_gen_job(
     });
 
     let job_id = gen_queue
-        .enqueue_job(&params, wq::Priority::Normal, Duration::from_hours(6))
+        .enqueue_job(
+            &params,
+            wq::Priority::Normal,
+            Duration::from_secs(60 * 60 * 6),
+        )
         .await?;
     db::insert_generation_for_room(room.id, job_id, conn).await?;
 

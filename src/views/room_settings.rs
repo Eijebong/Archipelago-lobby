@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
-use ap_lobby::db::{Room, RoomSettings, RoomTemplate};
-use ap_lobby::error::Result;
+use crate::db::{Room, RoomSettings, RoomTemplate};
+use crate::error::Result;
 use apwm::Manifest;
 use askama::Template;
 use uuid::Uuid;

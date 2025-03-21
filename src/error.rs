@@ -7,6 +7,7 @@ use rocket::response::{self, Responder};
 use rocket::{Request, Response};
 
 use crate::session::Session;
+use crate::Context;
 
 pub type Result<T> = std::result::Result<T, Error>;
 pub type ApiResult<T> = std::result::Result<T, ApiError>;
@@ -104,6 +105,7 @@ impl<'r> FromRequest<'r> for &'r RedirectTo {
 
 impl Responder<'_, 'static> for Error {
     fn respond_to(self, request: &Request<'_>) -> response::Result<'static> {
+        let ctx = request.rocket().state::<Context>().unwrap();
         let redirect = request.local_cache(|| {
             let lock = OnceLock::new();
             lock.set("/".to_string()).unwrap();
@@ -111,9 +113,12 @@ impl Responder<'_, 'static> for Error {
         });
         let error_message = self.0.to_string();
 
-        let mut session = Session::from_request_sync(request);
-        session.err_msg.push(error_message);
-        session.save(request.cookies()).unwrap();
+        let session = Session::from_request_sync(request);
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current()
+                .block_on(session.push_error(&error_message, ctx))
+                .expect("Failed to record error");
+        });
 
         response::Redirect::to(redirect.0.get().unwrap().to_owned()).respond_to(request)
     }

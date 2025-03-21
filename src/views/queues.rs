@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ap_lobby::jobs::{
+use crate::jobs::{
     GenerationParams, GenerationResponse, YamlValidationParams, YamlValidationResponse,
 };
 use wq::{JobId, JobStatus};
@@ -28,7 +28,7 @@ macro_rules! declare_queues {
     ($($mod_name:ident<$param_ty:ty, $resp_ty:ty>),*) => {
         $(pub mod $mod_name {
             use anyhow::anyhow;
-            use ap_lobby::error::{ApiResult, ApiError};
+            use crate::error::{ApiResult, ApiError};
             use rocket::State;
             use rocket::serde::json::Json;
             use rocket::{http::Status, request::{FromRequest, Outcome}, Request};
@@ -38,7 +38,7 @@ macro_rules! declare_queues {
             struct QueueAuth;
             #[rocket::async_trait]
             impl<'r> FromRequest<'r> for QueueAuth {
-                type Error = ap_lobby::error::ApiError;
+                type Error = ApiError;
 
                 async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
                     let Some(queue_auth) = request.rocket().state::<QueueTokens>() else {

@@ -10,7 +10,7 @@ use rocket::{
 
 use crate::views::YamlContent;
 use crate::Context;
-use ap_lobby::{
+use crate::{
     db::{self, RoomId, Yaml, YamlId},
     error::{ApiResult, WithContext, WithStatus},
     index_manager::IndexManager,

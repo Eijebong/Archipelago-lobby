@@ -4,16 +4,16 @@ use std::ffi::OsStr;
 use std::io::{Cursor, Write};
 use std::path::PathBuf;
 
-use crate::{Context, TplContext};
-use ap_lobby::db::{
+use crate::db::{
     self, Author, Json, NewYaml, Room, RoomFilter, RoomId, YamlId, YamlWithoutContent,
 };
-use ap_lobby::error::{Error, RedirectTo, Result, WithContext};
-use ap_lobby::index_manager::IndexManager;
-use ap_lobby::jobs::YamlValidationQueue;
-use ap_lobby::session::{LoggedInSession, Session};
-use ap_lobby::utils::ZipFile;
-use ap_lobby::yaml::YamlValidationResult;
+use crate::error::{Error, RedirectTo, Result, WithContext};
+use crate::index_manager::IndexManager;
+use crate::jobs::YamlValidationQueue;
+use crate::session::{LoggedInSession, Session};
+use crate::utils::ZipFile;
+use crate::yaml::YamlValidationResult;
+use crate::{Context, TplContext};
 use apwm::{World, WorldOrigin};
 use askama::Template;
 use diesel_async::scoped_futures::ScopedFutureExt;
@@ -21,7 +21,7 @@ use diesel_async::AsyncConnection;
 use http::header::CONTENT_DISPOSITION;
 use itertools::Itertools;
 use rocket::form::Form;
-use rocket::http::{ContentType, CookieJar, Header};
+use rocket::http::{ContentType, Header};
 use rocket::response::Redirect;
 use rocket::routes;
 use rocket::{get, post, uri, State};
@@ -79,7 +79,6 @@ struct IndexTpl<'a> {
 async fn root<'a>(
     page: Option<u64>,
     session: Session,
-    cookies: &'a CookieJar<'_>,
     ctx: &'a State<Context>,
 ) -> Result<IndexTpl<'a>> {
     let mut conn = ctx.db_pool.get().await?;
@@ -96,11 +95,11 @@ async fn root<'a>(
     };
 
     if rooms.is_empty() && current_page != 1 {
-        return Box::pin(root(None, session, cookies, ctx)).await;
+        return Box::pin(root(None, session, ctx)).await;
     }
 
     Ok(IndexTpl {
-        base: TplContext::from_session("index", session, cookies),
+        base: TplContext::from_session("index", session, ctx).await,
         rooms,
         current_page,
         max_pages,
@@ -108,13 +107,8 @@ async fn root<'a>(
 }
 
 #[get("/room/<room_id>")]
-#[tracing::instrument(skip(ctx, session, cookies))]
-async fn room<'a>(
-    room_id: RoomId,
-    ctx: &State<Context>,
-    session: Session,
-    cookies: &CookieJar<'a>,
-) -> Result<RoomTpl<'a>> {
+#[tracing::instrument(skip(ctx, session))]
+async fn room<'a>(room_id: RoomId, ctx: &State<Context>, session: Session) -> Result<RoomTpl<'a>> {
     let mut conn = ctx.db_pool.get().await?;
     let (room, author_name) = db::get_room_and_author(room_id, &mut conn).await?;
     let mut yamls = db::get_yamls_for_room_with_author_names(room_id, &mut conn).await?;
@@ -133,7 +127,7 @@ async fn room<'a>(
         || is_my_room;
 
     Ok(RoomTpl {
-        base: TplContext::from_session("room", session, cookies),
+        base: TplContext::from_session("room", session, ctx).await,
         player_count: yamls.len(),
         unique_player_count,
         unique_game_count,
@@ -156,7 +150,6 @@ struct Yamls<'a> {
     redirect_to,
     yaml_form,
     session,
-    cookies,
     ctx,
     index_manager,
     yaml_validation_queue
@@ -166,7 +159,6 @@ async fn upload_yaml(
     room_id: RoomId,
     yaml_form: Form<Yamls<'_>>,
     mut session: LoggedInSession,
-    cookies: &CookieJar<'_>,
     index_manager: &State<IndexManager>,
     yaml_validation_queue: &State<YamlValidationQueue>,
     ctx: &State<Context>,
@@ -181,15 +173,15 @@ async fn upload_yaml(
         return Err(anyhow::anyhow!("This room is closed, you're late").into());
     }
 
-    let documents = ap_lobby::yaml::parse_raw_yamls(&yaml_form.yamls)?;
-    let games = ap_lobby::yaml::parse_and_validate_yamls_for_room(
+    let documents = crate::yaml::parse_raw_yamls(&yaml_form.yamls)?;
+    let games = crate::yaml::parse_and_validate_yamls_for_room(
         &room,
         &documents,
         &mut session,
-        cookies,
         yaml_validation_queue,
         index_manager,
         &mut conn,
+        ctx,
     )
     .await?;
 
@@ -313,13 +305,12 @@ async fn download_yamls<'a>(
 }
 
 #[get("/room/<room_id>/worlds")]
-#[tracing::instrument(skip(redirect_to, ctx, index_manager, session, cookies))]
+#[tracing::instrument(skip(redirect_to, ctx, index_manager, session))]
 async fn room_worlds<'a>(
     room_id: RoomId,
     session: LoggedInSession,
     index_manager: &State<IndexManager>,
     redirect_to: &RedirectTo,
-    cookies: &CookieJar<'_>,
     ctx: &State<Context>,
 ) -> Result<RoomApworldsTpl<'a>> {
     redirect_to.set(&format!("/room/{}", room_id));
@@ -346,7 +337,7 @@ async fn room_worlds<'a>(
     unsupported_apworlds.sort_by_cached_key(|(_, (world, _))| world.display_name.clone());
 
     Ok(RoomApworldsTpl {
-        base: TplContext::from_session("room", session.0, cookies),
+        base: TplContext::from_session("room", session.0, ctx).await,
         is_my_room,
         supported_apworlds,
         unsupported_apworlds,

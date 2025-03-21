@@ -1,9 +1,9 @@
+use crate::db;
+use crate::db::OpenState;
+use crate::db::RoomFilter;
+use crate::jobs::YamlValidationQueue;
+use crate::yaml::revalidate_yamls_if_necessary;
 use anyhow::Context as _;
-use ap_lobby::db;
-use ap_lobby::db::OpenState;
-use ap_lobby::db::RoomFilter;
-use ap_lobby::jobs::YamlValidationQueue;
-use ap_lobby::yaml::revalidate_yamls_if_necessary;
 use apwm::Index;
 use apwm::Manifest;
 use apwm::World;
@@ -11,18 +11,17 @@ use apwm::WorldOrigin;
 use askama::Template;
 use http::header::CONTENT_DISPOSITION;
 use rocket::fs::NamedFile;
-use rocket::http::CookieJar;
 use rocket::http::Header;
 use rocket::routes;
 use rocket::State;
 use semver::Version;
 
+use crate::error::Result;
+use crate::index_manager::IndexManager;
+use crate::session::{AdminSession, LoggedInSession};
+use crate::utils::{RenamedFile, ZipFile};
 use crate::Context;
 use crate::TplContext;
-use ap_lobby::error::Result;
-use ap_lobby::index_manager::IndexManager;
-use ap_lobby::session::{AdminSession, LoggedInSession};
-use ap_lobby::utils::{RenamedFile, ZipFile};
 
 #[derive(Template)]
 #[template(path = "apworlds.html")]
@@ -38,7 +37,7 @@ struct WorldsListTpl<'a> {
 async fn list_worlds<'a>(
     index_manager: &'a State<IndexManager>,
     session: LoggedInSession,
-    cookies: &CookieJar<'a>,
+    ctx: &State<Context>,
 ) -> Result<WorldsListTpl<'a>> {
     let index = index_manager.index.read().await.clone();
     let manifest = Manifest::from_index_with_default_versions(&index)?;
@@ -53,7 +52,7 @@ async fn list_worlds<'a>(
     unsupported_apworlds.sort_by_cached_key(|(_, (world, _))| world.display_name.clone());
 
     Ok(WorldsListTpl {
-        base: TplContext::from_session("apworlds", session.0, cookies),
+        base: TplContext::from_session("apworlds", session.0, ctx).await,
         index,
         supported_apworlds,
         unsupported_apworlds,

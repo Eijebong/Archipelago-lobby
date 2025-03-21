@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ap_lobby::error::Result;
+use crate::error::Result;
 use apwm::{Index, Manifest, NewApworldPolicy, VersionReq, World};
 use rocket::FromForm;
 

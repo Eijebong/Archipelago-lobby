@@ -3,8 +3,8 @@ use std::convert::Infallible;
 use askama::{Html, MarkupDisplay};
 use itertools::Itertools;
 
-use ap_lobby::db::Json;
-use ap_lobby::extractor::{YamlFeature, YamlFeatures};
+use crate::db::Json;
+use crate::extractor::{YamlFeature, YamlFeatures};
 
 pub fn yaml_features(features: &Json<YamlFeatures>) -> askama::Result<String> {
     if features.is_empty() {
