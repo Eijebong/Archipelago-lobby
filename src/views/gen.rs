@@ -437,7 +437,7 @@ async fn get_info_for_gen(
     conn: &mut AsyncPgConnection,
 ) -> Result<(HashMap<&'static str, bool>, Vec<Yaml>)> {
     let mut generation_checklist = HashMap::new();
-    generation_checklist.insert("The room must closed", room.is_closed());
+    generation_checklist.insert("The room must be closed", room.is_closed());
 
     let yamls = db::get_yamls_for_room(room.id, conn).await?;
     let current_generation = db::get_generation_for_room(room.id, conn).await?;
