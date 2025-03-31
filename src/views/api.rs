@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use anyhow::anyhow;
+use chrono::NaiveDateTime;
 use http::header::CONTENT_DISPOSITION;
 use rocket::{
     get,
@@ -7,8 +10,8 @@ use rocket::{
     serde::json::Json,
     State,
 };
+use serde::Serialize;
 
-use crate::views::YamlContent;
 use crate::Context;
 use crate::{
     db::{self, RoomId, Yaml, YamlId},
@@ -18,6 +21,60 @@ use crate::{
     session::LoggedInSession,
     yaml::queue_yaml_validation,
 };
+use crate::{generation::get_slots, views::YamlContent};
+
+#[derive(Serialize)]
+pub struct YamlInfo {
+    id: YamlId,
+    player_name: String,
+    discord_handle: String,
+    game: String,
+    slot_number: usize,
+}
+
+#[derive(Serialize)]
+pub struct RoomInfo {
+    name: String,
+    close_date: NaiveDateTime,
+    description: String,
+    yamls: Vec<YamlInfo>,
+}
+
+#[get("/room/<room_id>")]
+pub(crate) async fn room_info(
+    room_id: RoomId,
+    _session: LoggedInSession,
+    ctx: &State<Context>,
+) -> ApiResult<Json<RoomInfo>> {
+    let mut conn = ctx.db_pool.get().await?;
+
+    let room = db::get_room(room_id, &mut conn).await?;
+
+    let yamls = db::get_yamls_for_room_with_author_names(room_id, &mut conn).await?;
+    let yamls_vec = yamls.iter().map(|(y, _)| y.clone()).collect::<Vec<_>>();
+    let slots = get_slots(&yamls_vec);
+    let slot_map: HashMap<YamlId, usize> = slots
+        .iter()
+        .enumerate()
+        .map(|(index, (_, id))| (*id, index))
+        .collect();
+
+    Ok(Json(RoomInfo {
+        name: room.settings.name,
+        close_date: room.settings.close_date,
+        description: room.settings.description,
+        yamls: yamls
+            .into_iter()
+            .map(|(yaml, discord_handle)| YamlInfo {
+                id: yaml.id,
+                player_name: yaml.player_name,
+                discord_handle,
+                game: yaml.game,
+                slot_number: *slot_map.get(&yaml.id).unwrap() + 1,
+            })
+            .collect(),
+    }))
+}
 
 #[get("/room/<room_id>/download/<yaml_id>")]
 #[tracing::instrument(skip(ctx))]
@@ -112,5 +169,5 @@ pub(crate) async fn retry_yaml<'a>(
 }
 
 pub fn routes() -> Vec<rocket::Route> {
-    routes![download_yaml, retry_yaml, yaml_info]
+    routes![download_yaml, retry_yaml, yaml_info, room_info]
 }

@@ -17,7 +17,7 @@ mod pokemon;
 mod sv;
 mod tunic;
 
-#[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum YamlFeature {
     DeathLink,
     TrainerSanity,

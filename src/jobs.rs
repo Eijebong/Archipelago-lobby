@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fs::File,
     future::Future,
     io::BufReader,
@@ -19,8 +19,8 @@ use tracing::info;
 use wq::{JobDesc, JobId, JobResult, JobStatus, WorkQueue};
 
 use crate::{
-    db::{self, GenerationStatus, RoomId, Yaml, YamlId, YamlValidationStatus},
-    generation::get_generation_info,
+    db::{self, GenerationStatus, RoomId, YamlId, YamlValidationStatus, YamlWithoutContent},
+    generation::{get_generation_info, get_slots},
 };
 
 #[derive(Serialize, Deserialize)]
@@ -147,13 +147,14 @@ pub fn get_generation_callback(
                     .await
                     .map_err(|e| e.0)?
                     .context("Couldn't find generation for room")?;
-                let room_yamls = db::get_yamls_for_room(desc.params.room_id, &mut conn)
-                    .await
-                    .map_err(|e| e.0)?;
+                let room_yamls =
+                    db::get_yamls_for_room_with_author_names(desc.params.room_id, &mut conn)
+                        .await
+                        .map_err(|e| e.0)?;
                 let associations = get_yamls_patches_association(
                     gen.job_id,
                     &inner_generation_output_dir,
-                    &room_yamls,
+                    room_yamls.into_iter().map(|(y, _)| y).collect(),
                 )?;
                 db::associate_patch_files(associations, &mut conn)
                     .await
@@ -173,7 +174,7 @@ static AP_PATCH_RE: Lazy<Regex> =
 pub fn get_yamls_patches_association(
     job_id: JobId,
     generation_output_dir: &Path,
-    room_yamls: &[Yaml],
+    room_yamls: Vec<YamlWithoutContent>,
 ) -> Result<HashMap<YamlId, String>> {
     let generation_info = get_generation_info(job_id, generation_output_dir).map_err(|e| e.0)?;
     let gen_file = generation_output_dir.join(job_id.to_string()).join(
@@ -184,30 +185,7 @@ pub fn get_yamls_patches_association(
     let reader = BufReader::new(File::open(gen_file)?);
     let zip = zip::ZipArchive::new(reader)?;
 
-    let mut room_yamls_with_resolved_names = Vec::with_capacity(room_yamls.len());
-
-    // This is the same logic as in the room YAML download
-    let mut emitted_names = HashSet::new();
-    for yaml in room_yamls {
-        let player_name = yaml.sanitized_name();
-        let mut original_file_name = format!("{}.yaml", player_name);
-
-        let mut suffix = 0u64;
-        if emitted_names.contains(&original_file_name.to_lowercase()) {
-            loop {
-                let new_file_name = format!("{}_{}.yaml", player_name, suffix);
-                if !emitted_names.contains(&new_file_name.to_lowercase()) {
-                    original_file_name = new_file_name;
-                    break;
-                }
-                suffix += 1;
-            }
-        }
-        emitted_names.insert(original_file_name.to_lowercase());
-        room_yamls_with_resolved_names.push((original_file_name, yaml))
-    }
-
-    room_yamls_with_resolved_names.sort_by_cached_key(|(r, _)| r.clone());
+    let room_yamls_with_resolved_names = get_slots(&room_yamls);
 
     let mut association = HashMap::new();
     for file_name in zip.file_names() {
@@ -216,7 +194,7 @@ pub fn get_yamls_patches_association(
             let Some(associated_yaml) = room_yamls_with_resolved_names.get(slot_number - 1) else {
                 continue;
             };
-            association.insert(associated_yaml.1.id, file_name.to_string());
+            association.insert(associated_yaml.1, file_name.to_string());
         }
     }
 

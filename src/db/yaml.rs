@@ -46,7 +46,7 @@ pub struct Yaml {
     pub patch: Option<String>,
 }
 
-#[derive(Debug, Selectable, Queryable)]
+#[derive(Clone, Debug, Selectable, Queryable)]
 #[diesel(table_name = yamls)]
 pub struct YamlWithoutContent {
     pub id: YamlId,
@@ -202,7 +202,16 @@ pub async fn associate_patch_files(
 
 impl Yaml {
     pub fn sanitized_name(&self) -> String {
-        self.player_name
-            .replace(['/', '\\', '<', '>', ':', '?', '*', '|', '"'], "_")
+        sanitize_yaml_name(&self.player_name)
     }
+}
+
+impl YamlWithoutContent {
+    pub fn sanitized_name(&self) -> String {
+        sanitize_yaml_name(&self.player_name)
+    }
+}
+
+fn sanitize_yaml_name(name: &str) -> String {
+    name.replace(['/', '\\', '<', '>', ':', '?', '*', '|', '"'], "_")
 }
