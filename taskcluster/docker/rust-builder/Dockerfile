@@ -1,4 +1,4 @@
-FROM rust:1.82-bookworm
+FROM rust:1.85-bookworm
 
 RUN apt update && apt install -y libpq-dev
 RUN rustup component add clippy rustfmt
