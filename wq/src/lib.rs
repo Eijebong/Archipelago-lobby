@@ -292,7 +292,14 @@ impl<
             let callback = self.result_callback.as_ref().unwrap().clone();
             let mut conn = self.client.clone();
             tokio::spawn(async move {
-                let processed = callback(desc, job_result).await?;
+                let processed = match callback(desc, job_result).await {
+                    Ok(processed) => processed,
+                    Err(e) => {
+                        tracing::error!("Error while processing job result for {}: {}", job_id, e);
+                        return Err(e);
+                    }
+                };
+
                 if !processed {
                     return Ok(());
                 }
