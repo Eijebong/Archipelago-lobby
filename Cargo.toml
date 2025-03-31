@@ -36,7 +36,7 @@ uuid = { version = "1.10.0", features = ["v4"] }
 yaml-split = "0.4.0"
 zip = "2.1.6"
 semver = "1.0.23"
-git2 = "0.19.0"
+git2 = "0.20.0"
 log = "0.4.22"
 env_logger = "0.11.5"
 tokio = { version = "1.39.2", features = ["sync"] }
@@ -72,7 +72,7 @@ opt-level = 3
 anyhow = "1.0.86"
 sha2 = "0.10.8"
 walkdir = "2.5.0"
-git2 = "0.19"
+git2 = "0.20"
 
 [patch.crates-io]
 rocket = { git = "https://github.com/Eijebong/Rocket.git", branch = "0.6.0-dev" }
