@@ -5085,7 +5085,7 @@ dependencies = [
 [[package]]
 name = "wq"
 version = "0.1.0"
-source = "git+https://github.com/Eijebong/wq.git#2bbd28c75621e769bb8770082ca5b1656bcacbd5"
+source = "git+https://github.com/Eijebong/wq.git#c7ed141580face41fad859949e299c63cf0c4a1f"
 dependencies = [
  "anyhow",
  "chrono",

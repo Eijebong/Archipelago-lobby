@@ -103,6 +103,7 @@ diesel::table! {
         apworlds -> Array<Apworld>,
         last_validation_time -> Timestamp,
         last_error -> Nullable<Text>,
+        patch -> Nullable<Varchar>,
     }
 }
 

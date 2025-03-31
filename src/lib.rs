@@ -48,6 +48,7 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
 pub mod db;
 pub mod error;
 pub mod extractor;
+pub mod generation;
 pub mod index_manager;
 pub mod instrumentation;
 pub mod jobs;
@@ -244,7 +245,10 @@ pub async fn main() -> crate::error::Result<()> {
     yaml_validation_queue.start_reclaim_checker();
 
     let generation_queue = GenerationQueue::builder("generation_queue")
-        .with_callback(get_generation_callback(db_pool.clone()))
+        .with_callback(get_generation_callback(
+            db_pool.clone(),
+            generation_out_dir.0.clone(),
+        ))
         .with_reclaim_timeout(Duration::from_secs(10))
         .build(&valkey_url)
         .await

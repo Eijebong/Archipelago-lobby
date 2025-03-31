@@ -322,7 +322,7 @@ async fn validate_yaml(
     Ok(YamlValidationJobResult::Success(params.apworlds))
 }
 
-fn get_ap_player_name<'a>(
+pub fn get_ap_player_name<'a>(
     original_name: &'a String,
     player_counter: &'a mut Counter<String>,
 ) -> String {

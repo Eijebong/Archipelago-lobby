@@ -111,11 +111,16 @@
                 <td><span><span class="player-name">{{yaml.0.player_name}}</span> {{yaml.0.features|yaml_features|safe}}</span></td>
             {% endif %}
             <td>{{yaml.0.game}}</td>
-            {% if (is_my_yaml || is_my_room) && !is_closed %}
-            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showRowYaml(this)'>View</a> | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}" data-confirm-del=true data-resource-type="YAML file" data-resource-name="{{yaml.0.player_name}} ({{yaml.0.game}})">Delete</a></td>
-            {% else %}
-            <td><a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showRowYaml(this)'>View</a></td>
-            {% endif %}
+            <td>
+                <a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showRowYaml(this)'>View</a>
+                {% if (is_my_yaml || is_my_room) %}
+                    {% if !is_closed %}
+                    {# +#} | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}" data-confirm-del=true data-resource-type="YAML file" data-resource-name="{{yaml.0.player_name}} ({{yaml.0.game}})">Delete</a>
+                    {% else if yaml.0.patch.is_some() %}
+                    {# +#} | <a href="/room/{{room.id}}/patch/{{yaml.0.id}}">Patch</a>
+                    {% endif %}
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>

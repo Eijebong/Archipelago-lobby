@@ -1,10 +1,13 @@
 use std::str::FromStr;
 
+use crate::error::Error;
+use crate::schema::yamls;
 use crate::{error::Result, schema::generations};
 use anyhow::anyhow;
 use diesel::result::OptionalExtension;
 use diesel::{ExpressionMethods, Insertable, QueryDsl};
-use diesel_async::{AsyncPgConnection, RunQueryDsl};
+use diesel_async::scoped_futures::ScopedFutureExt;
+use diesel_async::{AsyncConnection, AsyncPgConnection, RunQueryDsl};
 use uuid::Uuid;
 use wq::JobId;
 
@@ -102,9 +105,23 @@ pub async fn delete_generation_for_room(
     room_id: RoomId,
     conn: &mut AsyncPgConnection,
 ) -> Result<()> {
-    diesel::delete(generations::table.find(room_id))
-        .execute(conn)
-        .await?;
+    conn.transaction::<(), Error, _>(|conn| {
+        async move {
+            diesel::delete(generations::table.find(room_id))
+                .execute(conn)
+                .await?;
+
+            diesel::update(yamls::table.filter(yamls::room_id.eq(room_id)))
+                .set(yamls::patch.eq(Option::<String>::None))
+                .execute(conn)
+                .await?;
+
+            Ok(())
+        }
+        .scope_boxed()
+    })
+    .await?;
+
     Ok(())
 }
 

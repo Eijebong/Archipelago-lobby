@@ -3,12 +3,13 @@ use std::collections::HashMap;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use diesel::prelude::*;
 use diesel::{Insertable, Queryable, Selectable};
-use diesel_async::{AsyncPgConnection, RunQueryDsl};
+use diesel_async::scoped_futures::ScopedFutureExt;
+use diesel_async::{AsyncConnection, AsyncPgConnection, RunQueryDsl};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::db::{Json, Room, RoomId, YamlId};
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::extractor::YamlFeatures;
 use crate::schema::{discord_users, rooms, yamls};
 
@@ -42,6 +43,7 @@ pub struct Yaml {
     #[serde(skip)]
     pub last_validation_time: NaiveDateTime,
     pub last_error: Option<String>,
+    pub patch: Option<String>,
 }
 
 #[derive(Debug, Selectable, Queryable)]
@@ -53,6 +55,7 @@ pub struct YamlWithoutContent {
     pub owner_id: i64,
     pub features: Json<YamlFeatures>,
     pub validation_status: YamlValidationStatus,
+    pub patch: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -170,6 +173,29 @@ pub async fn update_yaml_status(
         ))
         .execute(conn)
         .await?;
+
+    Ok(())
+}
+
+#[tracing::instrument(skip(conn))]
+pub async fn associate_patch_files(
+    associations: HashMap<YamlId, String>,
+    conn: &mut AsyncPgConnection,
+) -> Result<()> {
+    conn.transaction::<(), Error, _>(|conn| {
+        async move {
+            for (yaml_id, patch_path) in associations.iter() {
+                diesel::update(yamls::table.find(yaml_id))
+                    .set(yamls::patch.eq(Some(patch_path)))
+                    .execute(conn)
+                    .await?;
+            }
+
+            Ok(())
+        }
+        .scope_boxed()
+    })
+    .await?;
 
     Ok(())
 }

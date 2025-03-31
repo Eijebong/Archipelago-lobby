@@ -1,17 +1,19 @@
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::ffi::OsStr;
-use std::io::{Cursor, Write};
+use std::fs::File;
+use std::io::{BufReader, Cursor, Read, Write};
 use std::path::PathBuf;
 
 use crate::db::{
     self, Author, Json, NewYaml, Room, RoomFilter, RoomId, YamlId, YamlWithoutContent,
 };
 use crate::error::{Error, RedirectTo, Result, WithContext};
+use crate::generation::get_generation_info;
 use crate::index_manager::IndexManager;
-use crate::jobs::YamlValidationQueue;
+use crate::jobs::{GenerationOutDir, YamlValidationQueue};
 use crate::session::{LoggedInSession, Session};
-use crate::utils::ZipFile;
+use crate::utils::{NamedBuf, ZipFile};
 use crate::yaml::YamlValidationResult;
 use crate::{Context, TplContext};
 use apwm::{World, WorldOrigin};
@@ -27,6 +29,7 @@ use rocket::routes;
 use rocket::{get, post, uri, State};
 use semver::Version;
 use tracing::Instrument;
+use zip::ZipArchive;
 
 pub mod api;
 pub mod apworlds;
@@ -386,6 +389,57 @@ async fn download_yaml<'a>(
         .map_err(|api_err| api_err.error)?)
 }
 
+#[get("/room/<room_id>/patch/<yaml_id>")]
+#[tracing::instrument(skip(redirect_to, gen_output_dir, ctx))]
+async fn download_patch<'a>(
+    redirect_to: &RedirectTo,
+    room_id: RoomId,
+    yaml_id: YamlId,
+    gen_output_dir: &State<GenerationOutDir>,
+    ctx: &State<Context>,
+) -> Result<NamedBuf<'a>> {
+    redirect_to.set("/");
+
+    let mut conn = ctx.db_pool.get().await?;
+
+    let Some(generation) = db::get_generation_for_room(room_id, &mut conn).await? else {
+        Err(anyhow::anyhow!("No generation found for this room"))?
+    };
+
+    let generation_info = get_generation_info(generation.job_id, &gen_output_dir.0)?;
+    let Some(generation_file) = generation_info.output_file else {
+        Err(anyhow::anyhow!(
+            "Generation doesn't have a valid output file"
+        ))?
+    };
+
+    let yaml = db::get_yaml_by_id(yaml_id, &mut conn).await?;
+    let Some(patch_path) = yaml.patch else {
+        Err(anyhow::anyhow!(
+            "This YAML doesn't have a patch file associated with it"
+        ))?
+    };
+
+    let archive_path = gen_output_dir
+        .0
+        .join(generation.job_id.to_string())
+        .join(&generation_file);
+    let reader = BufReader::new(File::open(archive_path)?);
+    let mut archive = ZipArchive::new(reader)?;
+
+    let mut patch_file = archive.by_name(&patch_path)?;
+
+    assert!(patch_file.is_file());
+    let mut buf = Vec::new();
+    patch_file.read_to_end(&mut buf)?;
+
+    let value = format!("attachment; filename=\"{}\"", patch_path);
+    Ok(NamedBuf {
+        content: buf,
+        headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
+    })
+}
+
 #[get("/static/<file..>")]
 #[tracing::instrument]
 fn dist(file: PathBuf) -> Option<(ContentType, Cow<'static, [u8]>)> {
@@ -423,6 +477,7 @@ pub fn routes() -> Vec<rocket::Route> {
         delete_yaml,
         download_yamls,
         download_yaml,
+        download_patch,
         dist,
         favicon,
     ]
