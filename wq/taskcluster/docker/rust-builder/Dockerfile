@@ -1,4 +1,4 @@
-FROM rust:1.83-bookworm
+FROM rust:1.85-bookworm
 
 RUN printf "deb http://httpredir.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/backports.list
 RUN apt update && apt install -y valkey
