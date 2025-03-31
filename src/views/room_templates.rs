@@ -8,6 +8,7 @@ use crate::{
 };
 use anyhow::anyhow;
 use askama::Template;
+use askama_web::WebTemplate;
 use rocket::FromForm;
 use rocket::{form::Form, get, post, response::Redirect, State};
 use std::str::FromStr;
@@ -29,14 +30,14 @@ pub struct CreateTplForm<'a> {
     tpl_global: bool,
 }
 
-#[derive(Template)]
+#[derive(Template, WebTemplate)]
 #[template(path = "room_manager/room_templates.html")]
 pub struct ListRoomTemplatesTpl<'a> {
     base: TplContext<'a>,
     room_templates: Vec<RoomTemplate>,
 }
 
-#[derive(Template)]
+#[derive(Template, WebTemplate)]
 #[template(path = "room_manager/edit_room_template.html")]
 pub struct EditRoomTemplateTpl<'a> {
     base: TplContext<'a>,
@@ -44,7 +45,7 @@ pub struct EditRoomTemplateTpl<'a> {
     tpl_settings_form: RoomSettingsBuilder<'a>,
 }
 
-#[derive(Template)]
+#[derive(Template, WebTemplate)]
 #[template(path = "room_manager/room_templates_associated.html")]
 pub struct AssociatedRoomsTpl<'a> {
     base: TplContext<'a>,

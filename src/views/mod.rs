@@ -18,6 +18,7 @@ use crate::yaml::YamlValidationResult;
 use crate::{Context, TplContext};
 use apwm::{World, WorldOrigin};
 use askama::Template;
+use askama_web::WebTemplate;
 use diesel_async::scoped_futures::ScopedFutureExt;
 use diesel_async::AsyncConnection;
 use http::header::CONTENT_DISPOSITION;
@@ -43,7 +44,7 @@ pub mod room_settings;
 pub mod room_templates;
 mod utils;
 
-#[derive(Template)]
+#[derive(Template, WebTemplate)]
 #[template(path = "room.html")]
 struct RoomTpl<'a> {
     base: TplContext<'a>,
@@ -58,7 +59,7 @@ struct RoomTpl<'a> {
     is_my_room: bool,
 }
 
-#[derive(Template)]
+#[derive(Template, WebTemplate)]
 #[template(path = "room_manager/room_apworlds.html")]
 struct RoomApworldsTpl<'a> {
     base: TplContext<'a>,
@@ -68,7 +69,7 @@ struct RoomApworldsTpl<'a> {
     room: Room,
 }
 
-#[derive(Template)]
+#[derive(Template, WebTemplate)]
 #[template(path = "index.html")]
 struct IndexTpl<'a> {
     base: TplContext<'a>,

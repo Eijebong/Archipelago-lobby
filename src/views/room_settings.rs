@@ -4,6 +4,7 @@ use crate::db::{Room, RoomSettings, RoomTemplate};
 use crate::error::Result;
 use apwm::Manifest;
 use askama::Template;
+use askama_web::WebTemplate;
 use uuid::Uuid;
 
 use crate::TplContext;
@@ -37,7 +38,7 @@ impl Display for RoomSettingsType {
     }
 }
 
-#[derive(Template)]
+#[derive(Template, WebTemplate)]
 #[template(path = "room_manager/room_form.html")]
 pub struct RoomSettingsBuilder<'a> {
     base: TplContext<'a>,

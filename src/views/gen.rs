@@ -16,6 +16,7 @@ use crate::{
 };
 use apwm::Index;
 use askama::Template;
+use askama_web::WebTemplate;
 use diesel_async::AsyncPgConnection;
 use http::header::CONTENT_DISPOSITION;
 use itertools::Itertools;
@@ -33,7 +34,7 @@ use crate::error::Result;
 use crate::utils::RenamedFile;
 use crate::{Context, TplContext};
 
-#[derive(Template)]
+#[derive(Template, WebTemplate)]
 #[template(path = "room_gen.html")]
 struct GenRoomTpl<'a> {
     base: TplContext<'a>,

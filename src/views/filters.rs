@@ -1,6 +1,6 @@
 use std::convert::Infallible;
+use std::fmt::Display;
 
-use askama::{Html, MarkupDisplay};
 use itertools::Itertools;
 
 use crate::db::Json;
@@ -55,7 +55,7 @@ fn feature_to_name(feature: &YamlFeature) -> &str {
     }
 }
 
-pub fn markdown(text: &str) -> askama::Result<MarkupDisplay<Html, String>, Infallible>
+pub fn markdown(text: &str) -> askama::Result<impl Display, Infallible>
 where
 {
     use comrak::{markdown_to_html, Options};
@@ -68,5 +68,5 @@ where
     defaults.render.escape = true;
 
     let s = markdown_to_html(text, &defaults);
-    Ok(MarkupDisplay::new_safe(s, Html))
+    Ok(s)
 }

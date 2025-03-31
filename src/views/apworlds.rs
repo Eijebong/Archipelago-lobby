@@ -9,6 +9,7 @@ use apwm::Manifest;
 use apwm::World;
 use apwm::WorldOrigin;
 use askama::Template;
+use askama_web::WebTemplate;
 use http::header::CONTENT_DISPOSITION;
 use rocket::fs::NamedFile;
 use rocket::http::Header;
@@ -23,7 +24,7 @@ use crate::utils::{RenamedFile, ZipFile};
 use crate::Context;
 use crate::TplContext;
 
-#[derive(Template)]
+#[derive(Template, WebTemplate)]
 #[template(path = "apworlds.html")]
 struct WorldsListTpl<'a> {
     base: TplContext<'a>,

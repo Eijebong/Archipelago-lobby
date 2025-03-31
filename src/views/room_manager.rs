@@ -8,6 +8,7 @@ use crate::session::LoggedInSession;
 use crate::yaml::revalidate_yamls_if_necessary;
 use anyhow::Context as _;
 use askama::Template;
+use askama_web::WebTemplate;
 use chrono::{DateTime, TimeZone, Utc};
 use rocket::form::Form;
 use rocket::http;
@@ -23,7 +24,7 @@ use super::manifest_editor::{manifest_from_form, ManifestForm};
 use super::room_settings::RoomSettingsBuilder;
 use super::room_settings::RoomSettingsType;
 
-#[derive(Template)]
+#[derive(Template, WebTemplate)]
 #[template(path = "room_manager/edit_room.html")]
 struct EditRoom<'a> {
     base: TplContext<'a>,
@@ -54,7 +55,7 @@ pub struct RoomSettingsForm<'a> {
     pub meta_file: String,
 }
 
-#[derive(Template)]
+#[derive(Template, WebTemplate)]
 #[template(path = "room_manager/rooms.html")]
 struct ListRoomsTpl<'a> {
     base: TplContext<'a>,
