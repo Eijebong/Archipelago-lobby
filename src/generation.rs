@@ -66,7 +66,7 @@ pub fn get_slots(room_yamls: &[YamlWithoutContent]) -> Vec<(String, YamlId)> {
         room_yamls_with_resolved_names.push((original_file_name, yaml.id))
     }
 
-    room_yamls_with_resolved_names.sort_by_cached_key(|(r, _)| r.clone());
+    room_yamls_with_resolved_names.sort_by_cached_key(|(r, _)| r.to_lowercase());
 
     room_yamls_with_resolved_names
 }
