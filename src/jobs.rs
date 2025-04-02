@@ -169,7 +169,7 @@ pub fn get_generation_callback(
 }
 
 static AP_PATCH_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new("AP_[0-9]+_P([0-9]+)_(.*)\\..*").unwrap());
+    Lazy::new(|| Regex::new("AP[_-][0-9]+[_-]P([0-9]+)[_-](.*)\\..*").unwrap());
 
 pub fn get_yamls_patches_association(
     job_id: JobId,
