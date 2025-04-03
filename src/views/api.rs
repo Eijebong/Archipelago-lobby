@@ -34,6 +34,7 @@ pub struct YamlInfo {
 
 #[derive(Serialize)]
 pub struct RoomInfo {
+    id: RoomId,
     name: String,
     close_date: NaiveDateTime,
     description: String,
@@ -60,6 +61,7 @@ pub(crate) async fn room_info(
         .collect();
 
     Ok(Json(RoomInfo {
+        id: room.id,
         name: room.settings.name,
         close_date: room.settings.close_date,
         description: room.settings.description,
