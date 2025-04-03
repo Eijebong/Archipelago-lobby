@@ -106,6 +106,7 @@ class Menu {
         this.anchor = anchor;
         this.resizeHandler = this.moveToAnchor.bind(this)
         this.clickHandler = this.handleClick.bind(this)
+        this.closeHandler = this.close.bind(this)
     }
 
     build() {
@@ -113,7 +114,6 @@ class Menu {
         elmt.classList = "context-menu"
         elmt.style.visibility = "hidden";
         elmt.style.display = "block";
-        elmt.style.position = "absolute"
 
         for (const item of this.items) {
             const itemElmt = item.build();
@@ -141,6 +141,7 @@ class Menu {
 
         addEventListener("resize", this.resizeHandler)
         addEventListener("mousedown", this.clickHandler)
+        addEventListener("wheel", this.closeHandler)
     }
 
     close() {
@@ -149,6 +150,7 @@ class Menu {
 
         removeEventListener("resize", this.resizeHandler)
         removeEventListener("mousedown", this.clickHandler)
+        removeEventListener("wheel", this.closeHandler)
     }
 
     moveToAnchor() {
@@ -161,7 +163,7 @@ class Menu {
             this.elmt.style.left = anchor_bb.left + "px"
         }
 
-        this.elmt.style.top = anchor_bb.bottom + "px"
+        this.elmt.style.top = (anchor_bb.bottom + window.scrollY) + "px"
         this.elmt.style["min-width"] = anchor_bb.width + "px"
     }
 

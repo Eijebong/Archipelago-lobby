@@ -161,6 +161,7 @@
         yamlFormButton.click();
     }
 
+
     window.onload = function() {
         // Search popup
         document.getElementById("filter-trigger").onclick = function(event) {
@@ -181,7 +182,7 @@
                 popup.style.left = anchor_bb.left + "px"
             }
 
-            popup.style.top = event.target.parentElement.getBoundingClientRect().bottom + "px"
+            popup.style.top = (anchor_bb.bottom + window.scrollY) + "px"
             popup.style["min-width"] = anchor_bb.width + "px"
             popup.style.display = "block"
             popup.style.position = "absolute"
