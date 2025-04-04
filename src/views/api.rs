@@ -30,6 +30,7 @@ pub struct YamlInfo {
     discord_handle: String,
     game: String,
     slot_number: usize,
+    has_patch: bool,
 }
 
 #[derive(Serialize)]
@@ -73,6 +74,7 @@ pub(crate) async fn room_info(
                 discord_handle,
                 game: yaml.game,
                 slot_number: *slot_map.get(&yaml.id).unwrap() + 1,
+                has_patch: yaml.patch.is_some(),
             })
             .collect(),
     }))
