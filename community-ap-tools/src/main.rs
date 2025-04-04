@@ -214,7 +214,7 @@ pub struct Config {
 
 #[rocket::main]
 async fn main() -> Result<()> {
-    dotenvy::dotenv()?;
+    let _ = dotenvy::dotenv().ok();
 
     let lobby_root_url =
         std::env::var("LOBBY_ROOT_URL").expect("Provide a `LOBBY_ROOT_URL` env variable");
