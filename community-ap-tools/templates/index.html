@@ -1,0 +1,162 @@
+<html>
+    <head>
+        <style>
+* {
+   color: white;
+   background: black;
+   box-sizing: border-box;
+}
+
+            table, tr, td {
+                border: 1px solid white;
+                border-collapse: collapse;
+            }
+            table {
+                margin-bottom: 1em;
+            }
+            td {
+                padding: 2px;
+            }
+
+        </style>
+    </head>
+    <body id="main">
+        <table>
+            <tr>
+                <td>Lobby Room</td>
+                <td><a href="{{ lobby_root_url}}room/{{lobby_room.id}}">{{ lobby_room.name }}</a></td>
+            </tr>
+            <tr>
+                <td>AP Room</td>
+                <td><a href="https://archipelago.gg/room/{{ap_room.id}}">{{ ap_room.id }}</a></td>
+            </tr>
+            <tr>
+                <td>Current port</td>
+                <td>{{ ap_room.room_status.last_port }}</td>
+            </tr>
+        </table>
+
+        <div>
+        Slots to ping (not connected, 0 checks):
+        <p>
+        {% for slot in unclaimed_slots %}
+            {% let lobby_slot = lobby_room.yamls[slot.id - 1] %}
+            @{{ lobby_slot.discord_handle }}
+        {% endfor %}
+        </p>
+        </div>
+
+
+        <table>
+            {% for slot in ap_room.tracker_info.slots %}
+            {% let lobby_slot = lobby_room.yamls[slot.id - 1] %}
+            <tr>
+                <td>{{ slot.name }}</td>
+                <td>{{ slot.game }}</td>
+                <td>{{ slot.status }} ({{ slot.checks.0 }} / {{ slot.checks.1 }})</td>
+                <td>@{{ lobby_slot.discord_handle }}</td>
+                <td><a onclick='openRelease("{{slot.name}}", "{{slot.game}}"); return false' href="#">Release</a></td>
+                <td><a onclick='openHint("{{slot.name}}", "{{slot.game}}", "item"); return false' href="#">Hint item</a></td>
+                <td><a onclick='openHint("{{slot.name}}", "{{slot.game}}", "location"); return false' href="#">Hint location</a></td>
+                <td>
+                    {% if lobby_slot.has_patch %}
+                    <a href="{{lobby_root_url}}/room/{{lobby_room.id}}/patch/{{lobby_slot.id}}">Patch</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </body>
+
+    <script>
+        function openRelease(slotName, slotGame) {
+            const popup = getPopup();
+
+            const confirmationText = document.createElement("div")
+            confirmationText.innerText = "You're about to release the slot " + slotName + " playing " + slotGame + ". Please type the slot name in the following field to confirm."
+
+            const confirmationForm = document.createElement("form")
+            confirmationForm.action = "javascript:void(0);"
+            const confirmationInput = document.createElement("input")
+            confirmationInput.type = "text"
+
+            const confirmationButton = document.createElement("button")
+            confirmationButton.innerText = "Release"
+
+            confirmationForm.appendChild(confirmationInput)
+            confirmationForm.appendChild(confirmationButton)
+
+            confirmationForm.addEventListener("submit", () => {
+                if (confirmationInput.value != slotName) {
+                    alert("Wrong slot name");
+                    return
+                }
+
+                // TODO: Test this with a space in slot name
+                location.href = location.href.split("#")[0] + "/release/" + encodeURIComponent(slotName);
+            })
+
+            popup.appendChild(confirmationText);
+            popup.appendChild(confirmationForm);
+        }
+
+        function openHint(slotName, slotGame, ty) {
+            const popup = getPopup();
+
+            const hintText = document.createElement("div")
+            hintText.innerText = "You're about to create a hint(" + ty + ") for the slot " + slotName + " playing " + slotGame
+
+
+            const hintForm = document.createElement("form")
+            hintForm.action = "javascript:void(0);"
+            const hintInput = document.createElement("input")
+            hintInput.type = "text"
+            hintInput.name = "hint"
+            hintInput.setAttribute("autocomplete", "off")
+            hintInput.setAttribute("list", "hint-datalist")
+
+            const hintButton = document.createElement("button")
+            hintButton.innerText = "Hint " + ty
+            const hintList = document.createElement("datalist")
+            hintList.id = "hint-datalist"
+
+            const url = new URL("/completion/" + ty + "/" + slotGame, document.location);
+            fetch(url)
+                .then((response) => {
+                    return response.json()
+                })
+                .then((names) => {
+                    for (const name of names) {
+                        const option = document.createElement("option")
+                        option.value = name
+                        hintList.appendChild(option)
+                    }
+                })
+
+            hintForm.appendChild(hintInput)
+            hintForm.appendChild(hintList)
+            hintForm.appendChild(hintButton)
+
+            hintForm.addEventListener("submit", () => {
+                location.href = location.href.split("#")[0] + "/hint/" + ty + "/" + encodeURIComponent(slotName) + "/" + encodeURIComponent(hintInput.value)
+            })
+            popup.appendChild(hintText)
+            popup.appendChild(hintForm)
+        }
+
+        function getPopup() {
+            const popup = document.createElement("dialog");
+            popup.id = "popup"
+            popup.onclick = (event) => { event.target == popup && popup.close(); return true; }
+
+
+            const body = document.getElementById("main");
+            body.append(popup);
+            popup.onclose = () => body.removeChild(popup);
+
+            popup.showModal()
+
+            return popup
+        }
+    </script>
+</html>
