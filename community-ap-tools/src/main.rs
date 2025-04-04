@@ -64,10 +64,10 @@ fn unauthorized(req: &Request) -> crate::error::Result<Redirect> {
 
 #[rocket::get("/")]
 fn root(
+    _session: LoggedInSession,
     lobby_room: LobbyRoom,
     mut ap_room: ApRoom,
     config: &State<Config>,
-    _session: LoggedInSession,
 ) -> crate::error::Result<IndexTpl> {
     if lobby_room.yamls.len() != ap_room.tracker_info.slots.len() {
         Err(anyhow!(
@@ -110,11 +110,11 @@ fn root(
 
 #[rocket::get("/hint/<ty>/<slot_name>/<item_name>")]
 async fn hint(
+    _session: LoggedInSession,
     ty: &str,
     slot_name: &str,
     item_name: &str,
     config: &State<Config>,
-    _session: LoggedInSession,
 ) -> crate::error::Result<Redirect> {
     if !["item", "location"].contains(&ty) {
         Err(anyhow::anyhow!(
@@ -160,9 +160,9 @@ async fn hint(
 
 #[rocket::get("/release/<slot_name>")]
 async fn release(
+    _session: LoggedInSession,
     ap_room: ApRoom,
     slot_name: &str,
-    _session: LoggedInSession,
 ) -> crate::error::Result<Redirect> {
     let url = format!("wss://archipelago.gg:{}", ap_room.room_status.last_port);
     let slot = ap_room
@@ -185,9 +185,9 @@ async fn release(
 
 #[rocket::get("/completion/<ty>/<game_name>")]
 async fn autocompletion(
+    _session: LoggedInSession,
     ty: &str,
     game_name: &str,
-    _session: LoggedInSession,
 ) -> crate::error::Result<Json<Vec<String>>> {
     let datapackage = DATA_PACKAGE.get().context("No datapackage loaded")?;
     let game = datapackage
