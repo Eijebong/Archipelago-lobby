@@ -9,7 +9,7 @@ transforms:
     - eije_taskgraph.transforms.common:transforms
 
 tasks:
-    ap-lobby:
+    community-ap-tools:
       worker-type-fmt: linux-small
       worker-type-build: linux-medium
       build-result: /builds/worker/target/release/community-ap-tools
