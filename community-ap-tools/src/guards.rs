@@ -1,14 +1,22 @@
 use std::{cell::OnceCell, fmt::Display, str::FromStr, sync::OnceLock};
 
-use aprs::proto::server::DataPackage;
 use anyhow::Context;
+use aprs::proto::server::DataPackage;
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use chrono::NaiveDateTime;
-use reqwest::{header::{self, HeaderName, HeaderValue}, Method, Url};
-use rocket::{http::Status, outcome::{try_outcome, IntoOutcome}, request::{FromRequest, Outcome}, Request};
+use reqwest::{
+    Method, Url,
+    header::{self, HeaderName, HeaderValue},
+};
+use rocket::{
+    Request,
+    http::Status,
+    outcome::{IntoOutcome, try_outcome},
+    request::{FromRequest, Outcome},
+};
 use scraper::{Html, Selector};
 use serde::Deserialize;
 use uuid::Uuid;
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 
 use crate::Config;
 
@@ -47,7 +55,7 @@ pub struct ApRoom {
 
 #[derive(Debug)]
 pub struct TrackerInfo {
-    pub slots: Vec<SlotInfo>
+    pub slots: Vec<SlotInfo>,
 }
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
@@ -97,8 +105,11 @@ pub struct SlotInfo {
 
 macro_rules! try_err_outcome {
     ($e: expr) => {
-        try_outcome!($e.map_err(|e| e.into()).or_error(Status::InternalServerError))
-    }
+        try_outcome!(
+            $e.map_err(|e| e.into())
+                .or_error(Status::InternalServerError)
+        )
+    };
 }
 
 #[rocket::async_trait]
@@ -106,13 +117,22 @@ impl<'r> FromRequest<'r> for LobbyRoom {
     type Error = crate::error::Error;
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let config = request.rocket().state::<Config>().unwrap();
-        let url = try_err_outcome!(config.lobby_root_url.join(&format!("/api/room/{}", config.lobby_room_id)));
+        let url = try_err_outcome!(
+            config
+                .lobby_root_url
+                .join(&format!("/api/room/{}", config.lobby_room_id))
+        );
         let client = reqwest::Client::new();
-        let result = try_err_outcome!(client
-            .get(url)
-            .header(HeaderName::from_static("x-api-key"), HeaderValue::from_str(&config.lobby_api_key).unwrap())
-            .send()
-            .await);
+        let result = try_err_outcome!(
+            client
+                .get(url)
+                .header(
+                    HeaderName::from_static("x-api-key"),
+                    HeaderValue::from_str(&config.lobby_api_key).unwrap()
+                )
+                .send()
+                .await
+        );
         let mut room: LobbyRoom = try_err_outcome!(result.json().await);
         room.yamls.sort_by_key(|yaml| yaml.slot_number);
 
@@ -135,10 +155,22 @@ impl<'r> FromRequest<'r> for ApRoom {
     type Error = crate::error::Error;
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let config = request.rocket().state::<Config>().unwrap();
-        let result = try_err_outcome!(reqwest::get(Url::from_str(&format!("https://archipelago.gg/api/room_status/{}", config.ap_room_id)).unwrap()).await);
+        let result = try_err_outcome!(
+            reqwest::get(
+                Url::from_str(&format!(
+                    "https://archipelago.gg/api/room_status/{}",
+                    config.ap_room_id
+                ))
+                .unwrap()
+            )
+            .await
+        );
         let room_status: RoomStatus = try_err_outcome!(result.json().await);
 
-        let tracker_url = try_err_outcome!(Url::from_str(&format!("https://archipelago.gg/tracker/{}", suuid(room_status.tracker.parse().unwrap()))));
+        let tracker_url = try_err_outcome!(Url::from_str(&format!(
+            "https://archipelago.gg/tracker/{}",
+            suuid(room_status.tracker.parse().unwrap())
+        )));
         let tracker_page = try_err_outcome!(reqwest::get(tracker_url).await);
         let tracker_body = try_err_outcome!(tracker_page.text().await);
 
@@ -154,7 +186,8 @@ impl<'r> FromRequest<'r> for ApRoom {
             socket.close(None).unwrap();
 
             dbg!(&raw_datapackage);
-            let mut dp: DPackage = serde_json::from_str(raw_datapackage.to_text().unwrap()).unwrap();
+            let mut dp: DPackage =
+                serde_json::from_str(raw_datapackage.to_text().unwrap()).unwrap();
             dp.0.pop().unwrap().data
         });
 
@@ -182,11 +215,27 @@ fn parse_tracker(body: String) -> crate::error::Result<TrackerInfo> {
     for slot_line in slot_lines {
         let mut cells = slot_line.select(&td_selector);
 
-        let slot_id = cells.next().unwrap().select(&a_selector).next().unwrap().inner_html().trim().parse::<usize>()?;
+        let slot_id = cells
+            .next()
+            .unwrap()
+            .select(&a_selector)
+            .next()
+            .unwrap()
+            .inner_html()
+            .trim()
+            .parse::<usize>()?;
         let slot_name = htmlize::unescape(cells.next().unwrap().inner_html().trim().to_string());
         let slot_game = htmlize::unescape(cells.next().unwrap().inner_html().trim().to_string());
         let status = cells.next().unwrap().inner_html().trim().to_string();
-        let checks = cells.next().unwrap().inner_html().trim().to_string().split_once('/').map(|(v1, v2)| (v1.parse::<u64>().unwrap(), v2.parse::<u64>().unwrap())).unwrap();
+        let checks = cells
+            .next()
+            .unwrap()
+            .inner_html()
+            .trim()
+            .to_string()
+            .split_once('/')
+            .map(|(v1, v2)| (v1.parse::<u64>().unwrap(), v2.parse::<u64>().unwrap()))
+            .unwrap();
         let _percent = cells.next();
         let last_activity = cells.next().unwrap().inner_html().trim().to_string();
         let slot_info = SlotInfo {
@@ -201,7 +250,5 @@ fn parse_tracker(body: String) -> crate::error::Result<TrackerInfo> {
         slots.push(slot_info);
     }
 
-    Ok(TrackerInfo {
-        slots,
-    })
+    Ok(TrackerInfo { slots })
 }

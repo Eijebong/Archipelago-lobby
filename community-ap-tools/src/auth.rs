@@ -1,18 +1,27 @@
 use std::str::FromStr;
 
+use crate::{Discord, error::Result};
 use anyhow::anyhow;
-use reqwest::{header::HeaderValue, Url};
-use rocket::{figment::{Figment, Profile, Provider}, get, http::{Cookie, CookieJar, SameSite, Status}, request::{FromRequest, Outcome}, response::Redirect, routes, time::OffsetDateTime, Request, State};
+use reqwest::{Url, header::HeaderValue};
 use rocket::time::ext::NumericalDuration;
+use rocket::{
+    Request, State,
+    figment::{Figment, Profile, Provider},
+    get,
+    http::{Cookie, CookieJar, SameSite, Status},
+    request::{FromRequest, Outcome},
+    response::Redirect,
+    routes,
+    time::OffsetDateTime,
+};
 use rocket_oauth2::{OAuth2, TokenResponse};
 use serde::{Deserialize, Serialize};
-use crate::{error::Result, Discord};
 
 #[derive(Serialize, Deserialize)]
 pub struct Session {
     pub user_id: Option<i64>,
     pub is_logged_in: bool,
-    pub redirect_on_login: Option<String>
+    pub redirect_on_login: Option<String>,
 }
 
 impl Session {
@@ -27,17 +36,17 @@ impl Session {
                     user_id: None,
                     is_logged_in: false,
                     redirect_on_login: None,
-                }
+                };
             };
 
-            return session
+            return session;
         }
 
         return Session {
             user_id: None,
             is_logged_in: false,
             redirect_on_login: None,
-        }
+        };
     }
 
     pub fn save(&self, cookies: &CookieJar) -> Result<()> {
@@ -73,7 +82,7 @@ impl<'r> FromRequest<'r> for LoggedInSession {
         let session = Session::from_request_sync(request);
 
         if session.is_logged_in {
-            return Outcome::Success(LoggedInSession(session))
+            return Outcome::Success(LoggedInSession(session));
         }
 
         Outcome::Error((Status::Unauthorized, anyhow!("Not logged in").into()))
@@ -102,7 +111,7 @@ fn login(
 fn logout(cookies: &CookieJar<'_>) -> Redirect {
     cookies.remove_private("apsession");
 
-    return Redirect::to("/")
+    return Redirect::to("/");
 }
 
 #[get("/oauth")]
@@ -212,7 +221,6 @@ async fn get_discord_user(client: &reqwest::Client, token: &str) -> Result<Disco
 
     Ok(response.user)
 }
-
 
 pub fn routes() -> Vec<rocket::Route> {
     routes![login, logout, login_discord_callback]

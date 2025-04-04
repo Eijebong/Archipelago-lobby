@@ -1,12 +1,15 @@
 use std::io::Cursor;
 
-use rocket::{http::Status, response::{self, Responder}, Request, Response};
+use rocket::{
+    Request, Response,
+    http::Status,
+    response::{self, Responder},
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct Error(pub anyhow::Error);
-
 
 impl<E> From<E> for Error
 where
