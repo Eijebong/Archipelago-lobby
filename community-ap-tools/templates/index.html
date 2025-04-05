@@ -74,6 +74,7 @@ td {
                 <td>{{ slot.name }}</td>
                 <td>{{ slot.game }}</td>
                 <td>{{ slot.status }} ({{ slot.checks.0 }} / {{ slot.checks.1 }})</td>
+                <td>Last active: {{ slot|last_active }}</td>
                 <td>@{{ lobby_slot.discord_handle }}</td>
                 <td><a onclick='openRelease("{{slot.name}}", "{{slot.game}}"); return false' href="#">Release</a></td>
                 <td><a onclick='openAction("hint", "{{slot.name}}", "{{slot.game}}", "item"); return false' href="#">Hint item</a></td>
