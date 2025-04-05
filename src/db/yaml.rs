@@ -180,10 +180,16 @@ pub async fn update_yaml_status(
 #[tracing::instrument(skip(conn))]
 pub async fn associate_patch_files(
     associations: HashMap<YamlId, String>,
+    room_id: RoomId,
     conn: &mut AsyncPgConnection,
 ) -> Result<()> {
     conn.transaction::<(), Error, _>(|conn| {
         async move {
+            diesel::update(yamls::table.filter(yamls::room_id.eq(room_id)))
+                .set(yamls::patch.eq(Option::<String>::None))
+                .execute(conn)
+                .await?;
+
             for (yaml_id, patch_path) in associations.iter() {
                 diesel::update(yamls::table.find(yaml_id))
                     .set(yamls::patch.eq(Some(patch_path)))

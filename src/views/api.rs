@@ -12,7 +12,6 @@ use rocket::{
 };
 use serde::Serialize;
 
-use crate::Context;
 use crate::{
     db::{self, RoomId, Yaml, YamlId},
     error::{ApiResult, WithContext, WithStatus},
@@ -22,6 +21,7 @@ use crate::{
     yaml::queue_yaml_validation,
 };
 use crate::{generation::get_slots, views::YamlContent};
+use crate::{jobs::GenerationOutDir, session::AdminSession, Context};
 
 #[derive(Serialize)]
 pub struct YamlInfo {
@@ -172,6 +172,25 @@ pub(crate) async fn retry_yaml<'a>(
     Ok(())
 }
 
+#[get("/room/<room_id>/refresh_patches")]
+pub(crate) async fn refresh_patches(
+    _session: AdminSession,
+    room_id: RoomId,
+    gen_output_dir: &State<GenerationOutDir>,
+    ctx: &State<Context>,
+) -> ApiResult<()> {
+    let mut conn = ctx.db_pool.get().await?;
+    crate::jobs::refresh_gen_patches(room_id, &gen_output_dir.0, &mut conn).await?;
+
+    Ok(())
+}
+
 pub fn routes() -> Vec<rocket::Route> {
-    routes![download_yaml, retry_yaml, yaml_info, room_info]
+    routes![
+        download_yaml,
+        retry_yaml,
+        yaml_info,
+        room_info,
+        refresh_patches
+    ]
 }

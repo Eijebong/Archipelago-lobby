@@ -143,22 +143,8 @@ pub fn get_generation_callback(
                 .map_err(|e| e.0)?;
 
             if result.status == JobStatus::Success {
-                let gen = db::get_generation_for_room(desc.params.room_id, &mut conn)
-                    .await
-                    .map_err(|e| e.0)?
-                    .context("Couldn't find generation for room")?;
-                let room_yamls =
-                    db::get_yamls_for_room_with_author_names(desc.params.room_id, &mut conn)
-                        .await
-                        .map_err(|e| e.0)?;
-                let associations = get_yamls_patches_association(
-                    gen.job_id,
-                    &inner_generation_output_dir,
-                    room_yamls.into_iter().map(|(y, _)| y).collect(),
-                )?;
-                db::associate_patch_files(associations, &mut conn)
-                    .await
-                    .map_err(|e| e.0)?;
+                refresh_gen_patches(desc.params.room_id, &inner_generation_output_dir, &mut conn)
+                    .await?;
             }
 
             Ok(true)
@@ -170,6 +156,30 @@ pub fn get_generation_callback(
 
 static AP_PATCH_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new("AP[_-][0-9]+[_-]P([0-9]+)[_-](.*)\\..*").unwrap());
+
+pub async fn refresh_gen_patches(
+    room_id: RoomId,
+    generation_output_dir: &Path,
+    conn: &mut AsyncPgConnection,
+) -> Result<()> {
+    let gen = db::get_generation_for_room(room_id, conn)
+        .await
+        .map_err(|e| e.0)?
+        .context("Couldn't find generation for room")?;
+    let room_yamls = db::get_yamls_for_room_with_author_names(room_id, conn)
+        .await
+        .map_err(|e| e.0)?;
+    let associations = get_yamls_patches_association(
+        gen.job_id,
+        generation_output_dir,
+        room_yamls.into_iter().map(|(y, _)| y).collect(),
+    )?;
+    db::associate_patch_files(associations, room_id, conn)
+        .await
+        .map_err(|e| e.0)?;
+
+    Ok(())
+}
 
 pub fn get_yamls_patches_association(
     job_id: JobId,
