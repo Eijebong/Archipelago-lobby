@@ -5,6 +5,7 @@ use askama::Template;
 use askama_web::WebTemplate;
 use auth::{LoggedInSession, Session};
 use guards::{ApRoom, DATA_PACKAGE, LobbyRoom, SlotInfo, SlotStatus};
+use itertools::Itertools;
 use reqwest::{
     Url,
     header::{HeaderMap, HeaderName, HeaderValue},
@@ -96,6 +97,7 @@ fn root(
 
             return Some(slot);
         })
+        .unique_by(|slot| &lobby_room.yamls.get(slot.id - 1).unwrap().discord_handle)
         .cloned()
         .collect();
 

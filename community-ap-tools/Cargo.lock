@@ -568,6 +568,7 @@ dependencies = [
  "chrono",
  "dotenvy",
  "htmlize",
+ "itertools",
  "reqwest",
  "rocket",
  "rocket_oauth2",
