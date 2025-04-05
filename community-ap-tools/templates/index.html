@@ -7,16 +7,35 @@
    box-sizing: border-box;
 }
 
-            table, tr, td {
-                border: 1px solid white;
-                border-collapse: collapse;
-            }
-            table {
-                margin-bottom: 1em;
-            }
-            td {
-                padding: 2px;
-            }
+table, tr, td {
+    border: 1px solid white;
+    border-collapse: collapse;
+}
+table {
+    margin-bottom: 1em;
+}
+td {
+    padding: 2px;
+}
+
+.slot-status {
+    height: 100%;
+    padding-left: .5em;
+    margin-right: .2em;
+    margin-left: .2em;
+}
+
+.slot-status-green {
+    background-color: green
+}
+
+.slot-status-yellow {
+    background-color: yellow
+}
+
+.slot-status-red {
+    background-color: red
+}
 
         </style>
     </head>
@@ -51,13 +70,16 @@
             {% for slot in ap_room.tracker_info.slots %}
             {% let lobby_slot = lobby_room.yamls[slot.id - 1] %}
             <tr>
+                <td><span class="slot-status slot-status-{{ slot|slot_status }}"></span></td>
                 <td>{{ slot.name }}</td>
                 <td>{{ slot.game }}</td>
                 <td>{{ slot.status }} ({{ slot.checks.0 }} / {{ slot.checks.1 }})</td>
                 <td>@{{ lobby_slot.discord_handle }}</td>
                 <td><a onclick='openRelease("{{slot.name}}", "{{slot.game}}"); return false' href="#">Release</a></td>
-                <td><a onclick='openHint("{{slot.name}}", "{{slot.game}}", "item"); return false' href="#">Hint item</a></td>
-                <td><a onclick='openHint("{{slot.name}}", "{{slot.game}}", "location"); return false' href="#">Hint location</a></td>
+                <td><a onclick='openAction("hint", "{{slot.name}}", "{{slot.game}}", "item"); return false' href="#">Hint item</a></td>
+                <td><a onclick='openAction("give", "{{slot.name}}", "{{slot.game}}", "item"); return false' href="#">Give item</a></td>
+                <td><a onclick='openAction("hint", "{{slot.name}}", "{{slot.game}}", "location"); return false' href="#">Hint location</a></td>
+                <td><a onclick='openAction("give", "{{slot.name}}", "{{slot.game}}", "location"); return false' href="#">Give location</a></td>
                 <td>
                     {% if lobby_slot.has_patch %}
                     <a href="{{lobby_root_url}}/room/{{lobby_room.id}}/patch/{{lobby_slot.id}}">Patch</a>
@@ -66,6 +88,12 @@
             </tr>
             {% endfor %}
         </table>
+
+        <ul>
+            <li><span class="slot-status slot-status-green"></span> Slot is ok</li>
+            <li><span class="slot-status slot-status-yellow"></span> Slot is BK'd since &gt; 30mn or connected without any check done</li>
+            <li><span class="slot-status slot-status-red"></span> Slot is BK'd since &gt; 1h. Or disconnected, no checks.</li>
+        </ul>
     </body>
 
     <script>
@@ -100,12 +128,11 @@
             popup.appendChild(confirmationForm);
         }
 
-        function openHint(slotName, slotGame, ty) {
+        function openAction(action, slotName, slotGame, ty) {
             const popup = getPopup();
 
             const hintText = document.createElement("div")
-            hintText.innerText = "You're about to create a hint(" + ty + ") for the slot " + slotName + " playing " + slotGame
-
+            hintText.innerText = "You're about to " + action + " a(n) " + ty + " for the slot " + slotName + " playing " + slotGame
 
             const hintForm = document.createElement("form")
             hintForm.action = "javascript:void(0);"
@@ -116,7 +143,7 @@
             hintInput.setAttribute("list", "hint-datalist")
 
             const hintButton = document.createElement("button")
-            hintButton.innerText = "Hint " + ty
+            hintButton.innerText = action + " " + ty
             const hintList = document.createElement("datalist")
             hintList.id = "hint-datalist"
 
@@ -138,7 +165,7 @@
             hintForm.appendChild(hintButton)
 
             hintForm.addEventListener("submit", () => {
-                location.href = location.href.split("#")[0] + "/hint/" + ty + "/" + encodeURIComponent(slotName) + "/" + encodeURIComponent(hintInput.value)
+                location.href = location.href.split("#")[0] + "/" + action + "/" + ty + "/" + encodeURIComponent(slotName) + "/" + encodeURIComponent(hintInput.value)
             })
             popup.appendChild(hintText)
             popup.appendChild(hintForm)

@@ -19,6 +19,7 @@ use uuid::Uuid;
 
 mod auth;
 mod error;
+mod filters;
 mod guards;
 
 pub struct Discord;
@@ -134,6 +135,45 @@ async fn hint(
         shlex::try_quote(slot_name)?,
         shlex::try_quote(item_name)?
     );
+
+    ap_cmd(cmd, config).await?;
+
+    Ok(Redirect::to("/"))
+}
+
+#[rocket::get("/give/<ty>/<slot_name>/<item_name>")]
+async fn give(
+    _session: LoggedInSession,
+    ty: &str,
+    slot_name: &str,
+    item_name: &str,
+    config: &State<Config>,
+) -> crate::error::Result<Redirect> {
+    if !["item", "location"].contains(&ty) {
+        Err(anyhow::anyhow!(
+            "Wrong give type. Only item/location are supported"
+        ))?;
+    }
+
+    let cmd = if ty == "item" {
+        "/send"
+    } else {
+        "/send_location"
+    };
+
+    let cmd = format!(
+        "{} {} {}",
+        cmd,
+        shlex::try_quote(slot_name)?,
+        shlex::try_quote(item_name)?
+    );
+
+    ap_cmd(cmd, config).await?;
+
+    Ok(Redirect::to("/"))
+}
+
+async fn ap_cmd(cmd: String, config: &State<Config>) -> crate::error::Result<()> {
     let client = reqwest::Client::new();
     let form = reqwest::multipart::Form::new().text("cmd", cmd);
 
@@ -155,7 +195,7 @@ async fn hint(
         .send()
         .await?;
 
-    Ok(Redirect::to("/"))
+    Ok(())
 }
 
 #[rocket::get("/release/<slot_name>")]
@@ -235,7 +275,10 @@ async fn main() -> Result<()> {
     };
 
     rocket::build()
-        .mount("/", routes![dist, root, release, hint, autocompletion])
+        .mount(
+            "/",
+            routes![dist, root, release, hint, autocompletion, give],
+        )
         .mount("/auth", auth::routes())
         .register("/", catchers![unauthorized])
         .manage(rocket::Config::figment())

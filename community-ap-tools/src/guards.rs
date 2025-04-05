@@ -100,7 +100,7 @@ pub struct SlotInfo {
     pub game: String,
     pub checks: (u64, u64),
     pub status: SlotStatus,
-    pub last_activity: String,
+    pub last_activity: Option<f64>,
 }
 
 macro_rules! try_err_outcome {
@@ -237,7 +237,14 @@ fn parse_tracker(body: String) -> crate::error::Result<TrackerInfo> {
             .map(|(v1, v2)| (v1.parse::<u64>().unwrap(), v2.parse::<u64>().unwrap()))
             .unwrap();
         let _percent = cells.next();
-        let last_activity = cells.next().unwrap().inner_html().trim().to_string();
+        let last_activity = cells
+            .next()
+            .unwrap()
+            .inner_html()
+            .trim()
+            .to_string()
+            .parse::<f64>()
+            .ok();
         let slot_info = SlotInfo {
             id: slot_id,
             name: slot_name.to_string(),
