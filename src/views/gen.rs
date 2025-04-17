@@ -59,7 +59,7 @@ async fn gen_room(
         ))?
     }
 
-    let (generation_checklist, _) = get_info_for_gen(&room, &mut conn).await?;
+    let (generation_checklist, _) = get_info_for_gen(&room, &session, &mut conn).await?;
     let current_gen = db::get_generation_for_room(room_id, &mut conn).await?;
 
     Ok(GenRoomTpl {
@@ -155,7 +155,7 @@ async fn gen_room_start(
         ))?
     }
 
-    let (checklist, yamls) = get_info_for_gen(&room, &mut conn).await?;
+    let (checklist, yamls) = get_info_for_gen(&room, &session, &mut conn).await?;
     for (label, ok) in checklist {
         if !ok {
             Err(anyhow::anyhow!(
@@ -429,6 +429,7 @@ async fn enqueue_gen_job(
 
 async fn get_info_for_gen(
     room: &Room,
+    session: &LoggedInSession,
     conn: &mut AsyncPgConnection,
 ) -> Result<(HashMap<&'static str, bool>, Vec<Yaml>)> {
     let mut generation_checklist = HashMap::new();
@@ -446,7 +447,7 @@ async fn get_info_for_gen(
     let yaml_count = yamls.len();
     generation_checklist.insert(
         "The room must contain between 1 and 75 YAMLs",
-        yaml_count > 0 && yaml_count <= 75,
+        (yaml_count > 0 && yaml_count <= 75) || session.0.is_admin,
     );
     generation_checklist.insert(
         "There must be no generation in progress",
