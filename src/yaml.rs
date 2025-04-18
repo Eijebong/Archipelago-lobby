@@ -443,9 +443,20 @@ fn should_revalidate_yaml(
     }
 
     for (apworld_name, apworld_version) in &yaml.apworlds {
-        if let Some((_, new_version)) = resolved_index.get(apworld_name) {
-            if new_version != apworld_version {
-                return true;
+        let new_apworld = resolved_index.get(apworld_name);
+
+        match new_apworld {
+            // An apworld that was used to validate the YAML is gone. Revalidate the YAML
+            // to get it marked as unsupported.
+            None => return true,
+
+            // An apworld used for validation is still present in the manifest, if the resolved
+            // version isn't the same as the one it was originally validated with then a
+            // revalidation is necessaey
+            Some((_, new_version)) => {
+                if new_version != apworld_version {
+                    return true;
+                }
             }
         }
     }
