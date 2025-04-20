@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::jobs::{
-    GenerationParams, GenerationResponse, YamlValidationParams, YamlValidationResponse,
+    GenerationParams, YamlValidationParams, YamlValidationResponse,
 };
 use wq::{JobId, JobStatus};
 
@@ -131,5 +131,5 @@ pub struct QueueTokens<'a>(pub HashMap<&'a str, String>);
 
 declare_queues!(
     yaml_validation<YamlValidationParams, YamlValidationResponse>,
-    generation<GenerationParams, GenerationResponse>
+    generation<GenerationParams, ()>
 );

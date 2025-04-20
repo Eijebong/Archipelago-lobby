@@ -45,12 +45,7 @@ pub struct GenerationParams {
     pub otlp_context: HashMap<String, String>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct GenerationResponse {
-    pub error: Option<String>,
-}
-
-pub type GenerationQueue = WorkQueue<GenerationParams, GenerationResponse>;
+pub type GenerationQueue = WorkQueue<GenerationParams, ()>;
 pub struct GenerationOutDir(pub PathBuf);
 
 pub fn get_yaml_validation_callback(
@@ -122,9 +117,9 @@ pub fn get_yaml_validation_callback(
 pub fn get_generation_callback(
     db_pool: Pool<AsyncPgConnection>,
     generation_output_dir: PathBuf,
-) -> wq::ResolveCallback<GenerationParams, GenerationResponse> {
+) -> wq::ResolveCallback<GenerationParams, ()> {
     let callback = move |desc: JobDesc<GenerationParams>,
-                         result: JobResult<GenerationResponse>|
+                         result: JobResult<()>|
           -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         let inner_pool = db_pool.clone();
         let inner_generation_output_dir = generation_output_dir.clone();
