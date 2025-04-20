@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use crate::jobs::{
-    GenerationParams, YamlValidationParams, YamlValidationResponse,
-};
+use crate::jobs::{GenerationParams, YamlValidationParams, YamlValidationResponse};
 use wq::{JobId, JobStatus};
 
 #[derive(serde::Deserialize)]
