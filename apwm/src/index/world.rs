@@ -43,6 +43,12 @@ impl WorldOrigin {
     }
 }
 
+#[derive(Deserialize, Debug, Clone)]
+pub enum WorldTag {
+    #[serde(rename = "ad")]
+    AfterDark,
+}
+
 static AP_CACHE: OnceLock<TempDir> = OnceLock::new();
 
 #[derive(Deserialize, Debug, Clone)]
@@ -64,6 +70,8 @@ pub struct World {
     pub disabled: bool,
     #[serde(default)]
     pub supported: bool,
+    #[serde(default)]
+    pub tags: Vec<WorldTag>,
 }
 
 impl World {
