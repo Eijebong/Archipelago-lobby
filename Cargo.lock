@@ -153,7 +153,7 @@ dependencies = [
 [[package]]
 name = "apwm"
 version = "0.1.0"
-source = "git+https://github.com/Eijebong/APWM.git#759e6d6aa5c73df5b575977eeff380569d629080"
+source = "git+https://github.com/Eijebong/APWM.git#ed1b9a90ad7a07d716a21961a69fa642d3f86f2b"
 dependencies = [
  "anyhow",
  "git2",
