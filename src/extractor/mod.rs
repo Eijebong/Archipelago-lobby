@@ -65,7 +65,11 @@ fn is_trueish(option: &Value) -> bool {
 
     if let Some(value) = option_str {
         let value = value.to_lowercase();
-        return value == "true" || value == "all" || value == "full" || value.starts_with("random") || value.starts_with("enabled");
+        return value == "true"
+            || value == "all"
+            || value == "full"
+            || value.starts_with("random")
+            || value.starts_with("enabled");
     }
 
     false
