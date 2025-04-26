@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::error::Result;
 use anyhow::anyhow;
+use apwm::Index;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
@@ -28,6 +29,7 @@ pub enum YamlFeature {
     CoinSanity,
     DeathWish,
     DeathWishWithBonus,
+    AfterDark,
 }
 
 pub type YamlFeatures = HashMap<YamlFeature, u32>;
@@ -278,13 +280,25 @@ fn get_option_probability(
     Ok(0)
 }
 
-struct DefaultExtractor;
+struct DefaultExtractor<'a> {
+    index: &'a Index,
+}
 
-impl FeatureExtractor for DefaultExtractor {
+impl<'a> FeatureExtractor for DefaultExtractor<'a> {
     fn game(&self) -> &'static str {
         "None"
     }
     fn extract_features(&self, extractor: &mut Extractor) -> Result<()> {
+        let Some((game_name, _, _)) = extractor.current_game else {
+            panic!("You should call set_game before")
+        };
+
+        if let Some(world) = self.index.get_world_by_name(game_name) {
+            if world.tags.contains(&apwm::WorldTag::AfterDark) {
+                extractor.add_feature_to_current_game(YamlFeature::AfterDark, MAX_WEIGHT);
+            }
+        }
+
         extractor.register_feature(YamlFeature::DeathLink, "death_link")?;
         extractor.register_feature(YamlFeature::DeathLink, "deathlink")?;
         extractor.register_feature(YamlFeature::DeathLink, "DeathLink")?;
@@ -318,13 +332,13 @@ pub static EXTRACTORS: Lazy<HashMap<&'static str, Box<dyn FeatureExtractor + Sen
         extractors
     });
 
-pub fn extract_features(parsed: &YamlFile, raw_yaml: &str) -> Result<YamlFeatures> {
+pub fn extract_features(index: &Index, parsed: &YamlFile, raw_yaml: &str) -> Result<YamlFeatures> {
     let yaml: Value = serde_yaml::from_str(raw_yaml)?;
     let mut extractor = Extractor::new(&yaml)?;
 
     match &parsed.game {
         crate::db::YamlGame::Name(name) => {
-            extract_features_from_yaml(&mut extractor, name.as_str(), MAX_WEIGHT)?;
+            extract_features_from_yaml(&mut extractor, index, name.as_str(), MAX_WEIGHT)?;
         }
         crate::db::YamlGame::Map(map) => {
             let total: f64 = map.values().sum();
@@ -333,7 +347,12 @@ pub fn extract_features(parsed: &YamlFile, raw_yaml: &str) -> Result<YamlFeature
                     continue;
                 }
                 let probability = (weight / total) * MAX_WEIGHT as f64;
-                extract_features_from_yaml(&mut extractor, game.as_str(), probability as u32)?;
+                extract_features_from_yaml(
+                    &mut extractor,
+                    index,
+                    game.as_str(),
+                    probability as u32,
+                )?;
             }
         }
     }
@@ -343,12 +362,13 @@ pub fn extract_features(parsed: &YamlFile, raw_yaml: &str) -> Result<YamlFeature
 
 fn extract_features_from_yaml<'a>(
     extractor: &mut Extractor<'a>,
+    index: &'a Index,
     game_name: &'a str,
     probability: u32,
 ) -> Result<()> {
     extractor.set_game(game_name, probability)?;
 
-    let default_extractor = DefaultExtractor {};
+    let default_extractor = DefaultExtractor { index };
     default_extractor.extract_features(extractor)?;
 
     let Some(game_extractor) = EXTRACTORS.get(game_name) else {
@@ -364,7 +384,7 @@ fn extract_features_from_yaml<'a>(
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{error::Result, extractor::DefaultExtractor};
+    use crate::error::Result;
     use anyhow::anyhow;
     use serde_yaml::Value;
 
@@ -579,7 +599,6 @@ Test:
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
-        DefaultExtractor {}.extract_features(&mut extractor)?;
 
         let expected = HashMap::from([(YamlFeature::OrbSanity, 10000)]);
         assert_eq!(extractor.finalize(), expected);
@@ -606,7 +625,6 @@ Test:
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
-        DefaultExtractor {}.extract_features(&mut extractor)?;
 
         let expected = HashMap::from([(YamlFeature::OrbSanity, 10000)]);
         assert_eq!(extractor.finalize(), expected);
@@ -633,7 +651,6 @@ Test:
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
-        DefaultExtractor {}.extract_features(&mut extractor)?;
 
         let expected = HashMap::from([(YamlFeature::OrbSanity, 10000)]);
         assert_eq!(extractor.finalize(), expected);
@@ -660,7 +677,6 @@ Test:
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
-        DefaultExtractor {}.extract_features(&mut extractor)?;
 
         let expected = HashMap::new();
         assert_eq!(extractor.finalize(), expected);
@@ -687,7 +703,6 @@ Test:
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
-        DefaultExtractor {}.extract_features(&mut extractor)?;
 
         let expected = HashMap::from([(YamlFeature::OrbSanity, 3333)]);
         assert_eq!(extractor.finalize(), expected);

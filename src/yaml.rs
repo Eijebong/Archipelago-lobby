@@ -174,7 +174,8 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
             (vec![], YamlValidationStatus::Unknown, None)
         };
 
-        let features = crate::extractor::extract_features(parsed, document)?;
+        let index = index_manager.index.read().await;
+        let features = crate::extractor::extract_features(&index, parsed, document)?;
 
         games.push(YamlValidationResult {
             game_name,

@@ -1,7 +1,10 @@
+use std::path::PathBuf;
+
 use ap_lobby::db::{Json, YamlId};
 use ap_lobby::error::{Error, Result};
 use ap_lobby::extractor::extract_features;
 use ap_lobby::{db::YamlFile, schema::yamls};
+use apwm::Index;
 use diesel::prelude::*;
 use diesel_async::scoped_futures::ScopedFutureExt;
 use diesel_async::AsyncConnection;
@@ -19,11 +22,13 @@ async fn main() -> Result<()> {
     }
 
     let db_url = std::env::var("DATABASE_URL").expect("Plox provide a DATABASE_URL env variable");
+    let index_path = std::env::var("INDEX_PATH").expect("Plox provide an INDEX_PATH env variable");
     let mgr = AsyncDieselConnectionManager::<AsyncPgConnection>::new(db_url);
     let db_pool = Pool::builder(mgr)
         .build()
         .expect("Failed to create database pool, aborting");
 
+    let index = Index::new(&PathBuf::from(index_path))?;
     let mut conn = db_pool.get().await?;
 
     let all_yamls: Vec<(YamlId, String)> = yamls::table
@@ -38,7 +43,8 @@ async fn main() -> Result<()> {
                 else {
                     continue;
                 };
-                let Ok(features) = extract_features(&parsed, raw_yaml) else {
+
+                let Ok(features) = extract_features(&index, &parsed, raw_yaml) else {
                     continue;
                 };
 

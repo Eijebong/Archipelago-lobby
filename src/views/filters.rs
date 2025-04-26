@@ -39,6 +39,7 @@ fn feature_to_icon(feature: &YamlFeature) -> &str {
         YamlFeature::CoinSanity => "coin.svg",
         YamlFeature::DeathWish => "dw.svg",
         YamlFeature::DeathWishWithBonus => "dw-bonus.svg",
+        YamlFeature::AfterDark => "tag-ad.svg",
     }
 }
 
@@ -53,6 +54,7 @@ fn feature_to_name(feature: &YamlFeature) -> &str {
         YamlFeature::CoinSanity => "Extreme Coinsanity",
         YamlFeature::DeathWish => "DeathWish",
         YamlFeature::DeathWishWithBonus => "DeathWish with bonus",
+        YamlFeature::AfterDark => "After Dark game",
     }
 }
 
