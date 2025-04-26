@@ -353,6 +353,7 @@ mod tests {
             home: None,
             disabled: false,
             supported: false,
+            tags: vec![],
         };
 
         let diff = diff_world(None, Some(&new_world), "", "", &index_lock, &None).await?;
@@ -408,6 +409,7 @@ mod tests {
             home: None,
             disabled: false,
             supported: false,
+            tags: vec![],
         };
 
         let diff = diff_world(Some(&old_world), None, "", "", &index_lock, &None).await?;
@@ -447,6 +449,7 @@ mod tests {
             home: None,
             disabled: false,
             supported: false,
+            tags: vec![],
         };
 
         let (_tmpdir, new_versions) = get_mock_world_versions(&["0.0.1", "0.0.3", "0.0.4"])?;
@@ -461,6 +464,7 @@ mod tests {
             home: None,
             disabled: false,
             supported: false,
+            tags: vec![],
         };
 
         let diff = diff_world(
