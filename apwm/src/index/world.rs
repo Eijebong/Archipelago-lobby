@@ -43,7 +43,7 @@ impl WorldOrigin {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum WorldTag {
     #[serde(rename = "ad")]
     AfterDark,
