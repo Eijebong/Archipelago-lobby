@@ -1,13 +1,15 @@
+use std::collections::BTreeMap;
+
 use crate::db;
 use crate::db::OpenState;
 use crate::db::RoomFilter;
 use crate::jobs::YamlValidationQueue;
+use crate::session::Session;
 use crate::yaml::revalidate_yamls_if_necessary;
 use anyhow::Context as _;
 use apwm::Index;
 use apwm::Manifest;
 use apwm::World;
-use apwm::WorldOrigin;
 use askama::Template;
 use askama_web::WebTemplate;
 use http::header::CONTENT_DISPOSITION;
@@ -21,6 +23,7 @@ use crate::error::Result;
 use crate::index_manager::IndexManager;
 use crate::session::{AdminSession, LoggedInSession};
 use crate::utils::{RenamedFile, ZipFile};
+use crate::views::filters;
 use crate::Context;
 use crate::TplContext;
 
@@ -29,34 +32,24 @@ use crate::TplContext;
 struct WorldsListTpl<'a> {
     base: TplContext<'a>,
     index: Index,
-    supported_apworlds: Vec<(String, (World, Version))>,
-    unsupported_apworlds: Vec<(String, (World, Version))>,
+    apworlds: BTreeMap<String, (World, Version)>,
 }
 
 #[rocket::get("/worlds")]
 #[tracing::instrument(skip_all)]
 async fn list_worlds<'a>(
     index_manager: &'a State<IndexManager>,
-    session: LoggedInSession,
+    session: Session,
     ctx: &State<Context>,
 ) -> Result<WorldsListTpl<'a>> {
     let index = index_manager.index.read().await.clone();
     let manifest = Manifest::from_index_with_default_versions(&index)?;
-    let (worlds, _) = manifest.resolve_with(&index);
-
-    let (mut supported_apworlds, mut unsupported_apworlds): (Vec<_>, Vec<_>) =
-        worlds.into_iter().partition(|(_, (world, version))| {
-            world.supported && matches!(world.get_version(version).unwrap(), WorldOrigin::Supported)
-        });
-
-    supported_apworlds.sort_by_cached_key(|(_, (world, _))| world.display_name.clone());
-    unsupported_apworlds.sort_by_cached_key(|(_, (world, _))| world.display_name.clone());
+    let (apworlds, _) = manifest.resolve_with(&index);
 
     Ok(WorldsListTpl {
-        base: TplContext::from_session("apworlds", session.0, ctx).await,
+        base: TplContext::from_session("apworlds", session, ctx).await,
         index,
-        supported_apworlds,
-        unsupported_apworlds,
+        apworlds,
     })
 }
 

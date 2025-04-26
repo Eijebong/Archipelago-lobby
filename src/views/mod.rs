@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{BufReader, Cursor, Read, Write};
@@ -16,7 +16,7 @@ use crate::session::{LoggedInSession, Session};
 use crate::utils::{NamedBuf, ZipFile};
 use crate::yaml::YamlValidationResult;
 use crate::{Context, TplContext};
-use apwm::{World, WorldOrigin};
+use apwm::World;
 use askama::Template;
 use askama_web::WebTemplate;
 use diesel_async::scoped_futures::ScopedFutureExt;
@@ -64,8 +64,7 @@ struct RoomTpl<'a> {
 struct RoomApworldsTpl<'a> {
     base: TplContext<'a>,
     is_my_room: bool,
-    supported_apworlds: Vec<(String, (World, Version))>,
-    unsupported_apworlds: Vec<(String, (World, Version))>,
+    apworlds: BTreeMap<String, (World, Version)>,
     room: Room,
 }
 
@@ -312,7 +311,7 @@ async fn download_yamls<'a>(
 #[tracing::instrument(skip(redirect_to, ctx, index_manager, session))]
 async fn room_worlds<'a>(
     room_id: RoomId,
-    session: LoggedInSession,
+    session: Session,
     index_manager: &State<IndexManager>,
     redirect_to: &RedirectTo,
     ctx: &State<Context>,
@@ -321,10 +320,10 @@ async fn room_worlds<'a>(
 
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn).await?;
-    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.settings.author_id);
+    let is_my_room = session.is_admin || session.user_id == Some(room.settings.author_id);
 
     let index = index_manager.index.read().await.clone();
-    let (worlds, resolve_errors) = room.settings.manifest.resolve_with(&index);
+    let (apworlds, resolve_errors) = room.settings.manifest.resolve_with(&index);
     if !resolve_errors.is_empty() {
         Err(anyhow::anyhow!(
             "Error while resolving apworlds for this room: {}",
@@ -332,19 +331,10 @@ async fn room_worlds<'a>(
         ))?
     }
 
-    let (mut supported_apworlds, mut unsupported_apworlds): (Vec<_>, Vec<_>) =
-        worlds.into_iter().partition(|(_, (world, version))| {
-            world.supported && matches!(world.get_version(version).unwrap(), WorldOrigin::Supported)
-        });
-
-    supported_apworlds.sort_by_cached_key(|(_, (world, _))| world.display_name.clone());
-    unsupported_apworlds.sort_by_cached_key(|(_, (world, _))| world.display_name.clone());
-
     Ok(RoomApworldsTpl {
-        base: TplContext::from_session("room", session.0, ctx).await,
+        base: TplContext::from_session("room", session, ctx).await,
         is_my_room,
-        supported_apworlds,
-        unsupported_apworlds,
+        apworlds,
         room,
     })
 }

@@ -4,10 +4,8 @@
 {% block menu %}
     {% let room_url = format!("/room/{}", self.room.id) %}
     {% call menu::menu_item("Room", "", room_url, false, "") %}
-    {% if base.is_logged_in %}
-        {% let apworlds_url = format!("/room/{}/worlds", self.room.id) %}
-        {% call menu::menu_item("Apworlds", "", apworlds_url, true, "apworldsButton") %}
-    {% endif %}
+    {% let apworlds_url = format!("/room/{}/worlds", self.room.id) %}
+    {% call menu::menu_item("Apworlds", "", apworlds_url, true, "apworldsButton") %}
     {% if is_my_room %}
         {% let edit_url = format!("/edit-room/{}", self.room.id) %}
         {% call menu::menu_item("Edit room", "", edit_url, false, "editButton") %}
@@ -55,7 +53,7 @@
     </tr>
 </table>
 
-{% call apworlds_table::apworlds_tables(supported_apworlds, unsupported_apworlds) %}
+{% call apworlds_table::apworlds_table(apworlds) %}
 {% endblock %}
 
 {% block styles %}

@@ -1,6 +1,7 @@
 use std::convert::Infallible;
 use std::fmt::Display;
 
+use apwm::{World, WorldOrigin, WorldTag};
 use itertools::Itertools;
 
 use crate::db::Json;
@@ -69,4 +70,36 @@ where
 
     let s = markdown_to_html(text, &defaults);
     Ok(s)
+}
+
+fn tag_to_icon(tag: &WorldTag) -> &str {
+    match tag {
+        WorldTag::AfterDark => "tag-ad.svg",
+    }
+}
+
+fn tag_to_name(tag: &WorldTag) -> &str {
+    match tag {
+        WorldTag::AfterDark => "After Dark",
+    }
+}
+
+pub fn world_tags(
+    world_and_origin: &(&World, &WorldOrigin),
+) -> askama::Result<impl Display, Infallible> {
+    let mut tags = String::new();
+    let (world, origin) = world_and_origin;
+    if origin.is_supported() {
+        tags += "<img src=\"/static/images/icons/tag-core-verified.svg\" title=\"Core verified world\"/>";
+    }
+
+    for tag in &world.tags {
+        tags += &format!(
+            "<img src=\"/static/images/icons/{}\" title=\"{}\"/>",
+            tag_to_icon(tag),
+            tag_to_name(tag),
+        );
+    }
+
+    Ok(tags)
 }

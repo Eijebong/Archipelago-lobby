@@ -11,7 +11,7 @@
         {% let login_url = format!("/auth/login?redirect={}", room_url) %}
         {% call menu::menu_item("Upload yaml", "", login_url, false, "") %}
     {% endif %}
-    {% if base.is_logged_in && room.settings.show_apworlds %}
+    {% if room.settings.show_apworlds %}
         {% let apworlds_url = format!("/room/{}/worlds", self.room.id) %}
         {% call menu::menu_item("Apworlds", "", apworlds_url, false, "apworldsButton") %}
     {% endif %}

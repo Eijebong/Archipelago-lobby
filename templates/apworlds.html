@@ -8,7 +8,7 @@
 <table class="styled" id="room-info">
     <tr>
         <td colspan="2">
-            This page lists all the apworlds used by this lobby to validate YAMLs. It also provides a convenient way of downloading them all so people in this community can generate games containing unsupported games more easily.<br>
+            This page lists all the apworlds used by this lobby to validate YAMLs.<br>
         </td>
     </tr>
     <tr>
@@ -24,7 +24,7 @@
     {% endif %}
 </table>
 
-{% call apworlds_table::apworlds_tables(supported_apworlds, unsupported_apworlds) %}
+{% call apworlds_table::apworlds_table(apworlds) %}
 {% endblock %}
 
 {% block styles %}
