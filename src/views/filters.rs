@@ -2,12 +2,16 @@ use std::convert::Infallible;
 use std::fmt::Display;
 
 use apwm::{World, WorldOrigin, WorldTag};
+use askama::Values;
 use itertools::Itertools;
 
 use crate::db::Json;
 use crate::extractor::{YamlFeature, YamlFeatures};
 
-pub fn yaml_features(features: &Json<YamlFeatures>) -> askama::Result<String> {
+pub fn yaml_features(
+    features: &Json<YamlFeatures>,
+    _values: &dyn Values,
+) -> askama::Result<String> {
     if features.is_empty() {
         return Ok(String::new());
     }
@@ -58,7 +62,7 @@ fn feature_to_name(feature: &YamlFeature) -> &str {
     }
 }
 
-pub fn markdown(text: &str) -> askama::Result<impl Display, Infallible>
+pub fn markdown(text: &str, _values: &dyn Values) -> askama::Result<impl Display, Infallible>
 where
 {
     use comrak::{markdown_to_html, Options};
@@ -88,6 +92,7 @@ fn tag_to_name(tag: &WorldTag) -> &str {
 
 pub fn world_tags(
     world_and_origin: &(&World, &WorldOrigin),
+    _values: &dyn Values,
 ) -> askama::Result<impl Display, Infallible> {
     let mut tags = String::new();
     let (world, origin) = world_and_origin;

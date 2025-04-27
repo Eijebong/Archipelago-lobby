@@ -9,8 +9,8 @@ default-run = "ap-lobby"
 [dependencies]
 apwm = { git = "https://github.com/Eijebong/APWM.git" }
 anyhow = "1.0.86"
-askama = "0.13"
-askama_web = { version = "0.13", features = ["rocket-0.5"] }
+askama = "0.14"
+askama_web = { version = "0.14", features = ["rocket-0.5"] }
 base64 = "0.22"
 chrono = "0.4.38"
 diesel = { version = "2.2.2", features = ["uuid", "chrono", "serde_json"] }
