@@ -79,6 +79,7 @@ new_id_type!(
     SqlRoomId => RoomId,
     SqlYamlId => YamlId,
     SqlRoomTemplateId => RoomTemplateId,
+    SqlBucketId => BucketId,
 );
 
 #[derive(Debug, Clone, Copy, FromSqlRow, AsExpression, PartialEq, Serialize)]

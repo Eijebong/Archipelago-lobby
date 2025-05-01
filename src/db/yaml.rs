@@ -8,7 +8,7 @@ use diesel_async::{AsyncConnection, AsyncPgConnection, RunQueryDsl};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::db::{Json, Room, RoomId, YamlId};
+use crate::db::{BucketId, Json, Room, RoomId, YamlId};
 use crate::error::{Error, Result};
 use crate::extractor::YamlFeatures;
 use crate::schema::{discord_users, rooms, yamls};
@@ -19,6 +19,7 @@ use super::YamlValidationStatus;
 #[diesel(table_name=yamls)]
 pub struct NewYaml<'a> {
     pub id: YamlId,
+    pub bucket_id: BucketId,
     pub room_id: RoomId,
     pub owner_id: i64,
     pub content: &'a str,
@@ -44,6 +45,7 @@ pub struct Yaml {
     pub last_validation_time: NaiveDateTime,
     pub last_error: Option<String>,
     pub patch: Option<String>,
+    pub bucket_id: BucketId,
 }
 
 #[derive(Clone, Debug, Selectable, Queryable)]
@@ -56,6 +58,7 @@ pub struct YamlWithoutContent {
     pub features: Json<YamlFeatures>,
     pub validation_status: YamlValidationStatus,
     pub patch: Option<String>,
+    pub bucket_id: BucketId,
 }
 
 #[derive(Deserialize, Debug)]

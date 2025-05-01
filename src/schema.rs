@@ -104,6 +104,7 @@ diesel::table! {
         last_validation_time -> Timestamp,
         last_error -> Nullable<Text>,
         patch -> Nullable<Varchar>,
+        bucket_id -> SqlBucketId,
     }
 }
 
