@@ -52,8 +52,8 @@ opentelemetry-semantic-conventions = { version = "0.29.0", features = ["semconv_
 counter = "0.6.0"
 comrak = { version = "0.37", default-features = false }
 wq = { git = "https://github.com/Eijebong/wq.git" }
-sentry = "0.36.0"
-sentry-tracing = "0.36.0"
+sentry = "0.38.1"
+sentry-tracing = "0.38.1"
 regex = "1.11.1"
 rocket_ws = "=0.1.0"
 deadpool-redis = "0.20.0"
