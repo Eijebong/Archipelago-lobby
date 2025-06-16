@@ -1,5 +1,6 @@
 use anyhow::Result;
 use sha2::{Digest, Sha256};
+use std::path::PathBuf;
 use walkdir::WalkDir;
 
 fn main() -> Result<()> {
@@ -31,7 +32,7 @@ fn main() -> Result<()> {
 }
 
 fn derive_git_version() -> Result<String> {
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")?;
+    let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?).join("../");
     let repo = git2::Repository::open(manifest_dir)?;
     let head = repo.head()?;
     let branch_name = head.name().unwrap().trim_start_matches("refs/heads/");

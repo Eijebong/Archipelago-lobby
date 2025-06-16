@@ -2,6 +2,7 @@ FROM rust:1.85-bookworm
 
 RUN apt update && apt install -y libpq-dev
 RUN rustup component add clippy rustfmt
+RUN cargo install cargo-watch
 
 # Add worker user
 RUN mkdir -p /builds && \
@@ -18,5 +19,6 @@ ENV SHELL=/bin/bash \
 VOLUME /builds/worker/checkouts
 VOLUME /builds/worker/target
 VOLUME /builds/worker/.task-cache/cargo
+
 
 WORKDIR /builds/worker

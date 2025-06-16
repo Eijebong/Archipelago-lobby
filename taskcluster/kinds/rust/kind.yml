@@ -12,6 +12,7 @@ tasks:
     ap-lobby:
       worker-type-fmt: linux-small
       worker-type-build: linux-medium
+      package-name: ap-lobby
       build-result: /builds/worker/target/release/ap-lobby
       docker-repo: ghcr.io/eijebong/archipelago-lobby
       with-tests: true

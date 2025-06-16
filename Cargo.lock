@@ -602,9 +602,9 @@ dependencies = [
 
 [[package]]
 name = "core-foundation"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b55271e5c8c478ad3f38ad24ef34923091e0548492a266d19b3c0b4d82574c63"
+checksum = "b2a6cd9ae233e7f62ba4e9353e81a88df7fc8a5987b8d445b4d90c879bd156f6"
 dependencies = [
  "core-foundation-sys",
  "libc",
@@ -1327,9 +1327,9 @@ dependencies = [
 
 [[package]]
 name = "hash_hasher"
-version = "2.0.3"
+version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74721d007512d0cb3338cd20f0654ac913920061a4c4d0d8708edb3f2a698c0c"
+checksum = "1b4b9ebce26001bad2e6366295f64e381c1e9c479109202149b9e15e154973e9"
 
 [[package]]
 name = "hashbrown"
@@ -1880,9 +1880,9 @@ dependencies = [
 
 [[package]]
 name = "libm"
-version = "0.2.11"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8355be11b20d696c8f18f6cc018c4e372165b1fa8126cef092399c9951984ffa"
+checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 
 [[package]]
 name = "libssh2-sys"
@@ -3163,9 +3163,9 @@ checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 
 [[package]]
 name = "s2n-codec"
-version = "0.57.0"
+version = "0.59.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0593e6de81a75c040d58b4243b09685fc48cfcbe8da89a09cc0190e979662852"
+checksum = "7af95d6ab40673cfd762227ba56e9aa9d15db73088916db4c6845a807bbbd013"
 dependencies = [
  "byteorder",
  "bytes",
@@ -3174,9 +3174,9 @@ dependencies = [
 
 [[package]]
 name = "s2n-quic"
-version = "1.57.0"
+version = "1.59.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd6ee672a52de5d9e869dd23ca6491eff83da60083c976194997658f139f3f7f"
+checksum = "ba3016ee30eca88de3a8971aaf419343190f11125b6a09808736de295ffd442b"
 dependencies = [
  "bytes",
  "cfg-if",
@@ -3198,9 +3198,9 @@ dependencies = [
 
 [[package]]
 name = "s2n-quic-core"
-version = "0.57.0"
+version = "0.59.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bec1511d660ce7b490058f747665e2873d60f3c0490ba357f757561a38e010f6"
+checksum = "90e4053072e13d24dc26d06e70531bac2e52de4163cc7c8ca0f5429acb4dda5f"
 dependencies = [
  "atomic-waker",
  "byteorder",
@@ -3220,9 +3220,9 @@ dependencies = [
 
 [[package]]
 name = "s2n-quic-crypto"
-version = "0.57.0"
+version = "0.59.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "276cfbe1597931d1a65903ab808154452d401163567df79bb07d62c7687b562d"
+checksum = "91a03d399ade6bf71199dca58f344abd07bef7d65092fe8abc6254351586923a"
 dependencies = [
  "aws-lc-rs",
  "cfg-if",
@@ -3246,9 +3246,9 @@ dependencies = [
 
 [[package]]
 name = "s2n-quic-platform"
-version = "0.57.0"
+version = "0.59.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a07b42a7ae26e3719f7c5343b0c22a5b0b02e667130f492b702f94ec7570032b"
+checksum = "432e21d80884de01c55780d1078c8a842f15b6ae134dcb94328bbe7aea1c766e"
 dependencies = [
  "cfg-if",
  "futures",
@@ -3261,9 +3261,9 @@ dependencies = [
 
 [[package]]
 name = "s2n-quic-rustls"
-version = "0.57.0"
+version = "0.59.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e785b0dc2fb9cb595d4b1095c77c54217d4a4da62a759b50937a2f97042891bf"
+checksum = "c0d5be186b0966834caac0ba630623f3dd41bcaaeec91fbdcf3316d25b84c954"
 dependencies = [
  "bytes",
  "rustls",
@@ -3275,9 +3275,9 @@ dependencies = [
 
 [[package]]
 name = "s2n-quic-transport"
-version = "0.57.0"
+version = "0.59.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90ee1953ce856f6bdbc473dbb347777116cde26553cc3f99c22688b3c947a24c"
+checksum = "f2c483a98b94ba4fd2c6581ce6c7580a125e611711f84dbb21e7971a9a42933b"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -3350,7 +3350,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "271720403f46ca04f7ba6f55d438f8bd878d6b8ca0a1046e8228c4145bcbb316"
 dependencies = [
  "bitflags",
- "core-foundation 0.10.0",
+ "core-foundation 0.10.1",
  "core-foundation-sys",
  "libc",
  "security-framework-sys",

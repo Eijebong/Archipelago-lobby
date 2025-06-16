@@ -1,14 +1,75 @@
 services:
-  profile-postgres:
+  postgres:
     image: postgres
     ports:
       - "25432:5432"
     environment:
       POSTGRES_DB: aplobby
       POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 1s
+      timeout: 4s
+      retries: 100
+      start_period: 1s
 
   valkey:
     image: valkey/valkey
     ports:
       - "26379:6379"
+    healthcheck:
+      test: sleep 1
+      interval: 3s
+      timeout: 4s
+      retries: 100
+      start_period: 3s
 
+  vol-setup:
+    image: debian
+    user: "root"
+    volumes:
+      - cargo:/tmp/cargo
+      - ./target:/builds/target
+      - ./tmp/apworlds_index:/builds/apworlds_index
+      - ./tmp/gen-output:/builds/gen-output
+    command: chown -R ${USER_ID}:${GID} /tmp/cargo /builds
+
+  lobby:
+    build: taskcluster/docker/rust-builder
+    volumes:
+      - .:/builds/worker/checkout
+      - ./target:/builds/target
+      - ./tmp/apworlds_index:/builds/apworlds_index
+      - ./tmp/gen-output:/builds/gen-output
+      - cargo:/builds/cargo
+    environment:
+      CARGO_HOME: /builds/cargo
+      CARGO_TARGET_DIR: /builds/target
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/aplobby
+      VALKEY_URL: redis://valkey:6379?protocol=resp3
+      APWORLDS_INDEX_DIR: /builds/apworlds_index
+      APWORLDS_PATH: /builds/apworlds_index/worlds
+      APWORLDS_INDEX_REPO_URL: https://github.com/Eijebong/Archipelago-index.git
+      RUST_LOG: debug
+      YAML_VALIDATION_QUEUE_TOKEN: test
+      GENERATION_QUEUE_TOKEN: test
+      ROCKET_SECRET_KEY: "12345678901234567890123456789012345678901234"
+      APWORLDS_INDEX_REPO_BRANCH: "main"
+      ADMIN_TOKEN: test
+      GENERATION_OUTPUT_DIR: "/builds/gen-output"
+      ROCKET_ADDRESS: "0.0.0.0"
+    working_dir: /builds/worker/checkout
+    command: sh -c "cargo watch -w lobby -w Cargo.toml -w Cargo.lock -w Rocket.toml -x run"
+    user: "${USER_ID}:${GID}"
+    depends_on:
+      vol-setup:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+volumes:
+  cargo: {}
