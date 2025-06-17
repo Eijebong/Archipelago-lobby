@@ -11,7 +11,7 @@ rustup component add clippy rustfmt
 
 cargo install cargo-watch
 
-rm -Rf /usr/local/cargo
+rm -Rf /usr/local/cargo/registry
 # Add worker user
 mkdir -p /builds
 useradd -d /builds/worker -s /bin/bash -m worker
