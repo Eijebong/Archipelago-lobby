@@ -18,12 +18,15 @@ tasks:
       package-name: ap-lobby
       build-result: /builds/worker/target/release/ap-lobby
       docker-repo: ghcr.io/eijebong/archipelago-lobby
+      skip-unless-changed: ["Cargo.*", "wq/**", "apwm/**", "lobby/**", "taskcluster/**"]
     apwm:
       package-name: apwm
       build-result: /builds/worker/target/release/apwm
       docker-repo: ghcr.io/eijebong/apwm
       build-args: --bin apwm --features cli
+      skip-unless-changed: ["Cargo.*", "apwm/**", "taskcluster/**"]
     wq:
       package-name: wq
       with-tests: true
       tests-only: true
+      skip-unless-changed: ["Cargo.*", "wq/**", "taskcluster/**"]
