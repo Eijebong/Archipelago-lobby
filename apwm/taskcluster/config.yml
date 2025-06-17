@@ -1,0 +1,14 @@
+---
+trust-domain: "ap"
+task-priority: low
+
+taskgraph:
+  cached-task-prefix: "ap.v2.archipelago-lobby"
+  repositories:
+    archipelago_lobby:
+      name: "Archipelago-lobby"
+
+  register: eije_taskgraph:register
+
+workers:
+  aliases: {}

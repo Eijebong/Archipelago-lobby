@@ -1,0 +1,18 @@
+loader: taskgraph.loader.transform:loader
+
+kind-dependencies:
+  - docker-image
+
+transforms:
+    - eije_taskgraph.transforms.rust:transforms
+    - taskgraph.transforms.task:transforms
+    - eije_taskgraph.transforms.common:transforms
+
+tasks:
+    apwm:
+      worker-type-fmt: linux-small
+      worker-type-build: linux-medium
+      build-args: --bin apwm --features cli
+      build-result: /builds/worker/target/release/apwm
+      docker-repo: ghcr.io/eijebong/apwm
+      with-tests: true
