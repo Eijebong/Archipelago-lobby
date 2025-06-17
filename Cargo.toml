@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "lobby",
+    "apwm",
 ]
 
 [patch.crates-io]
@@ -11,9 +12,6 @@ rocket_prometheus = { git = "https://github.com/Eijebong/rocket_prometheus.git",
 rocket_oauth2 = { git = "https://github.com/jebrosen/rocket_oauth2.git" }
 sentry-tracing = { git = "http://github.com/Eijebong/sentry-rust" }
 sentry = { git = "http://github.com/Eijebong/sentry-rust" }
-
-#[patch."https://github.com/Eijebong/APWM.git"]
-#apwm = { path = "../apwm" }
 
 #[patch."https://github.com/Eijebong/wq.git"]
 #wq = { path = "../wq" }

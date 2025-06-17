@@ -7,7 +7,7 @@ default-run = "ap-lobby"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-apwm = { git = "https://github.com/Eijebong/APWM.git" }
+apwm = { path = "../apwm", default-features = false }
 anyhow = "1.0.86"
 askama = "0.14"
 askama_web = { version = "0.14", features = ["rocket-0.5"] }
