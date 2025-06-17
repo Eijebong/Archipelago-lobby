@@ -14,8 +14,5 @@ rocket_oauth2 = { git = "https://github.com/jebrosen/rocket_oauth2.git" }
 sentry-tracing = { git = "http://github.com/Eijebong/sentry-rust" }
 sentry = { git = "http://github.com/Eijebong/sentry-rust" }
 
-#[patch."https://github.com/Eijebong/wq.git"]
-#wq = { path = "../wq" }
-
 [profile.dev.package."*"]
 opt-level = 3
