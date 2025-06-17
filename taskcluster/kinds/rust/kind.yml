@@ -8,11 +8,18 @@ transforms:
     - taskgraph.transforms.task:transforms
     - eije_taskgraph.transforms.common:transforms
 
+task-defaults:
+  worker-type-fmt: linux-small
+  worker-type-build: linux-medium
+  with-tests: true
+
 tasks:
     ap-lobby:
-      worker-type-fmt: linux-small
-      worker-type-build: linux-medium
       package-name: ap-lobby
       build-result: /builds/worker/target/release/ap-lobby
       docker-repo: ghcr.io/eijebong/archipelago-lobby
-      with-tests: true
+    apwm:
+      package-name: apwm
+      build-result: /builds/worker/target/release/apwm
+      docker-repo: ghcr.io/eijebong/apwm
+      build-args: --bin apwm --features cli
