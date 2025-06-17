@@ -1,0 +1,14 @@
+---
+trust-domain: "ap"
+task-priority: low
+
+taskgraph:
+  cached-task-prefix: "ap.v2.wq"
+  repositories:
+    wq:
+      name: "WQ"
+
+  register: eije_taskgraph:register
+
+workers:
+  aliases: {}
