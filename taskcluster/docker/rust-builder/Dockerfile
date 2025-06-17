@@ -1,5 +1,6 @@
 FROM rust:1.85-bookworm
 
+RUN printf "deb http://httpredir.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/backports.list
 RUN apt update && apt install -y libpq-dev valkey
 RUN rustup component add clippy rustfmt
 RUN cargo install cargo-watch
