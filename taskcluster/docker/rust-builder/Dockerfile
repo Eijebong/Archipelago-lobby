@@ -1,6 +1,6 @@
 FROM rust:1.85-bookworm
 
-RUN apt update && apt install -y libpq-dev
+RUN apt update && apt install -y libpq-dev valkey
 RUN rustup component add clippy rustfmt
 RUN cargo install cargo-watch
 
