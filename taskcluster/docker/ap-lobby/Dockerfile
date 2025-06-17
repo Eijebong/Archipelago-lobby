@@ -2,7 +2,7 @@ FROM debian:12-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt update && \
-    apt install -y libpq5 ca-certificates openssl && \
+    apt install -y libpq5 ca-certificates openssl valkey && \
     rm -rf /var/lib/{apt,dpkg,cache,log}/
 
 WORKDIR /usr/local/bin

@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "lobby",
     "apwm",
+    "wq",
 ]
 
 [patch.crates-io]

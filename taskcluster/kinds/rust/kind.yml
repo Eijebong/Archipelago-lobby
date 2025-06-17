@@ -23,3 +23,7 @@ tasks:
       build-result: /builds/worker/target/release/apwm
       docker-repo: ghcr.io/eijebong/apwm
       build-args: --bin apwm --features cli
+    wq:
+      package-name: wq
+      with-tests: true
+      tests-only: true
