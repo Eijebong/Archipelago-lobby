@@ -3,7 +3,7 @@
 set -e
 
 printf "deb http://httpredir.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/backports.list
-apt update && apt install -y libpq-dev valkey python3 git libssl-dev
+apt update && apt install -y libpq-dev valkey python3 git libssl-dev pkg-config
 apt autoremove -y
 rm -rf /var/lib/apt/lists/*
 
