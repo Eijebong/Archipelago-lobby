@@ -1,15 +1,7 @@
-FROM rust:1.85-bookworm
+FROM rust:1.85-slim-bookworm
 
-RUN printf "deb http://httpredir.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/backports.list
-RUN apt update && apt install -y libpq-dev valkey
-RUN rustup component add clippy rustfmt
-RUN cargo install cargo-watch
-
-# Add worker user
-RUN mkdir -p /builds && \
-    useradd -d /builds/worker -s /bin/bash -m worker && \
-    mkdir -p /builds/worker/artifacts && \
-    chown -R worker:worker /builds/worker
+COPY setup.sh setup.sh
+RUN bash ./setup.sh
 
 ENV SHELL=/bin/bash \
     HOME=/builds/worker \
