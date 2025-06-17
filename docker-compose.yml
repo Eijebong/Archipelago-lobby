@@ -59,7 +59,7 @@ services:
       GENERATION_OUTPUT_DIR: "/builds/gen-output"
       ROCKET_ADDRESS: "0.0.0.0"
     working_dir: /builds/worker/checkout
-    command: sh -c "cargo watch -w lobby -w Cargo.toml -w Cargo.lock -w Rocket.toml -x run"
+    command: sh -c "cargo watch -w lobby -w Cargo.toml -w Cargo.lock -w Rocket.toml -w apwm -w wq -x run"
     user: "${USER_ID}:${GID}"
     depends_on:
       vol-setup:
