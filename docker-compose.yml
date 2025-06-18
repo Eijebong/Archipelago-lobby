@@ -9,20 +9,18 @@ services:
     healthcheck:
       test: pg_isready -U postgres
       interval: 1s
-      timeout: 4s
+      timeout: 1s
       retries: 100
-      start_period: 1s
 
   valkey:
     image: valkey/valkey
     ports:
       - "26379:6379"
     healthcheck:
-      test: sleep 1
-      interval: 3s
-      timeout: 4s
+      test: valkey-cli ping
+      interval: 1s
+      timeout: 1s
       retries: 100
-      start_period: 3s
 
   vol-setup:
     image: debian
@@ -59,7 +57,7 @@ services:
       GENERATION_OUTPUT_DIR: "/builds/gen-output"
       ROCKET_ADDRESS: "0.0.0.0"
     working_dir: /builds/worker/checkout
-    command: sh -c "cargo watch -w lobby -w Cargo.toml -w Cargo.lock -w Rocket.toml -w apwm -w wq -x run"
+    command: sh -c "watchexec -w lobby -w Cargo.toml -w Cargo.lock -w Rocket.toml -w apwm -w wq -r cargo run"
     user: "${USER_ID}:${GID}"
     depends_on:
       vol-setup:
@@ -70,6 +68,30 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
+    healthcheck:
+      test: curl http://127.0.0.1:8000/
+      interval: 5s
+      timeout: 1s
+      retries: 100
+      start_period: 1s
+
+  yaml-checker:
+    build:
+      context: taskcluster/docker/ap-worker
+      additional_contexts:
+        eijebong/scratch: ap-worker
+    volumes:
+      - ./ap-worker:/ap/ap-worker/
+      - ./tmp/apworlds_index:/ap/index
+    working_dir: /ap/archipelago
+    user: "${USER_ID}:${GID}"
+    environment:
+      LOBBY_ROOT_URL: http://lobby:8000
+      YAML_VALIDATION_QUEUE_TOKEN: test
+    command: watchexec -w /ap/ap-worker -r /ap/archipelago/.venv/bin/python3 check_wq.py /ap/supported_worlds /ap/index/worlds/
+    depends_on:
+      lobby:
+        condition: service_healthy
 
 volumes:
   cargo: {}

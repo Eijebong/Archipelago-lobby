@@ -9,3 +9,4 @@ transforms:
 
 tasks:
     rust-builder: {}
+    ap-worker: {}

@@ -1,0 +1,21 @@
+loader: taskgraph.loader.transform:loader
+
+transforms:
+  - eije_taskgraph.transforms.push_image
+  - taskgraph.transforms.run
+  - taskgraph.transforms.task
+  - eije_taskgraph.transforms.common:transforms
+
+kind-dependencies:
+  - docker-image
+
+task-defaults:
+  worker-type: "linux-small"
+  run-on-tasks-for: ["github-push"]
+  run-on-git-branches: ["main", "prod", "next", "ci"]
+  skip-webhook: true
+
+tasks:
+  ap-worker:
+    repo: ghcr.io/eijebong/archipelago-worker
+    secret: github_deploy
