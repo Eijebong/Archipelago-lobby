@@ -93,5 +93,26 @@ services:
       lobby:
         condition: service_healthy
 
+  generator:
+    build:
+      context: taskcluster/docker/ap-worker
+      additional_contexts:
+        eijebong/scratch: ap-worker
+    volumes:
+      - ./ap-worker:/ap/ap-worker/
+      - ./tmp/apworlds_index:/ap/index
+      - ./tmp/gen-output:/ap/builds-output
+    working_dir: /ap/archipelago
+    user: "${USER_ID}:${GID}"
+    environment:
+      LOBBY_ROOT_URL: http://lobby:8000
+      GENERATION_QUEUE_TOKEN: test
+      GENERATOR_OUTPUT_DIR: /ap/builds-output
+      LOBBY_API_KEY: test
+    command: watchexec -w /ap/ap-worker -r /ap/archipelago/.venv/bin/python3 gen_wq.py /ap/supported_worlds /ap/index/worlds/
+    depends_on:
+      lobby:
+        condition: service_healthy
+
 volumes:
   cargo: {}

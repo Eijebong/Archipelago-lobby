@@ -51,3 +51,4 @@ cp -R hooks /ap/archipelago/
 touch /ap/archipelago/hooks/__init__.py
 
 ln -s /ap/ap-worker/check_wq.py /ap/archipelago/check_wq.py
+ln -s /ap/ap-worker/gen_wq.py /ap/archipelago/gen_wq.py
