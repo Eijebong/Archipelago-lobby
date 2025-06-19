@@ -52,3 +52,5 @@ touch /ap/archipelago/hooks/__init__.py
 
 ln -s /ap/ap-worker/check_wq.py /ap/archipelago/check_wq.py
 ln -s /ap/ap-worker/gen_wq.py /ap/archipelago/gen_wq.py
+ln -s /ap/ap-worker/self_check.py /ap/archipelago/self_check.py
+ln -s /ap/ap-worker/ap_tests.py /ap/archipelago/ap_tests.py

@@ -1,14 +1,17 @@
 from opentelemetry import trace
-
-from worlds.AutoWorld import AutoWorldRegister
-from worlds import WorldSource
-import worlds
-
-import os
 import requests
 import shutil
-import sys
 import tempfile
+import os
+import sys
+
+ap_path = os.path.abspath(os.path.dirname(sys.argv[0]))
+sys.path.insert(0, ap_path)
+
+from worlds.AutoWorld import AutoWorldRegister  # noqa: E402
+from worlds import WorldSource  # noqa: E402
+import worlds  # noqa: E402
+
 
 
 # Some **supported** apworlds try to get stuff from external APIs. We do not want that as it currently times out in prod
