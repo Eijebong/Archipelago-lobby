@@ -16,6 +16,7 @@ git fetch origin ${BASE_COMMIT} --depth 1
 git reset --hard ${BASE_COMMIT}
 
 uv venv
+uv export --project=/ap/ap-worker/pyproject.toml --locked | uv pip install -r -
 uv pip install -r requirements.txt
 uv pip install -r worlds/_sc2common/requirements.txt
 uv pip install -r worlds/alttp/requirements.txt
@@ -28,7 +29,6 @@ uv pip install -r worlds/tloz/requirements.txt
 uv pip install -r worlds/tww/requirements.txt
 uv pip install -r worlds/zillion/requirements.txt
 uv pip install -r worlds/zork_grand_inquisitor/requirements.txt
-uv export --project=/ap/ap-worker/pyproject.toml --locked | uv pip install -r -
 uv run cythonize -a -i _speedups.pyx
 git rev-parse HEAD > /ap/archipelago/version
 rm -Rf .git
