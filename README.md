@@ -8,6 +8,7 @@ host archipelagoes easily.
 
 
 ```
+docker compose build
 ./start.sh
 ```
 
@@ -27,3 +28,7 @@ redirect_uri="http://127.0.0.1:8000/auth/oauth" # Switch this to your redirect U
 admins = [<discord_id_of_admin>, ...]
 ```
 
+## Caveats
+
+When working on the `ap-worker`, if you change the python dependencies, you
+have to rerun `docker compose build` and restart everything.
