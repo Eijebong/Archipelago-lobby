@@ -2,4 +2,14 @@
 name = "ap-worker"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "python-sat==1.8.dev16",
+    "opentelemetry-api",
+    "opentelemetry-sdk",
+    "opentelemetry-exporter-otlp-proto-grpc",
+    "aiohttp",
+    "sentry-sdk[opentelemetry]",
+    "setuptools",
+    "tomlkit",
+    "semver",
+]

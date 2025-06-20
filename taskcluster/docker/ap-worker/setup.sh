@@ -28,8 +28,7 @@ uv pip install -r worlds/tloz/requirements.txt
 uv pip install -r worlds/tww/requirements.txt
 uv pip install -r worlds/zillion/requirements.txt
 uv pip install -r worlds/zork_grand_inquisitor/requirements.txt
-# TODO: Move this to pyproject
-uv pip install python-sat==1.8.dev16 opentelemetry-api==1.26.0 opentelemetry-sdk==1.26.0 opentelemetry-exporter-otlp-proto-grpc==1.26.0 aiohttp==3.9.5 "sentry-sdk[opentelemetry]==2.19.2" setuptools tomlkit semver
+uv export --project=/ap/ap-worker/pyproject.toml --locked | uv pip install -r -
 uv run cythonize -a -i _speedups.pyx
 git rev-parse HEAD > /ap/archipelago/version
 rm -Rf .git
