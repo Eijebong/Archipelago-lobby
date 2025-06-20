@@ -1,0 +1,33 @@
+loader: taskgraph.loader.transform:loader
+
+transforms:
+  - taskgraph.transforms.run
+  - taskgraph.transforms.task
+  - eije_taskgraph.transforms.common:transforms
+
+kind-dependencies:
+  - publish-image-python
+
+task-defaults:
+  worker-type: "linux-small"
+  run-on-tasks-for: ["github-push"]
+  run-on-git-branches: ["main", "ci"]
+  worker:
+    docker-image: mozillareleases/taskgraph:run-task-v14.0.0
+    max-run-time: 1800
+
+tasks:
+  ap-worker:
+    description: Retrigger a build for the ap-worker image
+    dependencies:
+      publish-image-python-ap-worker: publish-image-python-ap-worker
+    if-dependencies:
+      - publish-image-python-ap-worker
+    worker:
+      taskcluster-proxy: true
+    run:
+      using: run-task
+      command: '/usr/bin/curl --fail --verbose -X POST -d "{}" -H "Content-Type: application/json" ${TASKCLUSTER_PROXY_URL}/api/hooks/v1/hooks/infra/rebuild-ap-worker/trigger'
+      checkout: false
+    scopes:
+      - hooks:trigger-hook:infra/rebuild-ap-worker
