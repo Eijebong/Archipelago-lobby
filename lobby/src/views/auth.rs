@@ -1,12 +1,11 @@
 use std::str::FromStr;
 
+use crate::config::DiscordConfig;
 use crate::error::Result;
 use crate::session::{is_banned, Session};
 use crate::{Context, Discord};
-use anyhow::anyhow;
 use http::HeaderValue;
 use reqwest::Url;
-use rocket::figment::{Figment, Profile, Provider};
 use rocket::http::CookieJar;
 use rocket::response::Redirect;
 use rocket::{get, State};
@@ -48,7 +47,7 @@ async fn login_discord_callback(
     mut session: Session,
     token: TokenResponse<Discord>,
     cookies: &CookieJar<'_>,
-    config: &State<Figment>,
+    config: &State<DiscordConfig>,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
     let token = token.access_token();
@@ -56,51 +55,23 @@ async fn login_discord_callback(
     let client = reqwest::Client::new();
     let user = get_discord_user(&client, token).await?;
 
-    let config = config.data()?;
-    let discord_config = config
-        .get(&Profile::Default)
-        .ok_or(anyhow!("No default profile in config"))?
-        .get("oauth")
-        .ok_or(anyhow!("No oauth section in default profile"))?
-        .as_dict()
-        .ok_or(anyhow!("oauth section isn't a map"))?
-        .get("discord")
-        .ok_or(anyhow!("no discord section in oauth"))?
-        .as_dict()
-        .ok_or(anyhow!("discord section isn't a dict"))?;
-    let client_id = discord_config
-        .get("client_id")
-        .ok_or(anyhow!("client id not present in discord config"))?
-        .as_str()
-        .ok_or(anyhow!("client id isn't a string"))?;
-    let client_secret = discord_config
-        .get("client_secret")
-        .ok_or(anyhow!("client secret not present in discord config"))?
-        .as_str()
-        .ok_or(anyhow!("client secret isn't a string"))?;
-    revoke_token(&client, client_id, client_secret, token).await?;
+    revoke_token(&client, &config.client_id, &config.client_secret, token).await?;
 
     let discord_id = user.id.parse()?;
 
     let mut conn = ctx.db_pool.get().await?;
     crate::db::upsert_discord_user(discord_id, &user.username, &mut conn).await?;
 
-    let admins = discord_config
-        .get("admins")
-        .ok_or(anyhow!("no admins in discord section"))?
-        .as_array()
-        .ok_or(anyhow!("admins isn't an array"))?;
-
     let user_id = user.id.parse()?;
     session.user_id = Some(user_id);
-    session.is_admin = admins.contains(&discord_id.into());
+    session.is_admin = config.admins.contains(&discord_id.into());
     session.is_logged_in = true;
     session.save(cookies).unwrap();
 
     // Don't redirect loop a banned user to a privileged page
     // Instead, redirect them to / which will log them out immediately
     if is_banned(user_id) {
-        return Ok(Redirect::to("/"))
+        return Ok(Redirect::to("/"));
     }
 
     if let Some(redirect) = session.redirect_on_login {

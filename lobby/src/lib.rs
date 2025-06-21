@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::config::DiscordConfig;
 use crate::db::instrumentation::{DbInstrumentation, QUERY_HISTOGRAM};
 use crate::session::{AdminSession, AdminToken, Session};
 use anyhow::Context as _;
@@ -45,6 +46,7 @@ use views::queues::QueueTokens;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
 
+pub mod config;
 pub mod db;
 pub mod error;
 pub mod extractor;
@@ -222,6 +224,8 @@ pub async fn main() -> crate::error::Result<()> {
     let figment = rocket::Config::figment()
         .merge(("limits", limits))
         .merge(("shutdown", shutdown_config));
+
+    let discord_config = DiscordConfig::from_figment(&figment)?;
     let prometheus = PrometheusMetrics::new().with_request_filter(|request| {
         request.uri().path() != "/metrics"
             && request.uri().path().segments().last() != Some("claim_job")
@@ -286,6 +290,7 @@ pub async fn main() -> crate::error::Result<()> {
         .mount("/queues", views::queues::routes())
         .register("/", catchers![unauthorized])
         .manage(ctx)
+        .manage(discord_config)
         .manage(figment)
         .manage(admin_token)
         .manage(generation_out_dir)
