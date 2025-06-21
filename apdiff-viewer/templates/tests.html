@@ -11,7 +11,7 @@
         <h3>Test results for {{results.world_name}} version {{results.version}}</h3>
         {% if !results.failures.is_empty() %}
             <hr>
-            <h4>Failures</h4>
+            <h4>Failures ({{ results.failures.len() }})</h4>
             {% for (test_id, test) in results.failures.iter() %}
             <details>
                 <summary>{{test_id}}</summary>
@@ -30,7 +30,7 @@
 
         {% if !results.errors.is_empty() %}
             <hr>
-            <h4>Errors</h4>
+            <h4>Errors ({{ results.errors.len() }})</h4>
             {% for (test_id, test) in results.errors.iter() %}
             <details>
                 <summary>{{test_id}}</summary>
@@ -49,7 +49,7 @@
 
         {% if !results.unexpected_successes.is_empty() %}
             <hr>
-            <h4>Unexpected successes</h4>
+            <h4>Unexpected successes ({{ results.unexpected_successes.len() }})</h4>
             {% for (test_id, test) in results.unexpected_successes.iter() %}
             <details>
                 <summary>{{test_id}}</summary>
@@ -65,7 +65,7 @@
 
         {% if !results.expected_failures.is_empty() %}
             <hr>
-            <h4>Expected failures</h4>
+            <h4>Expected failures ({{ results.expected_failures.len() }})</h4>
             {% for (test_id, test) in results.expected_failures.iter() %}
             <details>
                 <summary>{{test_id}}</summary>
@@ -81,6 +81,5 @@
             <hr>
             {% endfor %}
         {% endif %}
-
     </body>
 </html>
