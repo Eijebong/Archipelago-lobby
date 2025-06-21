@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::error::Result;
-use crate::session::Session;
+use crate::session::{is_banned, Session};
 use crate::{Context, Discord};
 use anyhow::anyhow;
 use http::HeaderValue;
@@ -91,10 +91,17 @@ async fn login_discord_callback(
         .as_array()
         .ok_or(anyhow!("admins isn't an array"))?;
 
+    let user_id = user.id.parse()?;
+    session.user_id = Some(user_id);
     session.is_admin = admins.contains(&discord_id.into());
-    session.user_id = Some(user.id.parse()?);
     session.is_logged_in = true;
     session.save(cookies).unwrap();
+
+    // Don't redirect loop a banned user to a privileged page
+    // Instead, redirect them to / which will log them out immediately
+    if is_banned(user_id) {
+        return Ok(Redirect::to("/"))
+    }
 
     if let Some(redirect) = session.redirect_on_login {
         return Ok(Redirect::to(redirect));

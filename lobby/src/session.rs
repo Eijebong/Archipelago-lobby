@@ -66,6 +66,37 @@ fn decode_basic_auth(value: &str) -> Option<(String, String)> {
 impl Session {
     #[tracing::instrument("parse_session", skip_all)]
     pub fn from_request_sync(request: &Request) -> Self {
+        let session = Self::_from_request_sync(request);
+
+        if let Some(user_id) = session.user_id {
+            if is_banned(user_id) {
+                log::warn!("Detected banned user");
+                let cookies = request.cookies();
+
+                // Log them out by resetting their session
+                let default_session = Session {
+                    is_admin: false,
+                    is_logged_in: false,
+                    uuid: Uuid::new_v4(),
+                    user_id: None,
+                    redirect_on_login: Some("/".to_string()),
+                };
+                default_session.save(cookies).unwrap();
+
+                let ctx = request.rocket().state::<Context>().unwrap();
+                tokio::task::block_in_place(|| {
+                    let future = default_session.push_error("You are not welcome here", ctx);
+                    let _ = tokio::runtime::Runtime::new().unwrap().block_on(future);
+                });
+
+                return default_session;
+            }
+        }
+
+        session
+    }
+
+    fn _from_request_sync(request: &Request) -> Self {
         let admin_token = request.rocket().state::<AdminToken>();
         let admin_token = admin_token.map(|t| t.0.as_str());
 
@@ -201,6 +232,10 @@ impl<'r> FromRequest<'r> for Session {
         let new_session = Session::from_request_sync(request);
         Outcome::Success(new_session)
     }
+}
+
+pub fn is_banned(_user_id: i64) -> bool {
+    false
 }
 
 #[rocket::async_trait]
