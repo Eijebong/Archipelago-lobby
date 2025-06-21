@@ -69,7 +69,7 @@ fn is_trueish(option: &Value) -> bool {
             || value == "all"
             || value == "full"
             || value.starts_with("random")
-            || value.starts_with("enabled");
+            || value.starts_with("enable");
     }
 
     false
