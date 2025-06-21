@@ -70,7 +70,7 @@ async fn login_discord_callback(
 
     // Don't redirect loop a banned user to a privileged page
     // Instead, redirect them to / which will log them out immediately
-    if is_banned(user_id) {
+    if is_banned(user_id, config) {
         return Ok(Redirect::to("/"));
     }
 

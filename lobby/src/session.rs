@@ -1,3 +1,4 @@
+use crate::config::DiscordConfig;
 use crate::error::Result;
 use crate::Context;
 use anyhow::anyhow;
@@ -69,7 +70,8 @@ impl Session {
         let session = Self::_from_request_sync(request);
 
         if let Some(user_id) = session.user_id {
-            if is_banned(user_id) {
+            let discord_config = request.rocket().state::<DiscordConfig>().unwrap();
+            if is_banned(user_id, &discord_config) {
                 log::warn!("Detected banned user");
                 let cookies = request.cookies();
 
@@ -234,8 +236,8 @@ impl<'r> FromRequest<'r> for Session {
     }
 }
 
-pub fn is_banned(_user_id: i64) -> bool {
-    false
+pub fn is_banned(user_id: i64, config: &DiscordConfig) -> bool {
+    return config.banned_users.contains(&user_id);
 }
 
 #[rocket::async_trait]

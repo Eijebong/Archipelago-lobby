@@ -1,11 +1,12 @@
 use crate::error::Result;
 use anyhow::anyhow;
-use rocket::figment::{Figment, Profile, Provider};
+use rocket::figment::{value::Value, Figment, Profile, Provider};
 
 pub struct DiscordConfig {
     pub client_id: String,
     pub client_secret: String,
-    pub admins: Vec<rocket::figment::value::Value>,
+    pub admins: Vec<Value>,
+    pub banned_users: Vec<i64>,
 }
 
 impl DiscordConfig {
@@ -39,10 +40,17 @@ impl DiscordConfig {
             .as_array()
             .ok_or(anyhow!("admins isn't an array"))?;
 
+        let banned_users: Vec<i64> = discord_config
+            .get("banned_users")
+            .cloned()
+            .unwrap_or_else(|| <Value as From<Vec<i64>>>::from(vec![]))
+            .deserialize()?;
+
         Ok(Self {
             client_id: client_id.to_string(),
             client_secret: client_secret.to_string(),
             admins: admins.iter().cloned().collect::<Vec<_>>(),
+            banned_users,
         })
     }
 }
