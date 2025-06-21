@@ -151,7 +151,8 @@ impl Session {
         let mut redis = ctx.redis_pool.get().await?;
         let key = format!("warnings:{}", self.uuid);
 
-        redis.lpush::<_, _, ()>(key, warning).await?;
+        redis.lpush::<_, _, ()>(&key, warning).await?;
+        redis.expire::<_, ()>(key, 3600).await?;
 
         Ok(())
     }
@@ -160,7 +161,8 @@ impl Session {
         let mut redis = ctx.redis_pool.get().await?;
         let key = format!("errors:{}", self.uuid);
 
-        redis.rpush::<_, _, ()>(key, error).await?;
+        redis.rpush::<_, _, ()>(&key, error).await?;
+        redis.expire::<_, ()>(key, 3600).await?;
         Ok(())
     }
 
