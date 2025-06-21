@@ -15,6 +15,7 @@ mod ffxiv;
 mod jd;
 mod kh;
 mod pokemon;
+mod smw;
 mod sv;
 mod tunic;
 
@@ -30,6 +31,7 @@ pub enum YamlFeature {
     DeathWish,
     DeathWishWithBonus,
     AfterDark,
+    BlockSanity,
 }
 
 pub type YamlFeatures = HashMap<YamlFeature, u32>;
@@ -332,6 +334,7 @@ pub static EXTRACTORS: Lazy<HashMap<&'static str, Box<dyn FeatureExtractor + Sen
         register!(tunic::Tunic);
         register!(kh::KingdomHearts);
         register!(sv::StardewValley);
+        register!(smw::Smw);
         register!(ffxiv::FFXIV);
 
         extractors
