@@ -5,7 +5,7 @@ use rocket::figment::{value::Value, Figment, Profile, Provider};
 pub struct DiscordConfig {
     pub client_id: String,
     pub client_secret: String,
-    pub admins: Vec<Value>,
+    pub admins: Vec<i64>,
     pub banned_users: Vec<i64>,
 }
 
@@ -34,11 +34,10 @@ impl DiscordConfig {
             .as_str()
             .ok_or(anyhow!("client secret isn't a string"))?;
 
-        let admins = discord_config
+        let admins: Vec<i64> = discord_config
             .get("admins")
             .ok_or(anyhow!("no admins in discord section"))?
-            .as_array()
-            .ok_or(anyhow!("admins isn't an array"))?;
+            .deserialize()?;
 
         let banned_users: Vec<i64> = discord_config
             .get("banned_users")
@@ -49,7 +48,7 @@ impl DiscordConfig {
         Ok(Self {
             client_id: client_id.to_string(),
             client_secret: client_secret.to_string(),
-            admins: admins.iter().cloned().collect::<Vec<_>>(),
+            admins,
             banned_users,
         })
     }

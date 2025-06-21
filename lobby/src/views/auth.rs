@@ -64,7 +64,7 @@ async fn login_discord_callback(
 
     let user_id = user.id.parse()?;
     session.user_id = Some(user_id);
-    session.is_admin = config.admins.contains(&discord_id.into());
+    session.is_admin = config.admins.contains(&discord_id);
     session.is_logged_in = true;
     session.save(cookies).unwrap();
 
