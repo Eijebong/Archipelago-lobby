@@ -293,7 +293,7 @@ if __name__ == "__main__":
     suite.addTests(unittest.defaultTestLoader.discover("test/general", top_level_dir="."))
     results = runner.run(suite)
 
-    if not results.wasSuccessful or results.expectedFailures:
+    if results.failures or results.errors or results.unexpectedSuccesses or results.expectedFailures:
         output = {
             "failures": {fail.id(): {"traceback": tb, "description": fail.shortDescription()} for fail, tb in results.failures},
             "errors": {error.id(): {"traceback": tb, "description": error.shortDescription()} for error, tb in results.errors},
