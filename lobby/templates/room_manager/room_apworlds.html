@@ -47,10 +47,13 @@
             </tr>
         {% endif %}
     {% endif %}
+
+    {% if base.is_logged_in %}
     <tr>
         <td>Download</td>
         <td><a class="validation-button" href="/room/{{room.id}}/worlds/download_all">Download all apworlds</a></td>
     </tr>
+    {% endif %}
 </table>
 
 {% call apworlds_table::apworlds_table(apworlds) %}
