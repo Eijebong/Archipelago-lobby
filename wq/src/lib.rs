@@ -103,7 +103,7 @@ impl FromRedisValue for Priority {
                 return Err(RedisError::from((
                     ErrorKind::ParseError,
                     "Invalid priority received",
-                    format!("Received priority number: {}", v),
+                    format!("Received priority number: {v}"),
                 )));
             }
         };
@@ -148,7 +148,7 @@ impl FromRedisValue for JobId {
             return Err(RedisError::from((
                 ErrorKind::TypeError,
                 "Response was of incompatible type",
-                format!("UUID (response was {:?})", id_str),
+                format!("UUID (response was {id_str:?})"),
             )));
         };
 

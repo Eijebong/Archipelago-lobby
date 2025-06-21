@@ -280,6 +280,6 @@ impl World {
 
         destination.write_all(&body)?;
         let checksum = Sha256::digest(&body);
-        Ok(format!("{:x}", checksum))
+        Ok(format!("{checksum:x}"))
     }
 }

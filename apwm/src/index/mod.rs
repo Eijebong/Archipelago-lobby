@@ -51,7 +51,7 @@ impl Index {
             let world_path = world_toml.path();
             let apworld_name = world_path
                 .file_stem()
-                .with_context(|| format!("World path {:?} is invalid", world_path))?
+                .with_context(|| format!("World path {world_path:?} is invalid"))?
                 .to_string_lossy();
             let mut world = World::new(&world_toml.path())?;
             if world.disabled {
@@ -78,7 +78,7 @@ impl Index {
         only_new: bool,
         precise: Option<(String, Version)>,
     ) -> Result<IndexLock> {
-        log::info!("Refreshing index into {:?}", destination);
+        log::info!("Refreshing index into {destination:?}");
 
         let parent = self.path.parent().context("Invalid index path")?;
         let lock_toml = parent.join("index.lock");
@@ -93,7 +93,7 @@ impl Index {
 
         for (apworld_name, world) in &self.worlds {
             for (version, origin) in &world.versions {
-                log::debug!("Refreshing world: {}, version: {}", apworld_name, version);
+                log::debug!("Refreshing world: {apworld_name}, version: {version}");
                 if let Some((ref target_world, ref target_version)) = precise {
                     if apworld_name != target_world {
                         log::debug!("Ignoring world because of precise requirement");
@@ -119,12 +119,14 @@ impl Index {
                     self.get_world_local_path(destination, apworld_name, version);
                 let expected_checksum = old_lock.get_checksum(apworld_name, version);
 
-                if expected_checksum.is_some() && only_new {
-                    log::debug!(
-                        "World exists in lockfile and we only want to refresh new ones, ignoring."
-                    );
-                    new_lock.set_checksum(apworld_name, version, &expected_checksum.unwrap());
-                    continue;
+                if let Some(ref expected_checksum) = expected_checksum {
+                    if only_new {
+                        log::debug!(
+                            "World exists in lockfile and we only want to refresh new ones, ignoring."
+                        );
+                        new_lock.set_checksum(apworld_name, version, expected_checksum);
+                        continue;
+                    }
                 }
 
                 if apworld_destination_path.is_file() {
@@ -167,7 +169,7 @@ impl Index {
         apworld_name: &str,
         version: &Version,
     ) -> PathBuf {
-        apworld_root.join(format!("{}-{}.apworld", apworld_name, version))
+        apworld_root.join(format!("{apworld_name}-{version}.apworld"))
     }
 
     pub fn get_world_by_name(&self, game_name: &str) -> Option<&World> {

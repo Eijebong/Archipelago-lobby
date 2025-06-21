@@ -27,8 +27,7 @@ pub fn yaml_features(
     }
 
     Ok(format!(
-        "<span class=\"yaml-features\">{}</span>",
-        features_content
+        "<span class=\"yaml-features\">{features_content}</span>"
     ))
 }
 

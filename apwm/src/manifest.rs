@@ -41,14 +41,13 @@ impl Display for ResolveError<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ResolveError::WorldNotFound(world) => {
-                f.write_fmt(format_args!("Couldn't find world {}", world))
+                f.write_fmt(format_args!("Couldn't find world {world}"))
             }
             ResolveError::VersionNotFound(world, version_req) => f.write_fmt(format_args!(
-                "Couldn't resolve version {} for world {}",
-                version_req, world
+                "Couldn't resolve version {version_req} for world {world}"
             )),
             ResolveError::WorldDisabled(world) => {
-                f.write_fmt(format_args!("The world {} is disabled", world))
+                f.write_fmt(format_args!("The world {world} is disabled"))
             }
         }
     }
@@ -70,13 +69,13 @@ impl VersionReq {
                 let Some((version, _)) = world.get_latest_release() else {
                     return self.to_string();
                 };
-                format!("Latest ({})", version)
+                format!("Latest ({version})")
             }
             Self::LatestSupported => {
                 let Some((version, _)) = world.get_latest_supported_release() else {
                     return self.to_string();
                 };
-                format!("Supported ({})", version)
+                format!("Supported ({version})")
             }
             _ => self.to_string(),
         }

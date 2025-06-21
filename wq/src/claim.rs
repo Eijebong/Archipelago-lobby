@@ -55,7 +55,7 @@ impl FromRedisValue for Claim {
             return Err(RedisError::from((
                 ErrorKind::TypeError,
                 "Response was of incompatible type",
-                format!("Claim (response was {:?})", s),
+                format!("Claim (response was {s:?})"),
             )));
         };
 

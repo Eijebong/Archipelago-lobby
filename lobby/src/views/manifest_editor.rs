@@ -97,7 +97,7 @@ pub fn manifest_from_form(form: &ManifestForm, index: &Index) -> Result<Manifest
 
     let (_, errors) = new_manifest.resolve_with(index);
     if !errors.is_empty() {
-        log::error!("{:?}", errors);
+        log::error!("{errors:?}");
         Err(anyhow::anyhow!(
             "Error while resolving your room requirements with the current index"
         ))?

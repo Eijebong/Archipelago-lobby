@@ -166,7 +166,7 @@ async fn upload_yaml(
     yaml_validation_queue: &State<YamlValidationQueue>,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
-    redirect_to.set(&format!("/room/{}", room_id));
+    redirect_to.set(&format!("/room/{room_id}"));
 
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn)
@@ -237,7 +237,7 @@ async fn delete_yaml(
     session: LoggedInSession,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
-    redirect_to.set(&format!("/room/{}", room_id));
+    redirect_to.set(&format!("/room/{room_id}"));
 
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn)
@@ -256,7 +256,7 @@ async fn delete_yaml(
 
     db::remove_yaml(yaml_id, &mut conn).await?;
 
-    Ok(Redirect::to(format!("/room/{}", room_id)))
+    Ok(Redirect::to(format!("/room/{room_id}")))
 }
 
 #[get("/room/<room_id>/yamls")]
@@ -267,7 +267,7 @@ async fn download_yamls<'a>(
     ctx: &State<Context>,
     _session: LoggedInSession,
 ) -> Result<ZipFile<'a>> {
-    redirect_to.set(&format!("/room/{}", room_id));
+    redirect_to.set(&format!("/room/{room_id}"));
 
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn).await?;
@@ -280,12 +280,12 @@ async fn download_yamls<'a>(
 
     for yaml in yamls {
         let player_name = yaml.sanitized_name();
-        let mut original_file_name = format!("{}.yaml", player_name);
+        let mut original_file_name = format!("{player_name}.yaml");
 
         let mut suffix = 0u64;
         if emitted_names.contains(&original_file_name.to_lowercase()) {
             loop {
-                let new_file_name = format!("{}_{}.yaml", player_name, suffix);
+                let new_file_name = format!("{player_name}_{suffix}.yaml");
                 if !emitted_names.contains(&new_file_name.to_lowercase()) {
                     original_file_name = new_file_name;
                     break;
@@ -319,7 +319,7 @@ async fn room_worlds<'a>(
     redirect_to: &RedirectTo,
     ctx: &State<Context>,
 ) -> Result<RoomApworldsTpl<'a>> {
-    redirect_to.set(&format!("/room/{}", room_id));
+    redirect_to.set(&format!("/room/{room_id}"));
 
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn).await?;
@@ -351,7 +351,7 @@ async fn room_download_all_worlds<'a>(
     redirect_to: &'a RedirectTo,
     ctx: &'a State<Context>,
 ) -> Result<ZipFile<'a>> {
-    redirect_to.set(&format!("/room/{}", room_id));
+    redirect_to.set(&format!("/room/{room_id}"));
 
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn).await?;
@@ -427,7 +427,7 @@ async fn download_patch<'a>(
     let mut buf = Vec::new();
     patch_file.read_to_end(&mut buf)?;
 
-    let value = format!("attachment; filename=\"{}\"", patch_path);
+    let value = format!("attachment; filename=\"{patch_path}\"");
     Ok(NamedBuf {
         content: buf,
         headers: Header::new(CONTENT_DISPOSITION.as_str(), value),

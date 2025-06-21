@@ -269,7 +269,7 @@ async fn edit_room_submit<'a>(
     yaml_validation_queue: &State<YamlValidationQueue>,
     session: LoggedInSession,
 ) -> Result<Redirect> {
-    redirect_to.set(&format!("/edit-room/{}", room_id));
+    redirect_to.set(&format!("/edit-room/{room_id}"));
 
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn).await?;
@@ -314,7 +314,7 @@ async fn edit_room_submit<'a>(
     let room = db::update_room(&new_room, &mut conn).await?;
     revalidate_yamls_if_necessary(&room, index_manager, yaml_validation_queue, &mut conn).await?;
 
-    Ok(Redirect::to(format!("/room/{}", room_id)))
+    Ok(Redirect::to(format!("/room/{room_id}")))
 }
 
 pub fn validate_room_form(room_form: &mut RoomSettingsForm<'_>) -> Result<()> {

@@ -167,9 +167,7 @@ impl<'a> Extractor<'a> {
     pub fn with_weight(&mut self, weight: u32, inner: fn(&mut Self) -> Result<()>) -> Result<()> {
         assert!(
             weight <= MAX_WEIGHT,
-            "Maximum weight: {}, supplied weight: {}",
-            MAX_WEIGHT,
-            weight
+            "Maximum weight: {MAX_WEIGHT}, supplied weight: {weight}"
         );
 
         self.current_weight = weight;

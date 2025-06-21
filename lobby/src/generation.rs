@@ -49,12 +49,12 @@ pub fn get_slots(room_yamls: &[YamlWithoutContent]) -> Vec<(String, YamlId)> {
     let mut emitted_names = HashSet::new();
     for yaml in room_yamls {
         let player_name = yaml.sanitized_name();
-        let mut original_file_name = format!("{}.yaml", player_name);
+        let mut original_file_name = format!("{player_name}.yaml");
 
         let mut suffix = 0u64;
         if emitted_names.contains(&original_file_name.to_lowercase()) {
             loop {
-                let new_file_name = format!("{}_{}.yaml", player_name, suffix);
+                let new_file_name = format!("{player_name}_{suffix}.yaml");
                 if !emitted_names.contains(&new_file_name.to_lowercase()) {
                     original_file_name = new_file_name;
                     break;

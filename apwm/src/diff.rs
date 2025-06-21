@@ -24,7 +24,7 @@ impl Serialize for VersionRange {
     {
         let v0 = self.0.as_ref().map(|v| v.to_string()).unwrap_or_default();
         let v1 = self.1.as_ref().map(|v| v.to_string()).unwrap_or_default();
-        serializer.serialize_str(&format!("{}...{}", v0, v1))
+        serializer.serialize_str(&format!("{v0}...{v1}"))
     }
 }
 
@@ -72,7 +72,7 @@ pub async fn diff_world_and_write(
     let diff = diff_world(from, to, ap_index_url, ap_index_ref, index_lock, lobby_url).await?;
 
     std::fs::create_dir_all(destination)?;
-    let file_path = destination.join(format!("{}.apdiff", world_name));
+    let file_path = destination.join(format!("{world_name}.apdiff"));
     let mut out = Vec::new();
     let serializer = &mut serde_json::Serializer::new(&mut out);
     serde_path_to_error::serialize(&diff, serializer)?;

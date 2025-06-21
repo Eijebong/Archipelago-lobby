@@ -111,9 +111,9 @@ impl IndexManager {
             }
 
             let file_path = index.get_world_local_path(apworlds_path, world_name, version);
-            writer.start_file(format!("{}/{}.apworld", prefix, world_name), options)?;
+            writer.start_file(format!("{prefix}/{world_name}.apworld"), options)?;
             File::open(&file_path)
-                .with_context(|| format!("Can't open {:?}", file_path))?
+                .with_context(|| format!("Can't open {file_path:?}"))?
                 .read_to_end(&mut buffer)?;
             writer.write_all(&buffer)?;
             buffer.clear();

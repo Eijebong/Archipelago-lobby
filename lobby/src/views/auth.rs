@@ -112,7 +112,7 @@ async fn get_discord_user(client: &reqwest::Client, token: &str) -> Result<Disco
     );
     request.headers_mut().insert(
         "Authorization",
-        HeaderValue::from_str(&format!("Bearer {}", token))?,
+        HeaderValue::from_str(&format!("Bearer {token}"))?,
     );
     let response = client.execute(request).await?;
     let body = response.text().await?;

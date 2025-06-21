@@ -182,7 +182,7 @@ async fn edit_tpl_submit<'a>(
     index_manager: &State<IndexManager>,
     session: LoggedInSession,
 ) -> Result<Redirect> {
-    redirect_to.set(&format!("/room-templates/{}", tpl_id));
+    redirect_to.set(&format!("/room-templates/{tpl_id}"));
 
     let mut conn = ctx.db_pool.get().await?;
     let tpl = db::get_room_template_by_id(tpl_id, &mut conn).await?;

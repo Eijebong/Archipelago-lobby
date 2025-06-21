@@ -13,7 +13,7 @@ fn main() -> Result<()> {
     }
 
     let css_hash = css_hasher.finalize();
-    println!("cargo:rustc-env=CSS_VERSION={:x}", css_hash);
+    println!("cargo:rustc-env=CSS_VERSION={css_hash:x}");
 
     let mut js_hasher = Sha256::new();
     for entry in WalkDir::new("static/js") {
@@ -24,7 +24,7 @@ fn main() -> Result<()> {
     }
 
     let js_hash = js_hasher.finalize();
-    println!("cargo:rustc-env=JS_VERSION={:x}", js_hash);
+    println!("cargo:rustc-env=JS_VERSION={js_hash:x}");
 
     println!("cargo:rustc-env=GIT_VERSION={}", derive_git_version()?);
 
@@ -41,5 +41,5 @@ fn derive_git_version() -> Result<String> {
     walk.push(head.target().unwrap())?;
     let number = walk.count();
 
-    Ok(format!("{}-{}", branch_name, number))
+    Ok(format!("{branch_name}-{number}"))
 }

@@ -142,7 +142,7 @@ async fn gen_room_start(
     index_manager: &State<IndexManager>,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
-    redirect_to.set(&format!("/room/{}/generation", room_id));
+    redirect_to.set(&format!("/room/{room_id}/generation"));
 
     let mut conn = ctx.db_pool.get().await?;
 
@@ -179,7 +179,7 @@ async fn gen_room_cancel(
     gen_queue: &State<GenerationQueue>,
     ctx: &State<Context>,
 ) -> Result<Redirect> {
-    redirect_to.set(&format!("/room/{}/generation", room_id));
+    redirect_to.set(&format!("/room/{room_id}/generation"));
 
     let mut conn = ctx.db_pool.get().await?;
 

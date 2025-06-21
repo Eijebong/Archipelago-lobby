@@ -87,7 +87,7 @@ async fn download_world<'a>(
 
     let apworld_path = index_manager
         .apworlds_path
-        .join(format!("{}-{}.apworld", world_name, version));
+        .join(format!("{world_name}-{version}.apworld"));
 
     if !apworld_path.exists() {
         return Err(anyhow::anyhow!(
@@ -96,7 +96,7 @@ async fn download_world<'a>(
         .into());
     }
 
-    let value = format!("attachment; filename=\"{}.apworld\"", world_name);
+    let value = format!("attachment; filename=\"{world_name}.apworld\"");
     return Ok(RenamedFile {
         inner: NamedFile::open(&apworld_path).await?,
         headers: Header::new(CONTENT_DISPOSITION.as_str(), value),

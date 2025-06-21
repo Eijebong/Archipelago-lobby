@@ -26,7 +26,7 @@ impl<R: DeserializeOwned + Serialize + Clone> FromRedisValue for JobResult<R> {
             return Err(RedisError::from((
                 ErrorKind::TypeError,
                 "Response was of incompatible type",
-                format!("JobResult (response was {:?})", s),
+                format!("JobResult (response was {s:?})"),
             )));
         };
 

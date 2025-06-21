@@ -134,8 +134,7 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
                 YamlValidationJobResult::Failure(apworlds, error) => {
                     if room.settings.allow_invalid_yamls {
                         let warning_msg = format!(
-                            "Invalid YAML:\n{}\n Uploading anyway since the room owner allowed it.",
-                            error
+                            "Invalid YAML:\n{error}\n Uploading anyway since the room owner allowed it."
                         );
                         session.0.push_warning(&warning_msg, ctx).await?;
                         (apworlds, YamlValidationStatus::Failed, Some(error))
@@ -149,9 +148,9 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
                         worlds.iter().map(|game| {
                             let is_game_in_index = index.get_world_by_name(game).is_some();
                             if is_game_in_index {
-                                format!("Uploaded a game for game {} which has been disabled for this room", game)
+                                format!("Uploaded a game for game {game} which has been disabled for this room")
                             } else {
-                                format!("Uploaded a game for game {} which is not supported on this lobby", game)
+                                format!("Uploaded a game for game {game} which is not supported on this lobby")
                             }
                         }).join("\n")
                     );
@@ -245,7 +244,7 @@ fn validate_game(game: &YamlGame) -> Result<String> {
 
             match weighted_map.len() {
                 1 => Ok(weighted_map.keys().next().unwrap().to_string()),
-                n if n > 1 => Ok(format!("Random ({})", n)),
+                n if n > 1 => Ok(format!("Random ({n})")),
                 _ => Err(anyhow::anyhow!(
                     "Your YAML contains games but none of them has any chance of getting rolled"
                 ))?,
@@ -334,20 +333,20 @@ pub fn get_ap_player_name<'a>(
 
     #[allow(clippy::literal_string_with_formatting_args)]
     let new_name = original_name
-        .replace("{number}", &format!("{}", number))
+        .replace("{number}", &format!("{number}"))
         .replace(
             "{NUMBER}",
             &(if number > 1 {
-                format!("{}", number)
+                format!("{number}")
             } else {
                 "".to_string()
             }),
         )
-        .replace("{player}", &format!("{}", player))
+        .replace("{player}", &format!("{player}"))
         .replace(
             "{PLAYER}",
             &(if player > 1 {
-                format!("{}", player)
+                format!("{player}")
             } else {
                 "".to_string()
             }),
