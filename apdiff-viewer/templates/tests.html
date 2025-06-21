@@ -34,7 +34,7 @@
             {% for (test_id, test) in results.errors.iter() %}
             <details>
                 <summary>{{test_id}}</summary>
-                <div>
+                <div class="test-result">
                   {% if let Some(description) = test.description %}
                     <p>{{ description }}</p>
                   {% endif %}
@@ -46,5 +46,41 @@
             <hr>
             {% endfor %}
         {% endif %}
+
+        {% if !results.unexpected_successes.is_empty() %}
+            <hr>
+            <h4>Unexpected successes</h4>
+            {% for (test_id, test) in results.unexpected_successes.iter() %}
+            <details>
+                <summary>{{test_id}}</summary>
+                <div class="test-result">
+                  {% if let Some(description) = test.description %}
+                    <p>{{ description }}</p>
+                  {% endif %}
+                </div>
+            </details>
+            <hr>
+            {% endfor %}
+        {% endif %}
+
+        {% if !results.expected_failures.is_empty() %}
+            <hr>
+            <h4>Expected failures</h4>
+            {% for (test_id, test) in results.expected_failures.iter() %}
+            <details>
+                <summary>{{test_id}}</summary>
+                <div class="test-result">
+                  {% if let Some(description) = test.description %}
+                    <p>{{ description }}</p>
+                  {% endif %}
+                  <pre>
+                  {{ test.traceback|trim }}
+                  </pre>
+                </div>
+            </details>
+            <hr>
+            {% endfor %}
+        {% endif %}
+
     </body>
 </html>

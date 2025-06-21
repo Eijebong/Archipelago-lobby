@@ -105,9 +105,18 @@ struct TestResult {
 }
 
 #[derive(Deserialize)]
+struct UnexpectedSuccess {
+    description: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct TestResults {
     failures: BTreeMap<String, TestResult>,
     errors: BTreeMap<String, TestResult>,
+    #[serde(default)]
+    unexpected_successes: BTreeMap<String, UnexpectedSuccess>,
+    #[serde(default)]
+    expected_failures: BTreeMap<String, TestResult>,
     version: String,
     world_name: String,
 }
