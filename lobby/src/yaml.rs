@@ -18,6 +18,7 @@ use regex::Regex;
 
 use rocket::State;
 use semver::Version;
+use serde_yaml::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::BufReader;
 use std::time::Duration;
@@ -45,9 +46,14 @@ pub fn parse_raw_yamls(yamls: &[&str]) -> Result<Vec<(String, YamlFile)>> {
                 anyhow::bail!("Invalid yaml file. Syntax error.")
             };
 
-            let Ok(parsed) = serde_yaml::from_str(&doc) else {
+            let raw_parsed_yaml = match serde_yaml::from_str::<Value>(&doc) {
+                Ok(doc) => doc,
+                Err(e) => anyhow::bail!("Your YAML syntax is invalid: {}", e),
+            };
+
+            let Ok(parsed) = serde_yaml::from_value(raw_parsed_yaml) else {
                 anyhow::bail!(
-                    "This does not look like an archipelago YAML. Check that your YAML syntax is valid."
+                    "This does not look like an archipelago YAML. Check that it has both a `name` and a `game` field."
                 )
             };
             Ok((doc, parsed))
