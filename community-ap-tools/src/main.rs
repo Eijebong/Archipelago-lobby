@@ -82,6 +82,17 @@ fn root(
         .slots
         .sort_by_key(|slot| slot.status.clone());
 
+    ap_room
+        .tracker_info
+        .slots
+        .sort_by_key(|slot| match filters::slot_status(&slot).unwrap_or("green") {
+            "green" => 2,
+            "yellow" => 1,
+            "red" => 0,
+            _ => 0,
+        });
+
+
     let unclaimed_slots = ap_room
         .tracker_info
         .slots
