@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{BufReader, Cursor, Read, Write};
@@ -64,7 +64,7 @@ struct RoomTpl<'a> {
 struct RoomApworldsTpl<'a> {
     base: TplContext<'a>,
     is_my_room: bool,
-    apworlds: BTreeMap<String, (World, Version)>,
+    apworlds: Vec<(String, (World, Version))>,
     room: Room,
 }
 
@@ -333,6 +333,9 @@ async fn room_worlds<'a>(
             resolve_errors.iter().join("\n")
         ))?
     }
+
+    let mut apworlds = Vec::from_iter(apworlds);
+    apworlds.sort_by_key(|(_, (world, _))| world.display_name.to_lowercase());
 
     Ok(RoomApworldsTpl {
         base: TplContext::from_session("room", session, ctx).await,

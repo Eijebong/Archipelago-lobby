@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use crate::db;
 use crate::db::OpenState;
 use crate::db::RoomFilter;
@@ -32,7 +30,7 @@ use crate::TplContext;
 struct WorldsListTpl<'a> {
     base: TplContext<'a>,
     index: Index,
-    apworlds: BTreeMap<String, (World, Version)>,
+    apworlds: Vec<(String, (World, Version))>,
 }
 
 #[rocket::get("/worlds")]
@@ -45,6 +43,8 @@ async fn list_worlds<'a>(
     let index = index_manager.index.read().await.clone();
     let manifest = Manifest::from_index_with_default_versions(&index)?;
     let (apworlds, _) = manifest.resolve_with(&index);
+    let mut apworlds = Vec::from_iter(apworlds);
+    apworlds.sort_by_key(|(_, (world, _))| world.display_name.to_lowercase());
 
     Ok(WorldsListTpl {
         base: TplContext::from_session("apworlds", session, ctx).await,
