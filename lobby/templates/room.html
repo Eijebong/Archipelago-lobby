@@ -248,13 +248,13 @@
             function getValueToSortWith(row, key) {
                 switch (key) {
                     case "game-name":
-                        return row.children[1].innerText
+                        return row.children[1].innerText.toLowerCase()
                     case "discord-name":
-                        return row.children[0].getElementsByClassName("player-name")[0].title
+                        return row.children[0].getElementsByClassName("player-name")[0].title.toLowerCase()
                     case "validation-status":
                         break
                     case "player-name":
-                        return row.children[0].getElementsByClassName("player-name")[0].innerText
+                        return row.children[0].getElementsByClassName("player-name")[0].innerText.toLowerCase()
                     default:
                         console.log("Unknown sort-by key: ", key)
                         return 0
