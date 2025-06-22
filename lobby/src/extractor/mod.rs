@@ -15,6 +15,7 @@ mod ffxiv;
 mod jd;
 mod kh;
 mod pokemon;
+mod sml2;
 mod smw;
 mod sv;
 mod tunic;
@@ -332,6 +333,7 @@ pub static EXTRACTORS: Lazy<HashMap<&'static str, Box<dyn FeatureExtractor + Sen
         register!(tunic::Tunic);
         register!(kh::KingdomHearts);
         register!(sv::StardewValley);
+        register!(sml2::Sml2);
         register!(smw::Smw);
         register!(ffxiv::FFXIV);
 
