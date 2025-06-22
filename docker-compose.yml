@@ -6,6 +6,8 @@ services:
     environment:
       POSTGRES_DB: aplobby
       POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: pg_isready -U postgres
       interval: 1s
@@ -116,3 +118,4 @@ services:
 
 volumes:
   cargo: {}
+  pgdata: {}
