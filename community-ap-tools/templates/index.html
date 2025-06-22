@@ -57,12 +57,16 @@ td {
 
         <div>
         Slots to ping (not connected, 0 checks):
-        <p>
-        {% for slot in unclaimed_slots %}
-            {% let lobby_slot = lobby_room.yamls[slot.id - 1] %}
-            @{{ lobby_slot.discord_handle }}
+        <ul>
+        {% for slot_chunk in unclaimed_slots.chunks(10) %}
+            <li>
+            {% for slot in slot_chunk %}
+                {% let lobby_slot = lobby_room.yamls[slot.id - 1] %}
+                @{{ lobby_slot.discord_handle }}
+            {% endfor %}
+            </li>
         {% endfor %}
-        </p>
+        </ul>
         </div>
 
 
