@@ -34,7 +34,7 @@ git rev-parse HEAD > /ap/archipelago/version
 rm -Rf .git
 
 mkdir -p /ap/supported_worlds
-echo -e "jakanddaxter_options:\n  enforce_friendly_options: false" > /ap/archipelago/host.yaml
+echo -e "jakanddaxter_options:\n  enforce_friendly_options: false\npowerwashsimulator_options:\n  allow_percentsanity_below_7: true\n  allow_objectsanity: true" > /ap/archipelago/host.yaml
 
 bash -ex /ap/prepare_worlds.sh /ap/archipelago /ap/supported_worlds/
 
