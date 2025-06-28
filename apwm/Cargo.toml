@@ -21,7 +21,7 @@ tempfile = "3.10.1"
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
 toml = "0.8.13"
 walkdir = "2.5.0"
-zip = "2.1.1"
+zip = "4.2.0"
 
 [features]
 cli = ["dep:clap", "dep:env_logger"]
