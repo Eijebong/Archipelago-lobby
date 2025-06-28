@@ -1,8 +1,9 @@
+use askama::Values;
 use humantime::format_duration;
 
 use crate::guards::{SlotInfo, SlotStatus};
 
-pub fn slot_status(slot: &SlotInfo) -> askama::Result<&str> {
+pub fn slot_status<'a>(slot: &'a SlotInfo, _values: &'a dyn Values) -> askama::Result<&'a str> {
     if slot.status == SlotStatus::GoalCompleted {
         return Ok("green");
     }
@@ -38,7 +39,7 @@ pub fn slot_status(slot: &SlotInfo) -> askama::Result<&str> {
     }
 }
 
-pub fn last_active(slot: &SlotInfo) -> askama::Result<String> {
+pub fn last_active(slot: &SlotInfo, _values: &dyn Values) -> askama::Result<String> {
     let Some(activity) = slot.last_activity else {
         return Ok("Never".to_string());
     };
