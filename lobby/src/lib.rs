@@ -2,24 +2,17 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::Duration;
 
 use crate::config::DiscordConfig;
-use crate::db::instrumentation::{DbInstrumentation, QUERY_HISTOGRAM};
 use crate::session::{AdminSession, AdminToken, Session};
 use anyhow::Context as _;
 use deadpool::Runtime;
 use deadpool_redis::{Config, Pool as RedisPool};
-use diesel::{ConnectionError, ConnectionResult};
-use diesel_async::async_connection_wrapper::AsyncConnectionWrapper;
 use diesel_async::pooled_connection::deadpool::Pool as DieselPool;
-use diesel_async::pooled_connection::{AsyncDieselConnectionManager, ManagerConfig};
 use diesel_async::AsyncPgConnection;
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 use dotenvy::dotenv;
-use futures_util::future::BoxFuture;
-use futures_util::FutureExt;
 use instrumentation::QueueCounters;
 use otlp::TracingFairing;
 use rocket::config::ShutdownConfig;
@@ -31,11 +24,6 @@ use rocket::{catch, catchers, Request};
 use rocket::{Data, Route};
 use rocket_oauth2::OAuth2;
 use rocket_prometheus::PrometheusMetrics;
-use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
-use rustls::crypto::ring;
-use rustls::pki_types::{ServerName, UnixTime};
-use rustls::Error as TLSError;
-use rustls::{DigitallySignedStruct, SignatureScheme};
 
 use crate::index_manager::IndexManager;
 use crate::jobs::{
@@ -169,9 +157,6 @@ pub async fn main() -> crate::error::Result<()> {
         None
     };
 
-    ring::default_provider()
-        .install_default()
-        .expect("Failed to set ring as crypto provider");
     let otlp_endpoint = std::env::var("OTLP_ENDPOINT").ok();
     let _guard = otlp::init_tracing_subscriber(otlp_endpoint);
 
@@ -184,32 +169,7 @@ pub async fn main() -> crate::error::Result<()> {
             .expect("Provide a GENERATION_OUTPUT_DIR env variable"),
     ));
 
-    diesel::connection::set_default_instrumentation(|| {
-        Some(Box::new(DbInstrumentation::default()))
-    })
-    .expect("Failed to set diesel instrumentation");
-
-    let mut config = ManagerConfig::default();
-    config.custom_setup = Box::new(establish_connection);
-
-    let mgr = AsyncDieselConnectionManager::<AsyncPgConnection>::new_with_config(db_url, config);
-    let db_pool = DieselPool::builder(mgr)
-        .build()
-        .expect("Failed to create database pool, aborting");
-    {
-        let connection = db_pool
-            .get()
-            .await
-            .expect("Failed to get database connection to run migrations");
-
-        let mut async_wrapper: AsyncConnectionWrapper<
-            deadpool::managed::Object<AsyncDieselConnectionManager<AsyncPgConnection>>,
-        > = AsyncConnectionWrapper::from(connection);
-        tokio::task::spawn_blocking(move || {
-            async_wrapper.run_pending_migrations(MIGRATIONS).unwrap();
-        })
-        .await?;
-    }
+    let db_pool = common::db::get_database_pool(&db_url, MIGRATIONS).await?;
 
     let redis_cfg = Config::from_url(&valkey_url);
     let redis_pool = redis_cfg.create_pool(Some(Runtime::Tokio1))?;
@@ -232,7 +192,7 @@ pub async fn main() -> crate::error::Result<()> {
     });
     prometheus
         .registry()
-        .register(Box::new(QUERY_HISTOGRAM.clone()))
+        .register(Box::new(common::db::QUERY_HISTOGRAM.clone()))
         .expect("Failed to register query histogram");
 
     let index_manager = IndexManager::new()?;
@@ -304,79 +264,4 @@ pub async fn main() -> crate::error::Result<()> {
         .unwrap();
 
     Ok(())
-}
-
-#[derive(Debug)]
-// Copied over from reqwest
-pub(crate) struct NoVerifier;
-
-impl ServerCertVerifier for NoVerifier {
-    fn verify_server_cert(
-        &self,
-        _end_entity: &rustls_pki_types::CertificateDer,
-        _intermediates: &[rustls_pki_types::CertificateDer],
-        _server_name: &ServerName,
-        _ocsp_response: &[u8],
-        _now: UnixTime,
-    ) -> Result<ServerCertVerified, TLSError> {
-        Ok(ServerCertVerified::assertion())
-    }
-
-    fn verify_tls12_signature(
-        &self,
-        _message: &[u8],
-        _cert: &rustls_pki_types::CertificateDer,
-        _dss: &DigitallySignedStruct,
-    ) -> Result<HandshakeSignatureValid, TLSError> {
-        Ok(HandshakeSignatureValid::assertion())
-    }
-
-    fn verify_tls13_signature(
-        &self,
-        _message: &[u8],
-        _cert: &rustls_pki_types::CertificateDer,
-        _dss: &DigitallySignedStruct,
-    ) -> Result<HandshakeSignatureValid, TLSError> {
-        Ok(HandshakeSignatureValid::assertion())
-    }
-
-    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-        vec![
-            SignatureScheme::RSA_PKCS1_SHA1,
-            SignatureScheme::ECDSA_SHA1_Legacy,
-            SignatureScheme::RSA_PKCS1_SHA256,
-            SignatureScheme::ECDSA_NISTP256_SHA256,
-            SignatureScheme::RSA_PKCS1_SHA384,
-            SignatureScheme::ECDSA_NISTP384_SHA384,
-            SignatureScheme::RSA_PKCS1_SHA512,
-            SignatureScheme::ECDSA_NISTP521_SHA512,
-            SignatureScheme::RSA_PSS_SHA256,
-            SignatureScheme::RSA_PSS_SHA384,
-            SignatureScheme::RSA_PSS_SHA512,
-            SignatureScheme::ED25519,
-            SignatureScheme::ED448,
-        ]
-    }
-}
-
-#[tracing::instrument]
-fn establish_connection(config: &str) -> BoxFuture<ConnectionResult<AsyncPgConnection>> {
-    let fut = async {
-        let rustls_config = rustls::ClientConfig::builder()
-            .dangerous()
-            .with_custom_certificate_verifier(Arc::new(NoVerifier))
-            .with_no_client_auth();
-
-        let tls = tokio_postgres_rustls::MakeRustlsConnect::new(rustls_config);
-        let (client, conn) = tokio_postgres::connect(config, tls)
-            .await
-            .map_err(|e| ConnectionError::BadConnection(e.to_string()))?;
-        tokio::spawn(async move {
-            if let Err(e) = conn.await {
-                eprintln!("Database connection: {e}");
-            }
-        });
-        AsyncPgConnection::try_from(client).await
-    };
-    fut.boxed()
 }

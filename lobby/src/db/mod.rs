@@ -7,7 +7,6 @@ use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
 mod gen;
-pub mod instrumentation;
 mod json;
 mod pagination;
 mod room;

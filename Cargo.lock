@@ -151,6 +151,7 @@ dependencies = [
  "askama_web 0.14.0",
  "base64",
  "chrono",
+ "common",
  "comrak",
  "counter",
  "deadpool",
@@ -159,7 +160,6 @@ dependencies = [
  "diesel-async",
  "diesel_migrations",
  "dotenvy",
- "futures-util",
  "git2",
  "http",
  "itertools 0.14.0",
@@ -178,8 +178,6 @@ dependencies = [
  "rocket_prometheus",
  "rocket_ws",
  "rust-embed",
- "rustls",
- "rustls-pki-types",
  "semver",
  "sentry",
  "sentry-tracing",
@@ -188,8 +186,6 @@ dependencies = [
  "serde_yaml 0.9.34+deprecated",
  "sha2",
  "tokio",
- "tokio-postgres",
- "tokio-postgres-rustls",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
@@ -890,6 +886,26 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tokio-util",
+]
+
+[[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "deadpool",
+ "diesel",
+ "diesel-async",
+ "diesel_migrations",
+ "futures-util",
+ "once_cell",
+ "prometheus",
+ "rustls",
+ "rustls-pki-types",
+ "tokio",
+ "tokio-postgres",
+ "tokio-postgres-rustls",
+ "tracing",
 ]
 
 [[package]]
