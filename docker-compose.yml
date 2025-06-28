@@ -30,6 +30,7 @@ services:
     volumes:
       - cargo:/tmp/cargo
       - ./target:/builds/target
+      - ./target_apdiff:/builds/target
       - ./tmp/apworlds_index:/builds/apworlds_index
       - ./tmp/gen-output:/builds/gen-output
     command: chown -R ${USER_ID}:${GID} /tmp/cargo /builds
@@ -120,7 +121,7 @@ services:
     build: taskcluster/docker/rust-builder
     volumes:
       - .:/builds/worker/checkout
-      - ./target:/builds/target
+      - ./target_apdiff:/builds/target
       - cargo:/builds/cargo
     environment:
       CARGO_HOME: /builds/cargo
