@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 apwm = { path = "../apwm" }
 anyhow = "1.0.88"
-askama = { version = "0.12.1", features = ["with-rocket"] }
-askama_rocket = "0.12.0"
+askama = { version = "0.14" }
+askama_web = { version = "0.14", features = ["rocket-0.5"] }
 dotenvy = "0.15.7"
 reqwest = { version = "0.12.7", features = ["gzip", "json"] }
 rocket = "0.5.1"

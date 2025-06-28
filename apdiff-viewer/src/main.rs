@@ -2,6 +2,7 @@ use std::{borrow::Cow, collections::BTreeMap, ffi::OsStr, io::Cursor, path::Path
 
 use apwm::diff::CombinedDiff;
 use askama::Template;
+use askama_web::WebTemplate;
 use rocket::{
     http::{ContentType, Status},
     response::{self, Responder},
@@ -12,8 +13,9 @@ use taskcluster::{ClientBuilder, Queue};
 
 mod filters {
     use apwm::diff::VersionRange;
+    use askama::Values;
 
-    pub fn fmt_version(range: &VersionRange) -> askama::Result<String> {
+    pub fn fmt_version(range: &VersionRange, _values: &dyn Values) -> askama::Result<String> {
         Ok(match (&range.0, &range.1) {
             (None, Some(new_version)) => {
                 format!("<span>✅ {}</span>", new_version)
@@ -28,12 +30,12 @@ mod filters {
         })
     }
 
-    pub fn base64(b64: &String) -> askama::Result<String> {
+    pub fn base64(b64: &String, _values: &dyn Values) -> askama::Result<String> {
         use base64::Engine;
         Ok(base64::engine::general_purpose::STANDARD.encode(b64))
     }
 
-    pub fn dashify(original: &str) -> askama::Result<String> {
+    pub fn dashify(original: &str, _values: &dyn Values) -> askama::Result<String> {
         Ok(original.replace([' ', '\'', '&', ';'], "-"))
     }
 }
@@ -61,13 +63,13 @@ where
     }
 }
 
-#[derive(Template)]
+#[derive(Template, WebTemplate)]
 #[template(path = "index.html")]
 struct Index {
     diffs: Vec<CombinedDiff>,
 }
 
-#[derive(Template)]
+#[derive(Template, WebTemplate)]
 #[template(path = "tests.html")]
 struct TestPage {
     results: TestResults,
