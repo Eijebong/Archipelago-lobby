@@ -19,4 +19,4 @@ tasks:
   ap-worker:
     repo: ghcr.io/eijebong/archipelago-worker
     secret: github_deploy
-    soft-dependencies: [image]
+    if-dependencies: [image]
