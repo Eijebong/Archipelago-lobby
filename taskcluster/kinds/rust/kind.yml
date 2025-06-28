@@ -27,6 +27,11 @@ tasks:
       skip-unless-changed: ["Cargo.*", "apwm/**", "taskcluster/**"]
     wq:
       package-name: wq
-      with-tests: true
       tests-only: true
       skip-unless-changed: ["Cargo.*", "wq/**", "taskcluster/**"]
+    apdiff-viewer:
+      package-name: apdiff-viewer
+      with-tests: false # We don't have any right now
+      build-result: /builds/worker/target/release/apdiff-viewer
+      docker-repo: ghcr.io/eijebong/apdiff-viewer
+      skip-unless-changed: ["Cargo.*", "apdiff-viewer/**", "taskcluster/**"]

@@ -169,7 +169,8 @@ async fn main() -> anyhow::Result<()> {
         .manage(queue)
         .mount("/", routes![get_task_diffs, dist, get_test_results])
         .launch()
-        .await?;
+        .await
+        .unwrap();
 
     Ok(())
 }

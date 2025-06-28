@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-apwm = { git = "https://github.com/Eijebong/APWM.git" }
+apwm = { path = "../apwm" }
 anyhow = "1.0.88"
 askama = { version = "0.12.1", features = ["with-rocket"] }
 askama_rocket = "0.12.0"

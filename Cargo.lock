@@ -147,7 +147,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "apwm",
- "askama",
+ "askama 0.14.0",
  "askama_web",
  "base64",
  "chrono",
@@ -201,6 +201,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "apdiff-viewer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "apwm",
+ "askama 0.12.1",
+ "askama_rocket",
+ "base64",
+ "dotenvy",
+ "reqwest",
+ "rocket",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "taskcluster",
+ "tokio",
+]
+
+[[package]]
 name = "apwm"
 version = "0.1.0"
 dependencies = [
@@ -241,11 +261,24 @@ checksum = "69f7f8c3906b62b754cd5326047894316021dcfe5a194c8ea52bdd94934a3457"
 
 [[package]]
 name = "askama"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b79091df18a97caea757e28cd2d5fda49c6cd4bd01ddffd7ff01ace0c0ad2c28"
+dependencies = [
+ "askama_derive 0.12.5",
+ "askama_escape",
+ "humansize",
+ "num-traits",
+ "percent-encoding",
+]
+
+[[package]]
+name = "askama"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f75363874b771be265f4ffe307ca705ef6f3baa19011c149da8674a87f1b75c4"
 dependencies = [
- "askama_derive",
+ "askama_derive 0.14.0",
  "itoa",
  "percent-encoding",
  "serde",
@@ -254,11 +287,27 @@ dependencies = [
 
 [[package]]
 name = "askama_derive"
+version = "0.12.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19fe8d6cb13c4714962c072ea496f3392015f0989b1a2847bb4b2d9effd71d83"
+dependencies = [
+ "askama_parser 0.2.1",
+ "basic-toml",
+ "mime",
+ "mime_guess",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn",
+]
+
+[[package]]
+name = "askama_derive"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "129397200fe83088e8a68407a8e2b1f826cf0086b21ccdb866a722c8bcd3a94f"
 dependencies = [
- "askama_parser",
+ "askama_parser 0.14.0",
  "basic-toml",
  "memchr",
  "proc-macro2",
@@ -267,6 +316,21 @@ dependencies = [
  "serde",
  "serde_derive",
  "syn",
+]
+
+[[package]]
+name = "askama_escape"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "619743e34b5ba4e9703bba34deac3427c72507c7159f5fd030aea8cac0cfe341"
+
+[[package]]
+name = "askama_parser"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "acb1161c6b64d1c3d83108213c2a2533a342ac225aabd0bda218278c2ddb00c0"
+dependencies = [
+ "nom",
 ]
 
 [[package]]
@@ -282,12 +346,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "askama_rocket"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ebf814a0f98928b2ea4a0625ad7563d737ecf0707260b8360f4ad2a4b51918e6"
+dependencies = [
+ "askama 0.12.1",
+ "rocket",
+]
+
+[[package]]
 name = "askama_web"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0715e988725139fa7e73a3d5c1c5e2931ad6f7ebe8e378d1e7925d8e6a687fcf"
 dependencies = [
- "askama",
+ "askama 0.14.0",
  "askama_web_derive",
  "rocket",
 ]
@@ -301,6 +375,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "async-compression"
+version = "0.4.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40f6024f3f856663b45fd0c9b6f2024034a702f453549449e0d84a305900dad4"
+dependencies = [
+ "flate2",
+ "futures-core",
+ "memchr",
+ "pin-project-lite",
+ "tokio",
 ]
 
 [[package]]
@@ -379,6 +466,17 @@ dependencies = [
  "cmake",
  "dunce",
  "fs_extra",
+]
+
+[[package]]
+name = "backoff"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b62ddb9cb1ec0a098ad4bbf9344d0713fa193ae1a80af55febcff2627b6a00c1"
+dependencies = [
+ "getrandom 0.2.15",
+ "instant",
+ "rand 0.8.5",
 ]
 
 [[package]]
@@ -1469,6 +1567,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "hawk"
+version = "5.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab302457b3e28e621daab18932d67a67328f29240bfaa5f604b7627ece1eacda"
+dependencies = [
+ "anyhow",
+ "base64",
+ "log",
+ "once_cell",
+ "ring",
+ "thiserror 1.0.69",
+ "url",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1515,6 +1628,12 @@ checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
 dependencies = [
  "digest",
 ]
+
+[[package]]
+name = "hmac-sha256"
+version = "1.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad6880c8d4a9ebf39c6e8b77007ce223f646a4d21ce29d99f70cb16420545425"
 
 [[package]]
 name = "home"
@@ -1591,6 +1710,15 @@ name = "httpdate"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
+
+[[package]]
+name = "humansize"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6cb51c9a029ddc91b07a787f1d86b53ccfa49b0e86688c946ebe8d3555685dd7"
+dependencies = [
+ "libm",
+]
 
 [[package]]
 name = "hyper"
@@ -1884,6 +2012,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879f10e63c20629ecabbb64a8010319738c66a5cd0c29b02d63d272b03751d01"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "instant"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0242819d153cba4b4b05a5a8f2a7e9bbf97b6055b2a002b395c96b5ff3c0222"
+dependencies = [
+ "cfg-if",
 ]
 
 [[package]]
@@ -2999,6 +3136,7 @@ version = "0.12.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d19c46a6fdd48bc4dab94b6103fccc55d34c67cc0ad04653aad4ea2a07cd7bbb"
 dependencies = [
+ "async-compression",
  "base64",
  "bytes",
  "encoding_rs",
@@ -3030,6 +3168,7 @@ dependencies = [
  "system-configuration",
  "tokio",
  "tokio-native-tls",
+ "tokio-util",
  "tower 0.5.2",
  "tower-service",
  "url",
@@ -3803,6 +3942,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "slugid"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3bdb10c7fc7b7037dc6403b58397721fc1f3d888f557bd3eddc2d1154701ded"
+dependencies = [
+ "base64",
+ "lazy_static",
+ "ring",
+]
+
+[[package]]
 name = "smallvec"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3931,6 +4081,26 @@ checksum = "8e1d1b10ced5ca923a1fcb8d03e96b8d3268065d724548c0211415ff6ac6bac4"
 dependencies = [
  "core-foundation-sys",
  "libc",
+]
+
+[[package]]
+name = "taskcluster"
+version = "69.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbfd90d48d346d6cd752bdbabb1aee592f27e2dbc02bb98f08a0e48298bf591b"
+dependencies = [
+ "anyhow",
+ "backoff",
+ "base64",
+ "chrono",
+ "hawk",
+ "hmac-sha256",
+ "percent-encoding",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "slugid",
+ "tokio",
 ]
 
 [[package]]

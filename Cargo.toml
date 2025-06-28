@@ -4,6 +4,7 @@ members = [
     "lobby",
     "apwm",
     "wq",
+    "apdiff-viewer",
 ]
 
 [patch.crates-io]
