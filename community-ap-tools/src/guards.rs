@@ -1,12 +1,10 @@
-use std::{cell::OnceCell, fmt::Display, str::FromStr, sync::OnceLock};
+use std::{fmt::Display, str::FromStr, sync::OnceLock};
 
-use anyhow::Context;
 use aprs::proto::server::DataPackage;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use chrono::NaiveDateTime;
 use reqwest::{
-    Method, Url,
-    header::{self, HeaderName, HeaderValue},
+    Url,
+    header::{HeaderName, HeaderValue},
 };
 use rocket::{
     Request,
@@ -23,9 +21,7 @@ use crate::Config;
 #[derive(Deserialize, Debug)]
 pub struct YamlInfo {
     pub id: Uuid,
-    pub player_name: String,
     pub discord_handle: String,
-    pub game: String,
     pub slot_number: usize,
     pub has_patch: bool,
 }
@@ -34,14 +30,11 @@ pub struct YamlInfo {
 pub struct LobbyRoom {
     pub id: Uuid,
     pub name: String,
-    pub close_date: NaiveDateTime,
-    pub description: String,
     pub yamls: Vec<YamlInfo>,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct RoomStatus {
-    pub players: Vec<(String, String)>,
     pub tracker: String,
     pub last_port: u16,
 }
@@ -50,7 +43,6 @@ pub struct ApRoom {
     pub id: String,
     pub room_status: RoomStatus,
     pub tracker_info: TrackerInfo,
-    pub datapackage: &'static DataPackage,
 }
 
 #[derive(Debug)]
@@ -142,7 +134,6 @@ impl<'r> FromRequest<'r> for LobbyRoom {
 
 #[derive(Deserialize)]
 pub struct ApMsg {
-    cmd: String,
     #[serde(flatten)]
     data: DataPackage,
 }
@@ -175,7 +166,7 @@ impl<'r> FromRequest<'r> for ApRoom {
         let tracker_body = try_err_outcome!(tracker_page.text().await);
 
         let tracker_info = try_err_outcome!(parse_tracker(tracker_body));
-        let datapackage = DATA_PACKAGE.get_or_init(|| {
+        DATA_PACKAGE.get_or_init(|| {
             let url = format!("wss://archipelago.gg:{}", room_status.last_port);
             let (mut socket, _) = tungstenite::connect(&url).unwrap();
             let msg = "[{\"cmd\": \"GetDataPackage\"}]";
@@ -195,7 +186,6 @@ impl<'r> FromRequest<'r> for ApRoom {
             id: config.ap_room_id.clone(),
             room_status,
             tracker_info,
-            datapackage,
         })
     }
 }

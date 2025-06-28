@@ -63,7 +63,8 @@ impl Session {
     }
 }
 
-pub struct LoggedInSession(pub Session);
+#[allow(dead_code)]
+pub struct LoggedInSession(Session);
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for Session {
@@ -203,7 +204,6 @@ struct DiscordMeResponse {
 #[derive(serde::Deserialize)]
 struct DiscordUser {
     pub id: String,
-    pub username: String,
 }
 
 async fn get_discord_user(client: &reqwest::Client, token: &str) -> Result<DiscordUser> {
