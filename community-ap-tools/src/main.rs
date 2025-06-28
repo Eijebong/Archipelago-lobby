@@ -298,7 +298,8 @@ async fn main() -> Result<()> {
         .manage(config)
         .attach(OAuth2::<Discord>::fairing("discord"))
         .launch()
-        .await?;
+        .await
+        .unwrap();
 
     Ok(())
 }

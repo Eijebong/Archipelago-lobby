@@ -5,6 +5,7 @@ members = [
     "apwm",
     "wq",
     "apdiff-viewer",
+    "community-ap-tools",
 ]
 
 [patch.crates-io]
