@@ -1,0 +1,13 @@
+---
+trust-domain: "ap"
+task-priority: low
+
+taskgraph:
+  cached-task-prefix: "ap.v2.apdiff-viewer"
+  repositories:
+    apdiff_viewer:
+      name: "apdiff-viewer"
+  register: eije_taskgraph:register
+
+workers:
+  aliases: {}
