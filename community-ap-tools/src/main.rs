@@ -15,6 +15,7 @@ use rocket::{
     Request, State, catch, http::ContentType, response::Redirect, routes, serde::json::Json,
 };
 use rocket_oauth2::OAuth2;
+use rustls::crypto::ring;
 use tungstenite::{Message, connect};
 use uuid::Uuid;
 
@@ -276,6 +277,10 @@ async fn main() -> Result<()> {
     let ap_room_id = std::env::var("AP_ROOM_ID").expect("Provide an `AP_ROOM_ID` env variable");
     let ap_session_cookie =
         std::env::var("AP_SESSION_COOKIE").expect("Provide an `AP_SESSION_COOKIE` env variable");
+
+    ring::default_provider()
+        .install_default()
+        .expect("Failed to set ring as crypto provider");
 
     let config = Config {
         lobby_root_url: lobby_root_url.parse()?,

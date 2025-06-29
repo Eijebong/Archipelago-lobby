@@ -813,6 +813,7 @@ dependencies = [
  "rocket",
  "rocket_oauth2",
  "rust-embed",
+ "rustls",
  "scraper",
  "serde",
  "serde_json",
