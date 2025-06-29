@@ -36,7 +36,7 @@ RUN sh /ap/setup.sh ${BASE_COMMIT} ${FUZZER_COMMIT} && rm /ap/setup.sh
 
 FROM python:${PYTHON_VERSION}-slim-bookworm
 
-RUN apt update && apt install -y curl
+RUN apt update && apt install -y curl libtk8.6
 RUN curl -fsSL https://apt.cli.rs/pubkey.asc | tee -a /usr/share/keyrings/rust-tools.asc
 RUN curl -fsSL https://apt.cli.rs/rust-tools.list -o /etc/apt/sources.list.d/rust-tools.list
 RUN apt update && apt install -y watchexec-cli
