@@ -18,6 +18,7 @@ tasks:
       package-name: ap-lobby
       build-result: /builds/worker/target/release/ap-lobby
       docker-repo: ghcr.io/eijebong/archipelago-lobby
+      build-args: --bin ap-lobby
       skip-unless-changed: ["Cargo.*", "wq/**", "apwm/**", "lobby/**", "taskcluster/**"]
     apwm:
       package-name: apwm
@@ -28,15 +29,18 @@ tasks:
     wq:
       package-name: wq
       tests-only: true
+      build-args: -p wq
       skip-unless-changed: ["Cargo.*", "wq/**", "taskcluster/**"]
     apdiff-viewer:
       package-name: apdiff-viewer
       with-tests: false # We don't have any right now
       build-result: /builds/worker/target/release/apdiff-viewer
       docker-repo: ghcr.io/eijebong/apdiff-viewer
+      build-args: --bin apdiff-viewer
       skip-unless-changed: ["Cargo.*", "apdiff-viewer/**", "taskcluster/**"]
     community-ap-tools:
       build-result: /builds/worker/target/release/community-ap-tools
       docker-repo: ghcr.io/eijebong/community-ap-tools
       with-tests: false
+      build-args: --bin community-ap-tools
       skip-unless-changed: ["Cargo.*", "community-ap-tools/**", "taskcluster/**"]
