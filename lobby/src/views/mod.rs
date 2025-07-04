@@ -6,7 +6,7 @@ use std::io::{BufReader, Cursor, Read, Write};
 use std::path::PathBuf;
 
 use crate::db::{
-    self, Author, BucketId, Json, NewYaml, Room, RoomFilter, RoomId, YamlId, YamlWithoutContent,
+    self, Author, BundleId, Json, NewYaml, Room, RoomFilter, RoomId, YamlId, YamlWithoutContent,
 };
 use crate::error::{Error, RedirectTo, Result, WithContext};
 use crate::generation::get_generation_info;
@@ -190,7 +190,7 @@ async fn upload_yaml(
 
     conn.transaction::<(), Error, _>(|conn| {
         async move {
-            let bucket_id = BucketId::new_v4();
+            let bundle_id = BundleId::new_v4();
 
             for YamlValidationResult {
                 ref game_name,
@@ -213,7 +213,7 @@ async fn upload_yaml(
                     validation_status,
                     apworlds,
                     last_error: error,
-                    bucket_id,
+                    bundle_id,
                 };
 
                 db::add_yaml_to_room(new_yaml, conn).await?;
