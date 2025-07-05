@@ -93,35 +93,7 @@
     </thead>
     <tbody>
         {% for yaml in yamls %}
-        {% let is_my_yaml = (Some(yaml.0.owner_id) == base.user_id.as_ref()) %}
-        <tr {%+ if is_my_yaml %} data-my-yaml="true" {% endif +%} data-yaml-id="{{ yaml.0.id }}" data-valid-yaml="{{ yaml.0.validation_status.is_valid() }}">
-            {% if base.is_logged_in %}
-                <td>
-                    <span>
-                        {% if room.settings.yaml_validation %}
-                            <span onclick ='return showRowYaml(this)' class="validation-result validation-{{yaml.0.validation_status.as_str()}}"></span>
-                        {% else %}
-                            <span></span>
-                        {% endif %}
-                        <span class="player-name" title="@{{yaml.1}}">{{yaml.0.player_name}}</span>
-                        {{yaml.0.features|yaml_features|safe}}
-                    </span>
-                </td>
-            {% else %}
-                <td><span><span class="player-name">{{yaml.0.player_name}}</span> {{yaml.0.features|yaml_features|safe}}</span></td>
-            {% endif %}
-            <td>{{yaml.0.game}}</td>
-            <td>
-                <a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showRowYaml(this)'>View</a>
-                {% if (is_my_yaml || is_my_room) %}
-                    {% if !is_closed %}
-                    {# +#} | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}" data-confirm-del=true data-resource-type="YAML file" data-resource-name="{{yaml.0.player_name}} ({{yaml.0.game}})">Delete</a>
-                    {% else if yaml.0.patch.is_some() %}
-                    {# +#} | <a href="/room/{{room.id}}/patch/{{yaml.0.id}}">Patch</a>
-                    {% endif %}
-                {% endif %}
-            </td>
-        </tr>
+            {% call yaml_row(yaml, true) %}
         {% endfor %}
     </tbody>
     <tfoot>
@@ -138,6 +110,38 @@
     <button id="yamlFormButton">Upload</button>
 </form>
 {%endblock%}
+
+{% macro yaml_row(yaml, show_delete) %}
+    {% let is_my_yaml = (Some(yaml.0.owner_id) == base.user_id.as_ref()) %}
+    <tr {%+ if is_my_yaml %} data-my-yaml="true" {% endif +%} data-yaml-id="{{ yaml.0.id }}" data-valid-yaml="{{ yaml.0.validation_status.is_valid() }}">
+        {% if base.is_logged_in %}
+            <td>
+                <span>
+                    {% if room.settings.yaml_validation %}
+                        <span onclick ='return showRowYaml(this)' class="validation-result validation-{{yaml.0.validation_status.as_str()}}"></span>
+                    {% else %}
+                        <span></span>
+                    {% endif %}
+                    <span class="player-name" title="@{{yaml.1}}">{{yaml.0.player_name}}</span>
+                    {{yaml.0.features|yaml_features|safe}}
+                </span>
+            </td>
+        {% else %}
+            <td><span><span class="player-name">{{yaml.0.player_name}}</span> {{yaml.0.features|yaml_features|safe}}</span></td>
+        {% endif %}
+        <td>{{yaml.0.game}}</td>
+        <td>
+            <a href="/room/{{room.id}}/download/{{yaml.0.id}}" onclick='return showRowYaml(this)'>View</a>
+            {% if (is_my_yaml || is_my_room) %}
+                {% if !is_closed && show_delete %}
+                {# +#} | <a href="/room/{{room.id}}/delete/{{yaml.0.id}}" data-confirm-del=true data-resource-type="YAML file" data-resource-name="{{yaml.0.player_name}} ({{yaml.0.game}})">Delete</a>
+                {% else if yaml.0.patch.is_some() %}
+                {# +#} | <a href="/room/{{room.id}}/patch/{{yaml.0.id}}">Patch</a>
+                {% endif %}
+            {% endif %}
+        </td>
+    </tr>
+{% endmacro %}
 
 {% block scripts %}
 <script>
