@@ -74,6 +74,11 @@ pub struct YamlFile {
     pub name: String,
 }
 
+#[derive(Debug)]
+pub struct YamlBundle {
+    yamls: Vec<Yaml>,
+}
+
 #[tracing::instrument(skip(conn))]
 pub async fn get_yamls_for_room_with_author_names(
     room_id: RoomId,
@@ -137,12 +142,35 @@ pub async fn remove_yaml(yaml_id: YamlId, conn: &mut AsyncPgConnection) -> Resul
 }
 
 #[tracing::instrument(skip(conn))]
+pub async fn remove_bundle(bundle_id: BundleId, conn: &mut AsyncPgConnection) -> Result<()> {
+    diesel::delete(yamls::table.filter(yamls::bundle_id.eq(bundle_id)))
+        .execute(conn)
+        .await?;
+
+    Ok(())
+}
+
+#[tracing::instrument(skip(conn))]
 pub async fn get_yaml_by_id(yaml_id: YamlId, conn: &mut AsyncPgConnection) -> Result<Yaml> {
     Ok(yamls::table
         .find(yaml_id)
         .select(Yaml::as_select())
         .first::<Yaml>(conn)
         .await?)
+}
+
+#[tracing::instrument(skip(conn))]
+pub async fn get_bundle_by_id(
+    bundle_id: BundleId,
+    conn: &mut AsyncPgConnection,
+) -> Result<YamlBundle> {
+    Ok(YamlBundle {
+        yamls: yamls::table
+            .filter(yamls::bundle_id.eq(bundle_id))
+            .select(Yaml::as_select())
+            .get_results::<Yaml>(conn)
+            .await?,
+    })
 }
 
 #[tracing::instrument(skip(conn))]
