@@ -5,6 +5,7 @@ use diesel::prelude::*;
 use diesel::{Insertable, Queryable, Selectable};
 use diesel_async::scoped_futures::ScopedFutureExt;
 use diesel_async::{AsyncConnection, AsyncPgConnection, RunQueryDsl};
+use itertools::Itertools;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
@@ -122,6 +123,23 @@ pub async fn get_yamls_for_room(
         .await?)
 }
 
+#[tracing::instrument(skip(conn))]
+pub async fn get_bundles_for_room(
+    room_id: RoomId,
+    conn: &mut AsyncPgConnection,
+) -> Result<Vec<YamlBundle>> {
+    let yamls = get_yamls_for_room(room_id, conn).await?;
+
+    Ok(yamls
+        .into_iter()
+        .chunk_by(|yaml| yaml.bundle_id)
+        .into_iter()
+        .map(|(_, yamls)| YamlBundle {
+            yamls: yamls.collect(),
+        })
+        .collect())
+}
+
 #[tracing::instrument(skip_all, fields(new_yaml.room_id))]
 pub async fn add_yaml_to_room(new_yaml: NewYaml<'_>, conn: &mut AsyncPgConnection) -> Result<()> {
     diesel::insert_into(yamls::table)
@@ -235,6 +253,20 @@ pub async fn associate_patch_files(
     .await?;
 
     Ok(())
+}
+
+impl YamlBundle {
+    pub fn as_yaml(&self) -> String {
+        self.yamls.iter().map(|yaml| &yaml.content).join("\n---\n")
+    }
+
+    pub fn file_name(&self) -> String {
+        self.yamls[0].sanitized_name()
+    }
+
+    pub fn owner_id(&self) -> i64 {
+        self.yamls[0].owner_id
+    }
 }
 
 impl Yaml {

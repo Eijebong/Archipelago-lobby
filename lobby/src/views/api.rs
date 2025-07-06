@@ -13,7 +13,7 @@ use rocket::{
 use serde::Serialize;
 
 use crate::{
-    db::{self, RoomId, Yaml, YamlId},
+    db::{self, BundleId, RoomId, Yaml, YamlId},
     error::{ApiResult, WithContext, WithStatus},
     index_manager::IndexManager,
     jobs::YamlValidationQueue,
@@ -107,6 +107,33 @@ pub(crate) async fn download_yaml<'a>(
     })
 }
 
+#[get("/room/<room_id>/download_bundle/<bundle_id>")]
+#[tracing::instrument(skip(ctx))]
+pub(crate) async fn download_bundle<'a>(
+    room_id: RoomId,
+    bundle_id: BundleId,
+    ctx: &State<Context>,
+) -> ApiResult<YamlContent<'a>> {
+    let mut conn = ctx.db_pool.get().await?;
+
+    let _room = db::get_room(room_id, &mut conn)
+        .await
+        .context("Couldn't find the room")
+        .status(Status::NotFound)?;
+
+    let bundle = db::get_bundle_by_id(bundle_id, &mut conn)
+        .await
+        .context("Couldn't find the YAML bundle")
+        .status(Status::NotFound)?;
+
+    let value = format!("attachment; filename=\"{}.yaml\"", bundle.file_name());
+
+    Ok(YamlContent {
+        content: bundle.as_yaml(),
+        headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
+    })
+}
+
 #[get("/room/<room_id>/info/<yaml_id>")]
 #[tracing::instrument(skip(ctx))]
 pub(crate) async fn yaml_info<'a>(
@@ -187,6 +214,7 @@ pub(crate) async fn refresh_patches(
 
 pub fn routes() -> Vec<rocket::Route> {
     routes![
+        download_bundle,
         download_yaml,
         retry_yaml,
         yaml_info,

@@ -228,6 +228,39 @@ async fn upload_yaml(
     Ok(Redirect::to(uri!(room(room_id))))
 }
 
+#[get("/room/<room_id>/delete_bundle/<bundle_id>")]
+#[tracing::instrument(skip(redirect_to, session, ctx))]
+async fn delete_bundle(
+    redirect_to: &RedirectTo,
+    room_id: RoomId,
+    bundle_id: BundleId,
+    session: LoggedInSession,
+    ctx: &State<Context>,
+) -> Result<Redirect> {
+    redirect_to.set(&format!("/room/{room_id}"));
+
+    let mut conn = ctx.db_pool.get().await?;
+    let room = db::get_room(room_id, &mut conn)
+        .await
+        .context("Unknown room")?;
+    if room.is_closed() {
+        return Err(anyhow::anyhow!("This room is closed, you're late").into());
+    }
+
+    let bundle = db::get_bundle_by_id(bundle_id, &mut conn).await?;
+
+    let is_my_room = session.0.is_admin || session.0.user_id == Some(room.settings.author_id);
+    if bundle.owner_id() != session.user_id() && !is_my_room {
+        Err(anyhow::anyhow!(
+            "Can't delete a YAML bundle that isn't yours"
+        ))?
+    }
+
+    db::remove_bundle(bundle_id, &mut conn).await?;
+
+    Ok(Redirect::to(format!("/room/{room_id}")))
+}
+
 #[get("/room/<room_id>/delete/<yaml_id>")]
 #[tracing::instrument(skip(redirect_to, session, ctx))]
 async fn delete_yaml(
@@ -252,6 +285,12 @@ async fn delete_yaml(
     let is_my_room = session.0.is_admin || session.0.user_id == Some(room.settings.author_id);
     if yaml.owner_id != session.user_id() && !is_my_room {
         Err(anyhow::anyhow!("Can't delete a yaml file that isn't yours"))?
+    }
+
+    if room.settings.is_bundle_room && !is_my_room {
+        Err(anyhow::anyhow!(
+            "Can't delete an individual yaml in a bundled room, delete the whole YAML bundle"
+        ))?
     }
 
     db::remove_yaml(yaml_id, &mut conn).await?;
@@ -296,6 +335,57 @@ async fn download_yamls<'a>(
         writer.start_file(original_file_name.clone(), options)?;
         emitted_names.insert(original_file_name.to_lowercase());
         writer.write_all(yaml.content.as_bytes())?;
+    }
+
+    let res = writer.finish()?;
+    let value = format!(
+        "attachment; filename=\"yamls-{}.zip\"",
+        room.settings.close_date.format("%Y-%m-%d_%H_%M_%S")
+    );
+
+    Ok(ZipFile {
+        content: res.into_inner(),
+        headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
+    })
+}
+
+#[get("/room/<room_id>/bundles")]
+#[tracing::instrument(skip(redirect_to, ctx, _session))]
+async fn download_bundles<'a>(
+    redirect_to: &RedirectTo,
+    room_id: RoomId,
+    ctx: &State<Context>,
+    _session: LoggedInSession,
+) -> Result<ZipFile<'a>> {
+    redirect_to.set(&format!("/room/{room_id}"));
+
+    let mut conn = ctx.db_pool.get().await?;
+    let room = db::get_room(room_id, &mut conn).await?;
+    let bundles = db::get_bundles_for_room(room_id, &mut conn).await?;
+    let mut writer = zip::ZipWriter::new(Cursor::new(vec![]));
+
+    let options =
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    let mut emitted_names = HashSet::new();
+
+    for bundle in bundles {
+        let file_name = bundle.file_name();
+        let mut original_file_name = format!("{file_name}.yaml");
+
+        let mut suffix = 0u64;
+        if emitted_names.contains(&original_file_name.to_lowercase()) {
+            loop {
+                let new_file_name = format!("{file_name}_{suffix}.yaml");
+                if !emitted_names.contains(&new_file_name.to_lowercase()) {
+                    original_file_name = new_file_name;
+                    break;
+                }
+                suffix += 1;
+            }
+        }
+        writer.start_file(original_file_name.clone(), options)?;
+        emitted_names.insert(original_file_name.to_lowercase());
+        writer.write_all(bundle.as_yaml().as_bytes())?;
     }
 
     let res = writer.finish()?;
@@ -386,6 +476,21 @@ async fn download_yaml<'a>(
         .map_err(|api_err| api_err.error)?)
 }
 
+#[get("/room/<room_id>/download_bundle/<bundle_id>")]
+#[tracing::instrument(skip(redirect_to, ctx))]
+async fn download_bundle<'a>(
+    redirect_to: &RedirectTo,
+    room_id: RoomId,
+    bundle_id: BundleId,
+    ctx: &State<Context>,
+) -> Result<YamlContent<'a>> {
+    redirect_to.set("/");
+
+    Ok(api::download_bundle(room_id, bundle_id, ctx)
+        .await
+        .map_err(|api_err| api_err.error)?)
+}
+
 #[get("/room/<room_id>/patch/<yaml_id>")]
 #[tracing::instrument(skip(redirect_to, gen_output_dir, ctx))]
 async fn download_patch<'a>(
@@ -471,8 +576,11 @@ pub fn routes() -> Vec<rocket::Route> {
         room_worlds,
         room_download_all_worlds,
         upload_yaml,
+        delete_bundle,
         delete_yaml,
+        download_bundles,
         download_yamls,
+        download_bundle,
         download_yaml,
         download_patch,
         dist,
