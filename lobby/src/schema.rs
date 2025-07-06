@@ -55,6 +55,7 @@ diesel::table! {
         tpl_name -> Varchar,
         allow_invalid_yamls -> Bool,
         meta_file -> Text,
+        is_bundle_room -> Bool,
     }
 }
 
@@ -80,6 +81,7 @@ diesel::table! {
         from_template_id -> Nullable<SqlRoomTemplateId>,
         allow_invalid_yamls -> Bool,
         meta_file -> Text,
+        is_bundle_room -> Bool,
     }
 }
 

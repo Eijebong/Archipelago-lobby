@@ -1,0 +1,3 @@
+-- Your SQL goes here
+ALTER TABLE rooms ADD COLUMN is_bundle_room BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE room_templates ADD COLUMN is_bundle_room BOOLEAN NOT NULL DEFAULT FALSE;

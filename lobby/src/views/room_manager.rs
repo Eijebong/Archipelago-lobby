@@ -53,6 +53,7 @@ pub struct RoomSettingsForm<'a> {
     pub show_apworlds: bool,
     pub me: ManifestForm<'a>,
     pub meta_file: String,
+    pub is_bundle_room: bool,
 }
 
 #[derive(Template, WebTemplate)]
@@ -184,6 +185,7 @@ async fn create_room_submit<'a>(
         from_template_id: Some(from_template),
         allow_invalid_yamls: room_form.room.allow_invalid_yamls,
         meta_file: room_form.room.meta_file.clone(),
+        is_bundle_room: room_form.room.is_bundle_room,
     };
 
     let mut conn = ctx.db_pool.get().await?;
@@ -309,6 +311,7 @@ async fn edit_room_submit<'a>(
         from_template_id: None,
         allow_invalid_yamls: room_form.room.allow_invalid_yamls,
         meta_file: room_form.room.meta_file.clone(),
+        is_bundle_room: room_form.room.is_bundle_room,
     };
 
     let room = db::update_room(&new_room, &mut conn).await?;

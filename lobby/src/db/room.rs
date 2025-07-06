@@ -34,6 +34,7 @@ pub struct NewRoom<'a> {
     pub from_template_id: Option<Option<RoomTemplateId>>,
     pub allow_invalid_yamls: bool,
     pub meta_file: String,
+    pub is_bundle_room: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -53,6 +54,7 @@ pub struct RoomSettings {
     pub updated_at: NaiveDateTime,
     pub allow_invalid_yamls: bool,
     pub meta_file: String,
+    pub is_bundle_room: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -105,6 +107,7 @@ impl<
         ST14,
         ST15,
         ST16,
+        ST17,
     >
     Queryable<
         (
@@ -125,6 +128,7 @@ impl<
             ST14,
             ST15,
             ST16,
+            ST17,
         ),
         DB,
     > for Room
@@ -147,6 +151,7 @@ where
         Option<RoomTemplateId>,
         bool,
         String,
+        bool,
     ): FromStaticSqlRow<
         (
             ST0,
@@ -166,6 +171,7 @@ where
             ST14,
             ST15,
             ST16,
+            ST17,
         ),
         DB,
     >,
@@ -188,6 +194,7 @@ where
         Option<RoomTemplateId>,
         bool,
         String,
+        bool,
     );
 
     fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
@@ -209,6 +216,7 @@ where
                 updated_at: row.13,
                 allow_invalid_yamls: row.15,
                 meta_file: row.16,
+                is_bundle_room: row.17,
             },
             from_template_id: row.14,
         })
@@ -235,6 +243,7 @@ impl<
         ST15,
         ST16,
         ST17,
+        ST18,
     >
     Queryable<
         (
@@ -256,6 +265,7 @@ impl<
             ST15,
             ST16,
             ST17,
+            ST18,
         ),
         DB,
     > for RoomTemplate
@@ -279,6 +289,7 @@ where
         String,
         bool,
         String,
+        bool,
     ): FromStaticSqlRow<
         (
             ST0,
@@ -299,6 +310,7 @@ where
             ST15,
             ST16,
             ST17,
+            ST18,
         ),
         DB,
     >,
@@ -322,6 +334,7 @@ where
         String,
         bool,
         String,
+        bool,
     );
 
     fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
@@ -343,6 +356,7 @@ where
                 updated_at: row.13,
                 allow_invalid_yamls: row.16,
                 meta_file: row.17,
+                is_bundle_room: row.18,
             },
             global: row.14,
             tpl_name: row.15,
@@ -368,6 +382,7 @@ impl RoomSettings {
             updated_at: Self::default_close_date()?,
             allow_invalid_yamls: false,
             meta_file: "".to_string(),
+            is_bundle_room: false,
         })
     }
 

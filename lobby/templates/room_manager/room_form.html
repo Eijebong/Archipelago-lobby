@@ -75,25 +75,27 @@
                 <label for="yaml_limit_bypass_list">YAML limit bypass list:</label>
                 {% endif %}
                 <input {{ ro }} {%+ if base.is_admin %}type="text"{%+ else %}type="hidden"{% endif +%} name="room.yaml_limit_bypass_list" id="yaml_limit_bypass_list" value="{{ self.room.yaml_limit_bypass_list|join(",") }}">
-
-
-                {% if !self.read_only %}
-                    {% match self.room_id %}
-                    {% when Some with (room_id) %}
-                    <hr>
-                    <h5>Danger zone</h5>
-                    <table class="styled danger-zone">
-                        <tr>
-                            <td>Delete this {{+ self.ty }}? {%+ if self.ty.is_room() %} This will delete all associated YAMLs, there is no going back. {% endif %}</td>
-                            <td>
-                                <a href="{{ ty.as_route_base() }}/{{room_id}}/delete" class="cancel-button" data-confirm-del=true data-resource-type="{{ self.ty }}" data-resource-name="{{self.room.name}}">Delete {{+ self.ty }}</a>
-                            </td>
-                        </tr>
-                    </table>
-                    {% when None %}
-                    {% endmatch %}
-                {% endif %}
             </fieldset>
+
+            <input {{ ro }} type="checkbox" name = "room.is_bundle_room" id ="is_bundle_room" {% if self.room.is_bundle_room %} checked {% endif %}>
+            <label for="is_bundle_room" title="test">Keep YAMLs bundled on upload</label>
+
+            {% if !self.read_only %}
+                {% match self.room_id %}
+                {% when Some with (room_id) %}
+                <hr>
+                <h5>Danger zone</h5>
+                <table class="styled danger-zone">
+                    <tr>
+                        <td>Delete this {{+ self.ty }}? {%+ if self.ty.is_room() %} This will delete all associated YAMLs, there is no going back. {% endif %}</td>
+                        <td>
+                            <a href="{{ ty.as_route_base() }}/{{room_id}}/delete" class="cancel-button" data-confirm-del=true data-resource-type="{{ self.ty }}" data-resource-name="{{self.room.name}}">Delete {{+ self.ty }}</a>
+                        </td>
+                    </tr>
+                </table>
+                {% when None %}
+                {% endmatch %}
+            {% endif %}
         </div>
 
         <div class="options-tab" id="section-apworlds-editor">

@@ -29,6 +29,7 @@ pub struct NewRoomTemplate<'a> {
     pub show_apworlds: bool,
     pub global: bool,
     pub meta_file: String,
+    pub is_bundle_room: bool,
 }
 
 #[tracing::instrument(skip(conn))]
