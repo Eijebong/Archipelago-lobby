@@ -36,6 +36,7 @@ services:
     command: chown -R ${USER_ID}:${GID} /tmp/cargo /builds
 
   lobby:
+    tty: true
     build: taskcluster/docker/rust-builder
     volumes:
       - .:/builds/worker/checkout
