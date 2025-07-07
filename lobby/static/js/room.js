@@ -51,3 +51,37 @@ for(const item of deletableItems) {
 
     });
 }
+
+
+const multiselects = document.getElementsByClassName("multiselect")
+for(const multiselect of multiselects) {
+    const chooser = document.createElement("a")
+    const menu = new Menu(chooser)
+    chooser.className = "validation-button"
+    chooser.innerText = "v";
+    let first = true
+    for (const item of multiselect.children) {
+        menu.items.push(new MenuItem(item.innerText, (event) => {
+            for (const item of multiselect.children) {
+                if (item.innerText == chooser.innerText) {
+                    continue
+                }
+                if (event.target.innerText != item.innerText) {
+                    item.style.display = 'none';
+                } else {
+                    item.style.display = 'inline';
+                }
+            }
+        }))
+        if (first) {
+            first = false
+            continue
+        }
+        item.style.display = 'none'
+    }
+    menu.build();
+    chooser.addEventListener('click', () => {
+        menu.trigger()
+    });
+    multiselect.appendChild(chooser);
+}

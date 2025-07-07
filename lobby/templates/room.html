@@ -99,7 +99,12 @@
     <tfoot>
         {% if base.is_logged_in && !yamls.is_empty() %}
         <tr>
-            <td colspan="2"></td><td><a class="validation-button" href="/room/{{room.id}}/yamls">Download all YAMLs</a></td>
+            <td colspan="2"></td><td>
+                <span class="multiselect">
+                    <a class="validation-button" href="/room/{{room.id}}/yamls">Download all YAMLs</a>
+                    <a class="validation-button" href="/room/{{room.id}}/bundles">Download all YAMLs (bundled)</a>
+                </span>
+            </td>
         </tr>
         {% endif %}
     </tfoot>
@@ -315,6 +320,7 @@
 <script src="/static/contrib/highlight.js/highlight.min.js" defer></script>
 <script src="/static/contrib/highlight.js/yaml.min.js" defer></script>
 <script src="/static/js/viewer.js?{{ base.js_version }}" defer></script>
+<script src="/static/js/menu.js?{{ base.js_version }}"></script>
 <script src="/static/js/room.js?{{ base.js_version }}" defer></script>
 <script src="/static/js/simplesearch.js?{{ base.js_version }}" defer></script>
 {% endblock %}
