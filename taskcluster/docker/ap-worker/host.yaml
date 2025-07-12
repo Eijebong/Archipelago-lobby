@@ -1,0 +1,7 @@
+jakanddaxter_options:
+  enforce_friendly_options: false
+powerwashsimulator_options:
+  allow_percentsanity_below_7: true
+  allow_objectsanity: true
+tunic_options:
+  limit_grass_rando: false

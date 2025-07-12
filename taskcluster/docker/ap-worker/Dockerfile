@@ -44,6 +44,7 @@ RUN apt update && apt install -y watchexec-cli
 RUN mkdir /ap
 WORKDIR /ap
 
+COPY host.yaml /ap/archipelago/host.yaml
 COPY --from=enemizer /Enemizer /ap/enemizer
 RUN chmod +x /ap/enemizer/EnemizerCLI.Core
 
