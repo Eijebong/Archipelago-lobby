@@ -22,13 +22,11 @@ uv pip install -r worlds/_sc2common/requirements.txt
 uv pip install -r worlds/alttp/requirements.txt
 uv pip install -r worlds/factorio/requirements.txt
 uv pip install -r worlds/kh2/requirements.txt
-uv pip install -r worlds/minecraft/requirements.txt
 uv pip install -r worlds/sc2/requirements.txt
 uv pip install -r worlds/soe/requirements.txt
 uv pip install -r worlds/tloz/requirements.txt
 uv pip install -r worlds/tww/requirements.txt
 uv pip install -r worlds/zillion/requirements.txt
-uv pip install -r worlds/zork_grand_inquisitor/requirements.txt
 uv run cythonize -a -i _speedups.pyx
 git rev-parse HEAD > /ap/archipelago/version
 rm -Rf .git

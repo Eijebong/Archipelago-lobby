@@ -7,6 +7,7 @@ if len(sys.argv) != 7:
 import handler
 import checker
 import os
+from inspect import cleandoc
 from Options import get_option_groups
 from Utils import __version__, local_path
 from jinja2 import Template
@@ -47,7 +48,7 @@ def generate_template(world_name, expected_world_name):
 
     game_name, world = world_from_apworld_name(world_name)
     if world is None:
-        raise Exception(f"Failed to resolve apworld from apworld name: {apworld_name}")
+        raise Exception(f"Failed to resolve apworld from apworld name: {game_name}")
 
     if expected_world_name != game_name:
         raise Exception(f"The given apworld doesn't match the game named passed in. Expected {game_name}, got {expected_world_name}")
@@ -60,6 +61,7 @@ def generate_template(world_name, expected_world_name):
         option_groups=option_groups,
         __version__=__version__, game=game_name, yaml_dump=yaml_dump_scalar,
         dictify_range=dictify_range,
+        cleandoc=cleandoc,
     )
 
     return res
