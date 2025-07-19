@@ -56,7 +56,7 @@ pub fn parse_raw_yamls(yamls: &[&str]) -> Result<Vec<(String, YamlFile)>> {
                     "This does not look like an archipelago YAML. Check that it has both a `name` and a `game` field."
                 )
             };
-            Ok((doc, parsed))
+            Ok((doc.trim_start_matches("---").trim().to_string(), parsed))
         })
         .collect::<anyhow::Result<Vec<(String, YamlFile)>>>()?;
 
