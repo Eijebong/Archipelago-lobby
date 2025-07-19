@@ -81,13 +81,9 @@ for(const multiselect of multiselects) {
     for (const item of multiselect.children) {
         menu.items.push(new MenuItem(item.innerText, (event) => {
             for (const item of multiselect.children) {
-                if (item.innerText == chooser.innerText) {
-                    continue
-                }
-                if (event.target.innerText != item.innerText) {
-                    item.style.display = 'none';
-                } else {
-                    item.style.display = 'inline';
+                if (item.innerText == event.target.innerText) {
+                    item.click()
+                    break
                 }
             }
         }))
