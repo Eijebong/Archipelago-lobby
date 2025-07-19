@@ -1,4 +1,4 @@
-function openConfirmationPopup(resourceName, resourceType, callback) {
+function openConfirmationPopup(resourceName, resourceType, callback, extra) {
     const popup = document.createElement("dialog");
     popup.classList = "delete-popup";
     popup.onclick = (event) => { event.target == popup && popup.close(); return true; }
@@ -10,7 +10,17 @@ function openConfirmationPopup(resourceName, resourceType, callback) {
 
     const popupContent = document.createElement("div");
     popupContent.classList = "popup-content"
-    popupContent.textContent = "Are you sure you want to delete the " + resourceType + " " + resourceName + "?";
+    const txt = "Are you sure you want to delete the " + resourceType + " " + resourceName + "?";
+
+    if (extra) {
+        popupContent.innerHTML = txt
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;") + extra
+    } else {
+        popupContent.textContent = txt
+    }
+
     popup.appendChild(popupContent);
 
     const buttonContainer = document.createElement("div");
@@ -42,11 +52,19 @@ for(const item of deletableItems) {
     const resourceName = item.dataset.resourceName || "unknown"
 
     item.addEventListener('click', (event) => {
+        var extra = "";
+        if (item.dataset.delExtra) {
+            const extraFunc = window[item.dataset.delExtra]
+            const extraArg = item.dataset.delExtraArg
+            if (extraFunc !== undefined) {
+                extra = extraFunc(extraArg)
+            }
+        }
         if (event.cancelable) {
             event.preventDefault();
             openConfirmationPopup(resourceName, resourceType, () => {
                 location.href = item.href;
-            });
+            }, extra);
         }
 
     });

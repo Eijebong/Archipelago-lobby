@@ -115,6 +115,7 @@ async fn room<'a>(room_id: RoomId, ctx: &State<Context>, session: Session) -> Re
     let mut conn = ctx.db_pool.get().await?;
     let (room, author_name) = db::get_room_and_author(room_id, &mut conn).await?;
     let mut yamls = db::get_yamls_for_room_with_author_names(room_id, &mut conn).await?;
+
     yamls.sort_by(|a, b| a.0.game.to_lowercase().cmp(&b.0.game.to_lowercase()));
     let unique_player_count = yamls.iter().unique_by(|yaml| yaml.0.owner_id).count();
     let unique_game_count = yamls
