@@ -73,15 +73,19 @@ for(const item of deletableItems) {
 
 const multiselects = document.getElementsByClassName("multiselect")
 for(const multiselect of multiselects) {
-    const chooser = document.createElement("a")
+    if (multiselect.childNodes.length <= 1) {
+        continue
+    }
+
+    const chooser = document.createElement("span")
     const menu = new Menu(chooser)
-    chooser.className = "validation-button"
-    chooser.innerText = "v";
+    chooser.className = multiselect.dataset.pickerClass || "validation-button"
+    chooser.innerHTML = "<i class=\"fa fa-chevron-down\"></i>"
     let first = true
     for (const item of multiselect.children) {
-        menu.items.push(new MenuItem(item.innerText, (event) => {
+        menu.items.push(new MenuItem(item.dataset.multiselectLabel || item.innerText, (event) => {
             for (const item of multiselect.children) {
-                if (item.innerText == event.target.innerText) {
+                if ((item.dataset.multiselectLabel || item.innerText) == event.target.innerText) {
                     item.click()
                     break
                 }

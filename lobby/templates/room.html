@@ -101,8 +101,8 @@
         <tr>
             <td colspan="2"></td><td>
                 <span class="multiselect">
-                    <a class="validation-button" href="/room/{{room.id}}/yamls">Download all YAMLs</a>
-                    <a class="validation-button" href="/room/{{room.id}}/bundles">Download all YAMLs (bundled)</a>
+                    <a data-multiselect-label="Download as individual YAMLs" class="validation-button" href="/room/{{room.id}}/yamls">Download all YAMLs</a>
+                    <a class="validation-button" href="/room/{{room.id}}/bundles">Download as bundled YAMLs</a>
                 </span>
             </td>
         </tr>
@@ -140,10 +140,13 @@
             {% if (is_my_yaml || is_my_room) %}
                 {% if !is_closed%}
                     {% if room.settings.is_bundle_room %}
-                        {# +#} | <a href="/room/{{room.id}}/delete_bundle/{{yaml.bundle_id}}" data-confirm-del=true data-resource-type="YAML bundle containing" data-resource-name="{{yaml.player_name}}&nbsp;({{yaml.game}})" data-del-extra=getYamlsForBundle data-del-extra-arg="{{ yaml.bundle_id }}">Delete</a>
-                        {% if is_my_room %}
-                            {# +#} | <a href="/room/{{room.id}}/delete/{{yaml.id}}" data-confirm-del=true data-resource-type="YAML file" data-resource-name="{{yaml.player_name}}&nbsp;({{yaml.game}})">Delete (YAML)</a>
-                        {% endif %}
+                        {# +#} |
+                        <span class="multiselect" data-picker-class="delete-picker">
+                            <a href="/room/{{room.id}}/delete_bundle/{{yaml.bundle_id}}" data-multiselect-label="Delete bundle" data-confirm-del=true data-resource-type="YAML bundle containing" data-resource-name="{{yaml.player_name}}&nbsp;({{yaml.game}})" data-del-extra=getYamlsForBundle data-del-extra-arg="{{ yaml.bundle_id }}">Delete</a>
+                            {% if is_my_room %}
+                                {# +#} <a href="/room/{{room.id}}/delete/{{yaml.id}}" data-confirm-del=true data-resource-type="YAML file" data-resource-name="{{yaml.player_name}}&nbsp;({{yaml.game}})">Delete YAML</a>
+                            {% endif %}
+                        </span>
                     {% else %}
                         {# +#} | <a href="/room/{{room.id}}/delete/{{yaml.id}}" data-confirm-del=true data-resource-type="YAML file" data-resource-name="{{yaml.player_name}}&nbsp;({{yaml.game}})">Delete</a>
                     {% endif %}
@@ -389,7 +392,7 @@
         }
 
         return "<br><br>The room forces bundles to be kept. Deleting this will delete:<br><ul style=\"text-align: left\">" + yamls.map((row) => {
-            return "<li>" + row.lastElementChild.lastElementChild.dataset.resourceName
+            return "<li>" + row.lastElementChild.lastElementChild.firstElementChild.dataset.resourceName
              .replace(/&/g, "&amp;")
              .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;") + "</li>"

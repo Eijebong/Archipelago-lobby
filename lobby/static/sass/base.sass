@@ -758,6 +758,27 @@ body:has(dialog[open])
 .bundle-indicator
   padding: 0 0.5em 0 0.5em
 
+.multiselect
+  li
+    text-align: left
+
+.delete-picker
+  i
+    font-size: 0.8em
+
+  display: inline-block
+  font-weight: bold
+  border: none
+  background: hsla(0,0%,0%,0.2)
+  padding: 0 .2em
+  box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 0 1px hsla(0,0%,0%,0.75), inset 0 0 0 2px hsla(0,0%,100%,0.05)
+  color: white
+  cursor: pointer
+
+  &:hover
+    background-color: hsla(0,0%,0%,0.15)
+    box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 0 1px hsla(0,0%,0%,0.75), inset 0 0 0 2px hsla(0,0%,100%,0.05),  0 0 0.15em #6EADEF
+
 .disabled
   color: gray
 

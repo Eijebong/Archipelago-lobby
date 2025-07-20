@@ -58,7 +58,7 @@ class Menu {
         const element_bb = this.elmt.getBoundingClientRect();
         // If the menu doesn't fit in the page, offset it to the left
         if (anchor_bb.left + element_bb.width > window.innerWidth) {
-            this.elmt.style.left = window.innerWidth - element_bb.width + "px"
+            this.elmt.style.left = anchor_bb.right - element_bb.width + "px"
         } else {
             this.elmt.style.left = anchor_bb.left + "px"
         }
