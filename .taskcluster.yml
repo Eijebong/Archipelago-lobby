@@ -191,7 +191,7 @@ tasks:
                   priority:
                       $switch:
                           'tasks_for == "cron"': low
-                          'tasks_for == "github-push"|| isPullRequest': very-low
+                          'tasks_for == "github-push"|| isPullRequest': low
                           $default: lowest  # tasks_for in ['action', 'pr-action']
                   retries: 5
 
