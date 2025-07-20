@@ -183,9 +183,8 @@ def check_yaml(game, name, yaml):
         world_type = AutoWorldRegister.world_types[game]
         multiworld = MultiWorld(2)
         multiworld.game = {1: world_type.game, 2: "Dummy World"}
-        multiworld.player_name = {1: f"YAMLChecker", 2: f"YAMLChecker2"}
+        multiworld.player_name = {1: "YAMLChecker", 2: "YAMLChecker2"}
         multiworld.set_seed(0)
-        multiworld.state = CollectionState(multiworld)
 
         check_settings(world_type, yaml[world_type.game])
         span.add_event("Rolling settings")
@@ -210,6 +209,7 @@ def check_yaml(game, name, yaml):
             return True, "OK"
 
         multiworld.set_options(erargs)
+        multiworld.state = CollectionState(multiworld)
         multiworld.set_item_links()
 
         with tracer.start_span("generate_early"):
