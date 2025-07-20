@@ -391,7 +391,7 @@
             }
         }
 
-        return "<br><br>The room forces bundles to be kept. Deleting this will delete:<br><ul style=\"text-align: left\">" + yamls.map((row) => {
+        return "<br><br>The room forces YAMLs to be kept as bundles. Deleting this will delete:<br><ul style=\"text-align: left\">" + yamls.map((row) => {
             return "<li>" + row.lastElementChild.lastElementChild.firstElementChild.dataset.resourceName
              .replace(/&/g, "&amp;")
              .replace(/</g, "&lt;")
