@@ -762,15 +762,10 @@ body:has(dialog[open])
   li
     text-align: left
 
-.delete-picker
-  i
-    font-size: 0.8em
-
   display: inline-block
-  font-weight: bold
   border: none
   background: hsla(0,0%,0%,0.2)
-  padding: 0 .2em
+  padding-left: .2em
   box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 0 1px hsla(0,0%,0%,0.75), inset 0 0 0 2px hsla(0,0%,100%,0.05)
   color: white
   cursor: pointer
@@ -778,6 +773,33 @@ body:has(dialog[open])
   &:hover
     background-color: hsla(0,0%,0%,0.15)
     box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 0 1px hsla(0,0%,0%,0.75), inset 0 0 0 2px hsla(0,0%,100%,0.05),  0 0 0.15em #6EADEF
+
+.multiselect-green
+  .multiselect-picker
+    padding: 0 0.5em
+  a
+    color: white
+
+  background-color: hsl(130, 70%, 30%)
+  font-weight: bold
+  font-family: sans-serif
+  font-size: 0.8em
+  padding: 0.5em 0 0.5em 0.5em
+  background-color: hsl(130,70%,30%)
+  box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 0 1px hsla(0,0%,0%,0.9), inset 0 0 0 2px hsla(0,0%,100%,0.175)
+  text-shadow: 1px 1px hsla(0,0%,0%,0.35)
+
+  &:hover
+    background-color: hsl(130,80%,30%)
+    box-shadow: 0 0 0 1px hsla(0,0%,100%,0.05), inset 0 0 0 1px hsla(0,0%,0%,0.9), inset 0 0 0 2px hsla(0,0%,100%,0.175),  0 0 0.2em hsl(130,80%,30%)
+
+
+.multiselect-picker
+  i
+    font-size: 0.8em
+
+  border-left: 1px solid #444
+  padding: 0 0.2em
 
 .disabled
   color: gray

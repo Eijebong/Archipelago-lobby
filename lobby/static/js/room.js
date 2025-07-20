@@ -79,7 +79,7 @@ for(const multiselect of multiselects) {
 
     const chooser = document.createElement("span")
     const menu = new Menu(chooser)
-    chooser.className = multiselect.dataset.pickerClass || "validation-button"
+    chooser.className = "multiselect-picker"
     chooser.innerHTML = "<i class=\"fa fa-chevron-down\"></i>"
     let first = true
     for (const item of multiselect.children) {
