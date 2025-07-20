@@ -1,0 +1,23 @@
+loader: taskgraph.loader.transform:loader
+
+transforms:
+  - taskgraph.transforms.run
+  - taskgraph.transforms.task
+  - eije_taskgraph.transforms.common:transforms
+
+kind-dependencies:
+  - publish-image-python
+  - rust
+
+tasks:
+  argocd:
+    description: ArgoCD webhook
+    worker-type: argocd-webhook
+    attributes:
+      very-soft-if-deps:
+        - publish-image-python-ap-worker
+        - rust-publish-ap-lobby
+        - rust-publish-apdiff-viewer
+        - rust-publish-community-ap-tools
+    run:
+      using: argocd-webhook

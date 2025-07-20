@@ -12,6 +12,7 @@ task-defaults:
   worker-type-fmt: linux-small
   worker-type-build: linux-medium
   with-tests: true
+  skip-argocd-webhook: true
 
 tasks:
     ap-lobby:
