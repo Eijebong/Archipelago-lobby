@@ -211,6 +211,7 @@ def _inner_run_gen_for_job(job, ctx, ap_handler, root_url, output_dir, wpipe):
                     "multi": 1,
                     "spoiler": 1,
                     "outputpath": output_path,
+                    "spoiler_only": False,
                     "race": False,
                     "meta_file_path": os.path.join(players_dir, "meta.yaml"),
                     "log_level": "info",
