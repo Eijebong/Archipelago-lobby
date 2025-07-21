@@ -1,15 +1,8 @@
 from opentelemetry import trace
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.propagate import set_global_textmap
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from sentry_sdk.integrations.opentelemetry import SentryPropagator, SentrySpanProcessor
-import sentry_sdk
 
 from Generate import roll_settings, PlandoOptions
 from Utils import parse_yamls
-from Options import get_option_groups, OptionDict, Choice
+from Options import get_option_groups, OptionDict
 from worlds.AutoWorld import AutoWorldRegister, call_all, World
 from worlds.generic.Rules import exclusion_rules, locality_rules
 from argparse import Namespace
@@ -17,23 +10,17 @@ from Options import PerGameCommonOptions, StartInventoryPool
 from BaseClasses import CollectionState, MultiWorld, LocationProgressType
 
 import copy
-import os
 import sys
 import tempfile
 import traceback
-from multiprocessing import Process, Pipe
+import sentry_sdk
 
-
-resource = Resource(attributes={
-    SERVICE_NAME: "yaml-validation-worker"
-})
 
 tracer = trace.get_tracer("yaml-checker")
 
 class YamlChecker:
-    def __init__(self, ap_handler, otlp_endpoint):
+    def __init__(self, ap_handler):
         self.ap_handler = ap_handler
-        self.otlp_endpoint = otlp_endpoint
 
     def check(self, yaml_content):
         try:
@@ -64,7 +51,7 @@ class YamlChecker:
                     if weight == 0:
                         continue
 
-                    yaml_for_game = copy.deepcopy(yaml);
+                    yaml_for_game = copy.deepcopy(yaml)
                     for yaml_game in yaml_for_game['game']:
                         yaml_for_game['game'][yaml_game] = 1 if yaml_game == game else 0
 
@@ -98,52 +85,13 @@ class YamlChecker:
 
         return self.check(data)
 
-    def _inner_run_check_for_job(self, params, ctx, wpipe):
-        traceProvider = TracerProvider(resource=resource)
-        if self.otlp_endpoint:
-            processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=self.otlp_endpoint))
-            traceProvider.add_span_processor(processor)
-        else:
-            print("OTLP_ENDPOINT not provided, not enabling otlp exporter")
-
-        if "SENTRY_DSN" in os.environ:
+    def run_check_for_job(self, job):
+        with tracer.start_as_current_span("check_yamls", context=job.ctx) as span:
             try:
-                with open("version") as fd:
-                    version = fd.read().strip()
-            except FileNotFoundError:
-                version = None
-
-            sentry_sdk.init(
-                dsn=os.environ["SENTRY_DSN"],
-                instrumenter="otel",
-                traces_sample_rate=1.0,
-                environment=os.environ.get("ENVIRONMENT", "dev"),
-                release=version
-            )
-            sentry_processor = SentrySpanProcessor()
-            traceProvider.add_span_processor(sentry_processor)
-            set_global_textmap(SentryPropagator())
-
-        trace.set_tracer_provider(traceProvider)
-
-
-        with tracer.start_as_current_span("check_yamls", context=ctx) as span:
-            try:
-                result = self._load_apworlds_and_check(params['apworlds'], params['yaml'])
-                wpipe.send(result)
+                return self._load_apworlds_and_check(job.params['apworlds'], job.params['yaml'])
             except Exception as e:
                 span.record_exception(e)
-                wpipe.send({"error": f"{e}"})
-
-        traceProvider.force_flush()
-        sentry_sdk.flush()
-
-    def run_check_for_job(self, job):
-        rpipe, wpipe = Pipe()
-        p = Process(target=self._inner_run_check_for_job, args=(job.params, job.ctx, wpipe))
-        p.start()
-
-        return rpipe.recv()
+                return {"error": f"{e}"}
 
 
 class DummyWorld(World):
@@ -278,9 +226,9 @@ def check_yaml(game, name, yaml):
         # remove starting inventory from pool items.
         # Because some worlds don't actually create items during create_items this has to be as late as possible.
         if any(getattr(multiworld.worlds[player].options, "start_inventory_from_pool", None) for player in multiworld.player_ids):
-            new_items: List[Item] = []
-            old_items: List[Item] = []
-            depletion_pool: Dict[int, Dict[str, int]] = {
+            new_items = []
+            old_items = []
+            depletion_pool = {
                 player: getattr(multiworld.worlds[player].options,
                                 "start_inventory_from_pool",
                                 StartInventoryPool({})).value.copy()

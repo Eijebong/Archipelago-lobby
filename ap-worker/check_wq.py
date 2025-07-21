@@ -3,27 +3,8 @@ import sys
 import asyncio
 import multiprocessing
 import uuid
-import sentry_sdk
 
 from wq import LobbyQueue, JobStatus
-
-ap_path = os.path.abspath(os.path.dirname(sys.argv[0]))
-sys.path.insert(0, ap_path)
-
-if "SENTRY_DSN" in os.environ:
-    try:
-        with open("version") as fd:
-            version = fd.read().strip()
-    except FileNotFoundError:
-        version = None
-
-    sentry_sdk.init(
-        dsn=os.environ["SENTRY_DSN"],
-        instrumenter="otel",
-        traces_sample_rate=1.0,
-        environment=os.environ.get("ENVIRONMENT", "dev"),
-        release=version
-    )
 
 import handler  # noqa: E402
 import checker  # noqa: E402
@@ -48,42 +29,20 @@ async def main(loop):
         sys.exit(1)
 
     worker_name = str(uuid.uuid4())
-    otlp_endpoint = os.environ.get("OTLP_ENDPOINT")
-
     ap_handler = handler.ApHandler(apworlds_dir, custom_apworlds_dir)
-    ap_checker = checker.YamlChecker(ap_handler, otlp_endpoint)
 
-    async with LobbyQueue(root_url, "yaml_validation", worker_name, token, loop) as q:
-        while True:
-            try:
-                job = await q.claim_job()
-            except Exception as e:
-                print(f"Error while claiming job from lobby: {e}. Retrying in 1s...")
-                await asyncio.sleep(1)
-                continue
+    await YamlCheckerQueue(ap_handler, root_url, worker_name, token, loop).run()
 
-            try:
-                if job is not None:
-                    print(f"Claimed job: {job.job_id}")
-                    await do_a_check(ap_checker, job)
-                continue
-            except Exception as e:
-                print(e)
-                sentry_sdk.capture_exception(e)
+class YamlCheckerQueue(LobbyQueue):
+    def __init__(self, ap_handler, root_url, worker_name, token, loop):
+        super().__init__(root_url, "yaml_validation", worker_name, token, loop)
+        self.ap_handler = ap_handler
+        self.ap_checker = checker.YamlChecker(ap_handler)
 
-                try:
-                    await job.resolve(JobStatus.InternalError, {"error": str(e)})
-                except Exception as e:
-                    print(e)
-                    sentry_sdk.capture_exception(e)
-                    continue
-
-
-async def do_a_check(ap_checker, job):
-    result = ap_checker.run_check_for_job(job)
-    status = JobStatus.Failure if 'error' in result else JobStatus.Success
-    await job.resolve(status, result)
-    print(f"Resolved job {job.job_id} with status {status}")
+    def handle_job(self, job):
+        result = self.ap_checker.run_check_for_job(job)
+        status = JobStatus.Failure if 'error' in result else JobStatus.Success
+        return status, result
 
 
 if __name__ == "__main__":
