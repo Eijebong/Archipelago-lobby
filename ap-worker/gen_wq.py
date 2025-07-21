@@ -233,12 +233,14 @@ def _inner_run_gen_for_job(job, ctx, ap_handler, root_url, output_dir, wpipe):
                 "server_password": None,
             }
 
-            erargs, seed = GenMain(args)
-            ERmain(erargs, seed, baked_server_options=server_options)
+            with tracer.start_as_current_span("ap-gen") as _span:
+                erargs, seed = GenMain(args)
+                ERmain(erargs, seed, baked_server_options=server_options)
         except Exception as e:
             error = traceback.format_exc()
             traceback.print_exc()
             sentry_sdk.capture_exception(e)
+            trace.get_current_span().record_exception(e)
 
             result = {"error": error}
         finally:
