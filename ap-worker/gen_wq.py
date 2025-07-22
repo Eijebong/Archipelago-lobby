@@ -159,11 +159,11 @@ class GenerationQueue(LobbyQueue):
         yamls_url = f"/room/{room_id}/yamls"
         async with aiohttp.ClientSession(self.root_url) as client:
             response = await client.get(yamls_url, headers = { "X-Api-Key": os.environ["LOBBY_API_KEY"] })
-        response.raise_for_status()
+            response.raise_for_status()
 
-        body = io.BytesIO(await response.read())
-        z = zipfile.ZipFile(body)
-        z.extractall(players_dir)
+            body = io.BytesIO(await response.read())
+            z = zipfile.ZipFile(body)
+            z.extractall(players_dir)
 
 
 if __name__ == "__main__":
