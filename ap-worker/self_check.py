@@ -77,7 +77,7 @@ if __name__ == "__main__":
     sys.argv.append(output_folder)
 
     ap_handler = handler.ApHandler(apworlds_dir, custom_apworlds_dir)
-    ap_checker = checker.YamlChecker(ap_handler, None)
+    ap_checker = checker.YamlChecker(ap_handler)
 
     ap_handler.load_apworld(apworld, version)
     yaml_content = generate_template(apworld, world_name)
