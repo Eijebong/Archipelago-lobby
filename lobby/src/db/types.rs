@@ -30,7 +30,7 @@ macro_rules! new_id_type {
         use sql::*;
         use serde::{Deserialize, Serialize};
         $(
-            #[derive(Clone, Copy, Debug, UriDisplayPath, FromForm, Deserialize, Serialize, PartialEq, Eq, Hash)]
+            #[derive(Clone, Copy, Debug, UriDisplayPath, FromForm, Deserialize, Serialize, PartialEq, Eq, Hash, Ord, PartialOrd)]
             #[serde(transparent)]
             #[derive(FromSqlRow, AsExpression)]
             #[diesel(sql_type=$sql_type)]

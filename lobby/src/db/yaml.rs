@@ -132,6 +132,7 @@ pub async fn get_bundles_for_room(
 
     Ok(yamls
         .into_iter()
+        .sorted_by_key(|yaml| yaml.bundle_id)
         .chunk_by(|yaml| yaml.bundle_id)
         .into_iter()
         .map(|(_, yamls)| YamlBundle {
