@@ -134,7 +134,7 @@ pub async fn get_room_stats(conn: &mut AsyncPgConnection) -> Result<Vec<(i64, Ro
         .filter(
             rooms::close_date
                 .gt(now)
-                .or(rooms::updated_at.lt(now - 1.minute())),
+                .or(rooms::updated_at.gt(now - 1.minute())),
         )
         .group_by(rooms::id)
         .select((count(yamls::id), rooms::id))
