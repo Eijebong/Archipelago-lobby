@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::config::DiscordConfig;
+use crate::instrumentation::RoomMetrics;
 use crate::session::{AdminSession, AdminToken, Session};
 use anyhow::Context as _;
 use deadpool::Runtime;
@@ -105,7 +106,7 @@ async fn unauthorized<'r>(req: &'r Request<'r>) -> crate::error::Result<Redirect
 }
 
 #[derive(Clone)]
-struct MetricsRoute(PrometheusMetrics, QueueCounters);
+struct MetricsRoute(PrometheusMetrics, QueueCounters, RoomMetrics);
 
 #[rocket::async_trait]
 impl Handler for MetricsRoute {
@@ -116,11 +117,15 @@ impl Handler for MetricsRoute {
         };
 
         let yaml_validation_queue = req.rocket().state::<YamlValidationQueue>().unwrap();
+        let ctx = req.rocket().state::<Context>().unwrap();
         let stats = yaml_validation_queue.get_stats().await.unwrap();
         self.1.update_queue("yaml_validation", stats);
         let generation_queue = req.rocket().state::<GenerationQueue>().unwrap();
         let stats = generation_queue.get_stats().await.unwrap();
         self.1.update_queue("generation", stats);
+
+        let mut conn = ctx.db_pool.get().await.unwrap();
+        self.2.refresh(&mut conn).await.unwrap();
 
         self.0.handle(req, data).await
     }
@@ -230,6 +235,7 @@ pub async fn main() -> crate::error::Result<()> {
         ),
     ]));
     let queue_counters = QueueCounters::new(prometheus.registry())?;
+    let room_counters = RoomMetrics::new(prometheus.registry())?;
 
     let ctx = Context {
         db_pool,
@@ -246,7 +252,10 @@ pub async fn main() -> crate::error::Result<()> {
         .mount("/", views::gen::routes())
         .mount("/auth/", views::auth::routes())
         .mount("/api/", views::api::routes())
-        .mount("/metrics", MetricsRoute(prometheus, queue_counters))
+        .mount(
+            "/metrics",
+            MetricsRoute(prometheus, queue_counters, room_counters),
+        )
         .mount("/queues", views::queues::routes())
         .register("/", catchers![unauthorized])
         .manage(ctx)

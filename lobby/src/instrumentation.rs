@@ -1,3 +1,6 @@
+use crate::db;
+use crate::error::Result;
+use diesel_async::AsyncPgConnection;
 use prometheus::{IntCounterVec, IntGaugeVec, Opts, Registry};
 use wq::QueueStats;
 
@@ -53,5 +56,35 @@ impl QueueCounters {
         self.jobs_claimed
             .with_label_values(&[queue_name])
             .set(stats.jobs_claimed as i64);
+    }
+}
+
+#[derive(Clone)]
+pub struct RoomMetrics {
+    pub yamls: IntGaugeVec,
+}
+
+impl RoomMetrics {
+    pub fn new(registry: &Registry) -> Result<Self> {
+        let ret = Self {
+            yamls: IntGaugeVec::new(
+                Opts::new("room_yamls_count", "The number of yamls per room"),
+                &["room_id"],
+            )?,
+        };
+
+        registry.register(Box::new(ret.yamls.clone()))?;
+
+        Ok(ret)
+    }
+    pub async fn refresh(&self, conn: &mut AsyncPgConnection) -> Result<()> {
+        let room_stats = db::get_room_stats(conn).await?;
+        for (yaml_count, room_id) in room_stats {
+            self.yamls
+                .with_label_values(&[&room_id.to_string()])
+                .set(yaml_count);
+        }
+
+        Ok(())
     }
 }

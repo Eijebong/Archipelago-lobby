@@ -1,7 +1,7 @@
 use crate::error::Result;
 use crate::schema::{rooms, yamls};
 
-use diesel::dsl::{exists, now, AsSelect, SqlTypeOf};
+use diesel::dsl::{count, exists, now, AsSelect, IntervalDsl, SqlTypeOf};
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
@@ -126,4 +126,18 @@ impl RoomFilter {
         self.open_state = open_state;
         self
     }
+}
+
+pub async fn get_room_stats(conn: &mut AsyncPgConnection) -> Result<Vec<(i64, RoomId)>> {
+    Ok(yamls::table
+        .inner_join(rooms::table.on(yamls::room_id.eq(rooms::id)))
+        .filter(
+            rooms::close_date
+                .gt(now)
+                .or(rooms::updated_at.lt(now - 1.minute())),
+        )
+        .group_by(rooms::id)
+        .select((count(yamls::id), rooms::id))
+        .get_results::<(i64, RoomId)>(conn)
+        .await?)
 }
