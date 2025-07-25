@@ -79,6 +79,7 @@ impl RoomMetrics {
     }
     pub async fn refresh(&self, conn: &mut AsyncPgConnection) -> Result<()> {
         let room_stats = db::get_room_stats(conn).await?;
+        self.yamls.reset();
         for (yaml_count, room_id) in room_stats {
             self.yamls
                 .with_label_values(&[&room_id.to_string()])
