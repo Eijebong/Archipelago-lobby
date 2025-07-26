@@ -25,6 +25,8 @@ impl FeatureExtractor for PokemonCrystal {
     }
     fn extract_features(&self, extractor: &mut Extractor) -> Result<()> {
         extractor.register_feature(YamlFeature::TrainerSanity, "trainersanity")?;
+        extractor.register_feature(YamlFeature::TrainerSanity, "kanto_trainersanity")?;
+        extractor.register_feature(YamlFeature::TrainerSanity, "johto_trainersanity")?;
         extractor.register_feature(YamlFeature::DexSanity, "dexsanity")?;
         extractor.register_feature(YamlFeature::DexSanity, "dexcountsanity")?;
         Ok(())
