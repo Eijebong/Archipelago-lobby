@@ -39,9 +39,8 @@ RUN sh /ap/setup.sh ${BASE_COMMIT} ${FUZZER_COMMIT} ${LINTER_COMMIT} && rm /ap/s
 FROM python:${PYTHON_VERSION}-slim-bookworm
 
 RUN apt update && apt install -y curl libtk8.6
-RUN curl -fsSL https://apt.cli.rs/pubkey.asc | tee -a /usr/share/keyrings/rust-tools.asc
-RUN curl -fsSL https://apt.cli.rs/rust-tools.list -o /etc/apt/sources.list.d/rust-tools.list
-RUN apt update && apt install -y watchexec-cli
+RUN curl -fsSL https://github.com/watchexec/watchexec/releases/download/cli-v1.20.5/watchexec-1.20.5-x86_64-unknown-linux-gnu.deb -o /tmp/watchexec.deb
+RUN dpkg -i /tmp/watchexec.deb
 
 RUN mkdir /ap
 WORKDIR /ap
