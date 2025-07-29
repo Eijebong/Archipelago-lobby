@@ -12,6 +12,8 @@ ENV UV_PYTHON_DOWNLOADS=0
 
 ENV BASE_COMMIT=bcce2b77981c90bfaef907274a494c0994eea78c
 ENV FUZZER_COMMIT=3295847c68834a42a4c0a1301c077e5df6fee71b
+ENV LINTER_COMMIT=46ea18179bb6b203ac268886e18aeaac1dc6e5f9
+
 WORKDIR /ap
 
 # %include ap-worker
@@ -32,7 +34,7 @@ RUN ls -lah /topsrcdir && cp -R /topsrcdir/ap-worker/ /ap/ap-worker/
 COPY prepare_worlds.sh /ap/prepare_worlds.sh
 COPY setup.sh /ap/setup.sh
 
-RUN sh /ap/setup.sh ${BASE_COMMIT} ${FUZZER_COMMIT} && rm /ap/setup.sh
+RUN sh /ap/setup.sh ${BASE_COMMIT} ${FUZZER_COMMIT} ${LINTER_COMMIT} && rm /ap/setup.sh
 
 FROM python:${PYTHON_VERSION}-slim-bookworm
 

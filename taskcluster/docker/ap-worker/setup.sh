@@ -4,6 +4,7 @@ set -ex
 
 BASE_COMMIT=$1
 FUZZER_COMMIT=$2
+LINTER_COMMIT=$3
 
 apt update && apt -y install git zip curl clang python3-dev python3-tk
 
@@ -28,6 +29,7 @@ uv pip install -r worlds/tloz/requirements.txt
 uv pip install -r worlds/tww/requirements.txt
 uv pip install -r worlds/zillion/requirements.txt
 uv run cythonize -a -i _speedups.pyx
+uv pip install git+https://github.com/Eijebong/aplinter@${LINTER_COMMIT}
 git rev-parse HEAD > /ap/archipelago/version
 rm -Rf .git
 
