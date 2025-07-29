@@ -132,7 +132,7 @@ services:
       ROCKET_ADDRESS: "0.0.0.0"
       ROCKET_PORT: 3654
     working_dir: /builds/worker/checkout
-    command: sh -c "watchexec -w apdiff-viewer -w Cargo.toml -w Cargo.lock cargo run --bin apdiff-viewer"
+    command: sh -c "watchexec -w apdiff-viewer -w Cargo.toml -w Cargo.lock -r cargo run --bin apdiff-viewer"
     user: "${USER_ID}:${GID}"
     depends_on:
       vol-setup:
