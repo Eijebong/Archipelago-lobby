@@ -63,10 +63,24 @@ where
     }
 }
 
+#[derive(Deserialize, Debug)]
+struct Annotations {
+    pub ty: u64,
+    pub desc: String,
+    pub severity: u64,
+    pub line: Option<u64>,
+    pub col_start: Option<u64>,
+    pub col_end: Option<u64>,
+    pub extra: Option<String>,
+}
+
 #[derive(Template, WebTemplate)]
 #[template(path = "index.html")]
 struct Index {
-    diffs: Vec<CombinedDiff>,
+    diffs: Vec<(
+        CombinedDiff,
+        BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
+    )>,
 }
 
 #[derive(Template, WebTemplate)]
@@ -80,7 +94,7 @@ async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
     let artifacts = get_task_artifacts(queue, task_id).await?;
     let diff_artifacts = artifacts
         .iter()
-        .filter(|path| path.starts_with("public/diffs/"))
+        .filter(|path| path.starts_with("public/diffs/") && path.ends_with(".apdiff"))
         .collect::<Vec<_>>();
     if diff_artifacts.is_empty() {
         Err(anyhow::anyhow!(
@@ -94,7 +108,31 @@ async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
         let diff = reqwest::get(&diff_url).await?.text().await?;
         let mut deser = serde_json::Deserializer::from_str(&diff);
         let diff: CombinedDiff = serde_path_to_error::deserialize(&mut deser)?;
-        diffs.push(diff);
+
+        let annotations_files = artifacts
+            .iter()
+            .filter(|path| {
+                path.starts_with(&format!("public/diffs/{}", diff.apworld_name))
+                    && path.ends_with(".aplint")
+            })
+            .collect::<Vec<_>>();
+        let mut annotations = BTreeMap::new();
+        for file in &annotations_files {
+            let version = file
+                .strip_prefix(&format!("public/diffs/{}", diff.apworld_name))
+                .unwrap()
+                .strip_suffix(".aplint")
+                .unwrap()
+                .to_string();
+            let aplint_url = queue.getLatestArtifact_url(task_id, file)?;
+            let aplint = reqwest::get(&aplint_url).await?.text().await?;
+            let mut deser = serde_json::Deserializer::from_str(&aplint);
+            let annotation = serde_path_to_error::deserialize(&mut deser)?;
+
+            annotations.insert(version, annotation);
+        }
+
+        diffs.push((diff, annotations));
     }
 
     Ok(Index { diffs })

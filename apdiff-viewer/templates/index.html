@@ -30,11 +30,11 @@
             }
         </script>
         <nav id="nav-menu">
-        {% for world in diffs.iter() %}
+        {% for (world, _) in diffs.iter() %}
             <a href="#{{world.world_name|dashify}}" id="a-tab-{{world.world_name|dashify}}" onclick=switchTab("tab-{{world.world_name|dashify}}")>{{world.world_name}}</a>
         {% endfor %}
         </nav>
-        {% for (world_i, world) in diffs.iter().enumerate() %}
+        {% for (world_i, (world, annotations)) in diffs.iter().enumerate() %}
             <div id="tab-{{world.world_name|dashify}}" class="tab" style="display:none">
                 <ul class="version-list">
                 {% for (i, version) in world.diffs.keys().enumerate() %}
