@@ -1,0 +1,228 @@
+import { DiffFile, DiffModeEnum, DiffView } from "@git-diff-view/react";
+import "@git-diff-view/react/styles/diff-view.css";
+import "./file-diff.css";
+import DiffWorker from "worker-loader!./diff.worker.ts";
+import { useEffect, useRef, useState } from "react";
+
+const w = new DiffWorker();
+
+w.onerror = (e) => {
+    console.error("WORKER ERROR:", e.message, "at", e.filename, ":", e.lineno);
+};
+
+function parseGitDiff(diff: string) {
+    const fileDiffs = diff.split(/(?=diff --git)/); // Split at each file boundary
+    const result: any[] = [];
+
+    fileDiffs.forEach((fileDiff) => {
+        const lines = fileDiff.split("\n");
+        let filenameBefore = "";
+        let filenameAfter = "";
+        var isHunks = false;
+        var hunks = "";
+
+        lines.forEach((line) => {
+            if (line.startsWith("--- ")) {
+                filenameBefore = line.substring(4).trim();
+                hunks += `${line.replace("\r", "")}\n`;
+            } else if (line.startsWith("+++ ")) {
+                filenameAfter = line.substring(4).trim();
+                hunks += `${line.replace("\r", "")}\n`;
+            } else if (line.startsWith("@@")) {
+                isHunks = true;
+                hunks += `${line.replace("\r", "")}\n`;
+            } else if (isHunks) {
+                hunks += `${line.replace("\r", "")}\n`;
+            }
+        });
+
+        hunks = hunks.slice(0, -1);
+
+        if (filenameBefore || filenameAfter) {
+            const file = { filenameBefore, filenameAfter, hunks };
+            result.push(file);
+        }
+    });
+
+    return result;
+}
+
+function FileDiffViewHeader({ diff_content }: { diff_content: any }) {
+    const isAddition = diff_content.filenameBefore === "/dev/null";
+    const isRemoval = diff_content.filenameAfter === "/dev/null";
+
+    const displayFileName = !isRemoval
+        ? diff_content.filenameAfter.slice(2)
+        : diff_content.filenameBefore.slice(2);
+
+    var action = "changed";
+    if (isAddition) {
+        action = "added";
+    } else if (isRemoval) {
+        action = "removed";
+    }
+
+    return (
+        <div className="file-header">
+            <span>{displayFileName}</span>
+            <span className={`action-tag ${action}-tag`}>{action}</span>
+        </div>
+    );
+}
+
+const fileMap = new Map<string, DiffFile>();
+function FileDiffView({
+    diff_content,
+    annotations,
+}: {
+    diff_content: any;
+    annotations: any;
+}) {
+    const [diffFile, setDiffFile] = useState(
+        fileMap.get(diff_content.filenameAfter),
+    );
+    const [isLoading, setLoading] = useState(false);
+    const thisId = useRef(null);
+
+    useEffect(() => {
+        setLoading(true);
+        thisId.current = Math.random();
+        w.postMessage({ id: thisId.current, data: diff_content });
+
+        const cb = (event: MessageEvent<any>) => {
+            if (event.data.id === thisId.current) {
+                const d = DiffFile.createInstance(
+                    event.data.data,
+                    event.data.bundle,
+                );
+                setDiffFile(d);
+                fileMap.set(event.data.data.filenameAfter, d);
+                setLoading(false);
+            }
+        };
+        w.addEventListener("message", cb);
+
+        return () => w.removeEventListener("message", cb);
+    }, [diff_content]);
+
+    const renderExtendLine = ({ data }: any) => {
+        return (
+            <div style={{ backgroundColor: "red", color: "white" }}>
+                {data.desc}
+            </div>
+        );
+    };
+    const fileAnnotations = annotations[diff_content.filenameAfter.slice(2)];
+
+    return (
+        <div>
+            <FileDiffViewHeader diff_content={diff_content} />
+            {!isLoading ? (
+                <DiffView
+                    extendData={{ newFile: fileAnnotations }}
+                    renderExtendLine={renderExtendLine}
+                    diffFile={diffFile}
+                    diffViewTheme="dark"
+                    diffViewHighlight={true}
+                    diffViewMode={DiffModeEnum.Unified}
+                />
+            ) : (
+                <span>Loading file...</span>
+            )}
+        </div>
+    );
+}
+
+function DiffVersionElement({ diff, annotations }: any) {
+    var diff_content = null;
+
+    if (diff[1] !== "VersionRemoved") {
+        diff_content = parseGitDiff(diff[1].VersionAdded);
+    }
+
+    const [_, nextVersion] = diff[0].split("...");
+
+    const versionAnnotations: Record<string, any[]> = annotations[nextVersion];
+    const transformed: Record<string, any> = {};
+
+    if (versionAnnotations) {
+        for (const [fileName, issues] of Object.entries(versionAnnotations)) {
+            transformed[fileName] = {};
+            for (const issue of issues) {
+                const lineNumber = issue.line;
+                transformed[fileName][lineNumber] = { data: { ...issue } };
+            }
+        }
+    }
+
+    if (!nextVersion) return null;
+
+    return (
+        <div id={diff[0]}>
+            <VersionElement version={diff[0]} noRemoval={true} />
+
+            {diff_content.map((diff_file, index) => (
+                <FileDiffView
+                    key={index}
+                    annotations={transformed}
+                    diff_content={diff_file}
+                />
+            ))}
+        </div>
+    );
+}
+
+function VersionElement({
+    version,
+    noRemoval,
+}: {
+    version: string;
+    noRemoval: boolean;
+}) {
+    const [oldVersion, newVersion] = version.split("...");
+
+    if (!oldVersion && newVersion) {
+        return <a href="{`#${newVersion}`}">✅ {newVersion} </a>;
+    }
+
+    if (oldVersion && !newVersion) {
+        if (noRemoval) return null;
+        return <span>❌ {oldVersion}</span>;
+    }
+
+    return (
+        <a href={`#${newVersion}`}>
+            {oldVersion} → {newVersion}
+        </a>
+    );
+}
+
+function DiffElement({ apworld_diff }: any) {
+    const [diffs, annotations] = apworld_diff;
+    return (
+        <>
+            <ul>
+                {Object.entries(diffs.diffs).map((diff: any) => (
+                    <li key={diff[0]}>
+                        <VersionElement
+                            version={diff[0]}
+                            noRemoval={false}
+                        />
+                    </li>
+                ))}
+            </ul>
+
+            <hr />
+
+            {Object.entries(diffs.diffs).map((diff: any) => (
+                <DiffVersionElement
+                    diff={diff}
+                    annotations={annotations}
+                    key={diff[0]}
+                />
+            ))}
+        </>
+    );
+}
+
+export default DiffElement;

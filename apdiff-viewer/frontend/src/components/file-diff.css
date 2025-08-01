@@ -1,0 +1,32 @@
+.file-header {
+    color: white;
+    background: #161b22;
+    padding: 15px 10px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.action-tag {
+    margin-left: 1em;
+    text-transform: capitalize;
+    font-weight: bold;
+    font-variant: all-small-caps;
+    font-size: 10px;
+    padding: 1px;
+}
+
+.added-tag {
+    color: green;
+    border: 1px solid green;
+}
+
+.removed-tag {
+    color: red;
+    border: 1px solid red;
+}
+
+.changed-tag {
+    color: yellow;
+    border: 1px solid yellow;
+}
