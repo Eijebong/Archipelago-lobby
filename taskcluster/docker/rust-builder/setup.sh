@@ -2,13 +2,21 @@
 
 set -e
 
-apt update && apt install -y curl
-curl -fsSL https://apt.cli.rs/pubkey.asc | tee -a /usr/share/keyrings/rust-tools.asc
-curl -fsSL https://apt.cli.rs/rust-tools.list -o /etc/apt/sources.list.d/rust-tools.list
-printf "deb http://httpredir.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/backports.list
+apt update && apt install -y curl yarnpkg
+curl -fsSL https://github.com/watchexec/watchexec/releases/download/cli-v1.20.5/watchexec-1.20.5-x86_64-unknown-linux-gnu.deb -o /tmp/watchexec.deb
+dpkg -i /tmp/watchexec.deb
+cat > /etc/apt/sources.list.d/debian-backports.sources <<EOF
+Types: deb deb-src
+URIs: http://deb.debian.org/debian
+Suites: bookworm-backports
+Components: main
+Enabled: yes
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+EOF
 apt update && apt install -y libpq-dev valkey python3 git libssl-dev pkg-config watchexec-cli liblzma-dev zlib1g-dev
 apt autoremove -y
 rm -rf /var/lib/apt/lists/*
+ln -s /usr/bin/yarnpkg /usr/bin/yarn
 
 rustup component add clippy rustfmt
 

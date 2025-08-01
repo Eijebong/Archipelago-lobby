@@ -6,39 +6,12 @@ use askama_web::WebTemplate;
 use rocket::{
     http::{ContentType, Status},
     response::{self, Responder},
-    routes, Request, Response, State,
+    routes,
+    serde::json::Json,
+    Request, Response, State,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use taskcluster::{ClientBuilder, Queue};
-
-mod filters {
-    use apwm::diff::VersionRange;
-    use askama::Values;
-
-    pub fn fmt_version(range: &VersionRange, _values: &dyn Values) -> askama::Result<String> {
-        Ok(match (&range.0, &range.1) {
-            (None, Some(new_version)) => {
-                format!("<span>✅ {}</span>", new_version)
-            }
-            (Some(old_version), None) => {
-                format!("<span>❌ {}</span>", old_version)
-            }
-            (Some(old_version), Some(new_version)) => {
-                format!("<span>{} -> {}</span>", old_version, new_version)
-            }
-            (None, None) => unreachable!(),
-        })
-    }
-
-    pub fn base64(b64: &String, _values: &dyn Values) -> askama::Result<String> {
-        use base64::Engine;
-        Ok(base64::engine::general_purpose::STANDARD.encode(b64))
-    }
-
-    pub fn dashify(original: &str, _values: &dyn Values) -> askama::Result<String> {
-        Ok(original.replace([' ', '\'', '&', ';'], "-"))
-    }
-}
 
 #[derive(Debug)]
 pub struct Error(pub anyhow::Error);
@@ -63,7 +36,7 @@ where
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 struct Annotations {
     pub ty: u64,
     pub desc: String,
@@ -75,13 +48,8 @@ struct Annotations {
 }
 
 #[derive(Template, WebTemplate)]
-#[template(path = "index.html")]
-struct Index {
-    diffs: Vec<(
-        CombinedDiff,
-        BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
-    )>,
-}
+#[template(path = "index-react.html")]
+struct Index {}
 
 #[derive(Template, WebTemplate)]
 #[template(path = "tests.html")]
@@ -89,8 +57,18 @@ struct TestPage {
     results: TestResults,
 }
 
-#[rocket::get("/<task_id>")]
-async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
+#[rocket::get("/api/diffs/<task_id>")]
+async fn get_task_diffs_api(
+    task_id: &str,
+    queue: &State<Queue>,
+) -> Result<
+    Json<
+        Vec<(
+            CombinedDiff,
+            BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
+        )>,
+    >,
+> {
     let artifacts = get_task_artifacts(queue, task_id).await?;
     let diff_artifacts = artifacts
         .iter()
@@ -112,14 +90,14 @@ async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
         let annotations_files = artifacts
             .iter()
             .filter(|path| {
-                path.starts_with(&format!("public/diffs/{}", diff.apworld_name))
+                path.starts_with(&format!("public/diffs/{}-", diff.apworld_name))
                     && path.ends_with(".aplint")
             })
             .collect::<Vec<_>>();
         let mut annotations = BTreeMap::new();
         for file in &annotations_files {
             let version = file
-                .strip_prefix(&format!("public/diffs/{}", diff.apworld_name))
+                .strip_prefix(&format!("public/diffs/{}-", diff.apworld_name))
                 .unwrap()
                 .strip_suffix(".aplint")
                 .unwrap()
@@ -135,7 +113,12 @@ async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
         diffs.push((diff, annotations));
     }
 
-    Ok(Index { diffs })
+    Ok(Json(diffs))
+}
+
+#[rocket::get("/<_task_id>")]
+async fn get_task_diffs(_task_id: &str) -> Result<Index> {
+    return Ok(Index {});
 }
 
 #[derive(Deserialize)]
@@ -185,8 +168,25 @@ async fn get_test_results(task_id: &str, queue: &State<Queue>) -> Result<TestPag
 #[folder = "./static/"]
 struct Asset;
 
-#[rocket::get("/static/<file..>")]
+#[derive(rust_embed::RustEmbed)]
+#[folder = "./frontend/build"]
+struct Dist;
+
+#[rocket::get("/dist/<file..>")]
 fn dist(file: PathBuf) -> Option<(ContentType, Cow<'static, [u8]>)> {
+    let filename = file.display().to_string();
+    let asset = Dist::get(&filename)?;
+    let content_type = file
+        .extension()
+        .and_then(OsStr::to_str)
+        .and_then(ContentType::from_extension)
+        .unwrap_or(ContentType::Bytes);
+
+    Some((content_type, asset.data))
+}
+
+#[rocket::get("/static/<file..>")]
+fn dist_static(file: PathBuf) -> Option<(ContentType, Cow<'static, [u8]>)> {
     let filename = file.display().to_string();
     let asset = Asset::get(&filename)?;
     let content_type = file
@@ -207,7 +207,16 @@ async fn main() -> anyhow::Result<()> {
 
     rocket::build()
         .manage(queue)
-        .mount("/", routes![get_task_diffs, dist, get_test_results])
+        .mount(
+            "/",
+            routes![
+                get_task_diffs,
+                dist_static,
+                dist,
+                get_test_results,
+                get_task_diffs_api
+            ],
+        )
         .launch()
         .await
         .unwrap();

@@ -10,7 +10,7 @@ askama = { version = "0.14" }
 askama_web = { version = "0.14", features = ["rocket-0.5"] }
 dotenvy = "0.15.7"
 reqwest = { version = "0.12.7", features = ["gzip", "json"] }
-rocket = "0.5.1"
+rocket = { version = "0.5.1", features = ["json"] }
 rust-embed = { version = "8.5.0", features = ["rocket"] }
 taskcluster = "86"
 tokio = { version = "1.40.0", features = ["rt-multi-thread", "macros"] }
