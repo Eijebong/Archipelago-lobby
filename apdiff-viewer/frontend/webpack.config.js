@@ -1,5 +1,6 @@
 const path = require('path');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = (_, { mode }) => ({
     context: __dirname,
@@ -12,6 +13,8 @@ module.exports = (_, { mode }) => ({
         publicPath: '/dist/',
         filename: 'bundle.js',
         globalObject: 'this',
+        chunkFilename: '[name].[contenthash].js',
+        filename: '[name].[contenthash].js',
     },
     module: {
         rules: [
@@ -44,6 +47,7 @@ module.exports = (_, { mode }) => ({
         filename: 'style.css',
         ignoreOrder: false,
       }),
+      new HtmlWebpackPlugin({title: "AP diff viewer"}),
     ],
     resolve: {
         extensions: ['.tsx', '.ts', '.js', '.css'],

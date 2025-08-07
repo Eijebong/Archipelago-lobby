@@ -48,7 +48,7 @@ struct Annotations {
 }
 
 #[derive(Template, WebTemplate)]
-#[template(path = "index-react.html")]
+#[template(path = "../frontend/build/index.html")]
 struct Index {}
 
 #[derive(Template, WebTemplate)]
