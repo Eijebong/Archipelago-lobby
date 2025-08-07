@@ -18,6 +18,7 @@ function parseGitDiff(diff: string) {
         const lines = fileDiff.split("\n");
         let filenameBefore = "";
         let filenameAfter = "";
+        let isBinary = false;
         var hunks = "";
 
         if (lines[0].startsWith("diff --git")) {
@@ -29,12 +30,15 @@ function parseGitDiff(diff: string) {
 
         lines.forEach((line) => {
             hunks += `${line.replace("\r", "")}\n`;
+            if(line.startsWith("Binary files")) {
+                isBinary = true
+            }
         });
 
         hunks = hunks.slice(0, -1);
 
         if (filenameBefore || filenameAfter) {
-            const file = { filenameBefore, filenameAfter, hunks };
+            const file = { filenameBefore, filenameAfter, hunks, isBinary };
             result.push(file);
         }
     });
@@ -102,7 +106,7 @@ function FileDiffView({
 
     const renderExtendLine = ({ data }: any) => {
         return (
-            <div style={{ backgroundColor: "red", color: "white" }}>
+            <div style={{ backgroundColor: "#610505", color: "white" }}>
                 {data.desc}
             </div>
         );
@@ -113,6 +117,7 @@ function FileDiffView({
         <div>
             <FileDiffViewHeader diff_content={diff_content} />
             {!isLoading ? (
+                diff_content.isBinary ? <div style={{backgroundColor: "#610505", "color": "white"}}>Binary file</div> :
                 <DiffView
                     extendData={{ newFile: fileAnnotations }}
                     renderExtendLine={renderExtendLine}
@@ -120,6 +125,9 @@ function FileDiffView({
                     diffViewTheme="dark"
                     diffViewHighlight={true}
                     diffViewMode={DiffModeEnum.Unified}
+                    style={{
+                        marginBottom: "1em"
+                    }}
                 />
             ) : (
                 <span>Loading file...</span>
