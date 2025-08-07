@@ -18,22 +18,17 @@ function parseGitDiff(diff: string) {
         const lines = fileDiff.split("\n");
         let filenameBefore = "";
         let filenameAfter = "";
-        var isHunks = false;
         var hunks = "";
 
+        if (lines[0].startsWith("diff --git")) {
+            const regex = /^diff --git a\/([^ ]+) b\/([^ ]+)$/;
+            const match = lines[0].match(regex)
+            filenameBefore = match[1]
+            filenameAfter = match[2]
+        }
+
         lines.forEach((line) => {
-            if (line.startsWith("--- ")) {
-                filenameBefore = line.substring(4).trim();
-                hunks += `${line.replace("\r", "")}\n`;
-            } else if (line.startsWith("+++ ")) {
-                filenameAfter = line.substring(4).trim();
-                hunks += `${line.replace("\r", "")}\n`;
-            } else if (line.startsWith("@@")) {
-                isHunks = true;
-                hunks += `${line.replace("\r", "")}\n`;
-            } else if (isHunks) {
-                hunks += `${line.replace("\r", "")}\n`;
-            }
+            hunks += `${line.replace("\r", "")}\n`;
         });
 
         hunks = hunks.slice(0, -1);
@@ -52,8 +47,8 @@ function FileDiffViewHeader({ diff_content }: { diff_content: any }) {
     const isRemoval = diff_content.filenameAfter === "/dev/null";
 
     const displayFileName = !isRemoval
-        ? diff_content.filenameAfter.slice(2)
-        : diff_content.filenameBefore.slice(2);
+        ? diff_content.filenameAfter
+        : diff_content.filenameBefore;
 
     var action = "changed";
     if (isAddition) {
