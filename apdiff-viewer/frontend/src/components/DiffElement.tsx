@@ -22,7 +22,7 @@ function parseGitDiff(diff: string) {
         var hunks = "";
 
         if (lines[0].startsWith("diff --git")) {
-            const regex = /^diff --git a\/([^ ]+) b\/([^ ]+)$/;
+            const regex = /^diff --git a\/(.+?) b\/(.+?)$/;
             const match = lines[0].match(regex)
             filenameBefore = match[1]
             filenameAfter = match[2]
