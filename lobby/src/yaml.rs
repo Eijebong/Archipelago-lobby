@@ -359,7 +359,9 @@ pub fn get_ap_player_name<'a>(
             }),
         );
 
-    new_name.trim_start()[..std::cmp::min(new_name.len(), 16)]
+    let new_name = new_name.trim_start();
+
+    new_name[..std::cmp::min(new_name.len(), 16)]
         .trim_end()
         .to_string()
 }
@@ -611,5 +613,23 @@ mod tests {
         assert_eq!(get_ap_player_name("FoO{NUMBER}", &mut counter), "FoO5");
         assert_eq!(get_ap_player_name("foo{player}", &mut counter), "foo8");
         assert_eq!(get_ap_player_name("foo{NUMBER}", &mut counter), "foo6");
+    }
+
+    #[test]
+    fn test_ap_name_trim_length() {
+        let mut counter = Counter::new();
+        assert_eq!(get_ap_player_name(&format!("{ :<13}", "abc"), &mut counter), "abc");
+        assert_eq!(get_ap_player_name(&format!("{ :>13}", "abc"), &mut counter), "abc");
+
+        // Yes that is AP's behavior
+        assert_eq!(get_ap_player_name(&format!("{ :>32}", "abc{NUMBER}"), &mut counter), "abc");
+        assert_eq!(get_ap_player_name(&format!("{ :<32}", "abc{NUMBER}"), &mut counter), "abc");
+        assert_eq!(get_ap_player_name(&format!("{ :<33}", "abc{number}"), &mut counter), "abc1");
+        assert_eq!(get_ap_player_name(&format!("{ :>33}", "abc{number}"), &mut counter), "abc1");
+        assert_eq!(get_ap_player_name(&format!("{ :>32}", "abc{NUMBER}"), &mut counter), "abc2");
+        assert_eq!(get_ap_player_name(&format!("{ :<32}", "abc{NUMBER}"), &mut counter), "abc2");
+        assert_eq!(get_ap_player_name(&format!("{ :<33}", "abc{number}"), &mut counter), "abc2");
+        assert_eq!(get_ap_player_name(&format!("{ :>33}", "abc{number}"), &mut counter), "abc2");
+
     }
 }
