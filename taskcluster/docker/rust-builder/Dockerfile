@@ -1,4 +1,4 @@
-FROM rust:1.85-slim-bookworm
+FROM rust:1.89-slim-bookworm
 
 COPY setup.sh setup.sh
 RUN bash ./setup.sh
