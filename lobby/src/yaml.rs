@@ -618,32 +618,92 @@ mod tests {
     #[test]
     fn test_ap_name_trim_length() {
         let mut counter = Counter::new();
-        assert_eq!(get_ap_player_name(&format!("{ :<13}", "abc"), &mut counter), "abc");
-        assert_eq!(get_ap_player_name(&format!("{ :>13}", "abc"), &mut counter), "abc");
+        assert_eq!(
+            get_ap_player_name(&format!("{ :<13}", "abc"), &mut counter),
+            "abc"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{ :>13}", "abc"), &mut counter),
+            "abc"
+        );
 
         // Yes that is AP's behavior
-        assert_eq!(get_ap_player_name(&format!("{ :>32}", "abc{NUMBER}"), &mut counter), "abc");
-        assert_eq!(get_ap_player_name(&format!("{ :<32}", "abc{NUMBER}"), &mut counter), "abc");
-        assert_eq!(get_ap_player_name(&format!("{ :<33}", "abc{number}"), &mut counter), "abc1");
-        assert_eq!(get_ap_player_name(&format!("{ :>33}", "abc{number}"), &mut counter), "abc1");
-        assert_eq!(get_ap_player_name(&format!("{ :>32}", "abc{NUMBER}"), &mut counter), "abc2");
-        assert_eq!(get_ap_player_name(&format!("{ :<32}", "abc{NUMBER}"), &mut counter), "abc2");
-        assert_eq!(get_ap_player_name(&format!("{ :<33}", "abc{number}"), &mut counter), "abc2");
-        assert_eq!(get_ap_player_name(&format!("{ :>33}", "abc{number}"), &mut counter), "abc2");
+        assert_eq!(
+            get_ap_player_name(&format!("{ :>32}", "abc{NUMBER}"), &mut counter),
+            "abc"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{ :<32}", "abc{NUMBER}"), &mut counter),
+            "abc"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{ :<33}", "abc{number}"), &mut counter),
+            "abc1"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{ :>33}", "abc{number}"), &mut counter),
+            "abc1"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{ :>32}", "abc{NUMBER}"), &mut counter),
+            "abc2"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{ :<32}", "abc{NUMBER}"), &mut counter),
+            "abc2"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{ :<33}", "abc{number}"), &mut counter),
+            "abc2"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{ :>33}", "abc{number}"), &mut counter),
+            "abc2"
+        );
     }
 
     #[test]
     fn test_ap_name_overflow_with_number() {
         let mut counter = Counter::new();
-        assert_eq!(get_ap_player_name(&format!("{ :<16}{{NUMBER}}", "abc"), &mut counter), "abc");
-        assert_eq!(get_ap_player_name(&format!("{ :<16}{{NUMBER}}", "abc"), &mut counter), "abc");
-        assert_eq!(get_ap_player_name(&format!("{ :>16}{{NUMBER}}", "abc"), &mut counter), "abc");
-        assert_eq!(get_ap_player_name(&format!("{ :>16}{{NUMBER}}", "abc"), &mut counter), "abc2");
-        assert_eq!(get_ap_player_name(&format!("{:f>16}{{NUMBER}}", "abc"), &mut counter), "fffffffffffffabc");
-        assert_eq!(get_ap_player_name(&format!("{:f>16}{{NUMBER}}", "abc"), &mut counter), "fffffffffffffabc");
-        assert_eq!(get_ap_player_name(&format!("{:f>17}{{NUMBER}}", "abc"), &mut counter), "ffffffffffffffab");
-        assert_eq!(get_ap_player_name(&format!("{:f>17}{{NUMBER}}", "abc"), &mut counter), "ffffffffffffffab");
-        assert_eq!(get_ap_player_name(&format!("{:f>15}{{NUMBER}}", "abc"), &mut counter), "ffffffffffffabc");
-        assert_eq!(get_ap_player_name(&format!("{:f>15}{{NUMBER}}", "abc"), &mut counter), "ffffffffffffabc2");
+        assert_eq!(
+            get_ap_player_name(&format!("{ :<16}{{NUMBER}}", "abc"), &mut counter),
+            "abc"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{ :<16}{{NUMBER}}", "abc"), &mut counter),
+            "abc"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{ :>16}{{NUMBER}}", "abc"), &mut counter),
+            "abc"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{ :>16}{{NUMBER}}", "abc"), &mut counter),
+            "abc2"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{:f>16}{{NUMBER}}", "abc"), &mut counter),
+            "fffffffffffffabc"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{:f>16}{{NUMBER}}", "abc"), &mut counter),
+            "fffffffffffffabc"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{:f>17}{{NUMBER}}", "abc"), &mut counter),
+            "ffffffffffffffab"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{:f>17}{{NUMBER}}", "abc"), &mut counter),
+            "ffffffffffffffab"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{:f>15}{{NUMBER}}", "abc"), &mut counter),
+            "ffffffffffffabc"
+        );
+        assert_eq!(
+            get_ap_player_name(&format!("{:f>15}{{NUMBER}}", "abc"), &mut counter),
+            "ffffffffffffabc2"
+        );
     }
 }
