@@ -48,7 +48,7 @@ async fn gen_room(
     room_id: RoomId,
     session: LoggedInSession,
     ctx: &State<Context>,
-) -> Result<GenRoomTpl> {
+) -> Result<GenRoomTpl<'_>> {
     let mut conn = ctx.db_pool.get().await?;
     let room = db::get_room(room_id, &mut conn).await?;
     let is_my_room = session.0.is_admin || session.user_id() == room.settings.author_id;

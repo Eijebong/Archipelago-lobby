@@ -129,7 +129,7 @@ impl ServerCertVerifier for NoVerifier {
 }
 
 #[tracing::instrument]
-fn establish_connection(config: &str) -> BoxFuture<ConnectionResult<AsyncPgConnection>> {
+fn establish_connection(config: &str) -> BoxFuture<'_, ConnectionResult<AsyncPgConnection>> {
     let fut = async {
         let rustls_config = rustls::ClientConfig::builder()
             .dangerous()

@@ -58,7 +58,7 @@ async fn list_worlds<'a>(
 async fn download_all(
     index_manager: &State<IndexManager>,
     _session: LoggedInSession,
-) -> Result<ZipFile> {
+) -> Result<ZipFile<'_>> {
     let index = index_manager.index.read().await.clone();
     let manifest = Manifest::from_index_with_default_versions(&index)?;
     Ok(index_manager.download_apworlds(&manifest).await?)

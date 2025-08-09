@@ -161,7 +161,7 @@ impl Manifest {
     pub fn resolve_with(
         &self,
         index: &Index,
-    ) -> (BTreeMap<String, (World, Version)>, Vec<ResolveError>) {
+    ) -> (BTreeMap<String, (World, Version)>, Vec<ResolveError<'_>>) {
         let mut resolve_errors = vec![];
         let mut ret = BTreeMap::new();
 
@@ -204,7 +204,7 @@ impl Manifest {
         &self,
         world: &World,
         version_requirement: &VersionReq,
-    ) -> Result<(World, Version), ResolveError> {
+    ) -> Result<(World, Version), ResolveError<'_>> {
         let resolved = match version_requirement {
             VersionReq::LatestSupported => world.get_latest_supported_release(),
             VersionReq::Latest => world.get_latest_release(),

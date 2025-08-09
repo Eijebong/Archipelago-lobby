@@ -50,7 +50,7 @@ impl ManifestFormBuilder {
             .collect::<Vec<_>>()
     }
 
-    pub fn rows(&self) -> Vec<ManifestFormRow> {
+    pub fn rows(&self) -> Vec<ManifestFormRow<'_>> {
         let mut rows = Vec::with_capacity(self.index.worlds.len());
         for (apworld_name, world) in &self.index.worlds {
             let enabled = self.manifest.is_enabled(apworld_name);

@@ -88,7 +88,7 @@ impl IndexManager {
         Some((path, version.clone()))
     }
 
-    pub async fn download_apworlds(&self, manifest: &Manifest) -> Result<ZipFile> {
+    pub async fn download_apworlds(&self, manifest: &Manifest) -> Result<ZipFile<'_>> {
         let mut writer = zip::ZipWriter::new(std::io::Cursor::new(vec![]));
         let options = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Stored);
