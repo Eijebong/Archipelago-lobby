@@ -118,7 +118,7 @@ async fn get_task_diffs_api(
 
 #[rocket::get("/<_task_id>")]
 async fn get_task_diffs(_task_id: &str) -> Result<Index> {
-    return Ok(Index {});
+    Ok(Index {})
 }
 
 #[derive(Deserialize)]

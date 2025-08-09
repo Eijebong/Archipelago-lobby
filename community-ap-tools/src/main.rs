@@ -84,7 +84,7 @@ fn root(
         .sort_by_key(|slot| slot.status.clone());
 
     ap_room.tracker_info.slots.sort_by_key(|slot| {
-        match filters::slot_status(&slot, &()).unwrap_or("green") {
+        match filters::slot_status(slot, &()).unwrap_or("green") {
             "green" => 2,
             "yellow" => 1,
             "red" => 0,
@@ -96,16 +96,16 @@ fn root(
         .tracker_info
         .slots
         .iter()
-        .filter_map(|slot| {
+        .filter(|slot| {
             if slot.status != SlotStatus::Disconnected {
-                return None;
+                return false;
             }
 
             if slot.checks.0 != 0 {
-                return None;
+                return false;
             }
 
-            return Some(slot);
+            true
         })
         .unique_by(|slot| &lobby_room.yamls.get(slot.id - 1).unwrap().discord_handle)
         .cloned()

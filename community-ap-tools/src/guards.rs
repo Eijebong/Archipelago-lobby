@@ -80,7 +80,7 @@ impl Display for SlotStatus {
             Self::Disconnected => f.write_str("Disconnected"),
             Self::Connected => f.write_str("Connected"),
             Self::Ready => f.write_str("Ready"),
-            Self::Unkown(s) => f.write_fmt(format_args!("Unknown ({})", s)),
+            Self::Unkown(s) => f.write_fmt(format_args!("Unknown ({s})")),
         }
     }
 }

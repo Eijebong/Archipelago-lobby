@@ -21,7 +21,7 @@ pub fn slot_status<'a>(slot: &'a SlotInfo, _values: &'a dyn Values) -> askama::R
             return Ok("yellow");
         }
 
-        return Ok("green");
+        Ok("green")
     } else {
         let Some(last_activity) = slot.last_activity else {
             return Ok("yellow");
@@ -35,7 +35,7 @@ pub fn slot_status<'a>(slot: &'a SlotInfo, _values: &'a dyn Values) -> askama::R
             return Ok("yellow");
         }
 
-        return Ok("green");
+        Ok("green")
     }
 }
 

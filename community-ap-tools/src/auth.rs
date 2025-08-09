@@ -42,11 +42,11 @@ impl Session {
             return session;
         }
 
-        return Session {
+        Session {
             user_id: None,
             is_logged_in: false,
             redirect_on_login: None,
-        };
+        }
     }
 
     pub fn save(&self, cookies: &CookieJar) -> Result<()> {
@@ -97,10 +97,10 @@ fn login(
     redirect: Option<String>,
     cookies: &CookieJar,
 ) -> Result<Redirect> {
-    if let Some(redirect) = redirect {
-        if redirect.starts_with('/') {
-            session.redirect_on_login = Some(redirect);
-        }
+    if let Some(redirect) = redirect
+        && redirect.starts_with('/')
+    {
+        session.redirect_on_login = Some(redirect);
     }
 
     session.save(cookies)?;
@@ -112,7 +112,7 @@ fn login(
 fn logout(cookies: &CookieJar<'_>) -> Redirect {
     cookies.remove_private("apsession");
 
-    return Redirect::to("/");
+    Redirect::to("/")
 }
 
 #[get("/oauth")]
@@ -213,7 +213,7 @@ async fn get_discord_user(client: &reqwest::Client, token: &str) -> Result<Disco
     );
     request.headers_mut().insert(
         "Authorization",
-        HeaderValue::from_str(&format!("Bearer {}", token))?,
+        HeaderValue::from_str(&format!("Bearer {token}"))?,
     );
     let response = client.execute(request).await?;
     let body = response.text().await?;

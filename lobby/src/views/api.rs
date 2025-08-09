@@ -136,7 +136,7 @@ pub(crate) async fn download_bundle<'a>(
 
 #[get("/room/<room_id>/info/<yaml_id>")]
 #[tracing::instrument(skip(ctx))]
-pub(crate) async fn yaml_info<'a>(
+pub(crate) async fn yaml_info(
     room_id: RoomId,
     yaml_id: YamlId,
     ctx: &State<Context>,
@@ -158,7 +158,7 @@ pub(crate) async fn yaml_info<'a>(
 
 #[get("/room/<room_id>/retry/<yaml_id>")]
 #[tracing::instrument(skip(session, index_manager, yaml_validation_queue, ctx))]
-pub(crate) async fn retry_yaml<'a>(
+pub(crate) async fn retry_yaml(
     room_id: RoomId,
     yaml_id: YamlId,
     session: LoggedInSession,

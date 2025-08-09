@@ -233,7 +233,7 @@ async fn edit_tpl_submit<'a>(
 
 #[get("/room-templates/<tpl_id>/delete")]
 #[tracing::instrument(skip(ctx, session))]
-async fn delete_template<'a>(
+async fn delete_template(
     ctx: &State<Context>,
     tpl_id: RoomTemplateId,
     session: LoggedInSession,

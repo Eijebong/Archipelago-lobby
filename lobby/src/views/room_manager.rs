@@ -235,7 +235,7 @@ async fn edit_room<'a>(
 
 #[get("/edit-room/<room_id>/delete")]
 #[tracing::instrument(skip(ctx, session))]
-async fn delete_room<'a>(
+async fn delete_room(
     ctx: &State<Context>,
     room_id: RoomId,
     session: LoggedInSession,

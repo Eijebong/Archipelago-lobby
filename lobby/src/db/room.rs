@@ -439,7 +439,7 @@ pub async fn update_room<'a>(
 }
 
 #[tracing::instrument(skip(conn))]
-pub async fn update_room_manifest<'a>(
+pub async fn update_room_manifest(
     room_id: RoomId,
     new_manifest: &Manifest,
     conn: &mut AsyncPgConnection,
