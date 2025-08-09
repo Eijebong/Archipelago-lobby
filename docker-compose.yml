@@ -30,7 +30,6 @@ services:
     volumes:
       - cargo:/tmp/cargo
       - ./target:/builds/target
-      - ./target_apdiff:/builds/target
       - ./tmp/apworlds_index:/builds/apworlds_index
       - ./tmp/gen-output:/builds/gen-output
     command: chown -R ${USER_ID}:${GID} /tmp/cargo /builds
@@ -117,28 +116,6 @@ services:
     depends_on:
       lobby:
         condition: service_healthy
-
-  apdiff-viewer:
-    build: taskcluster/docker/rust-builder
-    volumes:
-      - .:/builds/worker/checkout
-      - ./target_apdiff:/builds/target
-      - cargo:/builds/cargo
-    environment:
-      CARGO_HOME: /builds/cargo
-      CARGO_TARGET_DIR: /builds/target
-      RUST_LOG: debug
-      TASKCLUSTER_ROOT_URL: "https://taskcluster.bananium.fr"
-      ROCKET_ADDRESS: "0.0.0.0"
-      ROCKET_PORT: 3654
-    working_dir: /builds/worker/checkout
-    command: sh -c "watchexec -w apdiff-viewer -w Cargo.toml -w Cargo.lock -r cargo run --bin apdiff-viewer"
-    user: "${USER_ID}:${GID}"
-    depends_on:
-      vol-setup:
-        condition: service_completed_successfully
-    ports:
-      - "3654:3654"
 
 volumes:
   cargo: {}
