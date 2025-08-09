@@ -329,12 +329,13 @@ async fn validate_yaml(
 }
 
 pub fn get_ap_player_name<'a>(
-    original_name: &'a String,
+    original_name: &'a str,
     player_counter: &'a mut Counter<String>,
 ) -> String {
-    player_counter[original_name] += 1;
+    let lowercase_name = original_name.to_lowercase();
+    player_counter[&lowercase_name] += 1;
 
-    let number = player_counter[original_name];
+    let number = player_counter[&lowercase_name];
     let player = player_counter.total::<usize>();
 
     #[allow(clippy::literal_string_with_formatting_args)]
@@ -521,4 +522,94 @@ pub async fn queue_yaml_validation(
         .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use counter::Counter;
+
+    use crate::yaml::get_ap_player_name;
+
+    #[test]
+    fn test_simple_ap_name() {
+        let mut counter = Counter::new();
+        assert_eq!(get_ap_player_name("foo", &mut counter), "foo");
+        assert_eq!(get_ap_player_name("foo", &mut counter), "foo");
+        assert_eq!(counter.get("foo"), Some(&2));
+        assert_eq!(get_ap_player_name("bar", &mut counter), "bar");
+        assert_eq!(counter.get("bar"), Some(&1));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_ap_name_with_NUMBER() {
+        let mut counter = Counter::new();
+        assert_eq!(get_ap_player_name("foo{NUMBER}", &mut counter), "foo");
+        assert_eq!(get_ap_player_name("foo{NUMBER}", &mut counter), "foo2");
+        assert_eq!(get_ap_player_name("foo{NUMBER}", &mut counter), "foo3");
+        assert_eq!(get_ap_player_name("foo{NUMBER}", &mut counter), "foo4");
+        assert_eq!(get_ap_player_name("bar{NUMBER}", &mut counter), "bar");
+        assert_eq!(get_ap_player_name("bar{NUMBER}", &mut counter), "bar2");
+        assert_eq!(get_ap_player_name("baz", &mut counter), "baz");
+    }
+
+    #[test]
+    fn test_ap_name_with_number() {
+        let mut counter = Counter::new();
+        assert_eq!(get_ap_player_name("foo{number}", &mut counter), "foo1");
+        assert_eq!(get_ap_player_name("foo{number}", &mut counter), "foo2");
+        assert_eq!(get_ap_player_name("foo{number}", &mut counter), "foo3");
+        assert_eq!(get_ap_player_name("foo{number}", &mut counter), "foo4");
+        assert_eq!(get_ap_player_name("bar{number}", &mut counter), "bar1");
+        assert_eq!(get_ap_player_name("bar{number}", &mut counter), "bar2");
+        assert_eq!(get_ap_player_name("baz", &mut counter), "baz");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_ap_name_with_PLAYER() {
+        let mut counter = Counter::new();
+        assert_eq!(get_ap_player_name("foo{PLAYER}", &mut counter), "foo");
+        assert_eq!(get_ap_player_name("foo{PLAYER}", &mut counter), "foo2");
+        assert_eq!(get_ap_player_name("foo{PLAYER}", &mut counter), "foo3");
+        assert_eq!(get_ap_player_name("foo{PLAYER}", &mut counter), "foo4");
+        assert_eq!(get_ap_player_name("bar{PLAYER}", &mut counter), "bar5");
+        assert_eq!(get_ap_player_name("bar{PLAYER}", &mut counter), "bar6");
+        assert_eq!(get_ap_player_name("baz", &mut counter), "baz");
+    }
+
+    #[test]
+    fn test_ap_name_with_player() {
+        let mut counter = Counter::new();
+        assert_eq!(get_ap_player_name("foo{player}", &mut counter), "foo1");
+        assert_eq!(get_ap_player_name("foo{player}", &mut counter), "foo2");
+        assert_eq!(get_ap_player_name("foo{player}", &mut counter), "foo3");
+        assert_eq!(get_ap_player_name("foo{player}", &mut counter), "foo4");
+        assert_eq!(get_ap_player_name("bar{player}", &mut counter), "bar5");
+        assert_eq!(get_ap_player_name("bar{player}", &mut counter), "bar6");
+        assert_eq!(get_ap_player_name("baz", &mut counter), "baz");
+    }
+
+    #[test]
+    fn test_ap_name_with_mix_number_player() {
+        let mut counter = Counter::new();
+        assert_eq!(get_ap_player_name("foo{number}", &mut counter), "foo1");
+        assert_eq!(get_ap_player_name("foo{player}", &mut counter), "foo2");
+        assert_eq!(get_ap_player_name("foo{number}", &mut counter), "foo2");
+        assert_eq!(get_ap_player_name("foo{player}", &mut counter), "foo4");
+    }
+
+    #[test]
+    fn test_ap_name_case_insensitive() {
+        let mut counter = Counter::new();
+        assert_eq!(get_ap_player_name("fOO", &mut counter), "fOO");
+        assert_eq!(get_ap_player_name("FOO{number}", &mut counter), "FOO1");
+        assert_eq!(get_ap_player_name("foo{number}", &mut counter), "foo2");
+        assert_eq!(get_ap_player_name("foo{NUMBER}", &mut counter), "foo3");
+        assert_eq!(get_ap_player_name("FOO{NUMBER}", &mut counter), "FOO4");
+        assert_eq!(get_ap_player_name("foo{player}", &mut counter), "foo6");
+        assert_eq!(get_ap_player_name("FoO{NUMBER}", &mut counter), "FoO5");
+        assert_eq!(get_ap_player_name("foo{player}", &mut counter), "foo8");
+        assert_eq!(get_ap_player_name("foo{NUMBER}", &mut counter), "foo6");
+    }
 }
