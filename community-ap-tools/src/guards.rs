@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr, sync::OnceLock};
+use std::{collections::BTreeMap, fmt::Display, str::FromStr, sync::OnceLock};
 
 use aprs::proto::server::DataPackage;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -141,6 +141,8 @@ pub struct ApMsg {
 pub struct DPackage(Vec<ApMsg>);
 
 pub static DATA_PACKAGE: OnceLock<DataPackage> = OnceLock::new();
+pub static SLOT_MAPPING: OnceLock<BTreeMap<usize, String>> = OnceLock::new();
+
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for ApRoom {
     type Error = crate::error::Error;
@@ -157,6 +159,14 @@ impl<'r> FromRequest<'r> for ApRoom {
             .await
         );
         let room_status: RoomStatus = try_err_outcome!(result.json().await);
+
+        if SLOT_MAPPING.get().is_none() {
+            let response = try_err_outcome!(reqwest::get(config.ap_room_url.clone()).await);
+            let body = try_err_outcome!(response.text().await);
+            let slots = try_err_outcome!(parse_room(body));
+
+            SLOT_MAPPING.set(slots).unwrap();
+        }
 
         let tracker_url = try_err_outcome!(Url::from_str(&format!(
             "https://archipelago.gg/tracker/{}",
@@ -176,7 +186,6 @@ impl<'r> FromRequest<'r> for ApRoom {
             let raw_datapackage = socket.read().unwrap();
             socket.close(None).unwrap();
 
-            dbg!(&raw_datapackage);
             let mut dp: DPackage =
                 serde_json::from_str(raw_datapackage.to_text().unwrap()).unwrap();
             dp.0.pop().unwrap().data
@@ -194,6 +203,35 @@ fn suuid(uuid: Uuid) -> String {
     URL_SAFE_NO_PAD.encode(uuid.as_bytes())
 }
 
+fn parse_room(body: String) -> crate::error::Result<BTreeMap<usize, String>> {
+    let mut slots = BTreeMap::new();
+    let html = Html::parse_document(&body);
+    let slot_lines_selector = Selector::parse("#slots-table > tbody > tr").unwrap();
+    let slot_lines = html.select(&slot_lines_selector);
+    let td_selector = Selector::parse("td").unwrap();
+    let a_selector = Selector::parse("a").unwrap();
+
+    for slot_line in slot_lines {
+        let mut cells = slot_line.select(&td_selector);
+        let slot_id = cells.next().unwrap().inner_html().trim().parse::<usize>()?;
+        let slot_name = htmlize::unescape(
+            cells
+                .next()
+                .unwrap()
+                .select(&a_selector)
+                .next()
+                .unwrap()
+                .inner_html()
+                .trim()
+                .to_string(),
+        );
+
+        slots.insert(slot_id, slot_name.to_string());
+    }
+
+    Ok(slots)
+}
+
 fn parse_tracker(body: String) -> crate::error::Result<TrackerInfo> {
     let mut slots = Vec::new();
     let html = Html::parse_document(&body);
@@ -201,6 +239,7 @@ fn parse_tracker(body: String) -> crate::error::Result<TrackerInfo> {
     let td_selector = Selector::parse("td").unwrap();
     let a_selector = Selector::parse("a").unwrap();
     let slot_lines = html.select(&slot_lines_selector);
+    let slot_map = SLOT_MAPPING.get().unwrap();
 
     for slot_line in slot_lines {
         let mut cells = slot_line.select(&td_selector);
@@ -214,7 +253,8 @@ fn parse_tracker(body: String) -> crate::error::Result<TrackerInfo> {
             .inner_html()
             .trim()
             .parse::<usize>()?;
-        let slot_name = htmlize::unescape(cells.next().unwrap().inner_html().trim().to_string());
+        let _ = cells.next(); // Jump over the slot name
+        let slot_name = slot_map.get(&slot_id).unwrap();
         let slot_game = htmlize::unescape(cells.next().unwrap().inner_html().trim().to_string());
         let status = cells.next().unwrap().inner_html().trim().to_string();
         let checks = cells
