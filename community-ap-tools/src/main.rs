@@ -251,7 +251,7 @@ async fn release(
         .unwrap();
     let (mut socket, _) = connect(&url)?;
     let msg = format!(
-        "[{{\"cmd\": \"Connect\", \"version\": {{ \"major\": 0, \"minor\": 5, \"build\": 1, \"class\": \"Version\"}}, \"items_handling\": 7, \"uuid\": \"\", \"tags\": [\"Admin\"], \"password\": null, \"game\": \"{}\", \"name\": \"{}\"}}, {{\"cmd\": \"StatusUpdate\", \"status\": 30}}]",
+        "[{{\"cmd\": \"Connect\", \"version\": {{ \"major\": 9000, \"minor\": 0, \"build\": 1, \"class\": \"Version\"}}, \"items_handling\": 7, \"uuid\": \"\", \"tags\": [\"Admin\"], \"password\": null, \"game\": \"{}\", \"name\": \"{}\"}}, {{\"cmd\": \"StatusUpdate\", \"status\": 30}}]",
         slot.game, slot_name
     );
     socket.send(Message::Text(msg.into()))?;
