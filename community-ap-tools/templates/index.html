@@ -37,9 +37,18 @@ td {
     background-color: red
 }
 
+.error-box {
+    background-color: #610505;
+    padding: 0.5em;
+    width: 100%;
+    margin-bottom: 2em;
+}
         </style>
     </head>
     <body id="main">
+        {% if !is_session_valid %}
+        <div class="error-box">The currently provided session is invalid. Commands will fail silently. Nothing I can do about the silent part...</div>
+        {% endif %}
         <table>
             <tr>
                 <td>Lobby Room</td>

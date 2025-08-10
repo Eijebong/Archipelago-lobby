@@ -1,6 +1,6 @@
 use std::{borrow::Cow, ffi::OsStr, path::PathBuf, str::FromStr};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, anyhow};
 use askama::Template;
 use askama_web::WebTemplate;
 use auth::{LoggedInSession, Session};
@@ -16,6 +16,7 @@ use rocket::{
 };
 use rocket_oauth2::OAuth2;
 use rustls::crypto::ring;
+use scraper::{Html, Selector};
 use tungstenite::{Message, connect};
 use uuid::Uuid;
 
@@ -32,6 +33,7 @@ pub struct IndexTpl {
     lobby_room: LobbyRoom,
     ap_room: ApRoom,
     lobby_root_url: String,
+    is_session_valid: bool,
     unclaimed_slots: Vec<SlotInfo>,
 }
 
@@ -66,7 +68,7 @@ fn unauthorized(req: &Request) -> crate::error::Result<Redirect> {
 }
 
 #[rocket::get("/")]
-fn root(
+async fn root(
     _session: LoggedInSession,
     lobby_room: LobbyRoom,
     mut ap_room: ApRoom,
@@ -116,6 +118,7 @@ fn root(
         ap_room,
         lobby_root_url: config.lobby_root_url.to_string(),
         unclaimed_slots,
+        is_session_valid: config.is_session_valid,
     };
 
     Ok(index)
@@ -185,6 +188,30 @@ async fn give(
     Ok(Redirect::to("/"))
 }
 
+/// Check that the currently provided session cookie is valid by checking for the presence of the
+/// `#cmd` element on the page.
+async fn check_session(config: &Config) -> crate::error::Result<bool> {
+    let client = reqwest::Client::new();
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("cookie"),
+        HeaderValue::from_str(&config.ap_session_cookie)?,
+    );
+    let res = client
+        .get(config.ap_room_url.clone())
+        .headers(headers)
+        .send()
+        .await?;
+
+    let body = res.text().await?;
+
+    let html = Html::parse_document(&body);
+    let cmd_selector = Selector::parse("#cmd").unwrap();
+    let cmd_input = html.select(&cmd_selector);
+
+    Ok(cmd_input.count() == 1)
+}
+
 async fn ap_cmd(cmd: String, config: &State<Config>) -> crate::error::Result<()> {
     let client = reqwest::Client::new();
     let form = reqwest::multipart::Form::new().text("cmd", cmd);
@@ -194,14 +221,13 @@ async fn ap_cmd(cmd: String, config: &State<Config>) -> crate::error::Result<()>
         HeaderName::from_static("cookie"),
         HeaderValue::from_str(&config.ap_session_cookie)?,
     );
+
+    // There's no point in looking at the response here. AP doesn't have a proper API for rooms
+    // since sending a command just inserts something in database that gets polled by the room
+    // process later on so they don't provide responses. If anything fails, it just ignores the
+    // input and nothing happens...
     let _ = client
-        .post(
-            Url::from_str(&format!(
-                "https://archipelago.gg/room/{}",
-                config.ap_room_id
-            ))
-            .unwrap(),
-        )
+        .post(config.ap_room_url.clone())
         .multipart(form)
         .headers(headers)
         .send()
@@ -261,11 +287,13 @@ pub struct Config {
     pub lobby_room_id: Uuid,
     pub lobby_api_key: String,
     pub ap_room_id: String,
+    pub ap_room_url: Url,
     pub ap_session_cookie: String,
+    pub is_session_valid: bool,
 }
 
 #[rocket::main]
-async fn main() -> Result<()> {
+async fn main() -> crate::error::Result<()> {
     let _ = dotenvy::dotenv().ok();
 
     let lobby_root_url =
@@ -282,13 +310,17 @@ async fn main() -> Result<()> {
         .install_default()
         .expect("Failed to set ring as crypto provider");
 
-    let config = Config {
+    let mut config = Config {
         lobby_root_url: lobby_root_url.parse()?,
         lobby_room_id: lobby_room_id.parse()?,
         lobby_api_key,
-        ap_room_id,
         ap_session_cookie,
+        ap_room_url: Url::from_str(&format!("https://archipelago.gg/room/{}", ap_room_id)).unwrap(),
+        ap_room_id,
+        is_session_valid: false,
     };
+
+    config.is_session_valid = check_session(&config).await?;
 
     rocket::build()
         .mount(
