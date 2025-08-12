@@ -29,6 +29,21 @@ function parseGitDiff(diff: string) {
         }
 
         lines.forEach((line) => {
+            if (line.startsWith("+++")) {
+                filenameAfter = line.slice(4)
+                if (filenameAfter.startsWith('b/')) {
+                    filenameAfter = filenameAfter.slice(2)
+                }
+            }
+            if (line.startsWith("---")) {
+                filenameBefore = line.slice(4)
+                if (filenameBefore.startsWith('a/')) {
+                    filenameBefore = filenameBefore.slice(2)
+                }
+            }
+            if (line.startsWith("deleted file mode")) {
+                filenameAfter = "/dev/null"
+            }
             hunks += `${line.replace("\r", "")}\n`;
             if(line.startsWith("Binary files")) {
                 isBinary = true
