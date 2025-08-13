@@ -211,14 +211,29 @@ fn validate_player_name<'a>(
         ))));
     }
 
-    static RE_NAME_CURLY_BRACES: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{(.*?)\}").unwrap());
-    let allowed_in_curly_brances: HashSet<&str> =
-        HashSet::from(["{PLAYER}", "{player}", "{NUMBER}", "{number}"]);
-    // AP 0.5.1 doesn't like having `{.*}` if the inner value isn't NUMBER/number/PLAYER/player
-    let curly_matches = RE_NAME_CURLY_BRACES.find_iter(original_player_name);
-    for m in curly_matches {
-        if !allowed_in_curly_brances.contains(m.as_str()) {
-            return Err(Error(anyhow::anyhow!(format!("Your YAML contains an invalid name: {}. Archipelago doesn't allow having anything in curly braces within a name other than player/PLAYER/number/NUMBER. Found {}", original_player_name, m.as_str()))));
+    if original_player_name.contains('{') || original_player_name.contains('}') {
+        static RE_NAME_CURLY_BRACES: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{(.*?)\}").unwrap());
+        let allowed_in_curly_braces: HashSet<&str> =
+            HashSet::from(["{PLAYER}", "{player}", "{NUMBER}", "{number}"]);
+
+        let curly_matches: Vec<_> = RE_NAME_CURLY_BRACES
+            .find_iter(original_player_name)
+            .collect();
+
+        let mut temp_name = original_player_name.clone();
+        for m in &curly_matches {
+            if !allowed_in_curly_braces.contains(m.as_str()) {
+                return Err(Error(anyhow::anyhow!(format!("Your YAML contains an invalid name: {}. Archipelago doesn't allow having anything in curly braces within a name other than player/PLAYER/number/NUMBER. Found {}", original_player_name, m.as_str()))));
+            }
+            temp_name = temp_name.replace(m.as_str(), "");
+        }
+
+        // If there are still { or } characters left, they're unmatched
+        if temp_name.contains('{') || temp_name.contains('}') {
+            return Err(Error(anyhow::anyhow!(format!(
+                "Your YAML contains an invalid name: {}. Names cannot contain unmatched curly braces.",
+                original_player_name
+            ))));
         }
     }
 
@@ -705,5 +720,126 @@ mod tests {
             get_ap_player_name(&format!("{:f>15}{{NUMBER}}", "abc"), &mut counter),
             "ffffffffffffabc2"
         );
+    }
+
+    #[test]
+    fn test_validate_player_name_valid() {
+        use crate::yaml::validate_player_name;
+        use counter::Counter;
+        use std::collections::HashSet;
+
+        let players_in_room = HashSet::new();
+        let mut player_counter = Counter::new();
+
+        assert!(
+            validate_player_name(&"player".to_string(), &players_in_room, &mut player_counter)
+                .is_ok()
+        );
+        assert!(validate_player_name(
+            &"player{NUMBER}".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_ok());
+        assert!(validate_player_name(
+            &"player{number}".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_ok());
+        assert!(validate_player_name(
+            &"player{PLAYER}".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_ok());
+        assert!(validate_player_name(
+            &"player{player}".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn test_validate_player_name_unmatched_braces() {
+        use crate::yaml::validate_player_name;
+        use counter::Counter;
+        use std::collections::HashSet;
+
+        let players_in_room = HashSet::new();
+        let mut player_counter = Counter::new();
+
+        assert!(validate_player_name(
+            &"player{NUMBER".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_err());
+        assert!(validate_player_name(
+            &"playerNUMBER}".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_err());
+        assert!(validate_player_name(
+            &"player{".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_err());
+        assert!(validate_player_name(
+            &"player}".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_err());
+        assert!(validate_player_name(
+            &"player{NUMBER)".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_err());
+        assert!(validate_player_name(
+            &"player(NUMBER}".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn test_validate_player_name_invalid_braces_content() {
+        use crate::yaml::validate_player_name;
+        use counter::Counter;
+        use std::collections::HashSet;
+
+        let players_in_room = HashSet::new();
+        let mut player_counter = Counter::new();
+
+        assert!(validate_player_name(
+            &"player{INVALID}".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_err());
+        assert!(validate_player_name(
+            &"player{123}".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_err());
+        assert!(validate_player_name(
+            &"player{Player}".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_err());
+        assert!(validate_player_name(
+            &"player{Number}".to_string(),
+            &players_in_room,
+            &mut player_counter
+        )
+        .is_err());
     }
 }
