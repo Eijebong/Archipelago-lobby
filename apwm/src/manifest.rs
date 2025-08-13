@@ -205,13 +205,31 @@ impl Manifest {
         world: &World,
         version_requirement: &VersionReq,
     ) -> Result<(World, Version), ResolveError<'_>> {
-        let resolved = match version_requirement {
-            VersionReq::LatestSupported => world.get_latest_supported_release(),
-            VersionReq::Latest => world.get_latest_release(),
-            VersionReq::Specific(version) => world
-                .get_version(version)
-                .map(|origin| (version, origin))
-                .or_else(|| world.get_latest_release()),
+        let (resolved, actual_requirement) = match version_requirement {
+            VersionReq::LatestSupported => (
+                world.get_latest_supported_release(),
+                version_requirement.clone(),
+            ),
+            VersionReq::Latest => {
+                // When resolving Latest, respect the world's default_version setting
+                let actual_req = world.default_version.clone();
+                let resolved = match &world.default_version {
+                    VersionReq::Latest => world.get_latest_release(),
+                    VersionReq::LatestSupported => world.get_latest_supported_release(),
+                    VersionReq::Specific(version) => {
+                        world.get_version(version).map(|origin| (version, origin))
+                    }
+                    VersionReq::Disabled => None,
+                };
+                (resolved, actual_req)
+            }
+            VersionReq::Specific(version) => {
+                let resolved = world
+                    .get_version(version)
+                    .map(|origin| (version, origin))
+                    .or_else(|| world.get_latest_release());
+                (resolved, version_requirement.clone())
+            }
             VersionReq::Disabled => {
                 return Err(ResolveError::WorldDisabled(world.display_name.clone()))
             }
@@ -220,7 +238,7 @@ impl Manifest {
         match resolved {
             None => Err(ResolveError::VersionNotFound(
                 world.name.clone(),
-                version_requirement.clone(),
+                actual_requirement,
             )),
             Some((version, _)) => Ok((world.clone(), version.clone())),
         }
