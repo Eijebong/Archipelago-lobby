@@ -126,7 +126,7 @@ function FileDiffView({
             </div>
         );
     };
-    const fileAnnotations = annotations[diff_content.filenameAfter.slice(2)];
+    const fileAnnotations = annotations[diff_content.filenameAfter];
 
     return (
         <div>
