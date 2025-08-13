@@ -48,7 +48,13 @@ pub fn parse_raw_yamls(yamls: &[&str]) -> Result<Vec<(String, YamlFile)>> {
 
             let raw_parsed_yaml = match serde_yaml::from_str::<Value>(&doc) {
                 Ok(doc) => doc,
-                Err(e) => anyhow::bail!("Your YAML syntax is invalid: {}", e),
+                Err(e) => {
+                    let error_str = e.to_string();
+                    if error_str.contains("duplicate entry") && (error_str.contains("name") || error_str.contains("game")) {
+                        anyhow::bail!("Your YAML contains duplicate keys. This usually means you forgot to add '---' to separate multiple YAML documents.");
+                    }
+                    anyhow::bail!("Your YAML syntax is invalid: {}", e)
+                },
             };
 
             let Ok(parsed) = serde_yaml::from_value(raw_parsed_yaml) else {
@@ -841,5 +847,72 @@ mod tests {
             &mut player_counter
         )
         .is_err());
+    }
+
+    #[test]
+    fn test_parse_raw_yamls_valid() {
+        use crate::yaml::parse_raw_yamls;
+
+        let valid_single = r#"
+name: Player1
+game: A Link to the Past
+"#;
+        assert!(parse_raw_yamls(&[valid_single]).is_ok());
+
+        let valid_multiple = r#"
+name: Player1
+game: A Link to the Past
+---
+name: Player2
+game: Super Metroid
+"#;
+        assert!(parse_raw_yamls(&[valid_multiple]).is_ok());
+    }
+
+    #[test]
+    fn test_parse_raw_yamls_duplicate_name_keys() {
+        use crate::yaml::parse_raw_yamls;
+
+        let duplicate_name = r#"
+name: Player1
+game: A Link to the Past
+name: Player2
+game: Super Metroid
+"#;
+        let result = parse_raw_yamls(&[duplicate_name]);
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().0.to_string();
+        assert!(error_msg.contains("forgot to add '---'"));
+    }
+
+    #[test]
+    fn test_parse_raw_yamls_duplicate_game_keys() {
+        use crate::yaml::parse_raw_yamls;
+
+        let duplicate_game = r#"
+name: Player1
+game: A Link to the Past
+game: Super Metroid
+"#;
+        let result = parse_raw_yamls(&[duplicate_game]);
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().0.to_string();
+        assert!(error_msg.contains("forgot to add '---'"));
+    }
+
+    #[test]
+    fn test_parse_raw_yamls_both_duplicate_keys() {
+        use crate::yaml::parse_raw_yamls;
+
+        let both_duplicate = r#"
+name: Player1
+game: A Link to the Past
+name: Player2
+game: Super Metroid
+"#;
+        let result = parse_raw_yamls(&[both_duplicate]);
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().0.to_string();
+        assert!(error_msg.contains("forgot to add '---'"));
     }
 }
