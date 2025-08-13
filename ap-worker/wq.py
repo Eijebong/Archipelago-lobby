@@ -24,6 +24,10 @@ class JobStatus(enum.Enum):
     Failure = "Failure"
     InternalError = "InternalError"
 
+class JobCancelledException(Exception):
+    """Raised when a job has been cancelled"""
+    pass
+
 class LobbyQueue:
     def __init__(self, root_url, queue_name, worker_id, token, loop):
         if "SENTRY_DSN" in os.environ:
@@ -117,9 +121,22 @@ class LobbyQueue:
         data_available = asyncio.Event()
         asyncio.get_event_loop().add_reader(rpipe.fileno(), data_available.set)
 
+        job_cancelled = asyncio.Event()
+
         async def reclaim_loop():
             while True:
-                await job.reclaim()
+                try:
+                    await job.reclaim()
+                except JobCancelledException as e:
+                    # Job was explicitly cancelled
+                    print(f"Job {job.job_id} was cancelled: {e}")
+                    job_cancelled.set()
+                    return
+                except Exception as e:
+                    # Other reclaim failure
+                    print(f"Job {job.job_id} reclaim failed: {e}. Assuming job was cancelled.")
+                    job_cancelled.set()
+                    return
                 await asyncio.sleep(7)
 
         task = self.loop.create_task(reclaim_loop())
@@ -127,15 +144,48 @@ class LobbyQueue:
         p = Process(target=self._job_process, args=(job, wpipe))
         p.start()
 
-        while not rpipe.poll():
-            await data_available.wait()
+        # Wait for either job completion or cancellation
+        while not rpipe.poll() and not job_cancelled.is_set():
+            done, pending = await asyncio.wait(
+                [asyncio.create_task(data_available.wait()), asyncio.create_task(job_cancelled.wait())],
+                return_when=asyncio.FIRST_COMPLETED
+            )
+
+            # Cancel any pending tasks
+            for task_to_cancel in pending:
+                task_to_cancel.cancel()
+
+            if job_cancelled.is_set():
+                # Job was cancelled, terminate the process
+                print(f"Job {job.job_id} was cancelled, terminating process")
+                p.terminate()
+                p.join()
+                break
+
             data_available.clear()
 
         asyncio.get_event_loop().remove_reader(rpipe.fileno())
-        status, result = rpipe.recv()
-        task.cancel()
-        await job.resolve(status, result)
-        print(f"Resolved job {job.job_id} with status {status}")
+
+        # Only resolve if job completed normally (not cancelled)
+        if not job_cancelled.is_set() and rpipe.poll():
+            status, result = rpipe.recv()
+            task.cancel()
+            try:
+                await job.resolve(status, result)
+                print(f"Resolved job {job.job_id} with status {status}")
+            except JobCancelledException as e:
+                print(f"Job {job.job_id} was cancelled during resolution: {e}")
+            except Exception as e:
+                print(f"Failed to resolve job {job.job_id}: {e}")
+                sentry_sdk.capture_exception(e)
+        else:
+            # Job was cancelled, clean up
+            task.cancel()
+            if p.is_alive():
+                p.terminate()
+                p.join()
+            print(f"Job {job.job_id} was cancelled and terminated")
+
         sys.stdout.flush()
 
     def _job_process(self, job, wpipe):
@@ -183,8 +233,20 @@ class Job:
         self.ctx = TraceContextTextMapPropagator().extract(carrier=params['otlp_context'])
 
     async def resolve(self, status, result):
-        await self._queue.post("resolve_job", json={"worker_id": self._queue.worker_id, "job_id": self.job_id, "status": status.value, "result": result})
+        try:
+            resp = await self._queue.post("resolve_job", json={"worker_id": self._queue.worker_id, "job_id": self.job_id, "status": status.value, "result": result})
+            resp.raise_for_status()
+        except aiohttp.ClientResponseError as e:
+            if e.status == 410:
+                raise JobCancelledException(f"Job {self.job_id} has been cancelled")
+            raise
 
     async def reclaim(self):
-        await self._queue.post("reclaim_job", json={"worker_id": self._queue.worker_id, "job_id": self.job_id})
+        try:
+            resp = await self._queue.post("reclaim_job", json={"worker_id": self._queue.worker_id, "job_id": self.job_id})
+            resp.raise_for_status()
+        except aiohttp.ClientResponseError as e:
+            if e.status == 410:
+                raise JobCancelledException(f"Job {self.job_id} has been cancelled")
+            raise
 

@@ -1,7 +1,10 @@
+use crate::error::ApiError;
+use anyhow::anyhow;
+use rocket::http::Status;
 use std::collections::HashMap;
 
 use crate::jobs::{GenerationParams, YamlValidationParams, YamlValidationResponse};
-use wq::{JobId, JobStatus};
+use wq::{JobId, JobStatus, WorkQueueError};
 
 #[derive(serde::Deserialize)]
 pub struct ClaimJobForm {
@@ -20,6 +23,28 @@ pub struct ResolveJobForm<R: Clone> {
     job_id: JobId,
     status: JobStatus,
     result: R,
+}
+
+fn wq_err_to_api_err(err: WorkQueueError) -> ApiError {
+    match err {
+        WorkQueueError::JobCancelled => ApiError {
+            error: anyhow!("Job has been cancelled"),
+            status: Status::Gone,
+        },
+        WorkQueueError::JobNotFound => ApiError {
+            error: anyhow!("Job not found"),
+            status: Status::NotFound,
+        },
+        WorkQueueError::WorkerMismatch => ApiError {
+            error: anyhow!("Worker does not own this job"),
+            status: Status::Forbidden,
+        },
+        WorkQueueError::InvalidJobStatus(msg) => ApiError {
+            error: anyhow!("Invalid job status: {}", msg),
+            status: Status::BadRequest,
+        },
+        e => e.into(),
+    }
 }
 
 macro_rules! declare_queues {
@@ -85,7 +110,8 @@ macro_rules! declare_queues {
             async fn reclaim_job(auth: ApiResult<QueueAuth>, queue: &State<WorkQueue<$param_ty, $resp_ty>>, data: Json<ReclaimJobForm>) -> ApiResult<()> {
                 auth?;
 
-                queue.reclaim_job(&data.job_id, &data.worker_id).await?;
+                queue.reclaim_job(&data.job_id, &data.worker_id).await.map_err(wq_err_to_api_err)?;
+
                 Ok(())
             }
 
@@ -95,8 +121,7 @@ macro_rules! declare_queues {
                 // TODO: Attach this to the sent otlp context
                 auth?;
 
-                queue.resolve_job(&data.worker_id, data.job_id, data.status, data.result.clone()).await.unwrap();
-
+                queue.resolve_job(&data.worker_id, data.job_id, data.status, data.result.clone()).await.map_err(wq_err_to_api_err)?;
                 Ok(())
             }
 

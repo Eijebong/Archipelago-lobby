@@ -45,7 +45,10 @@ async fn test_cancel_after_claim() -> Result<()> {
 
     queue.cancel_job(expected_job_id).await?;
     let reclaim_result = queue.reclaim_job(&job.job_id, "test").await;
-    assert!(reclaim_result.is_err());
+    assert!(matches!(
+        reclaim_result,
+        Err(wq::WorkQueueError::JobCancelled)
+    ));
 
     Ok(())
 }

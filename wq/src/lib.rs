@@ -20,6 +20,26 @@ use tokio::{sync::broadcast, task::JoinHandle};
 use tracing::{error, warn};
 use uuid::Uuid;
 
+#[derive(Debug, thiserror::Error)]
+pub enum WorkQueueError {
+    #[error("Job has been cancelled")]
+    JobCancelled,
+    #[error("Job not found")]
+    JobNotFound,
+    #[error("Job already claimed by another worker")]
+    JobAlreadyClaimed,
+    #[error("Worker does not own this job")]
+    WorkerMismatch,
+    #[error("Invalid job status: {0}")]
+    InvalidJobStatus(String),
+    #[error("Redis error: {0}")]
+    Redis(#[from] redis::RedisError),
+    #[error("Serialization error: {0}")]
+    Serialization(#[from] serde_json::Error),
+    #[error("Other error: {0}")]
+    Other(#[from] anyhow::Error),
+}
+
 mod builder;
 mod claim;
 mod result;
@@ -314,18 +334,22 @@ impl<
         Ok(())
     }
 
-    pub async fn reclaim_job(&self, job_id: &JobId, worker_id: &str) -> Result<()> {
+    pub async fn reclaim_job(&self, job_id: &JobId, worker_id: &str) -> Result<(), WorkQueueError> {
         let mut conn = self.client.clone();
 
         let Some(mut current_claim) = conn
             .hget::<_, _, Option<Claim>>(&self.claims_key, job_id.to_string())
-            .await?
+            .await
+            .map_err(WorkQueueError::Redis)?
         else {
-            bail!("Job has been cancelled");
+            return Err(WorkQueueError::JobCancelled);
         };
-        current_claim.refresh(worker_id)?;
+        current_claim
+            .refresh(worker_id)
+            .map_err(WorkQueueError::Other)?;
         conn.hset::<_, _, _, ()>(&self.claims_key, job_id.to_string(), current_claim)
-            .await?;
+            .await
+            .map_err(WorkQueueError::Redis)?;
 
         Ok(())
     }
@@ -338,27 +362,34 @@ impl<
         job_id: JobId,
         status: JobStatus,
         result: R,
-    ) -> Result<()> {
+    ) -> Result<(), WorkQueueError> {
         let mut conn = self.client.clone();
 
         if !status.is_resolved() {
-            bail!("Trying to report a status that doesn't resolve the job");
+            return Err(WorkQueueError::InvalidJobStatus(
+                "Trying to report a status that doesn't resolve the job".to_string(),
+            ));
         }
 
         let Some(current_claim) = conn
             .hget::<_, _, Option<Claim>>(&self.claims_key, job_id.to_string())
-            .await?
+            .await
+            .map_err(WorkQueueError::Redis)?
         else {
-            bail!("Trying to resolve a job that isn't claimed");
+            return Err(WorkQueueError::JobCancelled);
         };
 
         if current_claim.worker_id != worker_id {
-            bail!("Trying to resolve a job that isn't yours");
+            return Err(WorkQueueError::WorkerMismatch);
         }
 
         let job_result = JobResult { status, result };
-        let params_str = conn.get::<_, String>(self.get_job_key(&job_id)).await?;
-        let desc: JobDesc<P> = serde_json::from_str(&params_str)?;
+        let params_str = conn
+            .get::<_, String>(self.get_job_key(&job_id))
+            .await
+            .map_err(WorkQueueError::Redis)?;
+        let desc: JobDesc<P> =
+            serde_json::from_str(&params_str).map_err(WorkQueueError::Serialization)?;
 
         redis::pipe()
             .hdel(&self.claims_key, job_id.to_string())
@@ -366,22 +397,29 @@ impl<
             .incr(self.get_stats_key(status.as_stat_name()), 1)
             .publish::<_, u8>(self.get_result_key(&job_id), status as u8)
             .exec_async(&mut conn)
-            .await?;
+            .await
+            .map_err(WorkQueueError::Redis)?;
 
         if let Some(result_callback) = &self.result_callback {
             let callback = result_callback.clone();
             let job_key = self.get_job_key(&job_id);
             let result_key = self.get_result_key(&job_id);
             tokio::spawn(async move {
-                let processed = callback(desc, job_result).await?;
+                let processed = callback(desc, job_result)
+                    .await
+                    .map_err(WorkQueueError::Other)?;
                 if !processed {
                     return Ok(());
                 }
 
-                conn.del::<_, i64>(job_key).await?;
-                conn.del::<_, i64>(result_key).await?;
+                conn.del::<_, i64>(job_key)
+                    .await
+                    .map_err(WorkQueueError::Redis)?;
+                conn.del::<_, i64>(result_key)
+                    .await
+                    .map_err(WorkQueueError::Redis)?;
 
-                Ok::<_, anyhow::Error>(())
+                Ok::<_, WorkQueueError>(())
             });
         }
 
@@ -423,12 +461,13 @@ impl<
         &self,
         job_id: &JobId,
         timeout: Option<Duration>,
-    ) -> Result<Option<JobStatus>> {
-        let job_status = self.get_job_status(job_id).await?;
+    ) -> Result<Option<JobStatus>, WorkQueueError> {
+        let job_status = self
+            .get_job_status(job_id)
+            .await
+            .map_err(WorkQueueError::Other)?;
         if job_status.is_none() {
-            bail!(
-                "Trying to wait for a job that doesn't exist in the queue or which result has already been processed"
-            );
+            return Err(WorkQueueError::JobNotFound);
         }
 
         let mut conn = self.client.clone();
@@ -437,13 +476,18 @@ impl<
         let start = Instant::now();
 
         let channel_name = self.get_result_key(job_id);
-        conn.subscribe(&channel_name).await?;
+        conn.subscribe(&channel_name)
+            .await
+            .map_err(WorkQueueError::Redis)?;
 
         let job_result = conn
             .get::<_, Option<JobResult<R>>>(self.get_result_key(job_id))
-            .await?;
+            .await
+            .map_err(WorkQueueError::Redis)?;
         if let Some(result) = job_result {
-            conn.unsubscribe(&channel_name).await?;
+            conn.unsubscribe(&channel_name)
+                .await
+                .map_err(WorkQueueError::Redis)?;
             return Ok(Some(result.status));
         }
 
@@ -453,7 +497,7 @@ impl<
 
             let Ok(result) = result else { return Ok(None) };
 
-            let result = result?;
+            let result = result.map_err(|e| WorkQueueError::Other(e.into()))?;
             let Some(new_remaining_time) = remaining_time.checked_sub(Instant::now() - start)
             else {
                 return Ok(None);
@@ -482,22 +526,30 @@ impl<
             };
             let Ok(status) = from_utf8(&raw_status) else {
                 tracing::warn!("Invalid status on pubsub: {:?}", raw_status);
-                conn.unsubscribe(&channel_name).await?;
+                conn.unsubscribe(&channel_name)
+                    .await
+                    .map_err(WorkQueueError::Redis)?;
                 return Ok(Some(JobStatus::InternalError));
             };
 
             let Ok(status) = status.parse::<u8>() else {
                 tracing::warn!("Invalid status on pubsub: {:?}", status);
-                conn.unsubscribe(&channel_name).await?;
+                conn.unsubscribe(&channel_name)
+                    .await
+                    .map_err(WorkQueueError::Redis)?;
                 return Ok(Some(JobStatus::InternalError));
             };
 
             break status;
         };
 
-        conn.unsubscribe(&channel_name).await?;
+        conn.unsubscribe(&channel_name)
+            .await
+            .map_err(WorkQueueError::Redis)?;
 
-        Ok(Some(JobStatus::try_from(status)?))
+        Ok(Some(
+            JobStatus::try_from(status).map_err(WorkQueueError::Other)?,
+        ))
     }
 
     /// Returns the result for the given job id
