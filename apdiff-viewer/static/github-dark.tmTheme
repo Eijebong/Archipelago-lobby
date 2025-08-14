@@ -1,0 +1,595 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>name</key>
+	<string>Monokai++</string>
+	<key>author</key>
+	<string>Davide Casella (https://dcasella.it)</string>
+	<key>colorSpaceName</key>
+	<string>sRGB</string>
+	<key>settings</key>
+	<array>
+		<!-- Editor -->
+		<dict>
+			<key>settings</key>
+			<dict>
+				<!-- TextMate -->
+				<key>background</key>
+				<string>#1c1c1c</string>
+
+				<key>foreground</key>
+				<string>#cccccc</string>
+
+				<key>caret</key>
+				<string>#cccccc</string>
+
+				<key>invisibles</key>
+				<string>#3a3a3b</string>
+
+				<key>lineHighlight</key>
+				<string>#252526</string>
+
+				<key>selection</key>
+				<string>#59201b</string>
+
+				<!-- Visual Studio Code -->
+				<!--
+					Background color of range highlighted, like by Quick open
+					and Find features
+				-->
+				<!-- <key>rangeHighlight</key>
+				<string></string> -->
+
+				<!--
+					Background color of regions highlighted while selecting
+				-->
+				<!-- <key>selectionHighlight</key>
+				<string></string> -->
+
+				<!--
+					Background color of selections when not in focus
+				-->
+				<key>inactiveSelection</key>
+				<string>#402725</string>
+
+				<!--
+					Background color of a symbol during read-access, like
+					reading a variable
+				-->
+				<key>wordHighlight</key>
+				<string>#402725</string>
+
+				<!--
+					Background color of a symbol during write-access, like
+					writing to a variable
+				-->
+				<key>wordHighlightStrong</key>
+				<string>#402725</string>
+
+				<!--
+					Background color of regions matching the search
+				-->
+				<!-- <key>findMatchHighlight</key>
+				<string></string> -->
+
+				<!--
+					Background color of the current region matching the search
+				-->
+				<!-- <key>currentFindMatchHighlight</key>
+				<string></string> -->
+
+				<!--
+					Background color of regions selected for search
+				-->
+				<!-- <key>findRangeHighlight</key>
+				<string></string> -->
+
+				<!--
+					Background color when hovered
+				-->
+				<!-- <key>hoverHighlight</key>
+				<string></string> -->
+
+				<!--
+					Background color of a reference when finding all references
+				-->
+				<!-- <key>referenceHighlight</key>
+				<string></string> -->
+
+				<!--
+					Color of the guides displayed to indicate nesting levels
+				-->
+				<key>guide</key>
+				<string>#3a3a3b</string>
+			</dict>
+		</dict>
+
+		<!-- General -->
+		<dict>
+			<key>name</key>
+			<string>Normal</string>
+			<key>scope</key>
+			<string>entity.name.function.preprocessor, meta.preprocessor.macro, storage.modifier.import, storage.type.generic, variable.parameter, punctuation.section.class.begin, punctuation.section.class.end</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#cccccc</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Invalid</string>
+			<key>scope</key>
+			<string>invalid</string>
+			<key>settings</key>
+			<dict>
+				<key>background</key>
+				<string>#e62a19</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Comment</string>
+			<key>scope</key>
+			<string>comment</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#696d70</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>String</string>
+			<key>scope</key>
+			<string>string, string.quoted, punctuation.definition.string.begin, punctuation.definition.string.end</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#e6db74</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Regexp</string>
+			<key>scope</key>
+			<string>string.regexp</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#49e0fd</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Language constant</string>
+			<key>scope</key>
+			<string>constant.language, constant.numeric, support.variable.magic</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#ae81ff</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Escape/constant</string>
+			<key>scope</key>
+			<string>constant.character, constant.other.placeholder, support.other.escape.special.regexp</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#e62a19</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Other constant</string>
+			<key>scope</key>
+			<string>constant.other</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#fd971f</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Keyword</string>
+			<key>scope</key>
+			<string>entity.name.variable.property, keyword, meta.preprocessor</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#f92672</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Data modifier</string>
+			<key>scope</key>
+			<string>storage, support.constant, punctuation.section.class</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#49e0fd</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Data type</string>
+			<key>scope</key>
+			<string>keyword.type, storage.type, support.class, support.type, entity.name.type</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#2be98a</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Member variables, function parameters</string>
+			<key>scope</key>
+			<string>variable.language, variable.parameter.function.language.special, variable.other.member, variable.other.readwrite.member, entity.other.attribute-name, variable.parameter.function-call</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#fd971f</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Punctuation</string>
+			<key>scope</key>
+			<string>punctuation.accessor, punctuation.section.embedded, punctuation.separator, punctuation.definition.attribute, storage.type.function.arrow, punctuation.definition.template-expression, punctuation.definition.template-expression.begin, punctuation.definition.template-expression.end,  punctuation.template-string.element.begin, punctuation.template-string.element.end</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#f92672</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Punctuation in parameters</string>
+			<key>scope</key>
+			<string>punctuation.separator.parameters</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#fd971f</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Tags</string>
+			<key>scope</key>
+			<string>entity.name.tag</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#f92672</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Functions</string>
+			<key>scope</key>
+			<string>entity.name.function, support.function, variable.function</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#b0ec38</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Markup header</string>
+			<key>scope</key>
+			<string>markup.heading</string>
+			<key>settings</key>
+			<dict>
+				<key>fontStyle</key>
+				<string>bold</string>
+				<key>foreground</key>
+				<string>#f92672</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Markup bold</string>
+			<key>scope</key>
+			<string>markup.bold</string>
+			<key>settings</key>
+			<dict>
+				<key>fontStyle</key>
+				<string>bold</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Markup italic</string>
+			<key>scope</key>
+			<string>markup.italic</string>
+			<key>settings</key>
+			<dict>
+				<key>fontStyle</key>
+				<string>italic</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Markup strikethrough</string>
+			<key>scope</key>
+			<string>markup.strikethrough</string>
+			<key>settings</key>
+			<dict>
+				<key>fontStyle</key>
+				<string>strikethrough</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Markup underline</string>
+			<key>scope</key>
+			<string>markup.underline</string>
+			<key>settings</key>
+			<dict>
+				<key>fontStyle</key>
+				<string>underline</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Markup quote</string>
+			<key>scope</key>
+			<string>markup.quote</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#696d70</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Markup inline</string>
+			<key>scope</key>
+			<string>markup.inline, markup.raw.inline</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#ae81ff</string>
+			</dict>
+		</dict>
+
+		<!-- Language specific -->
+		<dict>
+			<key>name</key>
+			<string>Normal</string>
+			<key>scope</key>
+			<string>keyword.operator.dereference.java, meta.preprocessor.haskell, punctuation.separator.java, meta.group.js, meta.group.go, punctuation.section.class.begin.python, support.variable.dom.js, constant.character.brace, constant.character.end, constant.character.paren, constant.character.quote, support.class.js, punctuation.section.group.begin.js, punctuation.section.group.end.js, meta.template.expression, meta.group.braces, source.groovy.embedded.source, punctuation.section.class.end.groovy, variable.other.bracket.shell, variable.other.readwrite.shell, meta.group.expansion.command.parens.shell, variable.other.normal.shell, string.interpolated.dollar.shell, meta.function.shell punctuation.section.parens.begin.shell, meta.function.shell punctuation.section.parens.end.shell, string.other.math.shell</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#cccccc</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Keyword</string>
+			<key>scope</key>
+			<string>constant.other.symbol.prolog, support.function.be.latex, support.function.general.tex, support.function.section.latex, punctuation.dollar.js, punctuation.separator.parameters.python, support.function.definition.latex, constant.language.module.events, constant.language.module.http, constant.language.directive.module.main, constant.language.directive.module.events, constant.language.directive.module.http, variable.language.this.js, variable.parameter.option.shell, punctuation.definition.variable.shell, punctuation.section.expansion.parameter.begin.shell, punctuation.section.expansion.parameter.end.shell, punctuation.section.parens.begin.shell, punctuation.section.parens.end.shell, string.interpolated.dollar.shell punctuation.definition.string.begin.shell, string.interpolated.dollar.shell punctuation.definition.string.end.shell, string.other.math.shell punctuation.definition.string.begin.shell, string.other.math.shell punctuation.definition.string.end.shell, variable.language.special.self.python, variable.parameter.function.language.special.self.python</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#f92672</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Data modifier</string>
+			<key>scope</key>
+			<string>entity.name.type.go, entity.name.type.namespace.php, meta.import.scala, punctuation.separator.inheritance.php, storage.type.js, support.other.module.haskell, support.other.namespace.use.php, variable.other.constant.ruby, entity.name.section.puppet, entity.name.function.decorator.python, keyword.other.rust</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#49e0fd</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Data type</string>
+			<key>scope</key>
+			<string>keyword.control.def.ruby, keyword.declaration.scala, keyword.declaration.stable.scala, keyword.declaration.volatile.scala, keyword.other.fn.rust, meta.structure.dictionary.key.json, storage.class.std.rust</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#2be98a</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Member variables</string>
+			<key>scope</key>
+			<string>meta.function-call.object.php, meta.function-call.static.php, variable.other.makefile, variable.other.prolog, variable.other.property.js, support.variable.property.dom.js, meta.property.object.js, support.variable.property.js, variable.other.object.property.js, variable.other.property.cpp, meta.attribute.python</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#fd971f</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Functions</string>
+			<key>scope</key>
+			<string>meta.method.groovy, punctuation.definition.logical-expression.shell, meta.function-call.generic.python</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#b0ec38</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Language constant</string>
+			<key>scope</key>
+			<string>constant.other.boolean.toml</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#ae81ff</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Markdown link</string>
+			<key>scope</key>
+			<string>string.other.link.title.markdown, string.other.link.description.markdown</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#49e0fd</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Markdown fade</string>
+			<key>scope</key>
+			<string>beginning.punctuation.definition.list.markdown, punctuation.definition.list_item.markdown, punctuation.definition.list.markdown, punctuation.definition.heading.markdown, punctuation.definition.bold.markdown, punctuation.definition.italic.markdown, punctuation.definition.string.begin.markdown, punctuation.definition.string.end.markdown, punctuation.definition.bold.begin.markdown, punctuation.definition.bold.end.markdown, punctuation.definition.italic.begin.markdown, punctuation.definition.italic.end.markdown, punctuation.definition.heading.begin.markdown, punctuation.definition.heading.end.markdown, punctuation.definition.raw.begin.markdown, punctuation.definition.raw.end.markdown, punctuation.definition.metadata.markdown, punctuation.definition.raw.markdown, markup.underline.link.image.markdown, markup.underline.link.markdown</string>
+			<key>settings</key>
+			<dict>
+				<key>fontStyle</key>
+				<string>normal</string>
+				<key>foreground</key>
+				<string>#696d70</string>
+			</dict>
+		</dict>
+
+		<!-- diff -->
+		<dict>
+			<key>name</key>
+			<string>Diff deleted</string>
+			<key>scope</key>
+			<string>markup.deleted.diff</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#f92672</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>name</key>
+			<string>Diff inserted</string>
+			<key>scope</key>
+			<string>markup.inserted.diff</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#2be98a</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Diff range</string>
+			<key>scope</key>
+			<string>meta.diff.range.unified</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#ae81ff</string>
+			</dict>
+		</dict>
+
+		<!-- GitGutter -->
+		<dict>
+			<key>name</key>
+			<string>GitGutter deleted</string>
+			<key>scope</key>
+			<string>markup.deleted.git_gutter</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#f92672</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>name</key>
+			<string>GitGutter inserted</string>
+			<key>scope</key>
+			<string>markup.inserted.git_gutter</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#2be98a</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>name</key>
+			<string>GitGutter changed</string>
+			<key>scope</key>
+			<string>markup.changed.git_gutter</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#ae81ff</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>name</key>
+			<string>GitGutter ignored</string>
+			<key>scope</key>
+			<string>markup.ignored.git_gutter</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#696d70</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>name</key>
+			<string>GitGutter untracked</string>
+			<key>scope</key>
+			<string>markup.untracked.git_gutter</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#696d70</string>
+			</dict>
+		</dict>
+	</array>
+	<key>uuid</key>
+	<string>4651cee0-9b86-4121-8ba9-22c2bd97d4a4</string>
+</dict>
+</plist>
+

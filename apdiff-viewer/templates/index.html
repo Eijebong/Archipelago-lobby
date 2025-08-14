@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>APDIFF - {{ task_id }}</title>
+    <link rel="stylesheet" href="/static/css/main.css"/>
+    <script>
+        function showApworld(index) {
+            const sections = document.querySelectorAll('.apworld-section');
+            const navLinks = document.querySelectorAll('nav a');
+
+            sections.forEach((section, i) => {
+                section.style.display = i === index ? 'block' : 'none';
+            });
+
+            navLinks.forEach((link, i) => {
+                if (i === index) {
+                    link.classList.add('selected');
+                } else {
+                    link.classList.remove('selected');
+                }
+            });
+        }
+
+        function toggleViewed(checkbox, fileId) {
+            const content = document.getElementById(fileId + '-content');
+            if (checkbox.checked) {
+                content.style.display = 'none';
+            } else {
+                content.style.display = 'block';
+            }
+        }
+
+        function loadLargeFile(fileId) {
+            const warning = document.getElementById(fileId + '-warning');
+            const content = document.getElementById(fileId + '-content');
+            warning.style.display = 'none';
+            content.style.display = 'block';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (document.querySelectorAll('.apworld-section').length > 0) {
+                showApworld(0);
+            }
+        });
+    </script>
+</head>
+<body>
+    {% if apworld_diffs.len() > 0 %}
+    <nav>
+        {% for apworld_diff in apworld_diffs %}
+        <a href="#" onclick="showApworld({{ loop.index0 }}); return false;">
+            {{ apworld_diff.world_name }}
+        </a>
+        {% endfor %}
+    </nav>
+
+    {% for apworld_diff in apworld_diffs %}
+    <div class="apworld-section" id="apworld-{{ loop.index0 }}">
+        {% if apworld_diff.versions.len() > 0 %}
+
+          <ul class="version-list">
+              {% for version in apworld_diff.versions %}
+              <li>
+                  <a href="#version-{{ version.version_id }}">{{ version.version_range }}</a>
+              </li>
+              {% endfor %}
+          </ul>
+
+        <hr />
+
+        {% for version in apworld_diff.versions %}
+        <div class="version-section" id="version-{{ version.version_id }}">
+            <div class="version-header">
+                <h4>{{ version.version_range }}</h4>
+            </div>
+
+            {% for file in version.files %}
+            {% set file_id = version.version_id ~ "_" ~ loop.index %}
+            <div class="file-diff">
+                <div class="file-header">
+                    <div class="file-info">
+                        <span class="filename">
+                            {% if file.filename_before == "/dev/null" %}
+                                {{ file.filename_after }}
+                            {% elif file.filename_after == "/dev/null" %}
+                                {{ file.filename_before }}
+                            {% else %}
+                                {{ file.filename_after }}
+                            {% endif %}
+                        </span>
+                        {% if file.filename_before == "/dev/null" %}
+                            <span class="action-tag added-tag">added</span>
+                        {% elif file.filename_after == "/dev/null" %}
+                            <span class="action-tag removed-tag">removed</span>
+                        {% else %}
+                            <span class="action-tag changed-tag">changed</span>
+                        {% endif %}
+                    </div>
+                    <div class="viewed-controls">
+                        <label>
+                            <input type="checkbox" onchange="toggleViewed(this, '{{ file_id }}')">
+                            Viewed
+                        </label>
+                    </div>
+                </div>
+
+                {% if file.is_binary %}
+                <div class="binary-file">Binary file</div>
+                {% elif file.is_large %}
+                <div id="{{ file_id }}-warning" class="lfw">
+                    <div>Large file (many lines)</div>
+                    <button class="load-button" onclick="loadLargeFile('{{ file_id }}')">
+                        Click to load
+                    </button>
+                </div>
+                <div id="{{ file_id }}-content" class="dc" style="display: none;">
+                {% else %}
+                <div id="{{ file_id }}-content" class="dc">
+                {% endif %}
+
+                {% if file.is_binary %}
+                {% else %}
+                <div class="diff-grid">
+                    {% for line in file.lines %}
+                    <div class="gutter-cell">
+                        <div class="ln-before">
+                            {% if line.is_hunk() %}
+                            ...
+                            {% elif line.is_add() %}
+
+                            {% elif line.is_delete() %}
+                            {% if line.old_line_number.is_some() %}{{ line.old_line_number.unwrap() }}{% endif %}
+                            {% else %}
+                            {% if line.old_line_number.is_some() %}{{ line.old_line_number.unwrap() }}{% endif %}
+                            {% endif %}
+                        </div>
+                        <div class="ln-after">
+                            {% if line.is_hunk() %}
+                            ...
+                            {% elif line.is_add() %}
+                            {% if line.new_line_number.is_some() %}{{ line.new_line_number.unwrap() }}{% endif %}
+                            {% elif line.is_delete() %}
+                            {% else %}
+                            {% if line.new_line_number.is_some() %}{{ line.new_line_number.unwrap() }}{% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="content-cell">
+                        <div class="content-line {{ line.line_type_str() }}">{{ line.html_content|safe }}</div>
+                    </div>
+                    {% if line.annotations.len() > 0 %}
+                    <div class="las">
+                        {% for annotation in line.annotations %}
+                        <div class="annotation">
+                            <strong>{{ annotation.desc }}</strong>
+                            <small>Line {{ annotation.line }}{% if annotation.col_start > 0 %}, Column {{ annotation.col_start }}{% if annotation.col_end > 0 %}-{{ annotation.col_end }}{% endif %}{% endif %}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                </div>
+
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+
+        {% else %}
+        <div class="no-diffs">
+            <h3>No version diffs available for {{ apworld_diff.world_name }}</h3>
+            <p>This APWorld may only have removals or no changes.</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="no-diffs">
+        <h2>No diffs found for task: {{ task_id }}</h2>
+        <p>This task may not contain any APWorld diffs.</p>
+    </div>
+    {% endif %}
+</body>
+</html>
