@@ -71,7 +71,7 @@ td {
             <li>
             {% for slot in slot_chunk %}
                 {% let lobby_slot = lobby_room.yamls[slot.id - 1] %}
-                @{{ lobby_slot.discord_handle }}
+                @{{ lobby_slot.discord_handle|lower }}
             {% endfor %}
             </li>
         {% endfor %}
