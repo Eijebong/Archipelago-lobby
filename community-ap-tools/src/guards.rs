@@ -1,7 +1,6 @@
 use std::{collections::BTreeMap, fmt::Display, str::FromStr, sync::OnceLock};
 
 use aprs::proto::server::DataPackage;
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use reqwest::{
     Url,
     header::{HeaderName, HeaderValue},
@@ -170,7 +169,7 @@ impl<'r> FromRequest<'r> for ApRoom {
 
         let tracker_url = try_err_outcome!(Url::from_str(&format!(
             "https://archipelago.gg/tracker/{}",
-            suuid(room_status.tracker.parse().unwrap())
+            room_status.tracker
         )));
         let tracker_page = try_err_outcome!(reqwest::get(tracker_url).await);
         let tracker_body = try_err_outcome!(tracker_page.text().await);
@@ -197,10 +196,6 @@ impl<'r> FromRequest<'r> for ApRoom {
             tracker_info,
         })
     }
-}
-
-fn suuid(uuid: Uuid) -> String {
-    URL_SAFE_NO_PAD.encode(uuid.as_bytes())
 }
 
 fn parse_room(body: String) -> crate::error::Result<BTreeMap<usize, String>> {

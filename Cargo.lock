@@ -803,7 +803,6 @@ dependencies = [
  "aprs",
  "askama",
  "askama_web",
- "base64",
  "chrono",
  "dotenvy",
  "htmlize",
