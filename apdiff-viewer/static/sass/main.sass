@@ -235,3 +235,23 @@ details
     background-color: #161b22
     border: 1px solid #30363d
     border-radius: 6px
+
+/* Word-level diff highlighting */
+ins, del
+    text-decoration: none
+    border-radius: 0.2em
+    display: inline-block
+    margin: -1px 0
+    padding: 0 2px
+
+ins
+    background-color: rgba(46, 160, 67, 0.4)
+
+del
+    background-color: rgba(248, 81, 73, 0.4)
+
+ins.enhanced
+    background-color: rgba(46, 160, 67, 0.6)
+
+del.enhanced
+    background-color: rgba(248, 81, 73, 0.6)

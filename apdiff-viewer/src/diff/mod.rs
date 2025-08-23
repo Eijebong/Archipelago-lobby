@@ -1,11 +1,59 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use strsim::levenshtein;
 use syntect::highlighting::{
     FontStyle, HighlightIterator, HighlightState, Highlighter, Style as SyntectStyle,
 };
 use syntect::parsing::{ParseState, ScopeStack};
 
 use crate::{get_syntax_set, get_theme};
+
+mod word_diff;
+
+use word_diff::highlight_word_diff;
+
+/// Helper function to process style-text pairs into HTML with span tags
+fn process_style_text_pairs(
+    style_text_pairs: Vec<(SyntectStyle, &str)>,
+    initial_capacity: usize,
+) -> String {
+    let mut html = String::with_capacity(initial_capacity);
+    let mut last_style = String::new();
+    let mut accumulated_text = String::new();
+
+    let flush_accumulated = |html: &mut String, accumulated_text: &mut String, style: &str| {
+        if !accumulated_text.is_empty() {
+            if style.is_empty() {
+                html.push_str(accumulated_text);
+            } else {
+                html.push_str(&format!("<span {style}>{accumulated_text}</span>"));
+            }
+            accumulated_text.clear();
+        }
+    };
+
+    for (style, text) in style_text_pairs {
+        let css_style = syntect_style_to_css(style);
+
+        if css_style == last_style {
+            accumulated_text.push_str(&html_escape::encode_text(text));
+        } else {
+            flush_accumulated(&mut html, &mut accumulated_text, &last_style);
+            last_style = css_style;
+            accumulated_text = html_escape::encode_text(text).to_string();
+        }
+    }
+
+    flush_accumulated(&mut html, &mut accumulated_text, &last_style);
+    html
+}
+
+// Constants for diff processing
+const MAX_WORD_DIFF_LINE_LENGTH: usize = 10000;
+const WORD_SIMILARITY_THRESHOLD: f64 = 0.25;
+const LINE_SIMILARITY_THRESHOLD: f64 = 0.25;
+const MAX_FILE_SIZE_BYTES: usize = 100000;
+const MAX_FILE_LINES: usize = 5000;
 
 #[derive(Debug, Clone)]
 pub struct TemplateAnnotation {
@@ -43,6 +91,7 @@ pub struct DiffLine {
     pub new_line_number: Option<i32>,
     pub html_content: String, // syntax highlighted HTML for display
     pub annotations: Vec<TemplateAnnotation>, // annotations for this specific line
+    pub raw_content: String,  // original content without highlighting for word diff
 }
 
 impl DiffLine {
@@ -87,20 +136,20 @@ fn syntect_style_to_css(style: SyntectStyle) -> String {
     let fg = style.foreground;
 
     let mut style_parts = Vec::new();
-    let mut class_parts = Vec::new();
+    let mut class_parts: Vec<&str> = Vec::new();
 
     if style.foreground.a > 0 {
         style_parts.push(format!("color:#{:02x}{:02x}{:02x}", fg.r, fg.g, fg.b));
     }
 
     if style.font_style.contains(FontStyle::BOLD) {
-        class_parts.push("b".to_string());
+        class_parts.push("b");
     }
     if style.font_style.contains(FontStyle::ITALIC) {
-        class_parts.push("i".to_string());
+        class_parts.push("i");
     }
     if style.font_style.contains(FontStyle::UNDERLINE) {
-        class_parts.push("u".to_string());
+        class_parts.push("u");
     }
 
     let mut result = String::new();
@@ -134,51 +183,23 @@ fn highlight_code_safely(content: &str, filename: &str) -> String {
 
     let ops = match parse_state.parse_line(content, syntax_set) {
         Ok(ops) => ops,
-        Err(_) => {
+        Err(e) => {
+            eprintln!(
+                "Parse error for single line '{content}' in {filename}: {e}"
+            );
             return html_escape::encode_text(content).to_string();
         }
     };
 
     let highlight_iter =
         HighlightIterator::new(&mut highlight_state, &ops[..], content, &highlighter);
-    let mut html = String::new();
-    let mut last_style = String::new();
-    let mut accumulated_text = String::new();
-
     let style_text_pairs: Vec<(SyntectStyle, &str)> = highlight_iter.collect();
 
     if is_invalid_scope(&highlight_state.path) {
         return html_escape::encode_text(content).to_string();
     }
 
-    for (style, text) in style_text_pairs {
-        let css_style = syntect_style_to_css(style);
-
-        if css_style == last_style {
-            accumulated_text.push_str(&html_escape::encode_text(text));
-        } else {
-            if !accumulated_text.is_empty() {
-                if last_style.is_empty() {
-                    html.push_str(&accumulated_text);
-                } else {
-                    html.push_str(&format!("<span {last_style}>{accumulated_text}</span>"));
-                }
-            }
-
-            last_style = css_style;
-            accumulated_text = html_escape::encode_text(text).to_string();
-        }
-    }
-
-    if !accumulated_text.is_empty() {
-        if last_style.is_empty() {
-            html.push_str(&accumulated_text);
-        } else {
-            html.push_str(&format!("<span {last_style}>{accumulated_text}</span>"));
-        }
-    }
-
-    html
+    process_style_text_pairs(style_text_pairs, content.len() * 2)
 }
 
 pub fn highlight_hunk_lines(
@@ -208,8 +229,8 @@ pub fn highlight_hunk_lines(
         // Parse the line to get scope operations
         let ops = match parse_state.parse_line(content, syntax_set) {
             Ok(ops) => ops,
-            Err(_) => {
-                // If parsing fails, fall back to individual line parsing for this line
+            Err(e) => {
+                eprintln!("Parse error for line '{content}' in {filename}: {e}");
                 results.push(highlight_code_safely(content, filename));
                 continue;
             }
@@ -225,43 +246,9 @@ pub fn highlight_hunk_lines(
 
         let highlight_iter =
             HighlightIterator::new(&mut highlight_state, &ops[..], content, &highlighter);
-        let mut html = String::new();
-        let mut last_style = String::new();
-        let mut accumulated_text = String::new();
-
         let style_text_pairs: Vec<(SyntectStyle, &str)> = highlight_iter.collect();
 
-        for (style, text) in style_text_pairs {
-            let css_style = syntect_style_to_css(style);
-
-            if css_style == last_style {
-                // Same style as previous, accumulate text
-                accumulated_text.push_str(&html_escape::encode_text(text));
-            } else {
-                // Different style, flush accumulated text
-                if !accumulated_text.is_empty() {
-                    if last_style.is_empty() {
-                        html.push_str(&accumulated_text);
-                    } else {
-                        html.push_str(&format!("<span {last_style}>{accumulated_text}</span>"));
-                    }
-                }
-
-                // Start new accumulation
-                last_style = css_style;
-                accumulated_text = html_escape::encode_text(text).to_string();
-            }
-        }
-
-        // Flush remaining accumulated text
-        if !accumulated_text.is_empty() {
-            if last_style.is_empty() {
-                html.push_str(&accumulated_text);
-            } else {
-                html.push_str(&format!("<span {last_style}>{accumulated_text}</span>"));
-            }
-        }
-
+        let html = process_style_text_pairs(style_text_pairs, content.len() * 2);
         results.push(html);
         // Check if we ended in a single-line comment scope - if so, reset state for next line
         if should_reset_parser_state(&highlight_state.path, &scope_stack_before) {
@@ -271,6 +258,13 @@ pub fn highlight_hunk_lines(
     }
 
     results
+}
+
+/// Check if a scope string represents a single-line comment
+fn is_single_line_comment(scope_str: &str) -> bool {
+    scope_str.contains("comment.line")
+        || scope_str == "comment"
+        || (scope_str.starts_with("comment.") && !scope_str.contains("block"))
 }
 
 /// Determine if parser state should be reset after this line
@@ -283,10 +277,7 @@ fn should_reset_parser_state(current_scopes: &ScopeStack, _previous_scopes: &Sco
     // Check if we're currently in a single-line comment scope
     current_scopes.scopes.iter().any(|scope| {
         let scope_str = repo.to_string(*scope);
-        // Reset after single-line comments (but not multi-line comments)
-        scope_str.contains("comment.line")
-            || scope_str == "comment"
-            || scope_str.starts_with("comment.") && !scope_str.contains("block")
+        is_single_line_comment(&scope_str)
     })
 }
 
@@ -306,6 +297,11 @@ pub fn find_line_annotations(
         .collect()
 }
 
+/// Check if a scope string represents invalid syntax
+fn is_invalid_scope_str(scope_str: &str) -> bool {
+    scope_str.starts_with("invalid.")
+}
+
 /// Check if a scope represents an error or invalid syntax using TextMate conventions
 fn is_invalid_scope(scope_stack: &ScopeStack) -> bool {
     // In TextMate/Sublime Text scope conventions, invalid syntax is marked with scopes starting with "invalid."
@@ -314,7 +310,7 @@ fn is_invalid_scope(scope_stack: &ScopeStack) -> bool {
 
     scope_stack.scopes.iter().any(|scope| {
         let scope_str = repo.to_string(*scope);
-        scope_str.starts_with("invalid.")
+        is_invalid_scope_str(&scope_str)
     })
 }
 
@@ -325,6 +321,122 @@ fn apply_diff_styling(highlighted_content: &str, line_type: LineType) -> String 
         LineType::Delete => format!("<span class='dd'>{highlighted_content}</span>"),
         LineType::Hunk => format!("<span class='hunk-header'>{highlighted_content}</span>"),
         _ => highlighted_content.to_string(),
+    }
+}
+
+/// Analyze file size and line count efficiently
+fn analyze_file_size(content: &str) -> (bool, usize) {
+    let byte_size = content.len();
+    if byte_size > MAX_FILE_SIZE_BYTES {
+        return (true, 0); // Don't bother counting lines if bytes already exceed limit
+    }
+
+    let line_count = content.lines().count();
+    let is_large = line_count > MAX_FILE_LINES;
+
+    (is_large, line_count)
+}
+
+/// Apply word-level highlighting to pairs of add/delete lines
+fn apply_word_highlighting(diff_lines: &mut [DiffLine]) {
+    let mut i = 0;
+
+    while i < diff_lines.len() {
+        // Find sequences of delete and add lines to match optimally
+        if diff_lines[i].line_type == LineType::Delete {
+            let mut delete_indices = Vec::new();
+            let mut add_indices = Vec::new();
+
+            // Collect consecutive delete lines
+            let mut j = i;
+            while j < diff_lines.len() && diff_lines[j].line_type == LineType::Delete {
+                delete_indices.push(j);
+                j += 1;
+            }
+
+            // Collect consecutive add lines that follow
+            while j < diff_lines.len() && diff_lines[j].line_type == LineType::Add {
+                add_indices.push(j);
+                j += 1;
+            }
+
+            // If we have both deletes and adds, find optimal pairings
+            if !delete_indices.is_empty() && !add_indices.is_empty() {
+                let matches = find_best_line_matches(diff_lines, &delete_indices, &add_indices);
+
+                // Apply word highlighting to matched pairs
+                for (del_idx, add_idx) in matches {
+                    let word_diff = highlight_word_diff(
+                        &diff_lines[del_idx].raw_content,
+                        &diff_lines[add_idx].raw_content,
+                        MAX_WORD_DIFF_LINE_LENGTH,
+                        WORD_SIMILARITY_THRESHOLD,
+                    );
+
+                    // Don't apply line-level styling wrapper for word-highlighted lines
+                    // The <ins>/<del> tags provide sufficient visual indication
+                    diff_lines[del_idx].html_content = word_diff.old_highlighted;
+                    diff_lines[add_idx].html_content = word_diff.new_highlighted;
+                }
+            }
+
+            i = j; // Skip past all processed lines
+        } else {
+            i += 1;
+        }
+    }
+}
+
+/// Find the best matches between delete and add lines using similarity scoring
+fn find_best_line_matches(
+    diff_lines: &[DiffLine],
+    delete_indices: &[usize],
+    add_indices: &[usize],
+) -> Vec<(usize, usize)> {
+    let mut matches = Vec::new();
+    let mut used_deletes = vec![false; delete_indices.len()];
+    let mut used_adds = vec![false; add_indices.len()];
+
+    // Calculate similarity scores for all pairs
+    let mut candidates = Vec::new();
+    for (i, &del_idx) in delete_indices.iter().enumerate() {
+        for (j, &add_idx) in add_indices.iter().enumerate() {
+            let del_content = &diff_lines[del_idx].raw_content;
+            let add_content = &diff_lines[add_idx].raw_content;
+
+            let similarity = calculate_line_similarity(del_content, add_content);
+            candidates.push((i, j, del_idx, add_idx, similarity));
+        }
+    }
+
+    // Sort by similarity (higher is better)
+    candidates.sort_by(|a, b| b.4.partial_cmp(&a.4).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Greedily select best matches
+    for (del_i, add_i, del_idx, add_idx, similarity) in candidates {
+        if !used_deletes[del_i] && !used_adds[add_i] && similarity > LINE_SIMILARITY_THRESHOLD {
+            matches.push((del_idx, add_idx));
+            used_deletes[del_i] = true;
+            used_adds[add_i] = true;
+        }
+    }
+
+    matches
+}
+
+/// Calculate similarity between two lines (0.0 = completely different, 1.0 = identical)
+fn calculate_line_similarity(line1: &str, line2: &str) -> f64 {
+    if line1.is_empty() && line2.is_empty() {
+        return 1.0;
+    }
+
+    let distance = levenshtein(line1, line2);
+    let max_len = std::cmp::max(line1.len(), line2.len()) as f64;
+
+    if max_len == 0.0 {
+        1.0
+    } else {
+        1.0 - (distance as f64 / max_len)
     }
 }
 
@@ -361,6 +473,74 @@ pub fn parse_hunk_header(line: &str) -> Option<(i32, i32)> {
     }
 }
 
+/// Process accumulated hunk lines and convert them to DiffLines with syntax highlighting
+fn process_hunk_lines(
+    hunk_lines: &mut Vec<(String, LineType, usize)>,
+    diff_lines: &mut Vec<DiffLine>,
+    display_filename: &str,
+    annotations: &BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
+    version_id: &str,
+) {
+    // Get annotations for this specific file
+    let file_annotations = annotations
+        .get(version_id)
+        .and_then(|version_annotations| {
+            // Try to match filename from the diff
+            version_annotations.get(display_filename)
+        })
+        .map(|anns| {
+            anns.iter()
+                .map(|a| TemplateAnnotation {
+                    desc: a.desc.clone(),
+                    line: a.line.unwrap_or(0),
+                    col_start: a.col_start.unwrap_or(0),
+                    col_end: a.col_end.unwrap_or(0),
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    if !hunk_lines.is_empty() {
+        let highlighted_lines = highlight_hunk_lines(hunk_lines, display_filename);
+
+        for (i, (content, line_type, line_num)) in hunk_lines.iter().enumerate() {
+            let highlighted_content = highlighted_lines
+                .get(i)
+                .map(|h| h.as_str())
+                .unwrap_or_else(|| content.as_str());
+
+            let html_content = apply_diff_styling(highlighted_content, *line_type);
+
+            let (old_num, new_num) = match line_type {
+                LineType::Add => (-1, *line_num as i32),
+                LineType::Delete => (*line_num as i32, -1),
+                LineType::Context => (*line_num as i32, *line_num as i32),
+                _ => (-1, -1),
+            };
+
+            // Show annotations for added lines and context lines
+            let line_annotations = if (*line_type == LineType::Add
+                || *line_type == LineType::Context)
+                && new_num > 0
+            {
+                find_line_annotations(new_num, &file_annotations)
+            } else {
+                Vec::new()
+            };
+
+            diff_lines.push(DiffLine {
+                line_type: *line_type,
+                old_line_number: Some(old_num),
+                new_line_number: Some(new_num),
+                html_content,
+                annotations: line_annotations,
+                raw_content: content.clone(),
+            });
+        }
+        hunk_lines.clear();
+    }
+}
+
 /// Robust manual git diff parser for unified diff format
 pub fn parse_git_diff(
     git_diff: &str,
@@ -374,68 +554,6 @@ pub fn parse_git_diff(
         if file_diff.trim().is_empty() {
             continue;
         }
-
-        // Helper function to process accumulated hunk lines
-        let process_hunk = |hunk_lines: &mut Vec<(String, LineType, usize)>,
-                            diff_lines: &mut Vec<DiffLine>,
-                            display_filename: &str| {
-            // Get annotations for this specific file
-            let file_annotations = annotations
-                .get(version_id)
-                .and_then(|version_annotations| {
-                    // Try to match filename from the diff
-                    version_annotations.get(display_filename)
-                })
-                .map(|anns| {
-                    anns.iter()
-                        .map(|a| TemplateAnnotation {
-                            desc: a.desc.clone(),
-                            line: a.line.unwrap_or(0),
-                            col_start: a.col_start.unwrap_or(0),
-                            col_end: a.col_end.unwrap_or(0),
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default();
-            if !hunk_lines.is_empty() {
-                let highlighted_lines = highlight_hunk_lines(hunk_lines, display_filename);
-
-                for (i, (content, line_type, line_num)) in hunk_lines.iter().enumerate() {
-                    let highlighted_content = highlighted_lines
-                        .get(i)
-                        .map(|h| h.as_str())
-                        .unwrap_or_else(|| content.as_str());
-
-                    let html_content = apply_diff_styling(highlighted_content, *line_type);
-
-                    let (old_num, new_num) = match line_type {
-                        LineType::Add => (-1, *line_num as i32),
-                        LineType::Delete => (*line_num as i32, -1),
-                        LineType::Context => (*line_num as i32, *line_num as i32),
-                        _ => (-1, -1),
-                    };
-
-                    // Show annotations for added lines and context lines
-                    let line_annotations = if (*line_type == LineType::Add
-                        || *line_type == LineType::Context)
-                        && new_num > 0
-                    {
-                        find_line_annotations(new_num, &file_annotations)
-                    } else {
-                        Vec::new()
-                    };
-
-                    diff_lines.push(DiffLine {
-                        line_type: *line_type,
-                        old_line_number: Some(old_num),
-                        new_line_number: Some(new_num),
-                        html_content,
-                        annotations: line_annotations,
-                    });
-                }
-                hunk_lines.clear();
-            }
-        };
 
         let lines: Vec<&str> = file_diff.split('\n').collect();
         let mut filename_before = String::new();
@@ -478,8 +596,7 @@ pub fn parse_git_diff(
             &filename_before
         };
 
-        let line_count = file_diff.lines().count();
-        let is_large = file_diff.len() > 100000 || line_count > 5000;
+        let (is_large, _line_count) = analyze_file_size(file_diff);
 
         let mut diff_lines = Vec::new();
         let mut current_hunk_lines: Vec<(String, LineType, usize)> = Vec::new(); // (content, line_type, line_number)
@@ -494,7 +611,13 @@ pub fn parse_git_diff(
 
             if line.starts_with("@@") {
                 // Process any accumulated hunk lines before starting a new hunk
-                process_hunk(&mut current_hunk_lines, &mut diff_lines, display_filename);
+                process_hunk_lines(
+                    &mut current_hunk_lines,
+                    &mut diff_lines,
+                    display_filename,
+                    annotations,
+                    version_id,
+                );
 
                 // Add hunk separator if this isn't the first hunk
                 if in_hunk {
@@ -504,6 +627,7 @@ pub fn parse_git_diff(
                         new_line_number: None,
                         html_content: String::new(),
                         annotations: Vec::new(),
+                        raw_content: String::new(),
                     });
                 }
 
@@ -521,6 +645,7 @@ pub fn parse_git_diff(
                         html_escape::encode_text(line)
                     ),
                     annotations: Vec::new(),
+                    raw_content: line.to_string(),
                 });
                 in_hunk = true;
             } else if in_hunk {
@@ -558,7 +683,16 @@ pub fn parse_git_diff(
         }
 
         // Process the final hunk
-        process_hunk(&mut current_hunk_lines, &mut diff_lines, display_filename);
+        process_hunk_lines(
+            &mut current_hunk_lines,
+            &mut diff_lines,
+            display_filename,
+            annotations,
+            version_id,
+        );
+
+        // Apply word-level highlighting to add/delete line pairs
+        apply_word_highlighting(&mut diff_lines);
 
         result.push(FileDiff {
             filename_before,
@@ -570,4 +704,39 @@ pub fn parse_git_diff(
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_line_similarity() {
+        // Identical lines should have similarity 1.0
+        assert_eq!(calculate_line_similarity("hello world", "hello world"), 1.0);
+
+        // Similar lines should have high similarity
+        let sim1 = calculate_line_similarity(
+            "[Main Page](../../../../games/OpenRCT2/info/en)",
+            "[Main Page](../info/en)",
+        );
+        let sim2 = calculate_line_similarity(
+            "[Options Page](../../../../games/OpenRCT2/player-options)",
+            "[Options Page](../player-options)",
+        );
+
+        // Both should be similar (around 0.4-0.6)
+        assert!(sim1 > 0.4, "sim1 = {}", sim1);
+        assert!(sim2 > 0.4, "sim2 = {}", sim2);
+
+        // Different lines should have low similarity
+        let sim3 = calculate_line_similarity(
+            "[Main Page](../../../../games/OpenRCT2/info/en)",
+            "[Options Page](../player-options)",
+        );
+        assert!(sim3 < 0.7, "sim3 = {}", sim3);
+
+        // The similar lines should be more similar than different ones
+        assert!(sim1 > sim3, "sim1 ({}) should be > sim3 ({})", sim1, sim3);
+    }
 }

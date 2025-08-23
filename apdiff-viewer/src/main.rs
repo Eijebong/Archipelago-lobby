@@ -12,9 +12,7 @@ use askama_web::WebTemplate;
 use rocket::{
     http::{ContentType, Status},
     response::{self, Responder},
-    routes,
-    serde::json::Json,
-    Request, Response, State,
+    routes, Request, Response, State,
 };
 use serde::Deserialize;
 use std::sync::OnceLock;
@@ -56,7 +54,8 @@ pub fn get_theme() -> &'static Theme {
         theme_set
             .themes
             .get("base16-eighties.dark")
-            .unwrap()
+            .or_else(|| theme_set.themes.values().next())
+            .expect("No themes available")
             .clone()
     })
 }
@@ -110,73 +109,13 @@ struct TestPage {
     results: TestResults,
 }
 
-#[rocket::get("/api/diffs/<task_id>")]
-async fn get_task_diffs_api(
-    task_id: &str,
-    queue: &State<Queue>,
-) -> Result<
-    Json<
-        Vec<(
-            CombinedDiff,
-            BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
-        )>,
-    >,
-> {
-    let artifacts = get_task_artifacts(queue, task_id).await?;
-    let diff_artifacts = artifacts
-        .iter()
-        .filter(|path| path.starts_with("public/diffs/") && path.ends_with(".apdiff"))
-        .collect::<Vec<_>>();
-    if diff_artifacts.is_empty() {
-        Err(anyhow::anyhow!(
-            "This doesn't look like a supported task, it contains no apdiffs"
-        ))?
-    }
-    let mut diffs = vec![];
-
-    for name in diff_artifacts {
-        let diff_url = queue.getLatestArtifact_url(task_id, name)?;
-        let diff = reqwest::get(&diff_url).await?.text().await?;
-        let mut deser = serde_json::Deserializer::from_str(&diff);
-        let diff: CombinedDiff = serde_path_to_error::deserialize(&mut deser)?;
-
-        let annotations_files = artifacts
-            .iter()
-            .filter(|path| {
-                path.starts_with(&format!("public/diffs/{}-", diff.apworld_name))
-                    && path.ends_with(".aplint")
-            })
-            .collect::<Vec<_>>();
-        let mut annotations = BTreeMap::new();
-        for file in &annotations_files {
-            let version = file
-                .strip_prefix(&format!("public/diffs/{}-", diff.apworld_name))
-                .unwrap()
-                .strip_suffix(".aplint")
-                .unwrap()
-                .to_string();
-            let aplint_url = queue.getLatestArtifact_url(task_id, file)?;
-            let aplint = reqwest::get(&aplint_url).await?.text().await?;
-            let mut deser = serde_json::Deserializer::from_str(&aplint);
-            let annotation: BTreeMap<String, Vec<Annotations>> =
-                serde_path_to_error::deserialize(&mut deser)?;
-
-            annotations.insert(version, annotation);
-        }
-
-        diffs.push((diff, annotations));
-    }
-
-    Ok(Json(diffs))
-}
-
 #[rocket::get("/<task_id>")]
 async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
     let artifacts = get_task_artifacts(queue, task_id).await?;
-    let diff_artifacts = artifacts
+    let diff_artifacts: Vec<_> = artifacts
         .iter()
         .filter(|path| path.starts_with("public/diffs/") && path.ends_with(".apdiff"))
-        .collect::<Vec<_>>();
+        .collect();
     if diff_artifacts.is_empty() {
         Err(anyhow::anyhow!(
             "This doesn't look like a supported task, it contains no apdiffs"
@@ -201,9 +140,8 @@ async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
         for file in &annotations_files {
             let version = file
                 .strip_prefix(&format!("public/diffs/{}-", diff.apworld_name))
-                .unwrap()
-                .strip_suffix(".aplint")
-                .unwrap()
+                .and_then(|s| s.strip_suffix(".aplint"))
+                .ok_or_else(|| anyhow::anyhow!("Invalid aplint filename: {}", file))?
                 .to_string();
             let aplint_url = queue.getLatestArtifact_url(task_id, file)?;
             let aplint = reqwest::get(&aplint_url).await?.text().await?;
@@ -334,18 +272,10 @@ async fn main() -> anyhow::Result<()> {
 
     rocket::build()
         .manage(queue)
-        .mount(
-            "/",
-            routes![
-                get_task_diffs,
-                dist_static,
-                get_test_results,
-                get_task_diffs_api
-            ],
-        )
+        .mount("/", routes![get_task_diffs, dist_static, get_test_results])
         .launch()
         .await
-        .unwrap();
+        .map_err(|e| anyhow::anyhow!("Rocket launch failed: {}", e))?;
 
     Ok(())
 }
@@ -363,15 +293,10 @@ async fn get_task_artifacts(queue: &Queue, task_id: &str) -> anyhow::Result<Vec<
             .and_then(|token| token.as_str().map(String::from));
 
         if let Some(values) = artifacts_page.get("artifacts").and_then(|v| v.as_array()) {
-            artifacts.extend(
-                values
-                    .iter()
-                    .filter_map(|v| {
-                        v.get("name")
-                            .and_then(|name| name.as_str().map(String::from))
-                    })
-                    .collect::<Vec<_>>(),
-            );
+            artifacts.extend(values.iter().filter_map(|v| {
+                v.get("name")
+                    .and_then(|name| name.as_str().map(String::from))
+            }));
         }
 
         if continuation_token.is_none() {

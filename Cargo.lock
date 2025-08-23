@@ -213,6 +213,8 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_path_to_error",
+ "similar",
+ "strsim",
  "syntect",
  "taskcluster",
  "tokio",
@@ -4511,6 +4513,12 @@ name = "simd-adler32"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
+
+[[package]]
+name = "similar"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
 
 [[package]]
 name = "siphasher"
