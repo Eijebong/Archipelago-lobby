@@ -184,9 +184,7 @@ fn highlight_code_safely(content: &str, filename: &str) -> String {
     let ops = match parse_state.parse_line(content, syntax_set) {
         Ok(ops) => ops,
         Err(e) => {
-            eprintln!(
-                "Parse error for single line '{content}' in {filename}: {e}"
-            );
+            eprintln!("Parse error for single line '{content}' in {filename}: {e}");
             return html_escape::encode_text(content).to_string();
         }
     };
