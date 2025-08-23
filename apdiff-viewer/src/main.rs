@@ -9,6 +9,7 @@ use std::{borrow::Cow, collections::BTreeMap, ffi::OsStr, io::Cursor, path::Path
 use apwm::diff::CombinedDiff;
 use askama::Template;
 use askama_web::WebTemplate;
+use futures::future::try_join_all;
 use rocket::{
     http::{ContentType, Status},
     response::{self, Responder},
@@ -36,27 +37,12 @@ pub fn get_syntax_set() -> &'static SyntaxSet {
 
 pub fn get_theme() -> &'static Theme {
     THEME.get_or_init(|| {
-        // Try to load custom GitHub Dark theme from embedded assets
-        if let Some(theme_file) = Asset::get("github-dark.tmTheme") {
-            let theme_xml = std::str::from_utf8(&theme_file.data).unwrap_or("");
-            match ThemeSet::load_from_reader(&mut std::io::Cursor::new(theme_xml)) {
-                Ok(theme) => {
-                    return theme;
-                }
-                Err(e) => {
-                    eprintln!("Failed to parse embedded GitHub Dark theme: {e}");
-                }
-            }
-        }
-
-        // Fallback to built-in theme
-        let theme_set = ThemeSet::load_defaults();
-        theme_set
-            .themes
-            .get("base16-eighties.dark")
-            .or_else(|| theme_set.themes.values().next())
-            .expect("No themes available")
-            .clone()
+        let theme_file = Asset::get("github-dark.tmTheme")
+            .expect("github-dark.tmTheme should be embedded in binary");
+        let theme_xml = std::str::from_utf8(&theme_file.data)
+            .expect("github-dark.tmTheme should be valid UTF-8");
+        ThemeSet::load_from_reader(&mut std::io::Cursor::new(theme_xml))
+            .expect("github-dark.tmTheme should be valid theme XML")
     })
 }
 
@@ -112,95 +98,123 @@ struct TestPage {
 #[rocket::get("/<task_id>")]
 async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
     let artifacts = get_task_artifacts(queue, task_id).await?;
+
     let diff_artifacts: Vec<_> = artifacts
         .iter()
         .filter(|path| path.starts_with("public/diffs/") && path.ends_with(".apdiff"))
         .collect();
+
     if diff_artifacts.is_empty() {
-        Err(anyhow::anyhow!(
+        return Err(anyhow::anyhow!(
             "This doesn't look like a supported task, it contains no apdiffs"
-        ))?
-    }
-    let mut diffs = vec![];
-
-    for name in diff_artifacts {
-        let diff_url = queue.getLatestArtifact_url(task_id, name)?;
-        let diff = reqwest::get(&diff_url).await?.text().await?;
-        let mut deser = serde_json::Deserializer::from_str(&diff);
-        let diff: CombinedDiff = serde_path_to_error::deserialize(&mut deser)?;
-
-        let annotations_files = artifacts
-            .iter()
-            .filter(|path| {
-                path.starts_with(&format!("public/diffs/{}-", diff.apworld_name))
-                    && path.ends_with(".aplint")
-            })
-            .collect::<Vec<_>>();
-        let mut annotations = BTreeMap::new();
-        for file in &annotations_files {
-            let version = file
-                .strip_prefix(&format!("public/diffs/{}-", diff.apworld_name))
-                .and_then(|s| s.strip_suffix(".aplint"))
-                .ok_or_else(|| anyhow::anyhow!("Invalid aplint filename: {}", file))?
-                .to_string();
-            let aplint_url = queue.getLatestArtifact_url(task_id, file)?;
-            let aplint = reqwest::get(&aplint_url).await?.text().await?;
-            let mut deser = serde_json::Deserializer::from_str(&aplint);
-            let annotation: BTreeMap<String, Vec<Annotations>> =
-                serde_path_to_error::deserialize(&mut deser)?;
-
-            annotations.insert(version, annotation);
-        }
-
-        diffs.push((diff, annotations));
+        )
+        .into());
     }
 
-    let processed_diffs = diffs
+    let diffs = try_join_all(
+        diff_artifacts
+            .into_iter()
+            .map(|name| process_diff_artifact(queue, task_id, name, &artifacts)),
+    )
+    .await?;
+
+    let apworld_diffs = diffs
         .into_iter()
-        .map(|(diff, annotations)| {
-            let versions = diff
-                .diffs
-                .iter()
-                .filter_map(|(version_range, diff_content)| {
-                    if let apwm::diff::Diff::VersionAdded(git_diff) = diff_content {
-                        let version_string = serde_json::to_string(version_range)
-                            .unwrap_or_else(|_| "unknown...unknown".to_string());
-                        let version_range_clean = version_string.trim_matches('"');
-
-                        let version_id = version_range_clean
-                            .split("...")
-                            .nth(1)
-                            .filter(|s| !s.is_empty())
-                            .unwrap_or("unknown");
-
-                        let files = parse_git_diff(git_diff, &annotations, version_id);
-
-                        Some(VersionDiff {
-                            version_range: version_range_clean.to_string(),
-                            version_id: version_id.to_string(),
-                            files,
-                        })
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-
-            ApworldDiff {
-                world_name: if diff.world_name.is_empty() {
-                    "Unknown".to_string()
-                } else {
-                    diff.world_name
-                },
-                versions,
-            }
-        })
+        .map(|(diff, annotations)| process_apworld_diff(diff, annotations))
         .collect();
 
     Ok(Index {
         task_id: task_id.to_string(),
-        apworld_diffs: processed_diffs,
+        apworld_diffs,
     })
+}
+
+/// Process a single diff artifact and its annotations
+async fn process_diff_artifact(
+    queue: &Queue,
+    task_id: &str,
+    name: &str,
+    artifacts: &[String],
+) -> Result<(
+    CombinedDiff,
+    BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
+)> {
+    // Fetch and deserialize the diff
+    let diff_url = queue.getLatestArtifact_url(task_id, name)?;
+    let diff_text = reqwest::get(&diff_url).await?.text().await?;
+    let diff = deserialize_json::<CombinedDiff>(&diff_text)?;
+
+    let annotation_prefix = format!("public/diffs/{}-", diff.apworld_name);
+    let annotations = try_join_all(
+        artifacts
+            .iter()
+            .filter(|path| path.starts_with(&annotation_prefix) && path.ends_with(".aplint"))
+            .map(|file| process_annotation_file(queue, task_id, file, &annotation_prefix)),
+    )
+    .await?
+    .into_iter()
+    .collect();
+
+    Ok((diff, annotations))
+}
+
+/// Process a single annotation file
+async fn process_annotation_file(
+    queue: &Queue,
+    task_id: &str,
+    file: &str,
+    prefix: &str,
+) -> Result<(String, BTreeMap<String, Vec<Annotations>>)> {
+    let version = file
+        .strip_prefix(prefix)
+        .and_then(|s| s.strip_suffix(".aplint"))
+        .ok_or_else(|| anyhow::anyhow!("Invalid aplint filename: {}", file))?;
+
+    let aplint_url = queue.getLatestArtifact_url(task_id, file)?;
+    let aplint_text = reqwest::get(&aplint_url).await?.text().await?;
+    let annotation = deserialize_json::<BTreeMap<String, Vec<Annotations>>>(&aplint_text)?;
+
+    Ok((version.to_string(), annotation))
+}
+
+/// Transform a combined diff into an ApworldDiff structure
+fn process_apworld_diff(
+    diff: CombinedDiff,
+    annotations: BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
+) -> ApworldDiff {
+    let versions = diff
+        .diffs
+        .iter()
+        .filter_map(|(version_range, diff_content)| match diff_content {
+            apwm::diff::Diff::VersionAdded(git_diff) => {
+                let version_string = serde_json::to_string(version_range)
+                    .expect("Version range should be serializable to JSON");
+                let version_range_clean = version_string.trim_matches('"');
+
+                let version_id = version_range_clean.split("...").nth(1).unwrap_or("HEAD");
+
+                let files = parse_git_diff(git_diff, &annotations, version_id);
+
+                Some(VersionDiff {
+                    version_range: version_range_clean.to_string(),
+                    version_id: version_id.to_string(),
+                    files,
+                })
+            }
+            _ => None,
+        })
+        .collect();
+
+    ApworldDiff {
+        world_name: diff.world_name,
+        versions,
+    }
+}
+
+/// Helper function for JSON deserialization with better error reporting
+fn deserialize_json<T: for<'de> serde::Deserialize<'de>>(text: &str) -> Result<T> {
+    let mut deser = serde_json::Deserializer::from_str(text);
+    Ok(serde_path_to_error::deserialize(&mut deser)?)
 }
 
 #[derive(Deserialize)]
@@ -258,7 +272,7 @@ fn dist_static(file: PathBuf) -> Option<(ContentType, Cow<'static, [u8]>)> {
         .extension()
         .and_then(OsStr::to_str)
         .and_then(ContentType::from_extension)
-        .unwrap_or(ContentType::Bytes);
+        .unwrap_or(ContentType::Binary);
 
     Some((content_type, asset.data))
 }
@@ -282,7 +296,8 @@ async fn main() -> anyhow::Result<()> {
 
 async fn get_task_artifacts(queue: &Queue, task_id: &str) -> anyhow::Result<Vec<String>> {
     let mut continuation_token = None;
-    let mut artifacts = vec![];
+    let mut all_artifacts = Vec::new();
+
     loop {
         let artifacts_page = queue
             .listLatestArtifacts(task_id, continuation_token.as_deref(), None)
@@ -292,11 +307,12 @@ async fn get_task_artifacts(queue: &Queue, task_id: &str) -> anyhow::Result<Vec<
             .get("continuationToken")
             .and_then(|token| token.as_str().map(String::from));
 
-        if let Some(values) = artifacts_page.get("artifacts").and_then(|v| v.as_array()) {
-            artifacts.extend(values.iter().filter_map(|v| {
-                v.get("name")
-                    .and_then(|name| name.as_str().map(String::from))
-            }));
+        if let Some(artifacts) = artifacts_page.get("artifacts").and_then(|v| v.as_array()) {
+            let page_artifacts: Vec<String> = artifacts
+                .iter()
+                .filter_map(|v| v.get("name")?.as_str().map(String::from))
+                .collect();
+            all_artifacts.extend(page_artifacts);
         }
 
         if continuation_token.is_none() {
@@ -304,5 +320,5 @@ async fn get_task_artifacts(queue: &Queue, task_id: &str) -> anyhow::Result<Vec<
         }
     }
 
-    Ok(artifacts)
+    Ok(all_artifacts)
 }

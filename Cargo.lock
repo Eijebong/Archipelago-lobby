@@ -204,8 +204,8 @@ dependencies = [
  "apwm",
  "askama",
  "askama_web",
- "base64",
  "dotenvy",
+ "futures",
  "html-escape",
  "reqwest",
  "rocket",
@@ -217,7 +217,6 @@ dependencies = [
  "strsim",
  "syntect",
  "taskcluster",
- "tokio",
 ]
 
 [[package]]

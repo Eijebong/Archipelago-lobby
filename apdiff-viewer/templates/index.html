@@ -147,7 +147,7 @@
                         </div>
                     </div>
                     <div class="content-cell">
-                        <div class="content-line {{ line.line_type_str() }}">{{ line.html_content|safe }}</div>
+                        <div class="content-line {{ line.line_type_str() }}">{{ line.html_content()|safe }}</div>
                     </div>
                     {% if line.annotations.len() > 0 %}
                     <div class="las">

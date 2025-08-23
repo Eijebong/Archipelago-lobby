@@ -13,15 +13,12 @@ reqwest = { version = "0.12.7", features = ["gzip", "json"] }
 rocket = { version = "0.5.1", features = ["json"] }
 rust-embed = { version = "8.5.0", features = ["rocket"] }
 taskcluster = "86"
-tokio = { version = "1.40.0", features = ["rt-multi-thread", "macros"] }
 serde_path_to_error = "0.1.16"
 serde_json = "1.0.128"
-base64 = "0.22.1"
 serde = { version = "1.0.217", features = ["derive"] }
 syntect = { version = "5.2", default-features = false, features = ["default", "html"] }
 html-escape = "0.2.13"
 similar = "2.2"
 strsim = "0.11"
+futures = "0.3"
 
-#[patch."https://github.com/Eijebong/APWM.git"]
-#apwm = { path = "../apwm" }
