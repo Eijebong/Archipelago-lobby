@@ -1,7 +1,6 @@
-use std::collections::BTreeMap;
-use serde::{Deserialize, Serialize};
 use indexmap::IndexMap;
-
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DataPackage {

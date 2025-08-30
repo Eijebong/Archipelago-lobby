@@ -14,8 +14,8 @@ use scraper::{Html, Selector};
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::datapackage::DataPackage;
 use crate::Config;
+use crate::datapackage::DataPackage;
 
 #[derive(Deserialize, Debug)]
 pub struct YamlInfo {
