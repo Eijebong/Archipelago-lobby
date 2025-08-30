@@ -15,8 +15,8 @@ rocket = { git = "https://github.com/Eijebong/Rocket.git", branch = "0.6.0-dev" 
 rocket_ws = { git = "https://github.com/Eijebong/Rocket.git", branch = "0.6.0-dev" }
 rocket_prometheus = { git = "https://github.com/Eijebong/rocket_prometheus.git", branch = "0.6.0-dev" }
 rocket_oauth2 = { git = "https://github.com/jebrosen/rocket_oauth2.git" }
-sentry-tracing = { git = "http://github.com/Eijebong/sentry-rust" }
-sentry = { git = "http://github.com/Eijebong/sentry-rust" }
+sentry-tracing = { git = "http://github.com/Eijebong/sentry-rust.git" }
+sentry = { git = "http://github.com/Eijebong/sentry-rust.git" }
 
 [profile.dev.package."*"]
 opt-level = 3
