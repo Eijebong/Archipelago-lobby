@@ -12,7 +12,7 @@ dotenvy = "0.15.7"
 reqwest = { version = "0.12.7", features = ["gzip", "json"] }
 rocket = { version = "0.5.1", features = ["json"] }
 rust-embed = { version = "8.5.0", features = ["rocket"] }
-taskcluster = "86"
+taskcluster = "88.0.5"
 serde_path_to_error = "0.1.16"
 serde_json = "1.0.128"
 serde = { version = "1.0.217", features = ["derive"] }
