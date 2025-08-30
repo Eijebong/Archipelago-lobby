@@ -1,6 +1,5 @@
 use std::{collections::BTreeMap, fmt::Display, str::FromStr, sync::OnceLock};
 
-use aprs::proto::server::DataPackage;
 use reqwest::{
     Url,
     header::{HeaderName, HeaderValue},
@@ -15,6 +14,7 @@ use scraper::{Html, Selector};
 use serde::Deserialize;
 use uuid::Uuid;
 
+use crate::datapackage::DataPackage;
 use crate::Config;
 
 #[derive(Deserialize, Debug)]

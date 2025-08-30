@@ -21,6 +21,7 @@ use tungstenite::{Message, connect};
 use uuid::Uuid;
 
 mod auth;
+mod datapackage;
 mod error;
 mod filters;
 mod guards;
