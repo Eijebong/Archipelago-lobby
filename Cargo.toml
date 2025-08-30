@@ -10,6 +10,7 @@ members = [
 ]
 
 [patch.crates-io]
+figment = { git = "https://github.com/Eijebong/Figment.git" }
 rocket = { git = "https://github.com/Eijebong/Rocket.git", branch = "0.6.0-dev" }
 rocket_ws = { git = "https://github.com/Eijebong/Rocket.git", branch = "0.6.0-dev" }
 rocket_prometheus = { git = "https://github.com/Eijebong/rocket_prometheus.git", branch = "0.6.0-dev" }

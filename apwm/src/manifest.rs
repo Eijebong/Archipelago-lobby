@@ -138,7 +138,7 @@ impl Manifest {
     }
 
     pub fn parse(content: &str) -> Result<Self> {
-        let deser = toml::Deserializer::new(content);
+        let deser = toml::Deserializer::parse(content)?;
 
         let manifest: Manifest = serde_path_to_error::deserialize(deser)?;
         Ok(manifest)

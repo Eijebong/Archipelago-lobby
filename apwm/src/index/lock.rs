@@ -24,7 +24,7 @@ impl IndexLock {
         }
 
         let lock_content = std::fs::read_to_string(path)?;
-        let deser = toml::Deserializer::new(&lock_content);
+        let deser = toml::Deserializer::parse(&lock_content)?;
         let apworlds: BTreeMap<String, BTreeMap<Version, String>> =
             serde_path_to_error::deserialize(deser)?;
 

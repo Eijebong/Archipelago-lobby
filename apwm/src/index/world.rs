@@ -77,7 +77,7 @@ pub struct World {
 impl World {
     pub fn new(world_path: &Path) -> Result<Self> {
         let world_content = std::fs::read_to_string(world_path)?;
-        let deser = toml::Deserializer::new(&world_content);
+        let deser = toml::Deserializer::parse(&world_content)?;
         let mut world: Self = serde_path_to_error::deserialize(deser)?;
         world.path = world_path.into();
         if world.display_name.is_empty() {

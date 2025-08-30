@@ -19,7 +19,7 @@ git2 = { version = "0.20.1" }
 sha2 = "0.10.8"
 tempfile = "3.10.1"
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
-toml = "0.8.13"
+toml = "0.9"
 walkdir = "2.5.0"
 zip = "4.2.0"
 
