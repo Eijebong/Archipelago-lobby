@@ -52,8 +52,8 @@ sentry = "0.38.1"
 sentry-tracing = "0.38.1"
 regex = "1.11.1"
 rocket_ws = "=0.1.0"
-deadpool-redis = "0.21.0"
-redis = "0.31.0"
+deadpool-redis = "0.22.0"
+redis = "0.32.0"
 
 [build-dependencies]
 anyhow = "1.0.86"
