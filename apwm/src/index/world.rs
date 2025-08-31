@@ -141,7 +141,7 @@ impl World {
         ap_index_ref: &str,
         lock_file: &IndexLock,
         lobby_url: &Option<Url>,
-    ) -> Result<()> {
+    ) -> Result<String> {
         let origin = self.versions.get(version).with_context(|| {
             format!("Unable to find version {} for world {}", version, self.name)
         })?;
@@ -158,7 +158,7 @@ impl World {
                 &destination.join(self.get_ap_name()?),
             )?;
 
-            return Ok(());
+            return Ok("supported".to_string());
         }
 
         let download_dir = tempdir()?;
@@ -171,26 +171,31 @@ impl World {
 
         let apworld_name = self.get_ap_name()?;
         let expected_checksum = lock_file.get_checksum(&apworld_name, version);
-        let checksum = self
+        let checksum = match self
             .copy_to(version, &apworld_file, expected_checksum)
-            .await;
-        if checksum.is_err() {
-            if let Some(lobby_url) = lobby_url {
-                apworld_file.set_len(0)?;
-                self.download_from_lobby(lobby_url, version, &apworld_file)
-                    .await?;
-            } else {
-                bail!(
-                    "Couldn't get world for `{}`, version `{}`. {}",
-                    apworld_name,
-                    version,
-                    checksum.unwrap_err()
-                );
+            .await
+        {
+            Ok(checksum) => checksum,
+            Err(err) => {
+                if let Some(lobby_url) = lobby_url {
+                    apworld_file.set_len(0)?;
+                    self.download_from_lobby(lobby_url, version, &apworld_file)
+                        .await?
+                } else {
+                    bail!(
+                        "Couldn't get world for `{}`, version `{}`. {}",
+                        apworld_name,
+                        version,
+                        err
+                    );
+                }
             }
-        }
+        };
 
         let mut archive = zip::ZipArchive::new(File::open(apworld_path)?)?;
-        Ok(archive.extract(destination)?)
+        archive.extract(destination)?;
+
+        Ok(checksum)
     }
 
     pub fn get_ap_name(&self) -> Result<String> {

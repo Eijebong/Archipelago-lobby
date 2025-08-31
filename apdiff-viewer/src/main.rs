@@ -185,23 +185,25 @@ fn process_apworld_diff(
     let versions = diff
         .diffs
         .iter()
-        .filter_map(|(version_range, diff_content)| match diff_content {
-            apwm::diff::Diff::VersionAdded(git_diff) => {
-                let version_string = serde_json::to_string(version_range)
-                    .expect("Version range should be serializable to JSON");
-                let version_range_clean = version_string.trim_matches('"');
+        .filter_map(|(version_range, diff_content)| {
+            let git_diff = match diff_content {
+                apwm::diff::Diff::VersionAdded { content, .. } => content,
+                _ => return None,
+            };
 
-                let version_id = version_range_clean.split("...").nth(1).unwrap_or("HEAD");
+            let version_string = serde_json::to_string(version_range)
+                .expect("Version range should be serializable to JSON");
+            let version_range_clean = version_string.trim_matches('"');
 
-                let files = parse_git_diff(git_diff, &annotations, version_id);
+            let version_id = version_range_clean.split("...").nth(1).unwrap_or("HEAD");
 
-                Some(VersionDiff {
-                    version_range: version_range_clean.to_string(),
-                    version_id: version_id.to_string(),
-                    files,
-                })
-            }
-            _ => None,
+            let files = parse_git_diff(git_diff, &annotations, version_id);
+
+            Some(VersionDiff {
+                version_range: version_range_clean.to_string(),
+                version_id: version_id.to_string(),
+                files,
+            })
         })
         .collect();
 

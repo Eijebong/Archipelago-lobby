@@ -8,10 +8,67 @@ use serde::de::Error;
 use serde::{Deserialize, Serialize};
 use tempfile::tempdir;
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, PartialEq, Debug)]
 pub enum Diff {
-    VersionAdded(String),
+    VersionAdded { content: String, checksum: String },
     VersionRemoved,
+}
+
+// XXX: Remove this once we don't care about old diffs anymore (i.e when tasks have expired)
+impl<'de> Deserialize<'de> for Diff {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde_json::Value;
+        use std::collections::HashMap;
+
+        let value: HashMap<String, Value> = HashMap::deserialize(deserializer)?;
+
+        for (key, val) in value {
+            match key.as_str() {
+                "VersionAdded" => {
+                    match val {
+                        // New format: {"content": "...", "checksum": "..."}
+                        Value::Object(obj) => {
+                            let content = obj
+                                .get("content")
+                                .and_then(|v| v.as_str())
+                                .ok_or_else(|| serde::de::Error::missing_field("content"))?;
+                            let checksum = obj
+                                .get("checksum")
+                                .and_then(|v| v.as_str())
+                                .ok_or_else(|| serde::de::Error::missing_field("checksum"))?;
+
+                            return Ok(Diff::VersionAdded {
+                                content: content.to_string(),
+                                checksum: checksum.to_string(),
+                            });
+                        }
+                        // Old format: just a string
+                        Value::String(content) => {
+                            return Ok(Diff::VersionAdded {
+                                content,
+                                checksum: "unknown".to_string(),
+                            });
+                        }
+                        _ => return Err(serde::de::Error::custom("invalid VersionAdded format")),
+                    }
+                }
+                "VersionRemoved" => {
+                    return Ok(Diff::VersionRemoved);
+                }
+                _ => {
+                    return Err(serde::de::Error::unknown_variant(
+                        &key,
+                        &["VersionAdded", "VersionRemoved"],
+                    ))
+                }
+            }
+        }
+
+        Err(serde::de::Error::custom("empty enum"))
+    }
 }
 
 #[derive(PartialEq, Debug, PartialOrd, Ord, Eq)]
@@ -106,7 +163,7 @@ async fn diff_world(
             };
 
             for version in new_world.versions.keys() {
-                let diff = diff_version(
+                let (diff, world_checksum) = diff_version(
                     new_world,
                     previous_version.clone(),
                     new_world,
@@ -119,7 +176,10 @@ async fn diff_world(
                 .await?;
                 result.diffs.insert(
                     VersionRange(previous_version, Some(version.clone())),
-                    Diff::VersionAdded(diff),
+                    Diff::VersionAdded {
+                        content: diff,
+                        checksum: world_checksum.unwrap_or_else(|| "unknown".to_string()),
+                    },
                 );
 
                 previous_version = Some(version.clone());
@@ -171,7 +231,7 @@ async fn diff_world(
 
                 let (previous_world, previous_version) =
                     find_closest_version(version, old_world, new_world);
-                let origin_diff = diff_version(
+                let (origin_diff, world_checksum) = diff_version(
                     previous_world,
                     previous_version.clone(),
                     new_world,
@@ -184,7 +244,10 @@ async fn diff_world(
                 .await?;
                 result.diffs.insert(
                     VersionRange(previous_version, Some(version.clone())),
-                    Diff::VersionAdded(origin_diff),
+                    Diff::VersionAdded {
+                        content: origin_diff,
+                        checksum: world_checksum.unwrap_or_else(|| "unknown".to_string()),
+                    },
                 );
                 candidate_versions.push(version);
             }
@@ -245,9 +308,10 @@ async fn diff_version(
     ap_index_ref: &str,
     index_lock: &IndexLock,
     lobby_url: &Option<Url>,
-) -> Result<String> {
+) -> Result<(String, Option<String>)> {
     let from_tmpdir = tempdir()?;
     let to_tmpdir = tempdir()?;
+    let mut new_world_checksum = None;
 
     if let Some(from_version) = from_version {
         from_world
@@ -262,21 +326,23 @@ async fn diff_version(
             .await?;
     }
     if let Some(to_version) = to_version {
-        to_world
-            .extract_to(
-                to_version,
-                to_tmpdir.path(),
-                ap_index_url,
-                ap_index_ref,
-                index_lock,
-                lobby_url,
-            )
-            .await?;
+        new_world_checksum = Some(
+            to_world
+                .extract_to(
+                    to_version,
+                    to_tmpdir.path(),
+                    ap_index_url,
+                    ap_index_ref,
+                    index_lock,
+                    lobby_url,
+                )
+                .await?,
+        );
     }
 
     let diff = diff_dir(from_tmpdir.path(), to_tmpdir.path())?;
 
-    Ok(diff)
+    Ok((diff, new_world_checksum))
 }
 
 pub fn diff_dir(from: &Path, to: &Path) -> Result<String> {
@@ -358,38 +424,44 @@ mod tests {
 
         let diff = diff_world(None, Some(&new_world), "", "", &index_lock, &None).await?;
 
-        let expected_diff = CombinedDiff {
-            apworld_name: "foobar".to_string(),
-            world_name: "New World".to_string(),
-            diffs: BTreeMap::from([
-                (
-                    VersionRange(None, Some(Version::from_str("0.0.1")?)),
-                    Diff::VersionAdded(
-                        "diff --git a/VERSION b/VERSION\nnew file mode 100644\nindex 0000000..8acdd82\n--- /dev/null\n+++ b/VERSION\n@@ -0,0 +1 @@\n+0.0.1\n".to_string()
-                    ),
+        let expected_diffs = [
+            (
+                VersionRange(None, Some(Version::from_str("0.0.1")?)),
+                "diff --git a/VERSION b/VERSION\nnew file mode 100644\nindex 0000000..8acdd82\n--- /dev/null\n+++ b/VERSION\n@@ -0,0 +1 @@\n+0.0.1\n",
+            ),
+            (
+                VersionRange(
+                    Some(Version::from_str("0.0.1")?),
+                    Some(Version::from_str("0.0.2")?),
                 ),
-                (
-                    VersionRange(
-                        Some(Version::from_str("0.0.1")?),
-                        Some(Version::from_str("0.0.2")?),
-                    ),
-                    Diff::VersionAdded(
-                        "diff --git a/VERSION b/VERSION\nindex 8acdd82..4e379d2 100644\n--- a/VERSION\n+++ b/VERSION\n@@ -1 +1 @@\n-0.0.1\n+0.0.2\n".to_string()
-                    ),
+                "diff --git a/VERSION b/VERSION\nindex 8acdd82..4e379d2 100644\n--- a/VERSION\n+++ b/VERSION\n@@ -1 +1 @@\n-0.0.1\n+0.0.2\n",
+            ),
+            (
+                VersionRange(
+                    Some(Version::from_str("0.0.2")?),
+                    Some(Version::from_str("0.0.3")?),
                 ),
-                (
-                    VersionRange(
-                        Some(Version::from_str("0.0.2")?),
-                        Some(Version::from_str("0.0.3")?),
-                    ),
-                    Diff::VersionAdded(
-                        "diff --git a/VERSION b/VERSION\nindex 4e379d2..bcab45a 100644\n--- a/VERSION\n+++ b/VERSION\n@@ -1 +1 @@\n-0.0.2\n+0.0.3\n".to_string()
-                    ),
-                ),
-            ]),
-        };
+                "diff --git a/VERSION b/VERSION\nindex 4e379d2..bcab45a 100644\n--- a/VERSION\n+++ b/VERSION\n@@ -1 +1 @@\n-0.0.2\n+0.0.3\n",
+            ),
+        ];
 
-        assert_eq!(diff, expected_diff);
+        assert_eq!(diff.world_name, "New World");
+        assert_eq!(diff.apworld_name, "foobar");
+        assert_eq!(diff.diffs.len(), expected_diffs.len());
+
+        for (expected_range, expected_content) in expected_diffs {
+            match diff.diffs.get(&expected_range) {
+                Some(Diff::VersionAdded { content, checksum }) => {
+                    assert_eq!(content, expected_content);
+                    assert_ne!(checksum, "unknown", "Checksum should not be unknown");
+                    assert!(!checksum.is_empty(), "Checksum should not be empty");
+                }
+                other => panic!(
+                    "Expected VersionAdded for {:?}, got {:?}",
+                    expected_range, other
+                ),
+            }
+        }
 
         Ok(())
     }
@@ -477,27 +549,34 @@ mod tests {
         )
         .await?;
 
-        let expected_diff = CombinedDiff {
-            apworld_name: "foobar".to_string(),
-            world_name: "World".to_string(),
-            diffs: BTreeMap::from([
-                (
-                    VersionRange(Some(Version::from_str("0.0.2")?), None),
-                    Diff::VersionRemoved,
-                ),
-                (
-                    VersionRange(
-                        Some(Version::from_str("0.0.3")?),
-                        Some(Version::from_str("0.0.4")?),
-                    ),
-                    Diff::VersionAdded(
-                        "diff --git a/VERSION b/VERSION\nindex bcab45a..81340c7 100644\n--- a/VERSION\n+++ b/VERSION\n@@ -1 +1 @@\n-0.0.3\n+0.0.4\n".to_string()
-                    ),
-                ),
-            ]),
-        };
+        assert_eq!(diff.world_name, "World");
+        assert_eq!(diff.apworld_name, "foobar");
+        assert_eq!(diff.diffs.len(), 2);
 
-        assert_eq!(diff, expected_diff);
+        let removed_range = VersionRange(Some(Version::from_str("0.0.2")?), None);
+        assert!(matches!(
+            diff.diffs.get(&removed_range),
+            Some(Diff::VersionRemoved)
+        ));
+
+        let added_range = VersionRange(
+            Some(Version::from_str("0.0.3")?),
+            Some(Version::from_str("0.0.4")?),
+        );
+        match diff.diffs.get(&added_range) {
+            Some(Diff::VersionAdded { content, checksum }) => {
+                assert_eq!(
+                    content,
+                    "diff --git a/VERSION b/VERSION\nindex bcab45a..81340c7 100644\n--- a/VERSION\n+++ b/VERSION\n@@ -1 +1 @@\n-0.0.3\n+0.0.4\n"
+                );
+                assert_ne!(checksum, "unknown", "Checksum should not be unknown");
+                assert!(!checksum.is_empty(), "Checksum should not be empty");
+            }
+            other => panic!(
+                "Expected VersionAdded for {:?}, got {:?}",
+                added_range, other
+            ),
+        }
 
         Ok(())
     }
