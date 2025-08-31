@@ -25,7 +25,7 @@ impl<'de> Deserialize<'de> for Diff {
 
         let value: HashMap<String, Value> = HashMap::deserialize(deserializer)?;
 
-        for (key, val) in value {
+        if let Some((key, val)) = value.into_iter().next() {
             match key.as_str() {
                 "VersionAdded" => {
                     match val {

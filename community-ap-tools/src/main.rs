@@ -316,7 +316,7 @@ async fn main() -> crate::error::Result<()> {
         lobby_room_id: lobby_room_id.parse()?,
         lobby_api_key,
         ap_session_cookie,
-        ap_room_url: Url::from_str(&format!("https://archipelago.gg/room/{}", ap_room_id)).unwrap(),
+        ap_room_url: Url::from_str(&format!("https://archipelago.gg/room/{ap_room_id}")).unwrap(),
         ap_room_id,
         is_session_valid: false,
     };
