@@ -30,7 +30,7 @@ pub struct Discord;
 
 #[derive(Template, WebTemplate)]
 #[template(path = "index.html")]
-pub struct IndexTpl {
+pub struct RunIndexTpl {
     lobby_room: LobbyRoom,
     ap_room: ApRoom,
     lobby_root_url: String,
@@ -69,12 +69,12 @@ fn unauthorized(req: &Request) -> crate::error::Result<Redirect> {
 }
 
 #[rocket::get("/")]
-async fn root(
+async fn root_run(
     _session: LoggedInSession,
     lobby_room: LobbyRoom,
     mut ap_room: ApRoom,
     config: &State<Config>,
-) -> crate::error::Result<IndexTpl> {
+) -> crate::error::Result<RunIndexTpl> {
     if lobby_room.yamls.len() != ap_room.tracker_info.slots.len() {
         Err(anyhow!(
             "The AP room slot number doesn't match the lobby, this won't work"
@@ -114,7 +114,7 @@ async fn root(
         .cloned()
         .collect();
 
-    let index = IndexTpl {
+    let index = RunIndexTpl {
         lobby_room,
         ap_room,
         lobby_root_url: config.lobby_root_url.to_string(),
@@ -123,6 +123,16 @@ async fn root(
     };
 
     Ok(index)
+}
+
+#[rocket::get("/")]
+async fn root(
+    session: LoggedInSession,
+    lobby_room: LobbyRoom,
+    ap_room: ApRoom,
+    config: &State<Config>,
+) -> crate::error::Result<RunIndexTpl> {
+    root_run(session, lobby_room, ap_room, config).await
 }
 
 #[rocket::get("/hint/<ty>/<slot_name>/<item_name>")]
