@@ -342,7 +342,7 @@ fn syntect_style_to_css(style: SyntectStyle) -> String {
 }
 
 pub fn highlight_hunk_lines(
-    hunk_lines: &[(String, LineType, usize)],
+    hunk_lines: &[(String, LineType, (i32, i32))],
     filename: &str,
 ) -> Vec<Vec<SyntaxToken>> {
     let syntax_set = get_syntax_set();
@@ -648,7 +648,7 @@ pub fn parse_hunk_header(line: &str) -> Option<(i32, i32)> {
 
 /// Process accumulated hunk lines and convert them to DiffLines with syntax highlighting
 fn process_hunk_lines(
-    hunk_lines: &mut Vec<(String, LineType, usize)>,
+    hunk_lines: &mut Vec<(String, LineType, (i32, i32))>,
     diff_lines: &mut Vec<DiffLine>,
     display_filename: &str,
     annotations: &BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
@@ -675,31 +675,27 @@ fn process_hunk_lines(
 
     let syntax_tokens_per_line = highlight_hunk_lines(hunk_lines, display_filename);
 
-    for (i, (content, line_type, line_num)) in hunk_lines.iter().enumerate() {
+    for (i, (content, line_type, (old_num, new_num))) in hunk_lines.iter().enumerate() {
         let syntax_tokens = syntax_tokens_per_line
             .get(i)
             .cloned()
             .unwrap_or_else(|| fallback_syntax_tokens(content));
 
-        let (old_num, new_num) = match line_type {
-            LineType::Add => (-1, *line_num as i32),
-            LineType::Delete => (*line_num as i32, -1),
-            LineType::Context => (*line_num as i32, *line_num as i32),
-            _ => (-1, -1),
+        let line_annotations = match line_type {
+            LineType::Add | LineType::Context => {
+                if *new_num > 0 {
+                    find_line_annotations(*new_num, &file_annotations)
+                } else {
+                    Vec::new()
+                }
+            }
+            _ => Vec::new(),
         };
-
-        // Show annotations for added lines and context lines
-        let line_annotations =
-            if matches!(*line_type, LineType::Add | LineType::Context) && new_num > 0 {
-                find_line_annotations(new_num, &file_annotations)
-            } else {
-                Vec::new()
-            };
 
         diff_lines.push(DiffLine {
             line_type: *line_type,
-            old_line_number: Some(old_num),
-            new_line_number: Some(new_num),
+            old_line_number: Some(*old_num),
+            new_line_number: Some(*new_num),
             annotations: line_annotations,
             raw_content: content.clone(),
             syntax_tokens,
@@ -822,7 +818,7 @@ fn process_diff_content(
     version_id: &str,
 ) -> Vec<DiffLine> {
     let mut diff_lines = Vec::new();
-    let mut current_hunk_lines: Vec<(String, LineType, usize)> = Vec::new();
+    let mut current_hunk_lines: Vec<(String, LineType, (i32, i32))> = Vec::new();
     let mut line_numbers = LineNumbers::new();
     let mut in_hunk = false;
 
@@ -888,7 +884,7 @@ impl LineNumbers {
 /// Process a single content line within a hunk
 fn process_hunk_content_line(
     line: &str,
-    current_hunk_lines: &mut Vec<(String, LineType, usize)>,
+    current_hunk_lines: &mut Vec<(String, LineType, (i32, i32))>,
     line_numbers: &mut LineNumbers,
 ) {
     match line {
@@ -896,7 +892,7 @@ fn process_hunk_content_line(
             current_hunk_lines.push((
                 line[1..].to_string(),
                 LineType::Add,
-                line_numbers.new as usize,
+                (-1, line_numbers.new as i32),
             ));
             line_numbers.new += 1;
         }
@@ -904,7 +900,7 @@ fn process_hunk_content_line(
             current_hunk_lines.push((
                 line[1..].to_string(),
                 LineType::Delete,
-                line_numbers.old as usize,
+                (line_numbers.old as i32, -1),
             ));
             line_numbers.old += 1;
         }
@@ -913,7 +909,7 @@ fn process_hunk_content_line(
             current_hunk_lines.push((
                 content.to_string(),
                 LineType::Context,
-                line_numbers.old as usize,
+                (line_numbers.old as i32, line_numbers.new as i32),
             ));
             line_numbers.old += 1;
             line_numbers.new += 1;
