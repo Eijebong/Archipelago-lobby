@@ -23,9 +23,20 @@ impl<'de> Deserialize<'de> for Diff {
         use serde_json::Value;
         use std::collections::HashMap;
 
-        let value: HashMap<String, Value> = HashMap::deserialize(deserializer)?;
+        let value: Value = Value::deserialize(deserializer)?;
 
-        if let Some((key, val)) = value.into_iter().next() {
+        if let Value::String(ref s) = value {
+            if s == "VersionRemoved" {
+                return Ok(Diff::VersionRemoved);
+            }
+        }
+
+        let map: HashMap<String, Value> = match value {
+            Value::Object(obj) => obj.into_iter().collect(),
+            _ => return Err(serde::de::Error::custom("expected object or string")),
+        };
+
+        if let Some((key, val)) = map.into_iter().next() {
             match key.as_str() {
                 "VersionAdded" => {
                     match val {
@@ -503,6 +514,27 @@ mod tests {
 
         assert_eq!(diff, expected_diff);
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_combined_diff_with_string_version_removed() -> Result<()> {
+        let json = r#"{
+            "world_name": "Test World",
+            "apworld_name": "test",
+            "diffs": {
+                "0.14.2...": "VersionRemoved",
+                "0.18.2...0.19.0": {
+                    "VersionAdded": {
+                        "content": "diff content",
+                        "checksum": "abc123"
+                    }
+                }
+            }
+        }"#;
+
+        let diff: CombinedDiff = serde_json::from_str(json)?;
+        assert_eq!(diff.world_name, "Test World");
         Ok(())
     }
 
