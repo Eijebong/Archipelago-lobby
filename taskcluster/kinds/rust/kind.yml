@@ -38,7 +38,7 @@ tasks:
       build-result: /builds/worker/target/release/apdiff-viewer
       docker-repo: ghcr.io/eijebong/apdiff-viewer
       build-args: --bin apdiff-viewer
-      skip-unless-changed: ["Cargo.*", "apdiff-viewer/**", "taskcluster/**"]
+      skip-unless-changed: ["Cargo.*", "apdiff-viewer/**", "taskcluster/**", "apwm/**"]
     community-ap-tools:
       build-result: /builds/worker/target/release/community-ap-tools
       docker-repo: ghcr.io/eijebong/community-ap-tools
