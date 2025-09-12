@@ -199,8 +199,6 @@ fn process_style_text_pairs(
 // Constants for diff processing
 const MAX_WORD_DIFF_LINE_LENGTH: usize = 10000;
 const LINE_SIMILARITY_THRESHOLD: f64 = 0.25;
-const MAX_FILE_SIZE_BYTES: usize = 100000;
-const MAX_FILE_LINES: usize = 5000;
 
 #[derive(Debug, Clone)]
 pub struct TemplateAnnotation {
@@ -294,7 +292,6 @@ pub struct FileDiff {
     pub filename_before: String,
     pub filename_after: String,
     pub is_binary: bool,
-    pub is_large: bool,
     pub lines: Vec<DiffLine>,
 }
 
@@ -494,19 +491,6 @@ fn apply_diff_styling(highlighted_content: &str, line_type: LineType) -> String 
         LineType::Hunk => format!("<span class='hunk-header'>{highlighted_content}</span>"),
         _ => highlighted_content.to_string(),
     }
-}
-
-/// Analyze file size and line count efficiently
-fn analyze_file_size(content: &str) -> (bool, usize) {
-    let byte_size = content.len();
-    if byte_size > MAX_FILE_SIZE_BYTES {
-        return (true, 0); // Don't bother counting lines if bytes already exceed limit
-    }
-
-    let line_count = content.lines().count();
-    let is_large = line_count > MAX_FILE_LINES;
-
-    (is_large, line_count)
 }
 
 /// Apply word-level highlighting to pairs of add/delete lines
@@ -727,7 +711,6 @@ fn parse_single_file_diff(
     let lines: Vec<&str> = file_diff.split('\n').collect();
 
     let file_metadata = parse_file_metadata(&lines)?;
-    let (is_large, _) = analyze_file_size(file_diff);
 
     // Process diff content
     let mut diff_lines = process_diff_content(
@@ -744,7 +727,6 @@ fn parse_single_file_diff(
         filename_before: file_metadata.filename_before,
         filename_after: file_metadata.filename_after,
         is_binary: file_metadata.is_binary,
-        is_large,
         lines: diff_lines,
     })
 }

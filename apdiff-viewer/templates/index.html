@@ -31,13 +31,6 @@
             }
         }
 
-        function loadLargeFile(fileId) {
-            const warning = document.getElementById(fileId + '-warning');
-            const content = document.getElementById(fileId + '-content');
-            warning.style.display = 'none';
-            content.style.display = 'block';
-        }
-
         document.addEventListener('DOMContentLoaded', function() {
             if (document.querySelectorAll('.apworld-section').length > 0) {
                 showApworld(0);
@@ -107,14 +100,6 @@
 
                 {% if file.is_binary %}
                 <div class="binary-file">Binary file</div>
-                {% elif file.is_large %}
-                <div id="{{ file_id }}-warning" class="lfw">
-                    <div>Large file (many lines)</div>
-                    <button class="load-button" onclick="loadLargeFile('{{ file_id }}')">
-                        Click to load
-                    </button>
-                </div>
-                <div id="{{ file_id }}-content" class="dc" style="display: none;">
                 {% else %}
                 <div id="{{ file_id }}-content" class="dc">
                 {% endif %}
