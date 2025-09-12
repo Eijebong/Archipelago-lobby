@@ -102,49 +102,49 @@
                 <div class="binary-file">Binary file</div>
                 {% else %}
                 <div id="{{ file_id }}-content" class="dc">
-                {% endif %}
-
-                {% if file.is_binary %}
-                {% else %}
-                <div class="diff-grid">
-                    {% for line in file.lines %}
-                    <div class="gutter-cell">
-                        <div class="ln-before">
-                            {% if line.is_hunk() %}
-                            ...
-                            {% elif line.is_add() %}
-
-                            {% elif line.is_delete() %}
-                            {% if line.old_line_number.is_some() %}{{ line.old_line_number.unwrap() }}{% endif %}
-                            {% else %}
-                            {% if line.old_line_number.is_some() %}{{ line.old_line_number.unwrap() }}{% endif %}
+                    <table class="diff-table">
+                        <tbody>
+                        {% for line in file.lines %}
+                            <tr class="diff-row {{ line.line_type_str() }}">
+                                <td class="gutter-cell">
+                                    <span class="ln-before">
+                                        {% if line.is_hunk() %}
+                                        ...
+                                        {% elif line.is_add() %}
+                                        {% elif line.is_delete() %}
+                                        {% if line.old_line_number.is_some() %}{{ line.old_line_number.unwrap() }}{% endif %}
+                                        {% else %}
+                                        {% if line.old_line_number.is_some() %}{{ line.old_line_number.unwrap() }}{% endif %}
+                                        {% endif %}
+                                    </span>
+                                    <span class="ln-after">
+                                        {% if line.is_hunk() %}
+                                        ...
+                                        {% elif line.is_add() %}
+                                        {% if line.new_line_number.is_some() %}{{ line.new_line_number.unwrap() }}{% endif %}
+                                        {% elif line.is_delete() %}
+                                        {% else %}
+                                        {% if line.new_line_number.is_some() %}{{ line.new_line_number.unwrap() }}{% endif %}
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td class="content-cell {{ line.line_type_str() }}">{{ line.html_content()|safe }}</td>
+                            </tr>
+                            {% if line.annotations.len() > 0 %}
+                            <tr class="annotation-row">
+                                <td colspan="2" class="las">
+                                    {% for annotation in line.annotations %}
+                                    <div class="annotation">
+                                        <strong>{{ annotation.desc }}</strong>
+                                        <small>Line {{ annotation.line }}{% if annotation.col_start > 0 %}, Column {{ annotation.col_start }}{% if annotation.col_end > 0 %}-{{ annotation.col_end }}{% endif %}{% endif %}</small>
+                                    </div>
+                                    {% endfor %}
+                                </td>
+                            </tr>
                             {% endif %}
-                        </div>
-                        <div class="ln-after">
-                            {% if line.is_hunk() %}
-                            ...
-                            {% elif line.is_add() %}
-                            {% if line.new_line_number.is_some() %}{{ line.new_line_number.unwrap() }}{% endif %}
-                            {% elif line.is_delete() %}
-                            {% else %}
-                            {% if line.new_line_number.is_some() %}{{ line.new_line_number.unwrap() }}{% endif %}
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="content-cell">
-                        <div class="content-line {{ line.line_type_str() }}">{{ line.html_content()|safe }}</div>
-                    </div>
-                    {% if line.annotations.len() > 0 %}
-                    <div class="las">
-                        {% for annotation in line.annotations %}
-                        <div class="annotation">
-                            <strong>{{ annotation.desc }}</strong>
-                            <small>Line {{ annotation.line }}{% if annotation.col_start > 0 %}, Column {{ annotation.col_start }}{% if annotation.col_end > 0 %}-{{ annotation.col_end }}{% endif %}{% endif %}</small>
-                        </div>
                         {% endfor %}
-                    </div>
-                    {% endif %}
-                    {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
                 {% endif %}
 

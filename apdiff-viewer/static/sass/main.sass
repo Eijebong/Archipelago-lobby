@@ -140,61 +140,70 @@ details
 
 .dc
     font-family: monospace
-    font-size: 12px;
-    line-height: 1.4;
-    background-color: #0d1117;
-
-.diff-grid
-    display: grid
-    grid-template-columns: 120px 1fr
+    font-size: 12px
+    line-height: 1.4
+    background-color: #0d1117
     overflow-x: auto
+
+.diff-table
+    width: 100%
+    border-collapse: collapse
+    border-spacing: 0
+    table-layout: auto
+    font-size: inherit
+    margin: 0
+
+.diff-row
+    margin: 0
+    border: 0
 
 .gutter-cell
     background-color: #161b22
     border-right: 1px solid #30363d
     user-select: none
-    display: flex
     min-height: 21px
     line-height: 1.4
+    width: 120px
+    padding: 0
+    margin: 0
+    white-space: nowrap
 
 .ln-before, .ln-after
     width: 60px
     padding: 0 8px
     text-align: right
     color: #7d8590
-    display: flex
-    align-items: center
-    justify-content: flex-end
+    display: inline-block
     box-sizing: border-box
+    margin: 0
 
 .content-cell
     background-color: #0d1117
-
-.content-line
     padding: 0 8px
+    margin: 0
+    vertical-align: top
     white-space: pre
     min-height: 21px
     line-height: 1.4
-    display: block
-    width: 100%
     tab-size: 4
+    overflow-x: auto
 
     span
       vertical-align: middle
 
-.content-line.add
-    background-color: #1e3d2a
+    &.add
+        background-color: #1e3d2a
 
-.content-line.del
-    background-color: #4a2634
+    &.del
+        background-color: #4a2634
 
-.content-line.ctx
-    background-color: #0d1117
+    &.ctx
+        background-color: #0d1117
 
-.content-line.hunk
-    background-color: #1f2937
-    color: #9ca3af
-    font-weight: bold
+    &.hunk
+        background-color: #1f2937
+        color: #9ca3af
+        font-weight: bold
 
 .da
     color: #238636
@@ -209,7 +218,10 @@ details
     background-color: hsl(0, 90%, 20.0%)
     color: white
     font-size: 11px
-    grid-column: 1 / -1
+
+.annotation-row
+    .las
+        border-radius: 4px
 
 .annotation
     margin: 2px 0
