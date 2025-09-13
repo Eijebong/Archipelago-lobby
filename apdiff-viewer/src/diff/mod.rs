@@ -198,6 +198,7 @@ fn process_style_text_pairs(
 
 // Constants for diff processing
 const MAX_WORD_DIFF_LINE_LENGTH: usize = 10000;
+const MAX_LINE_SIMILARITY_LENGTH: usize = 1000;
 const LINE_SIMILARITY_THRESHOLD: f64 = 0.25;
 
 #[derive(Debug, Clone)]
@@ -596,6 +597,10 @@ fn calculate_line_similarity(line1: &str, line2: &str) -> f64 {
         return 1.0;
     }
 
+    if line1.len() > MAX_LINE_SIMILARITY_LENGTH || line2.len() > MAX_LINE_SIMILARITY_LENGTH {
+        return 0.0;
+    }
+
     let distance = levenshtein(line1, line2);
     let max_len = std::cmp::max(line1.len(), line2.len()) as f64;
 
@@ -970,5 +975,32 @@ mod tests {
 
         // The similar lines should be more similar than different ones
         assert!(sim1 > sim3, "sim1 ({}) should be > sim3 ({})", sim1, sim3);
+    }
+
+    #[test]
+    fn test_huge_line_similarity_performance() {
+        let huge_line1 = "x".repeat(MAX_LINE_SIMILARITY_LENGTH + 1);
+        let huge_line2 = "y".repeat(MAX_LINE_SIMILARITY_LENGTH + 1);
+        let normal_line = "normal line";
+
+        assert_eq!(calculate_line_similarity(&huge_line1, &huge_line2), 0.0);
+        assert_eq!(calculate_line_similarity(&huge_line1, normal_line), 0.0);
+        assert_eq!(calculate_line_similarity(normal_line, &huge_line2), 0.0);
+
+        let sim = calculate_line_similarity("hello world", "hello rust");
+        assert!(
+            sim > 0.0 && sim < 1.0,
+            "Normal lines should have reasonable similarity: {}",
+            sim
+        );
+
+        let limit_line1 = "a".repeat(MAX_LINE_SIMILARITY_LENGTH);
+        let limit_line2 = "b".repeat(MAX_LINE_SIMILARITY_LENGTH);
+        let limit_sim = calculate_line_similarity(&limit_line1, &limit_line2);
+        assert!(
+            limit_sim >= 0.0 && limit_sim <= 1.0,
+            "Lines at limit should compute similarity: {}",
+            limit_sim
+        );
     }
 }
