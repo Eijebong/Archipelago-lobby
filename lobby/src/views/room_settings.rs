@@ -105,7 +105,7 @@ impl<'a> RoomSettingsBuilder<'a> {
         Ok(Self {
             base,
             manifest_builder: ManifestFormBuilder::new(index, new_manifest),
-            room: tpl.settings,
+            room: tpl.settings.into(),
             room_id: None,
             ty: RoomSettingsType::Room,
             read_only: false,
@@ -122,7 +122,7 @@ impl<'a> RoomSettingsBuilder<'a> {
             base,
             manifest_builder: ManifestFormBuilder::new(index, tpl.settings.manifest.0.clone()),
             tpl: Some(RoomTemplateBuilder::from_template(&tpl)),
-            room: tpl.settings,
+            room: tpl.settings.into(),
             room_id: Some(tpl.id.as_generic_id()),
             ty: RoomSettingsType::Template,
             read_only: false,

@@ -2,8 +2,6 @@ use crate::db::RoomId;
 use anyhow::Context;
 use apwm::{Index, Manifest};
 use chrono::{NaiveDateTime, Timelike};
-use diesel::backend::Backend;
-use diesel::deserialize::FromStaticSqlRow;
 use diesel::dsl::now;
 use diesel::prelude::*;
 use diesel::{AsChangeset, Insertable, Queryable, Selectable};
@@ -37,330 +35,73 @@ pub struct NewRoom<'a> {
     pub is_bundle_room: bool,
 }
 
-#[derive(Debug, Clone)]
-pub struct RoomSettings {
-    pub name: String,
-    pub close_date: NaiveDateTime,
-    pub description: String,
-    pub room_url: String,
-    pub author_id: i64,
-    pub yaml_validation: bool,
-    pub allow_unsupported: bool,
-    pub yaml_limit_per_user: Option<i32>,
-    pub yaml_limit_bypass_list: Vec<i64>,
-    pub manifest: Json<Manifest>,
-    pub show_apworlds: bool,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-    pub allow_invalid_yamls: bool,
-    pub meta_file: String,
-    pub is_bundle_room: bool,
+macro_rules! define_settings_struct {
+    ($name:ident, $table:path) => {
+        #[derive(Debug, Clone, Queryable, Selectable)]
+        #[diesel(table_name = $table)]
+        pub struct $name {
+            pub name: String,
+            pub close_date: NaiveDateTime,
+            pub description: String,
+            pub room_url: String,
+            pub author_id: i64,
+            pub yaml_validation: bool,
+            pub allow_unsupported: bool,
+            pub yaml_limit_per_user: Option<i32>,
+            pub yaml_limit_bypass_list: Vec<i64>,
+            pub manifest: Json<Manifest>,
+            pub show_apworlds: bool,
+            pub created_at: NaiveDateTime,
+            pub updated_at: NaiveDateTime,
+            pub allow_invalid_yamls: bool,
+            pub meta_file: String,
+            pub is_bundle_room: bool,
+        }
+    };
 }
 
-#[derive(Debug, Clone)]
+define_settings_struct!(RoomSettings, rooms);
+define_settings_struct!(RoomTemplateSettings, room_templates);
+
+#[derive(Debug, Clone, Queryable, Selectable)]
+#[diesel(table_name = rooms)]
 pub struct Room {
     pub id: RoomId,
+    #[diesel(embed)]
     pub settings: RoomSettings,
     pub from_template_id: Option<RoomTemplateId>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Queryable, Selectable)]
+#[diesel(table_name = room_templates)]
 pub struct RoomTemplate {
     pub id: RoomTemplateId,
-    pub settings: RoomSettings,
+    #[diesel(embed)]
+    pub settings: RoomTemplateSettings,
     pub global: bool,
     pub tpl_name: String,
 }
 
-impl<DB: Backend> Selectable<DB> for Room {
-    type SelectExpression = <rooms::table as Table>::AllColumns;
-
-    fn construct_selection() -> Self::SelectExpression {
-        rooms::all_columns
-    }
-}
-
-impl<DB: Backend> Selectable<DB> for RoomTemplate {
-    type SelectExpression = <room_templates::table as Table>::AllColumns;
-
-    fn construct_selection() -> Self::SelectExpression {
-        room_templates::all_columns
-    }
-}
-
-impl<
-        DB: Backend,
-        ST0,
-        ST1,
-        ST2,
-        ST3,
-        ST4,
-        ST5,
-        ST6,
-        ST7,
-        ST8,
-        ST9,
-        ST10,
-        ST11,
-        ST12,
-        ST13,
-        ST14,
-        ST15,
-        ST16,
-        ST17,
-    >
-    Queryable<
-        (
-            ST0,
-            ST1,
-            ST2,
-            ST3,
-            ST4,
-            ST5,
-            ST6,
-            ST7,
-            ST8,
-            ST9,
-            ST10,
-            ST11,
-            ST12,
-            ST13,
-            ST14,
-            ST15,
-            ST16,
-            ST17,
-        ),
-        DB,
-    > for Room
-where
-    (
-        RoomId,
-        String,
-        NaiveDateTime,
-        String,
-        String,
-        i64,
-        bool,
-        bool,
-        Option<i32>,
-        Vec<i64>,
-        Json<Manifest>,
-        bool,
-        NaiveDateTime,
-        NaiveDateTime,
-        Option<RoomTemplateId>,
-        bool,
-        String,
-        bool,
-    ): FromStaticSqlRow<
-        (
-            ST0,
-            ST1,
-            ST2,
-            ST3,
-            ST4,
-            ST5,
-            ST6,
-            ST7,
-            ST8,
-            ST9,
-            ST10,
-            ST11,
-            ST12,
-            ST13,
-            ST14,
-            ST15,
-            ST16,
-            ST17,
-        ),
-        DB,
-    >,
-{
-    type Row = (
-        RoomId,
-        String,
-        NaiveDateTime,
-        String,
-        String,
-        i64,
-        bool,
-        bool,
-        Option<i32>,
-        Vec<i64>,
-        Json<Manifest>,
-        bool,
-        NaiveDateTime,
-        NaiveDateTime,
-        Option<RoomTemplateId>,
-        bool,
-        String,
-        bool,
-    );
-
-    fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
-        Ok(Room {
-            id: row.0,
-            settings: RoomSettings {
-                name: row.1,
-                close_date: row.2,
-                description: row.3,
-                room_url: row.4,
-                author_id: row.5,
-                yaml_validation: row.6,
-                allow_unsupported: row.7,
-                yaml_limit_per_user: row.8,
-                yaml_limit_bypass_list: row.9,
-                manifest: row.10,
-                show_apworlds: row.11,
-                created_at: row.12,
-                updated_at: row.13,
-                allow_invalid_yamls: row.15,
-                meta_file: row.16,
-                is_bundle_room: row.17,
-            },
-            from_template_id: row.14,
-        })
-    }
-}
-
-impl<
-        DB: Backend,
-        ST0,
-        ST1,
-        ST2,
-        ST3,
-        ST4,
-        ST5,
-        ST6,
-        ST7,
-        ST8,
-        ST9,
-        ST10,
-        ST11,
-        ST12,
-        ST13,
-        ST14,
-        ST15,
-        ST16,
-        ST17,
-        ST18,
-    >
-    Queryable<
-        (
-            ST0,
-            ST1,
-            ST2,
-            ST3,
-            ST4,
-            ST5,
-            ST6,
-            ST7,
-            ST8,
-            ST9,
-            ST10,
-            ST11,
-            ST12,
-            ST13,
-            ST14,
-            ST15,
-            ST16,
-            ST17,
-            ST18,
-        ),
-        DB,
-    > for RoomTemplate
-where
-    (
-        RoomTemplateId,
-        String,
-        NaiveDateTime,
-        String,
-        String,
-        i64,
-        bool,
-        bool,
-        Option<i32>,
-        Vec<i64>,
-        Json<Manifest>,
-        bool,
-        NaiveDateTime,
-        NaiveDateTime,
-        bool,
-        String,
-        bool,
-        String,
-        bool,
-    ): FromStaticSqlRow<
-        (
-            ST0,
-            ST1,
-            ST2,
-            ST3,
-            ST4,
-            ST5,
-            ST6,
-            ST7,
-            ST8,
-            ST9,
-            ST10,
-            ST11,
-            ST12,
-            ST13,
-            ST14,
-            ST15,
-            ST16,
-            ST17,
-            ST18,
-        ),
-        DB,
-    >,
-{
-    type Row = (
-        RoomTemplateId,
-        String,
-        NaiveDateTime,
-        String,
-        String,
-        i64,
-        bool,
-        bool,
-        Option<i32>,
-        Vec<i64>,
-        Json<Manifest>,
-        bool,
-        NaiveDateTime,
-        NaiveDateTime,
-        bool,
-        String,
-        bool,
-        String,
-        bool,
-    );
-
-    fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
-        Ok(RoomTemplate {
-            id: row.0,
-            settings: RoomSettings {
-                name: row.1,
-                close_date: row.2,
-                description: row.3,
-                room_url: row.4,
-                author_id: row.5,
-                yaml_validation: row.6,
-                allow_unsupported: row.7,
-                yaml_limit_per_user: row.8,
-                yaml_limit_bypass_list: row.9,
-                manifest: row.10,
-                show_apworlds: row.11,
-                created_at: row.12,
-                updated_at: row.13,
-                allow_invalid_yamls: row.16,
-                meta_file: row.17,
-                is_bundle_room: row.18,
-            },
-            global: row.14,
-            tpl_name: row.15,
-        })
+impl From<RoomTemplateSettings> for RoomSettings {
+    fn from(settings: RoomTemplateSettings) -> Self {
+        Self {
+            name: settings.name,
+            close_date: settings.close_date,
+            description: settings.description,
+            room_url: settings.room_url,
+            author_id: settings.author_id,
+            yaml_validation: settings.yaml_validation,
+            allow_unsupported: settings.allow_unsupported,
+            yaml_limit_per_user: settings.yaml_limit_per_user,
+            yaml_limit_bypass_list: settings.yaml_limit_bypass_list,
+            manifest: settings.manifest,
+            show_apworlds: settings.show_apworlds,
+            created_at: settings.created_at,
+            updated_at: settings.updated_at,
+            allow_invalid_yamls: settings.allow_invalid_yamls,
+            meta_file: settings.meta_file,
+            is_bundle_room: settings.is_bundle_room,
+        }
     }
 }
 
