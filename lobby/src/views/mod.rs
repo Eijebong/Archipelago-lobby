@@ -6,7 +6,8 @@ use std::io::{BufReader, Cursor, Read, Write};
 use std::path::PathBuf;
 
 use crate::db::{
-    self, Author, BundleId, Json, NewYaml, Room, RoomFilter, RoomId, YamlId, YamlWithoutContent,
+    self, Author, BundleId, Json, NewYaml, Room, RoomFilter, RoomId, YamlId,
+    YamlWithoutContent,
 };
 use crate::error::{Error, RedirectTo, Result, WithContext};
 use crate::generation::get_generation_info;
@@ -185,9 +186,33 @@ async fn upload_yaml(
         yaml_validation_queue,
         index_manager,
         &mut conn,
-        ctx,
     )
     .await?;
+
+    let mut all_disabled_games = HashSet::new();
+    let mut all_unsupported_games = HashSet::new();
+    for YamlValidationResult {
+        disabled_games,
+        unsupported_games,
+        ..
+    } in &games
+    {
+        all_disabled_games.extend(disabled_games.clone());
+        all_unsupported_games.extend(unsupported_games.clone());
+    }
+
+    if let Some(msg) = build_unsupported_games_messages(
+        all_unsupported_games,
+        all_disabled_games,
+        !room.settings.allow_unsupported,
+    ) {
+        if !room.settings.allow_unsupported {
+            session.0.push_error(&msg, ctx).await?;
+            return Ok(Redirect::to(uri!(room(room_id))));
+        } else {
+            session.0.push_warning(&msg, ctx).await?;
+        }
+    }
 
     conn.transaction::<(), Error, _>(|conn| {
         async move {
@@ -198,9 +223,10 @@ async fn upload_yaml(
                 document,
                 parsed,
                 features,
-                validation_status,
                 apworlds,
                 error,
+                validation_status,
+                ..
             } in games
             {
                 let new_yaml = NewYaml {
@@ -219,6 +245,7 @@ async fn upload_yaml(
 
                 db::add_yaml_to_room(new_yaml, conn).await?;
             }
+
             Ok(())
         }
         .scope_boxed()
@@ -227,6 +254,47 @@ async fn upload_yaml(
     .await?;
 
     Ok(Redirect::to(uri!(room(room_id))))
+}
+
+fn build_unsupported_games_messages(
+    unsupported_games: HashSet<String>,
+    disabled_games: HashSet<String>,
+    error: bool,
+) -> Option<String> {
+    if disabled_games.is_empty() && unsupported_games.is_empty() {
+        return None;
+    }
+
+    let format_game_list = |games: HashSet<String>| -> String {
+        games.iter().sorted().map(|g| format!("'{}'", g)).join(", ")
+    };
+
+    let mut message_parts = Vec::new();
+
+    if !disabled_games.is_empty() {
+        message_parts.push(format!(
+            "The following games are disabled for this room: {}",
+            format_game_list(disabled_games)
+        ));
+    }
+
+    if !unsupported_games.is_empty() {
+        message_parts.push(format!(
+            "The following games are not supported on this lobby: {}",
+            format_game_list(unsupported_games)
+        ));
+    }
+
+    let base_message = message_parts.join("\n");
+
+    if error {
+        Some(base_message)
+    } else {
+        Some(format!(
+            "{}.\nUploading anyway since the room owner allowed it.",
+            base_message
+        ))
+    }
 }
 
 #[get("/room/<room_id>/delete_bundle/<bundle_id>")]

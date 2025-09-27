@@ -77,6 +77,8 @@ pub struct YamlValidationResult<'a> {
     pub validation_status: YamlValidationStatus,
     pub apworlds: Vec<(String, Version)>,
     pub error: Option<String>,
+    pub unsupported_games: Vec<String>,
+    pub disabled_games: Vec<String>,
 }
 
 #[tracing::instrument(skip_all)]
@@ -87,7 +89,6 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
     yaml_validation_queue: &YamlValidationQueue,
     index_manager: &IndexManager,
     conn: &mut AsyncPgConnection,
-    ctx: &Context,
 ) -> Result<Vec<YamlValidationResult<'a>>> {
     let yamls_in_room = db::get_yamls_for_room(room.id, conn)
         .await
@@ -129,64 +130,44 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
 
         let game_name = validate_game(&parsed.game)?;
 
-        let (apworlds, validation_status, error) = if room.settings.yaml_validation {
-            let validation_result = validate_yaml(
-                document,
-                parsed,
-                &room.settings.manifest,
-                index_manager,
-                yaml_validation_queue,
-            )
-            .await?;
+        let (apworlds, validation_status, error, unsupported_games) =
+            if room.settings.yaml_validation {
+                let validation_result = validate_yaml(
+                    document,
+                    parsed,
+                    &room.settings.manifest,
+                    index_manager,
+                    yaml_validation_queue,
+                )
+                .await?;
 
-            match validation_result {
-                YamlValidationJobResult::Success(apworlds) => {
-                    (apworlds, YamlValidationStatus::Validated, None)
-                }
-                YamlValidationJobResult::Failure(apworlds, error) => {
-                    if room.settings.allow_invalid_yamls {
-                        let warning_msg = format!(
-                            "Invalid YAML:\n{error}\n Uploading anyway since the room owner allowed it."
-                        );
-                        session.0.push_warning(&warning_msg, ctx).await?;
-                        (apworlds, YamlValidationStatus::Failed, Some(error))
-                    } else {
-                        Err(anyhow::anyhow!(error))?
+                match validation_result {
+                    YamlValidationJobResult::Success(apworlds) => {
+                        (apworlds, YamlValidationStatus::Validated, None, vec![])
                     }
-                }
-                YamlValidationJobResult::Unsupported(worlds) => {
-                    let index = index_manager.index.read().await;
-                    let error = format!("Error: {}",
-                        worlds.iter().map(|game| {
-                            let is_game_in_index = index.get_world_by_name(game).is_some();
-                            if is_game_in_index {
-                                format!("Uploaded a game for game {game} which has been disabled for this room")
-                            } else {
-                                format!("Uploaded a game for game {game} which is not supported on this lobby")
-                            }
-                        }).join("\n")
-                    );
-
-                    if room.settings.allow_unsupported {
-                        let warning_msg = format!(
-                            "Uploaded a YAML with unsupported games: {}.\n Couldn't verify it.",
-                            worlds.iter().join("; ")
-                        );
-
-                        session.0.push_warning(&warning_msg, ctx).await?;
-
-                        (vec![], YamlValidationStatus::Unsupported, Some(error))
-                    } else {
-                        Err(anyhow::anyhow!(error))?
+                    YamlValidationJobResult::Failure(apworlds, error) => {
+                        if room.settings.allow_invalid_yamls {
+                            (apworlds, YamlValidationStatus::Failed, Some(error), vec![])
+                        } else {
+                            Err(anyhow::anyhow!(error))?
+                        }
                     }
+                    YamlValidationJobResult::Unsupported(unsupported_games) => (
+                        vec![],
+                        YamlValidationStatus::Unsupported,
+                        None,
+                        unsupported_games,
+                    ),
                 }
-            }
-        } else {
-            (vec![], YamlValidationStatus::Unknown, None)
-        };
+            } else {
+                (vec![], YamlValidationStatus::Unknown, None, vec![])
+            };
 
         let index = index_manager.index.read().await;
         let features = crate::extractor::extract_features(&index, parsed, document)?;
+        let (disabled_games, unsupported_games): (Vec<_>, Vec<_>) = unsupported_games
+            .into_iter()
+            .partition(|game| index.get_world_by_name(game).is_some());
 
         games.push(YamlValidationResult {
             game_name,
@@ -196,6 +177,8 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
             validation_status,
             apworlds,
             error,
+            unsupported_games,
+            disabled_games,
         });
 
         own_games_nb += 1;
