@@ -61,8 +61,7 @@
     </tr>
     {% if !room.settings.description.is_empty() %}
     <tr>
-        <td>Description</td>
-        <td id="room-description">{{ room.settings.description|markdown|safe }}</td>
+        <td colspan=2 id="room-description">{{ room.settings.description|markdown|safe }}</td>
     </tr>
     {% endif %}
 </table>
