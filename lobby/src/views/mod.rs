@@ -6,8 +6,7 @@ use std::io::{BufReader, Cursor, Read, Write};
 use std::path::PathBuf;
 
 use crate::db::{
-    self, Author, BundleId, Json, NewYaml, Room, RoomFilter, RoomId, YamlId,
-    YamlWithoutContent,
+    self, Author, BundleId, Json, NewYaml, Room, RoomFilter, RoomId, YamlId, YamlWithoutContent,
 };
 use crate::error::{Error, RedirectTo, Result, WithContext};
 use crate::generation::get_generation_info;
