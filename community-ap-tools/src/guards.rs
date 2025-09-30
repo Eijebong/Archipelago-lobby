@@ -55,6 +55,7 @@ pub enum SlotStatus {
     Connected,
     Ready,
     GoalCompleted,
+    Playing,
     Unkown(String),
 }
 
@@ -67,6 +68,7 @@ impl FromStr for SlotStatus {
             "Disconnected" => Self::Disconnected,
             "Connected" => Self::Connected,
             "Ready" => Self::Ready,
+            "Playing" => Self::Playing,
             _ => Self::Unkown(s.to_string()),
         })
     }
@@ -79,6 +81,7 @@ impl Display for SlotStatus {
             Self::Disconnected => f.write_str("Disconnected"),
             Self::Connected => f.write_str("Connected"),
             Self::Ready => f.write_str("Ready"),
+            Self::Playing => f.write_str("Playing"),
             Self::Unkown(s) => f.write_fmt(format_args!("Unknown ({s})")),
         }
     }
