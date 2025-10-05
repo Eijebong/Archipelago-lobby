@@ -29,6 +29,7 @@ impl FeatureExtractor for PokemonCrystal {
         extractor.register_feature(YamlFeature::TrainerSanity, "johto_trainersanity")?;
         extractor.register_feature(YamlFeature::DexSanity, "dexsanity")?;
         extractor.register_feature(YamlFeature::DexSanity, "dexcountsanity")?;
+        extractor.register_feature(YamlFeature::GrassSanity, "grasssanity")?;
         Ok(())
     }
 }
