@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres
     ports:
-      - "25432:5432"
+      - "127.0.0.1:25432:5432"
     environment:
       POSTGRES_DB: aplobby
       POSTGRES_PASSWORD: postgres
@@ -17,7 +17,7 @@ services:
   valkey:
     image: valkey/valkey
     ports:
-      - "26379:6379"
+      - "127.0.0.1:26379:6379"
     healthcheck:
       test: valkey-cli ping
       interval: 1s
@@ -52,11 +52,11 @@ services:
       APWORLDS_PATH: /builds/apworlds_index/worlds
       APWORLDS_INDEX_REPO_URL: https://github.com/Eijebong/Archipelago-index.git
       RUST_LOG: debug
-      YAML_VALIDATION_QUEUE_TOKEN: test
-      GENERATION_QUEUE_TOKEN: test
-      ROCKET_SECRET_KEY: "12345678901234567890123456789012345678901234"
+      YAML_VALIDATION_QUEUE_TOKEN: changeme
+      GENERATION_QUEUE_TOKEN: changeme
+      ROCKET_SECRET_KEY: "changemechangemechangemechangemechangeme1234"
       APWORLDS_INDEX_REPO_BRANCH: "main"
-      ADMIN_TOKEN: test
+      ADMIN_TOKEN: changeme
       GENERATION_OUTPUT_DIR: "/builds/gen-output"
       ROCKET_ADDRESS: "0.0.0.0"
     working_dir: /builds/worker/checkout
@@ -90,7 +90,7 @@ services:
     user: "${USER_ID}:${GID}"
     environment:
       LOBBY_ROOT_URL: http://lobby:8000
-      YAML_VALIDATION_QUEUE_TOKEN: test
+      YAML_VALIDATION_QUEUE_TOKEN: changeme
     command: watchexec -w /ap/ap-worker -r /ap/archipelago/.venv/bin/python3 check_wq.py /ap/supported_worlds /ap/index/worlds/
     depends_on:
       lobby:
@@ -109,7 +109,7 @@ services:
     user: "${USER_ID}:${GID}"
     environment:
       LOBBY_ROOT_URL: http://lobby:8000
-      GENERATION_QUEUE_TOKEN: test
+      GENERATION_QUEUE_TOKEN: changeme
       GENERATOR_OUTPUT_DIR: /ap/builds-output
       LOBBY_API_KEY: test
     command: watchexec -w /ap/ap-worker -r /ap/archipelago/.venv/bin/python3 gen_wq.py /ap/supported_worlds /ap/index/worlds/
