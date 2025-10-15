@@ -80,9 +80,11 @@ services:
 
   yaml-checker:
     build:
-      context: taskcluster/docker/ap-worker
-      additional_contexts:
-        eijebong/scratch: ap-worker
+      dockerfile: taskcluster/docker/ap-worker/Dockerfile
+      context: .
+      args:
+        SRC: /
+        DOCKER_SRC: taskcluster/docker/ap-worker/
     volumes:
       - ./ap-worker:/ap/ap-worker/
       - ./tmp/apworlds_index:/ap/index
@@ -98,9 +100,11 @@ services:
 
   generator:
     build:
-      context: taskcluster/docker/ap-worker
-      additional_contexts:
-        eijebong/scratch: ap-worker
+      dockerfile: taskcluster/docker/ap-worker/Dockerfile
+      context: .
+      args:
+        SRC: /
+        DOCKER_SRC: taskcluster/docker/ap-worker/
     volumes:
       - ./ap-worker:/ap/ap-worker/
       - ./tmp/apworlds_index:/ap/index

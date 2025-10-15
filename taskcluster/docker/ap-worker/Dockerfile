@@ -1,4 +1,6 @@
 ARG PYTHON_VERSION=3.12
+ARG SRC=topsrcdir
+ARG DOCKER_SRC=/
 
 
 FROM alpine:latest AS enemizer
@@ -7,6 +9,8 @@ ADD --checksum=sha256:efab6784cbfe4189a01e0e25226943afd7f71e7c2f10f74b88bfa34fda
 RUN apk update && apk add unzip && unzip Enemizer.zip -d /Enemizer
 
 FROM ghcr.io/astral-sh/uv:python${PYTHON_VERSION}-bookworm AS builder
+ARG SRC
+ARG DOCKER_SRC
 
 ENV UV_PYTHON_DOWNLOADS=0
 
@@ -18,25 +22,14 @@ WORKDIR /ap
 
 # %include ap-worker
 
-# This is a horrible hack to be able to add extra context in docker compose
-# The idea is that we want to reuse this dockerfile between docker compose and CI,
-# taskgraph adds the source code in /topsrcdir in the main context through
-# the %include directive, of course docker compose doesn't have a way to do that so
-# instead we use `additional_contexts` there. But kaniko doesn't support that...
-# By using the scratch image image which has s empty, we do nothing
-# on CI, and use the scratch named extra context in docker compose...
-# We also cannot use the scratch image because it has no tag and kaniko doesn't
-# like that, so we use that one which is the same image but with a tag...
-COPY --from=eijebong/scratch . /topsrcdir/ap-worker/
-COPY /topsrcdir /topsrcdir
-RUN ls -lah /topsrcdir && cp -R /topsrcdir/ap-worker/ /ap/ap-worker/
-
-COPY prepare_worlds.sh /ap/prepare_worlds.sh
-COPY setup.sh /ap/setup.sh
+COPY ${SRC}/ap-worker /ap/ap-worker
+COPY ${DOCKER_SRC}/prepare_worlds.sh /ap/prepare_worlds.sh
+COPY ${DOCKER_SRC}/setup.sh /ap/setup.sh
 
 RUN sh /ap/setup.sh ${BASE_COMMIT} ${FUZZER_COMMIT} ${LINTER_COMMIT} && rm /ap/setup.sh
 
 FROM python:${PYTHON_VERSION}-slim-bookworm
+ARG DOCKER_SRC
 
 RUN apt update && apt install -y curl libtk8.6
 RUN curl -fsSL https://github.com/watchexec/watchexec/releases/download/cli-v1.20.5/watchexec-1.20.5-x86_64-unknown-linux-gnu.deb -o /tmp/watchexec.deb
@@ -45,7 +38,7 @@ RUN dpkg -i /tmp/watchexec.deb
 RUN mkdir /ap
 WORKDIR /ap
 
-COPY host.yaml /ap/archipelago/host.yaml
+COPY ${DOCKER_SRC}/host.yaml /ap/archipelago/host.yaml
 COPY --from=enemizer /Enemizer /ap/enemizer
 RUN chmod +x /ap/enemizer/EnemizerCLI.Core
 
