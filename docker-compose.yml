@@ -111,7 +111,7 @@ services:
       LOBBY_ROOT_URL: http://lobby:8000
       GENERATION_QUEUE_TOKEN: changeme
       GENERATOR_OUTPUT_DIR: /ap/builds-output
-      LOBBY_API_KEY: test
+      LOBBY_API_KEY: changeme
     command: watchexec -w /ap/ap-worker -r /ap/archipelago/.venv/bin/python3 gen_wq.py /ap/supported_worlds /ap/index/worlds/
     depends_on:
       lobby:
