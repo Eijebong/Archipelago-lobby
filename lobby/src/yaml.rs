@@ -151,12 +151,16 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
                             Err(anyhow::anyhow!(error))?
                         }
                     }
-                    YamlValidationJobResult::Unsupported(unsupported_games) => (
-                        vec![],
-                        YamlValidationStatus::Unsupported,
-                        None,
-                        unsupported_games,
-                    ),
+                    YamlValidationJobResult::Unsupported(unsupported_games) => {
+                        let error =
+                            format!("Unsupported apworlds: {}", unsupported_games.join(", "));
+                        (
+                            vec![],
+                            YamlValidationStatus::Unsupported,
+                            Some(error),
+                            unsupported_games,
+                        )
+                    }
                 }
             } else {
                 (vec![], YamlValidationStatus::Unknown, None, vec![])
