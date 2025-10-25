@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use anyhow::anyhow;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use diesel::prelude::*;
 use diesel::{Insertable, Queryable, Selectable};
@@ -183,12 +184,18 @@ pub async fn get_bundle_by_id(
     bundle_id: BundleId,
     conn: &mut AsyncPgConnection,
 ) -> Result<YamlBundle> {
+    let yamls_in_bundle = yamls::table
+        .filter(yamls::bundle_id.eq(bundle_id))
+        .select(Yaml::as_select())
+        .get_results::<Yaml>(conn)
+        .await?;
+
+    if yamls_in_bundle.is_empty() {
+        return Err(anyhow!("This YAML bundle does not exist").into());
+    }
+
     Ok(YamlBundle {
-        yamls: yamls::table
-            .filter(yamls::bundle_id.eq(bundle_id))
-            .select(Yaml::as_select())
-            .get_results::<Yaml>(conn)
-            .await?,
+        yamls: yamls_in_bundle,
     })
 }
 
