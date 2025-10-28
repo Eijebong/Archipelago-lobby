@@ -21,7 +21,8 @@ def world_from_apworld_name(apworld_name):
         if world.__module__.startswith(f"worlds.{apworld_name}"):
             return name, world
 
-    raise Exception(f"Couldn't find loaded world with world: {apworld_name}")
+    loaded_worlds = { name: world.__module__ for name, world in AutoWorldRegister.world_types.items() }
+    raise Exception(f"Couldn't find loaded world with world: {apworld_name}. Loaded worlds: {loaded_worlds}")
 
 # In Options.py
 def generate_template(world_name, expected_world_name):
