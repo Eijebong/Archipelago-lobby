@@ -240,6 +240,7 @@ async fn upload_yaml(
                     apworlds,
                     last_error: error,
                     bundle_id,
+                    password: None,
                 };
 
                 db::add_yaml_to_room(new_yaml, conn).await?;

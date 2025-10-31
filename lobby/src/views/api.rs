@@ -6,11 +6,11 @@ use http::header::CONTENT_DISPOSITION;
 use rocket::{
     get,
     http::{Header, Status},
-    routes,
+    post, routes,
     serde::json::Json,
     State,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     db::{self, BundleId, RoomId, Yaml, YamlId},
@@ -31,6 +31,18 @@ pub struct YamlInfo {
     game: String,
     slot_number: usize,
     has_patch: bool,
+}
+
+#[derive(Serialize)]
+pub struct SlotPasswordInfo {
+    slot_number: usize,
+    player_name: String,
+    password: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct SetPasswordRequest {
+    password: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -212,6 +224,63 @@ pub(crate) async fn refresh_patches(
     Ok(())
 }
 
+#[get("/room/<room_id>/slots_passwords")]
+pub(crate) async fn slots_passwords(
+    _session: AdminSession,
+    room_id: RoomId,
+    ctx: &State<Context>,
+) -> ApiResult<Json<Vec<SlotPasswordInfo>>> {
+    let mut conn = ctx.db_pool.get().await?;
+
+    let yamls = db::get_yamls_for_room_with_author_names(room_id, &mut conn).await?;
+    let yamls_vec = yamls.iter().map(|(y, _)| y.clone()).collect::<Vec<_>>();
+    let slots = get_slots(&yamls_vec);
+
+    let slot_map: HashMap<YamlId, usize> = slots
+        .iter()
+        .enumerate()
+        .map(|(index, (_, id))| (*id, index + 1))
+        .collect();
+
+    let mut result: Vec<SlotPasswordInfo> = yamls
+        .into_iter()
+        .map(|(yaml, _)| SlotPasswordInfo {
+            slot_number: *slot_map.get(&yaml.id).unwrap(),
+            player_name: yaml.player_name,
+            password: yaml.password,
+        })
+        .collect();
+
+    result.sort_by_key(|info| info.slot_number);
+
+    Ok(Json(result))
+}
+
+#[post("/room/<room_id>/set_password/<yaml_id>", data = "<request>")]
+pub(crate) async fn set_password(
+    _session: AdminSession,
+    room_id: RoomId,
+    yaml_id: YamlId,
+    request: Json<SetPasswordRequest>,
+    ctx: &State<Context>,
+) -> ApiResult<()> {
+    let mut conn = ctx.db_pool.get().await?;
+
+    let _room = db::get_room(room_id, &mut conn)
+        .await
+        .context("Couldn't find the room")
+        .status(Status::NotFound)?;
+
+    let _yaml = db::get_yaml_by_id(yaml_id, &mut conn)
+        .await
+        .context("Couldn't find the YAML file")
+        .status(Status::NotFound)?;
+
+    db::update_yaml_password(yaml_id, request.password.clone(), &mut conn).await?;
+
+    Ok(())
+}
+
 pub fn routes() -> Vec<rocket::Route> {
     routes![
         download_bundle,
@@ -219,6 +288,8 @@ pub fn routes() -> Vec<rocket::Route> {
         retry_yaml,
         yaml_info,
         room_info,
-        refresh_patches
+        refresh_patches,
+        slots_passwords,
+        set_password
     ]
 }

@@ -31,6 +31,7 @@ pub struct NewYaml<'a> {
     pub validation_status: YamlValidationStatus,
     pub apworlds: Vec<(String, Version)>,
     pub last_error: Option<String>,
+    pub password: Option<&'a str>,
 }
 
 #[derive(Debug, Selectable, Queryable, Serialize)]
@@ -48,6 +49,8 @@ pub struct Yaml {
     pub last_error: Option<String>,
     pub patch: Option<String>,
     pub bundle_id: BundleId,
+    #[serde(skip)]
+    pub password: Option<String>,
 }
 
 #[derive(Clone, Debug, Selectable, Queryable)]
@@ -61,6 +64,7 @@ pub struct YamlWithoutContent {
     pub validation_status: YamlValidationStatus,
     pub patch: Option<String>,
     pub bundle_id: BundleId,
+    pub password: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -259,6 +263,19 @@ pub async fn associate_patch_files(
         .scope_boxed()
     })
     .await?;
+
+    Ok(())
+}
+
+pub async fn update_yaml_password(
+    yaml_id: YamlId,
+    password: Option<String>,
+    conn: &mut AsyncPgConnection,
+) -> Result<()> {
+    diesel::update(yamls::table.find(yaml_id))
+        .set(yamls::password.eq(password))
+        .execute(conn)
+        .await?;
 
     Ok(())
 }

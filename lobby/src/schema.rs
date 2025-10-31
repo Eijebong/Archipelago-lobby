@@ -107,6 +107,7 @@ diesel::table! {
         last_error -> Nullable<Text>,
         patch -> Nullable<Varchar>,
         bundle_id -> SqlBundleId,
+        password -> Nullable<Varchar>,
     }
 }
 
