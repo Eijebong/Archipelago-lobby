@@ -28,6 +28,7 @@ uv pip install -r worlds/soe/requirements.txt
 uv pip install -r worlds/tloz/requirements.txt
 uv pip install -r worlds/tww/requirements.txt
 uv pip install -r worlds/zillion/requirements.txt
+uv pip install -r WebHostLib/requirements.txt
 uv run cythonize -a -i _speedups.pyx
 uv pip install git+https://github.com/Eijebong/aplinter@${LINTER_COMMIT}
 git rev-parse HEAD > /ap/archipelago/version
