@@ -47,5 +47,3 @@ COPY --from=builder /ap/supported_worlds/ /ap/supported_worlds/
 COPY --from=builder /ap/ap-worker/ /ap/ap-worker/
 
 ENV PATH="/ap/.venv/bin:$PATH"
-
-CMD /ap/archipelago/run.sh
