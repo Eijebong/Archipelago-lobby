@@ -57,6 +57,8 @@ struct RoomTpl<'a> {
     is_closed: bool,
     has_room_url: bool,
     is_my_room: bool,
+    room_info: Option<db::RoomInfo>,
+    current_user_has_yaml_in_room: bool,
 }
 
 #[derive(Template, WebTemplate)]
@@ -113,7 +115,7 @@ async fn root<'a>(
 #[tracing::instrument(skip(ctx, session))]
 async fn room<'a>(room_id: RoomId, ctx: &State<Context>, session: Session) -> Result<RoomTpl<'a>> {
     let mut conn = ctx.db_pool.get().await?;
-    let (room, author_name) = db::get_room_and_author(room_id, &mut conn).await?;
+    let (room, author_name, room_info) = db::get_room_and_author(room_id, &mut conn).await?;
     let mut yamls = db::get_yamls_for_room_with_author_names(room_id, &mut conn).await?;
 
     yamls.sort_by(|a, b| a.0.game.to_lowercase().cmp(&b.0.game.to_lowercase()));
@@ -125,10 +127,10 @@ async fn room<'a>(room_id: RoomId, ctx: &State<Context>, session: Session) -> Re
         .count();
 
     let is_my_room = session.is_admin || session.user_id == Some(room.settings.author_id);
-    let current_user_has_yaml_in_room = yamls
+    let user_has_yaml = yamls
         .iter()
-        .any(|yaml| Some(yaml.0.owner_id) == session.user_id)
-        || is_my_room;
+        .any(|yaml| Some(yaml.0.owner_id) == session.user_id);
+    let current_user_has_yaml_in_room = user_has_yaml || is_my_room;
 
     Ok(RoomTpl {
         base: TplContext::from_session("room", session, ctx).await,
@@ -141,6 +143,8 @@ async fn room<'a>(room_id: RoomId, ctx: &State<Context>, session: Session) -> Re
         room,
         yamls,
         is_my_room,
+        room_info,
+        current_user_has_yaml_in_room: user_has_yaml,
     })
 }
 

@@ -36,6 +36,17 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::db::types::sql::*;
 
+    room_info (room_id) {
+        room_id -> SqlRoomId,
+        host -> Varchar,
+        port -> Int4,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::db::types::sql::*;
+
     room_templates (id) {
         id -> SqlRoomTemplateId,
         name -> Varchar,
@@ -112,6 +123,7 @@ diesel::table! {
 }
 
 diesel::joinable!(generations -> rooms (room_id));
+diesel::joinable!(room_info -> rooms (room_id));
 diesel::joinable!(room_templates -> discord_users (author_id));
 diesel::joinable!(rooms -> discord_users (author_id));
 diesel::joinable!(rooms -> room_templates (from_template_id));
@@ -121,6 +133,7 @@ diesel::joinable!(yamls -> rooms (room_id));
 diesel::allow_tables_to_appear_in_same_query!(
     discord_users,
     generations,
+    room_info,
     room_templates,
     rooms,
     yamls,

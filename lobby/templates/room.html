@@ -38,6 +38,40 @@
     <p class="message info">Room URL: <a href="{{ room.settings.room_url }}">{{ room.settings.room_url }}</a></p>
 {% endif %}
 
+{% match room_info %}
+{% when Some with (info) %}
+    {% if current_user_has_yaml_in_room %}
+    <p class="message info"><strong>Server: &nbsp;</strong>{{ info.host }}:{{ info.port }}</p>
+
+    <table class="styled" id="my-slots">
+    <thead>
+        <tr>
+            <th>Player Name</th>
+            <th>Game</th>
+            <th>Password</th>
+            <th>Patch</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for (yaml, discord_name) in yamls %}
+        {% let is_my_yaml = (Some(yaml.owner_id) == base.user_id.as_ref()) %}
+        {% if is_my_yaml %}
+        <tr>
+            <td>{{ yaml.player_name }}</td>
+            <td>{{ yaml.game }}</td>
+            <td>{% match yaml.password %}{% when Some with (pwd) %}{{ pwd }}{% when None %}-{% endmatch %}</td>
+            <td>{% if yaml.patch.is_some() %}<a href="/room/{{room.id}}/patch/{{yaml.id}}">Download</a>{% else %}-{% endif %}</td>
+        </tr>
+        {% endif %}
+    {% endfor %}
+    </tbody>
+</table>
+
+<hr>
+    {% endif %}
+{% when None %}
+{% endmatch %}
+
 <table class="styled" id="room-info">
     <tr>
         <td>Room name</td>

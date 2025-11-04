@@ -46,12 +46,20 @@ pub struct SetPasswordRequest {
 }
 
 #[derive(Serialize)]
+pub struct RoomServerInfo {
+    host: String,
+    port: i32,
+}
+
+#[derive(Serialize)]
 pub struct RoomInfo {
     id: RoomId,
     name: String,
     close_date: NaiveDateTime,
     description: String,
     yamls: Vec<YamlInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    server_info: Option<RoomServerInfo>,
 }
 
 #[get("/room/<room_id>")]
@@ -62,7 +70,7 @@ pub(crate) async fn room_info(
 ) -> ApiResult<Json<RoomInfo>> {
     let mut conn = ctx.db_pool.get().await?;
 
-    let room = db::get_room(room_id, &mut conn).await?;
+    let (room, room_server_info) = db::get_room_with_info(room_id, &mut conn).await?;
 
     let yamls = db::get_yamls_for_room_with_author_names(room_id, &mut conn).await?;
     let yamls_vec = yamls.iter().map(|(y, _)| y.clone()).collect::<Vec<_>>();
@@ -89,6 +97,10 @@ pub(crate) async fn room_info(
                 has_patch: yaml.patch.is_some(),
             })
             .collect(),
+        server_info: room_server_info.map(|info| RoomServerInfo {
+            host: info.host,
+            port: info.port,
+        }),
     }))
 }
 

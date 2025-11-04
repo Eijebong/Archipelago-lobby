@@ -9,7 +9,7 @@ use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
 use crate::db::Json;
 use crate::error::Result;
-use crate::schema::{discord_users, room_templates, rooms, yamls};
+use crate::schema::{discord_users, room_info, room_templates, rooms, yamls};
 
 use super::{RoomTemplateId, YamlValidationStatus};
 
@@ -215,11 +215,31 @@ pub async fn get_room(room_id: RoomId, conn: &mut AsyncPgConnection) -> Result<R
 pub async fn get_room_and_author(
     room_id: RoomId,
     conn: &mut AsyncPgConnection,
-) -> Result<(Room, String)> {
+) -> Result<(Room, String, Option<super::RoomInfo>)> {
+    use crate::db::RoomInfo as DbRoomInfo;
     Ok(rooms::table
         .find(room_id)
         .inner_join(discord_users::table)
-        .select((Room::as_select(), discord_users::username))
+        .left_join(room_info::table)
+        .select((
+            Room::as_select(),
+            discord_users::username,
+            Option::<DbRoomInfo>::as_select(),
+        ))
+        .first(conn)
+        .await?)
+}
+
+#[tracing::instrument(skip(conn))]
+pub async fn get_room_with_info(
+    room_id: RoomId,
+    conn: &mut AsyncPgConnection,
+) -> Result<(Room, Option<super::RoomInfo>)> {
+    use crate::db::RoomInfo as DbRoomInfo;
+    Ok(rooms::table
+        .find(room_id)
+        .left_join(room_info::table)
+        .select((Room::as_select(), Option::<DbRoomInfo>::as_select()))
         .first(conn)
         .await?)
 }
