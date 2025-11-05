@@ -8,7 +8,7 @@ pub struct JakAndDaxter;
 
 impl FeatureExtractor for JakAndDaxter {
     fn game(&self) -> &'static str {
-        "Jak and Daxter The Precursor Legacy"
+        "Jak and Daxter: The Precursor Legacy"
     }
 
     fn extract_features(&self, extractor: &mut Extractor) -> Result<()> {
