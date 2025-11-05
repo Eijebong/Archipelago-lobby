@@ -21,7 +21,7 @@ impl FeatureExtractor for JakAndDaxter {
                     YamlFeature::OrbSanity,
                     "global_orbsanity_bundle_size",
                     10,
-                    400,
+                    200,
                     orb_value_to_u64,
                 )?;
 
