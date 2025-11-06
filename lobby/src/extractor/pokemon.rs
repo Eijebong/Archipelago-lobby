@@ -54,6 +54,16 @@ impl FeatureExtractor for PokemonFrLg {
     }
 }
 
+impl FeatureExtractor for PokemonBW {
+    fn game(&self) -> &'static str {
+        "Pokemon Black and White"
+    }
+    fn extract_features(&self, extractor: &mut Extractor) -> Result<()> {
+        extractor.register_feature(YamlFeature::DexSanity, "dexsanity")?;
+        Ok(())
+    }
+}
+
 impl FeatureExtractor for PokemonRB {
     fn game(&self) -> &'static str {
         "Pokemon Red and Blue"
