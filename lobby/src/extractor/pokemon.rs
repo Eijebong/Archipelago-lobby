@@ -5,6 +5,7 @@ pub struct PokemonRB;
 pub struct PokemonEmerald;
 pub struct PokemonCrystal;
 pub struct PokemonFrLg;
+pub struct PokemonBW;
 
 impl FeatureExtractor for PokemonEmerald {
     fn game(&self) -> &'static str {
