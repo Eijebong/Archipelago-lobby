@@ -329,6 +329,7 @@ pub static EXTRACTORS: Lazy<HashMap<&'static str, Box<dyn FeatureExtractor + Sen
         register!(pokemon::PokemonEmerald);
         register!(pokemon::PokemonCrystal);
         register!(pokemon::PokemonFrLg);
+        register!(pokemon::PokemonBW);
         register!(jd::JakAndDaxter);
         register!(tunic::Tunic);
         register!(kh::KingdomHearts);
