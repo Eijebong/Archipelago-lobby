@@ -54,14 +54,6 @@ td {
                 <td>Lobby Room</td>
                 <td><a href="{{ lobby_root_url}}room/{{lobby_room.id}}">{{ lobby_room.name }}</a></td>
             </tr>
-            <tr>
-                <td>AP Room</td>
-                <td><a href="https://archipelago.gg/room/{{ap_room.id}}">{{ ap_room.id }}</a></td>
-            </tr>
-            <tr>
-                <td>Current port</td>
-                <td>{{ ap_room.room_status.last_port }}</td>
-            </tr>
         </table>
 
         <div>
@@ -82,6 +74,7 @@ td {
         <table>
             {% for slot in ap_room.tracker_info.slots %}
             {% let lobby_slot = lobby_room.yamls[slot.id - 1] %}
+            {% let password_info = slot_passwords.0[slot.id - 1] %}
             <tr>
                 <td><span class="slot-status slot-status-{{ slot|slot_status }}"></span></td>
                 <td>{{ slot.name }}</td>
@@ -89,6 +82,11 @@ td {
                 <td>{{ slot.status }} ({{ slot.checks.0 }} / {{ slot.checks.1 }})</td>
                 <td>Last active: {{ slot|last_active }}</td>
                 <td>@{{ lobby_slot.discord_handle }}</td>
+                <td>
+                    <a onclick='openPasswordPopup("{{lobby_slot.id}}", "{{slot.name}}", {% match password_info.password %}{% when Some with (pwd) %}"{{pwd}}"{% when None %}null{% endmatch %}); return false' href="#">
+                        Password
+                    </a>
+                </td>
                 <td><a onclick='openRelease("{{slot.name}}", "{{slot.game}}"); return false' href="#">Release</a></td>
                 <td><a onclick='openAction("hint", "{{slot.name}}", "{{slot.game}}", "item"); return false' href="#">Hint item</a></td>
                 <td><a onclick='openAction("give", "{{slot.name}}", "{{slot.game}}", "item"); return false' href="#">Give item</a></td>
@@ -183,6 +181,75 @@ td {
             })
             popup.appendChild(hintText)
             popup.appendChild(hintForm)
+        }
+
+        function openPasswordPopup(yamlId, slotName, currentPassword) {
+            const popup = getPopup();
+
+            const title = document.createElement("div")
+            title.innerText = "Password for slot: " + slotName
+            title.style.marginBottom = "10px"
+
+            const passwordDisplay = document.createElement("div")
+            passwordDisplay.style.marginBottom = "15px"
+            passwordDisplay.style.padding = "10px"
+            passwordDisplay.style.border = "1px solid white"
+
+            if (currentPassword) {
+                passwordDisplay.innerText = "Current password: " + currentPassword
+            } else {
+                passwordDisplay.innerText = "No password set"
+            }
+
+            const generateButton = document.createElement("button")
+            generateButton.innerText = "Generate New Password"
+            generateButton.style.marginRight = "10px"
+            generateButton.addEventListener("click", () => {
+                const newPassword = generatePassword()
+                setPassword(yamlId, newPassword)
+            })
+
+            const removeButton = document.createElement("button")
+            removeButton.innerText = "Remove Password"
+            removeButton.addEventListener("click", () => {
+                setPassword(yamlId, null)
+            })
+
+            popup.appendChild(title)
+            popup.appendChild(passwordDisplay)
+            popup.appendChild(generateButton)
+            popup.appendChild(removeButton)
+        }
+
+        function generatePassword() {
+            const length = 6
+            const charset = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
+            let password = ""
+            for (let i = 0; i < length; i++) {
+                password += charset.charAt(Math.floor(Math.random() * charset.length))
+            }
+            return password
+        }
+
+        function setPassword(yamlId, password) {
+            const url = new URL("/set_password/" + yamlId, document.location)
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ password: password })
+            })
+            .then((response) => {
+                if (response.ok) {
+                    location.reload()
+                } else {
+                    alert("Failed to update password")
+                }
+            })
+            .catch((error) => {
+                alert("Error: " + error)
+            })
         }
 
         function getPopup() {

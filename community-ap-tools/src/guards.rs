@@ -26,6 +26,16 @@ pub struct YamlInfo {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct SlotPasswordInfo {
+    pub slot_number: usize,
+    pub player_name: String,
+    pub password: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct SlotPasswords(pub Vec<SlotPasswordInfo>);
+
+#[derive(Deserialize, Debug)]
 pub struct LobbyRoom {
     pub id: Uuid,
     pub name: String,
@@ -134,6 +144,32 @@ impl<'r> FromRequest<'r> for LobbyRoom {
     }
 }
 
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for SlotPasswords {
+    type Error = crate::error::Error;
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let config = request.rocket().state::<Config>().unwrap();
+        let url = try_err_outcome!(config.lobby_root_url.join(&format!(
+            "/api/room/{}/slots_passwords",
+            config.lobby_room_id
+        )));
+        let client = reqwest::Client::new();
+        let result = try_err_outcome!(
+            client
+                .get(url)
+                .header(
+                    HeaderName::from_static("x-api-key"),
+                    HeaderValue::from_str(&config.lobby_api_key).unwrap()
+                )
+                .send()
+                .await
+        );
+        let passwords: Vec<SlotPasswordInfo> = try_err_outcome!(result.json().await);
+
+        Outcome::Success(SlotPasswords(passwords))
+    }
+}
+
 #[derive(Deserialize)]
 pub struct ApMsg {
     #[serde(flatten)]
@@ -153,8 +189,8 @@ impl<'r> FromRequest<'r> for ApRoom {
         let result = try_err_outcome!(
             reqwest::get(
                 Url::from_str(&format!(
-                    "https://archipelago.gg/api/room_status/{}",
-                    config.ap_room_id
+                    "https://{}/api/room_status/{}",
+                    config.ap_room_host, config.ap_room_id
                 ))
                 .unwrap()
             )
@@ -171,15 +207,17 @@ impl<'r> FromRequest<'r> for ApRoom {
         }
 
         let tracker_url = try_err_outcome!(Url::from_str(&format!(
-            "https://archipelago.gg/tracker/{}",
-            room_status.tracker
+            "https://{}/tracker/{}",
+            config.ap_room_host, room_status.tracker
         )));
         let tracker_page = try_err_outcome!(reqwest::get(tracker_url).await);
         let tracker_body = try_err_outcome!(tracker_page.text().await);
 
         let tracker_info = try_err_outcome!(parse_tracker(tracker_body));
-        DATA_PACKAGE.get_or_init(|| {
-            let url = format!("wss://archipelago.gg:{}", room_status.last_port);
+        let ap_host = config.ap_room_host.clone();
+        let ap_port = config.ap_room_port;
+        DATA_PACKAGE.get_or_init(move || {
+            let url = format!("wss://{}:{}", ap_host, ap_port);
             let (mut socket, _) = tungstenite::connect(&url).unwrap();
             let msg = "[{\"cmd\": \"GetDataPackage\"}]";
             let _ = socket.read().unwrap();

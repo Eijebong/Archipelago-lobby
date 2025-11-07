@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use askama::Template;
 use askama_web::WebTemplate;
 use auth::{LoggedInSession, Session};
-use guards::{ApRoom, DATA_PACKAGE, LobbyRoom, SlotInfo, SlotStatus};
+use guards::{ApRoom, DATA_PACKAGE, LobbyRoom, SlotInfo, SlotPasswords, SlotStatus};
 use itertools::Itertools;
 use reqwest::{
     Url,
@@ -17,6 +17,7 @@ use rocket::{
 use rocket_oauth2::OAuth2;
 use rustls::crypto::ring;
 use scraper::{Html, Selector};
+use serde::{Deserialize, Serialize};
 use tungstenite::{Message, connect};
 use uuid::Uuid;
 
@@ -36,6 +37,7 @@ pub struct RunIndexTpl {
     lobby_root_url: String,
     is_session_valid: bool,
     unclaimed_slots: Vec<SlotInfo>,
+    slot_passwords: SlotPasswords,
 }
 
 #[derive(rust_embed::RustEmbed)]
@@ -73,6 +75,7 @@ async fn root_run(
     _session: LoggedInSession,
     lobby_room: LobbyRoom,
     mut ap_room: ApRoom,
+    slot_passwords: SlotPasswords,
     config: &State<Config>,
 ) -> crate::error::Result<RunIndexTpl> {
     if lobby_room.yamls.len() != ap_room.tracker_info.slots.len() {
@@ -120,6 +123,7 @@ async fn root_run(
         lobby_root_url: config.lobby_root_url.to_string(),
         unclaimed_slots,
         is_session_valid: config.is_session_valid,
+        slot_passwords,
     };
 
     Ok(index)
@@ -130,9 +134,10 @@ async fn root(
     session: LoggedInSession,
     lobby_room: LobbyRoom,
     ap_room: ApRoom,
+    slot_passwords: SlotPasswords,
     config: &State<Config>,
 ) -> crate::error::Result<RunIndexTpl> {
-    root_run(session, lobby_room, ap_room, config).await
+    root_run(session, lobby_room, ap_room, slot_passwords, config).await
 }
 
 #[rocket::get("/hint/<ty>/<slot_name>/<item_name>")]
@@ -252,8 +257,9 @@ async fn release(
     _session: LoggedInSession,
     ap_room: ApRoom,
     slot_name: &str,
+    config: &State<Config>,
 ) -> crate::error::Result<Redirect> {
-    let url = format!("wss://archipelago.gg:{}", ap_room.room_status.last_port);
+    let url = format!("wss://{}:{}", config.ap_room_host, config.ap_room_port);
     let slot = ap_room
         .tracker_info
         .slots
@@ -293,14 +299,74 @@ async fn autocompletion(
     Ok(Json(names))
 }
 
+#[derive(Deserialize, Serialize)]
+struct SetPasswordRequest {
+    password: Option<String>,
+}
+
+#[rocket::post("/set_password/<yaml_id>", data = "<request>")]
+async fn set_password(
+    _session: LoggedInSession,
+    yaml_id: &str,
+    request: Json<SetPasswordRequest>,
+    config: &State<Config>,
+) -> crate::error::Result<()> {
+    let client = reqwest::Client::new();
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("x-api-key"),
+        HeaderValue::from_str(&config.lobby_api_key)?,
+    );
+
+    let url = config.lobby_root_url.join(&format!(
+        "/api/room/{}/set_password/{}",
+        config.lobby_room_id, yaml_id
+    ))?;
+
+    let response = client
+        .post(url)
+        .headers(headers)
+        .json(&request.into_inner())
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        Err(anyhow!("Failed to set password: {}", response.status()))?;
+    }
+
+    if let (Some(apx_root), Some(apx_key)) = (&config.apx_api_root, &config.apx_api_key) {
+        let apx_url = apx_root.join("/refresh_passwords")?;
+        let client = reqwest::Client::new();
+
+        let result = client
+            .post(apx_url)
+            .header(
+                HeaderName::from_static("x-api-key"),
+                HeaderValue::from_str(apx_key)?,
+            )
+            .send()
+            .await;
+
+        if let Err(e) = result {
+            eprintln!("Failed to notify APX API about password change: {}", e);
+        }
+    }
+
+    Ok(())
+}
+
 pub struct Config {
     pub lobby_root_url: Url,
     pub lobby_room_id: Uuid,
     pub lobby_api_key: String,
     pub ap_room_id: String,
     pub ap_room_url: Url,
+    pub ap_room_host: String,
+    pub ap_room_port: u16,
     pub ap_session_cookie: String,
     pub is_session_valid: bool,
+    pub apx_api_root: Option<Url>,
+    pub apx_api_key: Option<String>,
 }
 
 #[rocket::main]
@@ -314,8 +380,19 @@ async fn main() -> crate::error::Result<()> {
     let lobby_api_key =
         std::env::var("LOBBY_API_KEY").expect("Provide a `LOBBY_API_KEY` env variable");
     let ap_room_id = std::env::var("AP_ROOM_ID").expect("Provide an `AP_ROOM_ID` env variable");
+    let ap_room_host =
+        std::env::var("AP_ROOM_HOST").expect("Provide an `AP_ROOM_HOST` env variable");
+    let ap_room_port = std::env::var("AP_ROOM_PORT")
+        .expect("Provide an `AP_ROOM_PORT` env variable")
+        .parse::<u16>()
+        .expect("AP_ROOM_PORT must be a valid port number");
     let ap_session_cookie =
         std::env::var("AP_SESSION_COOKIE").expect("Provide an `AP_SESSION_COOKIE` env variable");
+
+    let apx_api_root = std::env::var("APX_API_ROOT")
+        .ok()
+        .and_then(|s| s.parse().ok());
+    let apx_api_key = std::env::var("APX_API_KEY").ok();
 
     ring::default_provider()
         .install_default()
@@ -326,9 +403,14 @@ async fn main() -> crate::error::Result<()> {
         lobby_room_id: lobby_room_id.parse()?,
         lobby_api_key,
         ap_session_cookie,
-        ap_room_url: Url::from_str(&format!("https://archipelago.gg/room/{ap_room_id}")).unwrap(),
+        ap_room_url: Url::from_str(&format!("https://{}/room/{}", ap_room_host, ap_room_id))
+            .unwrap(),
+        ap_room_host,
+        ap_room_port,
         ap_room_id,
         is_session_valid: false,
+        apx_api_root,
+        apx_api_key,
     };
 
     config.is_session_valid = check_session(&config).await?;
@@ -336,7 +418,15 @@ async fn main() -> crate::error::Result<()> {
     rocket::build()
         .mount(
             "/",
-            routes![dist, root, release, hint, autocompletion, give],
+            routes![
+                dist,
+                root,
+                release,
+                hint,
+                autocompletion,
+                give,
+                set_password
+            ],
         )
         .mount("/auth", auth::routes())
         .register("/", catchers![unauthorized])
