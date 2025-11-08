@@ -409,8 +409,7 @@ async fn main() -> crate::error::Result<()> {
         lobby_room_id: lobby_room_id.parse()?,
         lobby_api_key,
         ap_session_cookie,
-        ap_room_url: Url::from_str(&format!("https://{}/room/{}", ap_room_host, ap_room_id))
-            .unwrap(),
+        ap_room_url: ap_api_root.join(&format!("/room/{}", ap_room_id))?,
         ap_api_root,
         ap_room_host,
         ap_room_port,
