@@ -1,5 +1,6 @@
 <html>
     <head>
+        <link rel="stylesheet" href="/static/contrib/font-awesome/css/all.min.css">
         <style>
 * {
    color: white;
@@ -65,6 +66,9 @@ td {
                 {% let lobby_slot = lobby_room.yamls[slot.id - 1] %}
                 @{{ lobby_slot.discord_handle|lower }}
             {% endfor %}
+            <button onclick="copySlotHandles(this); return false" style="margin-left: 10px; cursor: pointer;">
+                <i class="fa-solid fa-copy"></i>
+            </button>
             </li>
         {% endfor %}
         </ul>
@@ -109,6 +113,15 @@ td {
     </body>
 
     <script>
+        function copySlotHandles(button) {
+            const li = button.parentElement;
+            const clone = li.cloneNode(true);
+            clone.querySelector('button').remove();
+            const text = clone.innerText.trim().replace(/\s+/g, ' ');
+            const message = text + " you are not connected chrisNya. If you need help please join the AP tech support. If you are connected in the meantime all good, you can ignore the ping chrisNya";
+            navigator.clipboard.writeText(message);
+        }
+
         function openRelease(slotName, slotGame) {
             const popup = getPopup();
 
