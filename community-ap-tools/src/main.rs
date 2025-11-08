@@ -281,7 +281,10 @@ async fn release(
     } else {
         "ws"
     };
-    let url = format!("{}://{}:{}", ws_scheme, config.ap_room_host, config.ap_room_port);
+    let url = format!(
+        "{}://{}:{}",
+        ws_scheme, config.ap_room_host, config.ap_room_port
+    );
     let slot = ap_room
         .tracker_info
         .slots
