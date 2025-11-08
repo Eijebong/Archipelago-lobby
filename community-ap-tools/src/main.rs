@@ -207,6 +207,10 @@ async fn give(
 /// Check that the currently provided session cookie is valid by checking for the presence of the
 /// `#cmd` element on the page.
 async fn check_session(config: &Config) -> crate::error::Result<bool> {
+    eprintln!(
+        "[STARTUP] Checking session validity at: {}",
+        config.ap_room_url
+    );
     let client = reqwest::Client::new();
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -217,7 +221,17 @@ async fn check_session(config: &Config) -> crate::error::Result<bool> {
         .get(config.ap_room_url.clone())
         .headers(headers)
         .send()
-        .await?;
+        .await;
+
+    let res = match res {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("[STARTUP] Failed to fetch session check URL: {}", e);
+            return Err(e.into());
+        }
+    };
+
+    eprintln!("[STARTUP] Session check response status: {}", res.status());
 
     let body = res.text().await?;
 
@@ -225,7 +239,10 @@ async fn check_session(config: &Config) -> crate::error::Result<bool> {
     let cmd_selector = Selector::parse("#cmd").unwrap();
     let cmd_input = html.select(&cmd_selector);
 
-    Ok(cmd_input.count() == 1)
+    let is_valid = cmd_input.count() == 1;
+    eprintln!("[STARTUP] Session is valid: {}", is_valid);
+
+    Ok(is_valid)
 }
 
 async fn ap_cmd(cmd: String, config: &State<Config>) -> crate::error::Result<()> {
@@ -395,6 +412,11 @@ async fn main() -> crate::error::Result<()> {
         .and_then(|s| s.parse().ok())
         .unwrap_or_else(|| Url::from_str(&format!("https://{}", ap_room_host)).unwrap());
 
+    eprintln!("[STARTUP] AP_API_ROOT: {}", ap_api_root);
+    eprintln!("[STARTUP] AP_ROOM_HOST: {}", ap_room_host);
+    eprintln!("[STARTUP] AP_ROOM_PORT: {}", ap_room_port);
+    eprintln!("[STARTUP] AP_ROOM_ID: {}", ap_room_id);
+
     let apx_api_root = std::env::var("APX_API_ROOT")
         .ok()
         .and_then(|s| s.parse().ok());
@@ -404,12 +426,15 @@ async fn main() -> crate::error::Result<()> {
         .install_default()
         .expect("Failed to set ring as crypto provider");
 
+    let ap_room_url = ap_api_root.join(&format!("/room/{}", ap_room_id))?;
+    eprintln!("[STARTUP] Constructed AP_ROOM_URL: {}", ap_room_url);
+
     let mut config = Config {
         lobby_root_url: lobby_root_url.parse()?,
         lobby_room_id: lobby_room_id.parse()?,
         lobby_api_key,
         ap_session_cookie,
-        ap_room_url: ap_api_root.join(&format!("/room/{}", ap_room_id))?,
+        ap_room_url,
         ap_api_root,
         ap_room_host,
         ap_room_port,
