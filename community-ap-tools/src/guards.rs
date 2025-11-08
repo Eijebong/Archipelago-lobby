@@ -1,9 +1,6 @@
 use std::{collections::BTreeMap, fmt::Display, str::FromStr, sync::OnceLock};
 
-use reqwest::{
-    Url,
-    header::{HeaderName, HeaderValue},
-};
+use reqwest::header::{HeaderName, HeaderValue};
 use rocket::{
     Request,
     http::Status,
@@ -110,8 +107,11 @@ pub struct SlotInfo {
 macro_rules! try_err_outcome {
     ($e: expr) => {
         try_outcome!(
-            $e.map_err(|e| e.into())
-                .or_error(Status::InternalServerError)
+            $e.map_err(|e| {
+                eprintln!("[GUARD ERROR] {}: {:?}", stringify!($e), e);
+                e.into()
+            })
+            .or_error(Status::InternalServerError)
         )
     };
 }
@@ -186,16 +186,13 @@ impl<'r> FromRequest<'r> for ApRoom {
     type Error = crate::error::Error;
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let config = request.rocket().state::<Config>().unwrap();
-        let result = try_err_outcome!(
-            reqwest::get(
-                Url::from_str(&format!(
-                    "https://{}/api/room_status/{}",
-                    config.ap_room_host, config.ap_room_id
-                ))
-                .unwrap()
-            )
-            .await
+        let room_status_url = try_err_outcome!(
+            config
+                .ap_api_root
+                .join(&format!("/api/room_status/{}", config.ap_room_id))
         );
+        eprintln!("[GUARD] Fetching room status from: {}", room_status_url);
+        let result = try_err_outcome!(reqwest::get(room_status_url).await);
         let room_status: RoomStatus = try_err_outcome!(result.json().await);
 
         if SLOT_MAPPING.get().is_none() {
@@ -206,10 +203,12 @@ impl<'r> FromRequest<'r> for ApRoom {
             SLOT_MAPPING.set(slots).unwrap();
         }
 
-        let tracker_url = try_err_outcome!(Url::from_str(&format!(
-            "https://{}/tracker/{}",
-            config.ap_room_host, room_status.tracker
-        )));
+        let tracker_url = try_err_outcome!(
+            config
+                .ap_api_root
+                .join(&format!("/tracker/{}", room_status.tracker))
+        );
+        eprintln!("[GUARD] Fetching tracker from: {}", tracker_url);
         let tracker_page = try_err_outcome!(reqwest::get(tracker_url).await);
         let tracker_body = try_err_outcome!(tracker_page.text().await);
 
