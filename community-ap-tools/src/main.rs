@@ -359,12 +359,23 @@ async fn set_password(
         Err(anyhow!("Failed to set password: {}", response.status()))?;
     }
 
+    eprintln!(
+        "[SET_PASSWORD] Password set successfully for yaml_id: {}",
+        yaml_id
+    );
+    eprintln!("[SET_PASSWORD] APX_API_ROOT: {:?}", config.apx_api_root);
+    eprintln!(
+        "[SET_PASSWORD] APX_API_KEY present: {}",
+        config.apx_api_key.is_some()
+    );
+
     if let (Some(apx_root), Some(apx_key)) = (&config.apx_api_root, &config.apx_api_key) {
         let apx_url = apx_root.join("/refresh_passwords")?;
+        eprintln!("[SET_PASSWORD] Calling APX API at: {}", apx_url);
         let client = reqwest::Client::new();
 
         let result = client
-            .post(apx_url)
+            .post(apx_url.clone())
             .header(
                 HeaderName::from_static("x-api-key"),
                 HeaderValue::from_str(apx_key)?,
@@ -372,9 +383,26 @@ async fn set_password(
             .send()
             .await;
 
-        if let Err(e) = result {
-            eprintln!("Failed to notify APX API about password change: {}", e);
+        match result {
+            Ok(resp) => {
+                eprintln!("[SET_PASSWORD] APX API response status: {}", resp.status());
+                if !resp.status().is_success() {
+                    let body = resp
+                        .text()
+                        .await
+                        .unwrap_or_else(|_| String::from("<failed to read body>"));
+                    eprintln!("[SET_PASSWORD] APX API error body: {}", body);
+                }
+            }
+            Err(e) => {
+                eprintln!(
+                    "[SET_PASSWORD] Failed to notify APX API about password change: {}",
+                    e
+                );
+            }
         }
+    } else {
+        eprintln!("[SET_PASSWORD] APX API not configured, skipping notification");
     }
 
     Ok(())
