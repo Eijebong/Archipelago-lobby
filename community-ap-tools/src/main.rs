@@ -40,6 +40,16 @@ pub struct RunIndexTpl {
     slot_passwords: SlotPasswords,
 }
 
+#[derive(Template, WebTemplate)]
+#[template(path = "deathlinks.html")]
+pub struct DeathlinksIndexTpl {
+    lobby_room: LobbyRoom,
+    ap_room: ApRoom,
+    lobby_root_url: String,
+    is_session_valid: bool,
+    ap_room_id: String,
+}
+
 #[derive(rust_embed::RustEmbed)]
 #[folder = "./static/"]
 struct Assets;
@@ -138,6 +148,130 @@ async fn root(
     config: &State<Config>,
 ) -> crate::error::Result<RunIndexTpl> {
     root_run(session, lobby_room, ap_room, slot_passwords, config).await
+}
+
+#[rocket::get("/deathlinks")]
+async fn deathlinks(
+    _session: LoggedInSession,
+    lobby_room: LobbyRoom,
+    ap_room: ApRoom,
+    config: &State<Config>,
+) -> crate::error::Result<DeathlinksIndexTpl> {
+    let room_id = lobby_room.id.to_string();
+    Ok(DeathlinksIndexTpl {
+        lobby_room,
+        ap_room,
+        lobby_root_url: config.lobby_root_url.to_string(),
+        is_session_valid: config.is_session_valid,
+        ap_room_id: room_id,
+    })
+}
+
+#[rocket::get("/api/deathlinks/<room_id>")]
+async fn proxy_get_deathlinks(
+    _session: LoggedInSession,
+    room_id: &str,
+    config: &State<Config>,
+) -> crate::error::Result<String> {
+    let apx_api_root = config
+        .apx_api_root
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API not configured"))?;
+    let apx_api_key = config
+        .apx_api_key
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API key not configured"))?;
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(format!("{}/api/deathlinks/{}", apx_api_root, room_id))
+        .header("X-API-Key", apx_api_key)
+        .send()
+        .await?;
+
+    Ok(response.text().await?)
+}
+
+#[rocket::get("/api/deathlink_exclusions")]
+async fn proxy_get_exclusions(
+    _session: LoggedInSession,
+    config: &State<Config>,
+) -> crate::error::Result<String> {
+    let apx_api_root = config
+        .apx_api_root
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API not configured"))?;
+    let apx_api_key = config
+        .apx_api_key
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API key not configured"))?;
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(format!("{}/api/deathlink_exclusions", apx_api_root))
+        .header("X-API-Key", apx_api_key)
+        .send()
+        .await?;
+
+    Ok(response.text().await?)
+}
+
+#[rocket::post("/api/deathlink_exclusions/<slot>")]
+async fn proxy_add_exclusion(
+    _session: LoggedInSession,
+    slot: u32,
+    config: &State<Config>,
+) -> crate::error::Result<rocket::http::Status> {
+    let apx_api_root = config
+        .apx_api_root
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API not configured"))?;
+    let apx_api_key = config
+        .apx_api_key
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API key not configured"))?;
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!(
+            "{}/api/deathlink_exclusions/{}",
+            apx_api_root, slot
+        ))
+        .header("X-API-Key", apx_api_key)
+        .send()
+        .await?;
+
+    Ok(rocket::http::Status::from_code(response.status().as_u16())
+        .unwrap_or(rocket::http::Status::InternalServerError))
+}
+
+#[rocket::delete("/api/deathlink_exclusions/<slot>")]
+async fn proxy_remove_exclusion(
+    _session: LoggedInSession,
+    slot: u32,
+    config: &State<Config>,
+) -> crate::error::Result<rocket::http::Status> {
+    let apx_api_root = config
+        .apx_api_root
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API not configured"))?;
+    let apx_api_key = config
+        .apx_api_key
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API key not configured"))?;
+
+    let client = reqwest::Client::new();
+    let response = client
+        .delete(format!(
+            "{}/api/deathlink_exclusions/{}",
+            apx_api_root, slot
+        ))
+        .header("X-API-Key", apx_api_key)
+        .send()
+        .await?;
+
+    Ok(rocket::http::Status::from_code(response.status().as_u16())
+        .unwrap_or(rocket::http::Status::InternalServerError))
 }
 
 #[rocket::get("/hint/<ty>/<slot_name>/<item_name>")]
@@ -488,6 +622,11 @@ async fn main() -> crate::error::Result<()> {
             routes![
                 dist,
                 root,
+                deathlinks,
+                proxy_get_deathlinks,
+                proxy_get_exclusions,
+                proxy_add_exclusion,
+                proxy_remove_exclusion,
                 release,
                 hint,
                 autocompletion,

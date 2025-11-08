@@ -1,0 +1,186 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="/static/contrib/font-awesome/css/all.min.css">
+        <style>
+* {
+   color: white;
+   background: black;
+   box-sizing: border-box;
+}
+
+table, tr, td, th {
+    border: 1px solid white;
+    border-collapse: collapse;
+}
+table {
+    margin-bottom: 1em;
+}
+td, th {
+    padding: 2px;
+}
+
+.error-box {
+    background-color: #610505;
+    padding: 0.5em;
+    width: 100%;
+    margin-bottom: 2em;
+}
+
+button {
+    cursor: pointer;
+}
+        </style>
+    </head>
+    <body id="main">
+        {% if !is_session_valid %}
+        <div class="error-box">The currently provided session is invalid. Commands will fail silently. Nothing I can do about the silent part...</div>
+        {% endif %}
+
+        <h1>Deathlinks</h1>
+
+        <table>
+            <tr>
+                <td>Lobby Room</td>
+                <td><a href="{{ lobby_root_url}}room/{{lobby_room.id}}">{{ lobby_room.name }}</a></td>
+            </tr>
+            <tr>
+                <td>Pages</td>
+                <td><a href="/">Main</a></td>
+            </tr>
+        </table>
+
+        <h2>Deathlink Status</h2>
+        <table id="deathlink-status-table">
+            <thead>
+                <tr>
+                    <th>Slot</th>
+                    <th>Player</th>
+                    <th>Game</th>
+                    <th>Discord</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for slot in ap_room.tracker_info.slots %}
+                {% let lobby_slot = lobby_room.yamls[slot.id - 1] %}
+                <tr data-slot-id="{{ slot.id }}">
+                    <td>{{ slot.id }}</td>
+                    <td>{{ slot.name }}</td>
+                    <td>{{ slot.game }}</td>
+                    <td>@{{ lobby_slot.discord_handle }}</td>
+                    <td class="deathlink-status"></td>
+                    <td>
+                        <button class="toggle-deathlink" data-slot-id="{{ slot.id }}">Toggle</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>Deathlink Statistics</h2>
+        <div id="deathlink-stats"></div>
+
+        <table id="deathlink-history-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Slot</th>
+                    <th>Source</th>
+                    <th>Cause</th>
+                </tr>
+            </thead>
+            <tbody id="deathlink-history-body">
+            </tbody>
+        </table>
+    </body>
+
+    <script>
+        const AP_ROOM_ID = '{{ ap_room_id }}';
+
+        async function fetchDeathlinks() {
+            const response = await fetch('/api/deathlinks/' + AP_ROOM_ID);
+            const deathlinks = await response.json();
+            updateDeathlinksStats(deathlinks);
+        }
+
+        async function fetchExclusions() {
+            const response = await fetch('/api/deathlink_exclusions');
+            const data = await response.json();
+            updateExclusionStatus(data.excluded_slots);
+        }
+
+        function updateExclusionStatus(excludedSlots) {
+            const rows = document.querySelectorAll('#deathlink-status-table tbody tr');
+            rows.forEach(row => {
+                const slotId = parseInt(row.dataset.slotId);
+                const isExcluded = excludedSlots.includes(slotId);
+                const statusCell = row.querySelector('.deathlink-status');
+                statusCell.innerText = isExcluded ? 'Disabled' : 'Enabled';
+            });
+        }
+
+        function updateDeathlinksStats(deathlinks) {
+            const stats = document.getElementById('deathlink-stats');
+            const historyBody = document.getElementById('deathlink-history-body');
+
+            if (deathlinks.length === 0) {
+                stats.innerText = 'No deathlinks recorded yet.';
+                return;
+            }
+
+            const slotCounts = {};
+            deathlinks.forEach(dl => {
+                slotCounts[dl.slot] = (slotCounts[dl.slot] || 0) + 1;
+            });
+
+            let statsHtml = '<p>Total deathlinks: ' + deathlinks.length + '</p><p>Deaths by slot:</p><ul>';
+            Object.entries(slotCounts).sort((a, b) => b[1] - a[1]).forEach(([slot, count]) => {
+                statsHtml += '<li>Slot ' + slot + ': ' + count + ' deaths</li>';
+            });
+            statsHtml += '</ul>';
+            stats.innerHTML = statsHtml;
+
+            historyBody.innerHTML = '';
+            deathlinks.forEach(dl => {
+                const row = document.createElement('tr');
+                const td1 = document.createElement('td');
+                td1.innerText = new Date(dl.created_at).toLocaleString();
+                const td2 = document.createElement('td');
+                td2.innerText = dl.slot;
+                const td3 = document.createElement('td');
+                td3.innerText = dl.source;
+                const td4 = document.createElement('td');
+                td4.innerText = dl.cause || 'N/A';
+                row.appendChild(td1);
+                row.appendChild(td2);
+                row.appendChild(td3);
+                row.appendChild(td4);
+                historyBody.appendChild(row);
+            });
+        }
+
+        async function toggleDeathlink(slotId, currentlyExcluded) {
+            const method = currentlyExcluded ? 'DELETE' : 'POST';
+            await fetch('/api/deathlink_exclusions/' + slotId, {
+                method: method
+            });
+            await fetchExclusions();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchDeathlinks();
+            fetchExclusions();
+
+            document.querySelectorAll('.toggle-deathlink').forEach(button => {
+                button.addEventListener('click', () => {
+                    const slotId = parseInt(button.dataset.slotId);
+                    const row = button.closest('tr');
+                    const statusCell = row.querySelector('.deathlink-status');
+                    const isExcluded = statusCell.innerText === 'Disabled';
+                    toggleDeathlink(slotId, isExcluded);
+                });
+            });
+        });
+    </script>
+</html>
