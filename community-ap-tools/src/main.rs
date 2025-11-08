@@ -370,7 +370,7 @@ async fn set_password(
     );
 
     if let (Some(apx_root), Some(apx_key)) = (&config.apx_api_root, &config.apx_api_key) {
-        let apx_url = apx_root.join("/refresh_passwords")?;
+        let apx_url = apx_root.join("/api/refresh_passwords")?;
         eprintln!("[SET_PASSWORD] Calling APX API at: {}", apx_url);
         let client = reqwest::Client::new();
 
