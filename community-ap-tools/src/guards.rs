@@ -215,8 +215,14 @@ impl<'r> FromRequest<'r> for ApRoom {
         let tracker_info = try_err_outcome!(parse_tracker(tracker_body));
         let ap_host = config.ap_room_host.clone();
         let ap_port = config.ap_room_port;
+        let ws_scheme = if config.ap_api_root.scheme() == "https" {
+            "wss"
+        } else {
+            "ws"
+        };
         DATA_PACKAGE.get_or_init(move || {
-            let url = format!("wss://{}:{}", ap_host, ap_port);
+            let url = format!("{}://{}:{}", ws_scheme, ap_host, ap_port);
+            eprintln!("[GUARD] Connecting to WebSocket at: {}", url);
             let (mut socket, _) = tungstenite::connect(&url).unwrap();
             let msg = "[{\"cmd\": \"GetDataPackage\"}]";
             let _ = socket.read().unwrap();
