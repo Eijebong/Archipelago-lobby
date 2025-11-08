@@ -361,6 +361,7 @@ pub struct Config {
     pub lobby_api_key: String,
     pub ap_room_id: String,
     pub ap_room_url: Url,
+    pub ap_api_root: Url,
     pub ap_room_host: String,
     pub ap_room_port: u16,
     pub ap_session_cookie: String,
@@ -389,6 +390,11 @@ async fn main() -> crate::error::Result<()> {
     let ap_session_cookie =
         std::env::var("AP_SESSION_COOKIE").expect("Provide an `AP_SESSION_COOKIE` env variable");
 
+    let ap_api_root = std::env::var("AP_API_ROOT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_else(|| Url::from_str(&format!("https://{}", ap_room_host)).unwrap());
+
     let apx_api_root = std::env::var("APX_API_ROOT")
         .ok()
         .and_then(|s| s.parse().ok());
@@ -405,6 +411,7 @@ async fn main() -> crate::error::Result<()> {
         ap_session_cookie,
         ap_room_url: Url::from_str(&format!("https://{}/room/{}", ap_room_host, ap_room_id))
             .unwrap(),
+        ap_api_root,
         ap_room_host,
         ap_room_port,
         ap_room_id,
