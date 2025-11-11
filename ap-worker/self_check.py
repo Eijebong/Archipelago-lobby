@@ -61,6 +61,7 @@ def generate_template(world_name, expected_world_name):
     res = Template(file_data).render(
         option_groups=option_groups,
         __version__=__version__, game=game_name, yaml_dump=yaml_dump_scalar,
+        world_version="0.0.0", # Work around AP not liking semver. We could have nice things and use the version passed on the command line but nope.
         dictify_range=dictify_range,
         cleandoc=cleandoc,
     )
