@@ -8,8 +8,9 @@ import sys
 ap_path = os.path.abspath(os.path.dirname(sys.argv[0]))
 sys.path.insert(0, ap_path)
 
-from worlds.AutoWorld import AutoWorldRegister  # noqa: E402
 from worlds import WorldSource  # noqa: E402
+from worlds.AutoWorld import AutoWorldRegister  # noqa: E402
+from worlds.Files import APWorldContainer  # noqa: E402
 import worlds  # noqa: E402
 
 
@@ -63,7 +64,15 @@ class ApHandler:
                 return
             raise Exception("Invalid apworld: {}, version {}".format(apworld_name, apworld_version))
 
+        apworld_container = APWorldContainer(dest_path)
+        apworld_container.read()
+
         WorldSource(dest_path, is_zip=True, relative=False).load()
+
+        if apworld_container.game and apworld_container.game in AutoWorldRegister.world_types:
+            if apworld_container.world_version:
+                AutoWorldRegister.world_types[apworld_container.game].world_version = apworld_container.world_version
+
         self.refresh_netdata_package()
 
     def refresh_netdata_package(self):
