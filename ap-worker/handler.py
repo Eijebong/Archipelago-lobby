@@ -10,7 +10,7 @@ sys.path.insert(0, ap_path)
 
 from worlds import WorldSource  # noqa: E402
 from worlds.AutoWorld import AutoWorldRegister  # noqa: E402
-from worlds.Files import APWorldContainer  # noqa: E402
+from worlds.Files import APWorldContainer, InvalidDataError  # noqa: E402
 import worlds  # noqa: E402
 
 
@@ -65,7 +65,11 @@ class ApHandler:
             raise Exception("Invalid apworld: {}, version {}".format(apworld_name, apworld_version))
 
         apworld_container = APWorldContainer(dest_path)
-        apworld_container.read()
+        try:
+            apworld_container.read()
+        except InvalidDataError:
+            # The apworld doesn't have a manifest, don't fail
+            pass
 
         WorldSource(dest_path, is_zip=True, relative=False).load()
 
