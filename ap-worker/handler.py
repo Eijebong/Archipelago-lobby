@@ -4,6 +4,8 @@ import shutil
 import tempfile
 import os
 import sys
+import zipfile
+import json
 
 ap_path = os.path.abspath(os.path.dirname(sys.argv[0]))
 sys.path.insert(0, ap_path)
@@ -11,6 +13,7 @@ sys.path.insert(0, ap_path)
 from worlds import WorldSource  # noqa: E402
 from worlds.AutoWorld import AutoWorldRegister  # noqa: E402
 from worlds.Files import APWorldContainer, InvalidDataError  # noqa: E402
+from Utils import tuplize_version  # noqa: E402
 import worlds  # noqa: E402
 
 
@@ -39,6 +42,40 @@ class ApHandler:
     def __del__(self):
         shutil.rmtree(self.tempdir)
 
+    def read_apworld_manifest(self, apworld_path):
+        """
+        Read the archipelago.json manifest from an apworld file.
+        Returns a tuple of (game_name, world_version) or (None, None) if not found.
+
+        We have to use a custom method here instead of `APWorldContainer` because
+        core world manifests don't have a `compatible_version` in sources, it
+        only gets put there when they build AP. So we assume that manifests without
+        one are core and if they're not the I tried my best.
+        """
+        with zipfile.ZipFile(apworld_path, "r") as zf:
+            for info in zf.infolist():
+                if info.filename.endswith("archipelago.json"):
+                    with zf.open(info, "r") as f:
+                        manifest = json.load(f)
+
+                    # If compatible_version is present, validate it
+                    if "compatible_version" in manifest:
+                        container_version = APWorldContainer.version
+                        if manifest["compatible_version"] > container_version:
+                            raise Exception(
+                                f"Apworld requires container version "
+                                f"{manifest['compatible_version']} but we only support {container_version}"
+                            )
+
+                    world_game = manifest.get("game")
+                    world_version = None
+                    if "world_version" in manifest:
+                        world_version = tuplize_version(manifest["world_version"])
+
+                    return world_game, world_version
+
+        return None, None
+
     @tracer.start_as_current_span("load_apworld")
     def load_apworld(self, apworld_name, apworld_version):
         span = trace.get_current_span()
@@ -64,18 +101,12 @@ class ApHandler:
                 return
             raise Exception("Invalid apworld: {}, version {}".format(apworld_name, apworld_version))
 
-        apworld_container = APWorldContainer(dest_path)
-        try:
-            apworld_container.read()
-        except InvalidDataError:
-            # The apworld doesn't have a manifest, don't fail
-            pass
-
+        world_game, world_version = self.read_apworld_manifest(dest_path)
         WorldSource(dest_path, is_zip=True, relative=False).load()
 
-        if apworld_container.game and apworld_container.game in AutoWorldRegister.world_types:
-            if apworld_container.world_version:
-                AutoWorldRegister.world_types[apworld_container.game].world_version = apworld_container.world_version
+        if world_game and world_game in AutoWorldRegister.world_types:
+            if world_version:
+                AutoWorldRegister.world_types[world_game].world_version = world_version
 
         self.refresh_netdata_package()
 
