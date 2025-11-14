@@ -70,7 +70,12 @@ class ApHandler:
                     world_game = manifest.get("game")
                     world_version = None
                     if "world_version" in manifest:
-                        world_version = tuplize_version(manifest["world_version"])
+                        try:
+                            world_version = tuplize_version(manifest["world_version"])
+                        except:
+                            # Version string is not in expected format (e.g., "alpha02b")
+                            # Leave as None, world will use default 0.0.0
+                            pass
 
                     return world_game, world_version
 
