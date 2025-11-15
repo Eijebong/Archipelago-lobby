@@ -196,10 +196,11 @@ fn process_style_text_pairs(
     accumulator.html
 }
 
-// Constants for diff processing
 const MAX_WORD_DIFF_LINE_LENGTH: usize = 10000;
 const MAX_LINE_SIMILARITY_LENGTH: usize = 1000;
 const LINE_SIMILARITY_THRESHOLD: f64 = 0.25;
+const MAX_BLOCK_SIZE_FOR_MATCHING: usize = 200;
+const LENGTH_SIMILARITY_RATIO: f64 = 0.5;
 
 #[derive(Debug, Clone)]
 pub struct TemplateAnnotation {
@@ -548,27 +549,43 @@ fn find_change_blocks(diff_lines: &[DiffLine]) -> Vec<(Vec<usize>, Vec<usize>)> 
     blocks
 }
 
-/// Find the best matches between delete and add lines
-fn find_best_line_matches(
+fn find_windowed_matches(
     diff_lines: &[DiffLine],
     delete_indices: &[usize],
     add_indices: &[usize],
 ) -> Vec<(usize, usize)> {
+    const WINDOW_SIZE: usize = 50;
+
     let mut candidates: Vec<_> = delete_indices
         .iter()
         .enumerate()
-        .flat_map(|(i, &del_idx)| {
-            add_indices.iter().enumerate().map(move |(j, &add_idx)| {
-                let similarity = calculate_line_similarity(
-                    &diff_lines[del_idx].raw_content,
-                    &diff_lines[add_idx].raw_content,
-                );
-                (i, j, del_idx, add_idx, similarity)
+        .flat_map(|(del_i, &del_idx)| {
+            let del_line = &diff_lines[del_idx].raw_content;
+            let del_len = del_line.len();
+
+            let window_start = del_i.saturating_sub(WINDOW_SIZE);
+            let window_end = (del_i + WINDOW_SIZE).min(add_indices.len());
+
+            (window_start..window_end).filter_map(move |add_i| {
+                let add_idx = add_indices[add_i];
+                let add_line = &diff_lines[add_idx].raw_content;
+                let add_len = add_line.len();
+
+                if !are_lengths_similar(del_len, add_len) {
+                    return None;
+                }
+
+                let similarity = calculate_line_similarity(del_line, add_line);
+
+                if similarity < LINE_SIMILARITY_THRESHOLD {
+                    return None;
+                }
+
+                Some((del_i, add_i, del_idx, add_idx, similarity))
             })
         })
         .collect();
 
-    // Sort by similarity (higher is better)
     candidates.sort_by(|a, b| b.4.partial_cmp(&a.4).unwrap_or(std::cmp::Ordering::Equal));
 
     let (matches, _, _) = candidates.into_iter().fold(
@@ -591,7 +608,77 @@ fn find_best_line_matches(
     matches
 }
 
-/// Calculate similarity between two lines (0.0 = completely different, 1.0 = identical)
+fn find_best_line_matches(
+    diff_lines: &[DiffLine],
+    delete_indices: &[usize],
+    add_indices: &[usize],
+) -> Vec<(usize, usize)> {
+    if delete_indices.len() > MAX_BLOCK_SIZE_FOR_MATCHING
+        || add_indices.len() > MAX_BLOCK_SIZE_FOR_MATCHING
+    {
+        return find_windowed_matches(diff_lines, delete_indices, add_indices);
+    }
+
+    let mut candidates: Vec<_> = delete_indices
+        .iter()
+        .enumerate()
+        .flat_map(|(i, &del_idx)| {
+            let del_line = &diff_lines[del_idx].raw_content;
+            let del_len = del_line.len();
+
+            add_indices
+                .iter()
+                .enumerate()
+                .filter_map(move |(j, &add_idx)| {
+                    let add_line = &diff_lines[add_idx].raw_content;
+                    let add_len = add_line.len();
+
+                    if !are_lengths_similar(del_len, add_len) {
+                        return None;
+                    }
+
+                    let similarity = calculate_line_similarity(del_line, add_line);
+
+                    if similarity < LINE_SIMILARITY_THRESHOLD {
+                        return None;
+                    }
+
+                    Some((i, j, del_idx, add_idx, similarity))
+                })
+        })
+        .collect();
+
+    candidates.sort_by(|a, b| b.4.partial_cmp(&a.4).unwrap_or(std::cmp::Ordering::Equal));
+
+    let (matches, _, _) = candidates.into_iter().fold(
+        (
+            Vec::new(),
+            vec![false; delete_indices.len()],
+            vec![false; add_indices.len()],
+        ),
+        |(mut matches, mut used_deletes, mut used_adds),
+         (del_i, add_i, del_idx, add_idx, similarity)| {
+            if !used_deletes[del_i] && !used_adds[add_i] && similarity > LINE_SIMILARITY_THRESHOLD {
+                matches.push((del_idx, add_idx));
+                used_deletes[del_i] = true;
+                used_adds[add_i] = true;
+            }
+            (matches, used_deletes, used_adds)
+        },
+    );
+
+    matches
+}
+
+fn are_lengths_similar(len1: usize, len2: usize) -> bool {
+    if len1 == 0 && len2 == 0 {
+        return true;
+    }
+    let min_len = len1.min(len2) as f64;
+    let max_len = len1.max(len2) as f64;
+    (min_len / max_len) >= LENGTH_SIMILARITY_RATIO
+}
+
 fn calculate_line_similarity(line1: &str, line2: &str) -> f64 {
     if line1.is_empty() && line2.is_empty() {
         return 1.0;
@@ -949,10 +1036,8 @@ mod tests {
 
     #[test]
     fn test_line_similarity() {
-        // Identical lines should have similarity 1.0
         assert_eq!(calculate_line_similarity("hello world", "hello world"), 1.0);
 
-        // Similar lines should have high similarity
         let sim1 = calculate_line_similarity(
             "[Main Page](../../../../games/OpenRCT2/info/en)",
             "[Main Page](../info/en)",
@@ -962,18 +1047,14 @@ mod tests {
             "[Options Page](../player-options)",
         );
 
-        // Both should be similar (around 0.4-0.6)
         assert!(sim1 > 0.4, "sim1 = {}", sim1);
         assert!(sim2 > 0.4, "sim2 = {}", sim2);
 
-        // Different lines should have low similarity
         let sim3 = calculate_line_similarity(
             "[Main Page](../../../../games/OpenRCT2/info/en)",
             "[Options Page](../player-options)",
         );
         assert!(sim3 < 0.7, "sim3 = {}", sim3);
-
-        // The similar lines should be more similar than different ones
         assert!(sim1 > sim3, "sim1 ({}) should be > sim3 ({})", sim1, sim3);
     }
 
