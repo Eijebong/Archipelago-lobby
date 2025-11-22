@@ -9,6 +9,8 @@ use std::{borrow::Cow, collections::BTreeMap, ffi::OsStr, io::Cursor, path::Path
 use apwm::diff::CombinedDiff;
 use askama::Template;
 use askama_web::WebTemplate;
+use diesel_async::pooled_connection::deadpool::Pool;
+use diesel_async::AsyncPgConnection;
 use futures::future::try_join_all;
 use rocket::{
     http::{ContentType, Status},
@@ -23,7 +25,10 @@ use syntect::{
 };
 use taskcluster::{ClientBuilder, Queue};
 
+mod api;
+mod db;
 mod diff;
+mod schema;
 
 use diff::{parse_git_diff, Annotations, FileDiff};
 
@@ -279,6 +284,10 @@ fn dist_static(file: PathBuf) -> Option<(ContentType, Cow<'static, [u8]>)> {
     Some((content_type, asset.data))
 }
 
+use diesel_migrations::{embed_migrations, EmbeddedMigrations};
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
+
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
@@ -286,9 +295,15 @@ async fn main() -> anyhow::Result<()> {
     let client_builder = ClientBuilder::new(std::env::var("TASKCLUSTER_ROOT_URL")?);
     let queue = Queue::new(client_builder)?;
 
+    let db_url = std::env::var("DATABASE_URL")?;
+    let db_pool: Pool<AsyncPgConnection> =
+        common::db::get_database_pool(&db_url, MIGRATIONS).await?;
+
     rocket::build()
         .manage(queue)
+        .manage(db_pool)
         .mount("/", routes![get_task_diffs, dist_static, get_test_results])
+        .mount("/api", api::routes())
         .launch()
         .await
         .map_err(|e| anyhow::anyhow!("Rocket launch failed: {}", e))?;

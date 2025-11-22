@@ -5,9 +5,14 @@ edition = "2021"
 
 [dependencies]
 apwm = { path = "../apwm" }
+common = { path = "../common" }
 anyhow = "1.0.88"
 askama = { version = "0.14" }
 askama_web = { version = "0.14", features = ["rocket-0.5"] }
+chrono = { version = "0.4", features = ["serde"] }
+diesel = { version = "2.2.2", features = ["chrono"] }
+diesel-async = { version = "0.6", features = ["postgres", "deadpool"] }
+diesel_migrations = { version = "2.2.0", features = ["postgres"] }
 dotenvy = "0.15.7"
 reqwest = { version = "0.12.7", features = ["gzip", "json"] }
 rocket = { version = "0.5.1", features = ["json"] }
