@@ -28,6 +28,7 @@ use taskcluster::{ClientBuilder, Queue};
 mod api;
 mod db;
 mod diff;
+mod guards;
 mod schema;
 
 use diff::{parse_git_diff, Annotations, FileDiff};
@@ -299,9 +300,12 @@ async fn main() -> anyhow::Result<()> {
     let db_pool: Pool<AsyncPgConnection> =
         common::db::get_database_pool(&db_url, MIGRATIONS).await?;
 
+    let fuzz_api_key = guards::FuzzApiKeyConfig(std::env::var("FUZZ_API_KEY")?);
+
     rocket::build()
         .manage(queue)
         .manage(db_pool)
+        .manage(fuzz_api_key)
         .mount("/", routes![get_task_diffs, dist_static, get_test_results])
         .mount("/api", api::routes())
         .launch()

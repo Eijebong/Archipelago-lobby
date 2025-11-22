@@ -5,6 +5,7 @@ use rocket::{routes, Route, State};
 use serde::Deserialize;
 
 use crate::db::{self, FuzzResult, NewFuzzResult, PreviousResult};
+use crate::guards::FuzzApiKey;
 use crate::Result;
 
 #[derive(Debug, Deserialize)]
@@ -29,6 +30,7 @@ pub struct FuzzResultInput {
 
 #[rocket::post("/fuzz-results", data = "<request>")]
 async fn record_fuzz_results(
+    _key: FuzzApiKey,
     pool: &State<Pool<AsyncPgConnection>>,
     request: Json<RecordFuzzResultsRequest>,
 ) -> Result<()> {
