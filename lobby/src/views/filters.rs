@@ -75,8 +75,8 @@ where
     defaults.extension.autolink = true;
     defaults.render.escape = true;
 
-    let s = markdown_to_html(text, &defaults);
-    Ok(s)
+    let html = markdown_to_html(text, &defaults);
+    Ok(ammonia::clean(&html))
 }
 
 fn tag_to_icon(tag: &WorldTag) -> &str {
