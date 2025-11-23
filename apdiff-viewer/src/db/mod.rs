@@ -90,12 +90,21 @@ type BoxedFilter<'a> = Box<
 async fn fetch_one_for_world(
     conn: &mut AsyncPgConnection,
     world_name: &str,
+    extra_args: Option<&str>,
     filter: BoxedFilter<'_>,
 ) -> QueryResult<Option<FuzzResult>> {
-    fuzz_results::table
+    let mut query = fuzz_results::table
         .filter(fuzz_results::world_name.eq(world_name))
         .filter(filter)
         .order(fuzz_results::recorded_at.desc())
+        .into_boxed();
+
+    query = match extra_args {
+        Some(args) => query.filter(fuzz_results::extra_args.eq(args)),
+        None => query.filter(fuzz_results::extra_args.is_null()),
+    };
+
+    query
         .select(FuzzResult::as_select())
         .first(conn)
         .await
@@ -107,10 +116,12 @@ pub async fn get_previous_results(
     world_name: &str,
     version: &str,
     checksum: &str,
+    extra_args: Option<&str>,
 ) -> QueryResult<Vec<PreviousResult>> {
     let latest_main = fetch_one_for_world(
         conn,
         world_name,
+        extra_args,
         Box::new(fuzz_results::pr_number.is_null()),
     )
     .await?;
@@ -118,6 +129,7 @@ pub async fn get_previous_results(
     let most_recent = fetch_one_for_world(
         conn,
         world_name,
+        extra_args,
         Box::new(
             fuzz_results::version
                 .ne(version)
@@ -129,6 +141,7 @@ pub async fn get_previous_results(
     let same_version = fetch_one_for_world(
         conn,
         world_name,
+        extra_args,
         Box::new(
             fuzz_results::version
                 .eq(version)

@@ -88,17 +88,18 @@ pub struct PreviousResultsResponse {
     pub previous_results: Vec<PreviousResult>,
 }
 
-#[rocket::get("/fuzz-results/<world_name>/previous?<version>&<checksum>")]
+#[rocket::get("/fuzz-results/<world_name>/previous?<version>&<checksum>&<extra_args>")]
 async fn get_previous_results(
     pool: &State<Pool<AsyncPgConnection>>,
     world_name: &str,
     version: &str,
     checksum: &str,
+    extra_args: Option<&str>,
 ) -> Result<Json<PreviousResultsResponse>> {
     let mut conn = pool.get().await?;
 
     let previous_results =
-        db::get_previous_results(&mut conn, world_name, version, checksum).await?;
+        db::get_previous_results(&mut conn, world_name, version, checksum, extra_args).await?;
 
     Ok(Json(PreviousResultsResponse { previous_results }))
 }
