@@ -42,6 +42,10 @@ fn coin_value_to_u64(value: &Value) -> Result<u64> {
         Err(anyhow::anyhow!("Invalid coin option value."))?
     };
 
+    if let Ok(num) = value.parse::<u64>() {
+        return Ok(num);
+    }
+
     Ok(match value {
         "low" => 5,
         "normal" => 20,
