@@ -76,7 +76,11 @@ where
     defaults.render.escape = true;
 
     let html = markdown_to_html(text, &defaults);
-    Ok(ammonia::clean(&html))
+    let sanitized = ammonia::Builder::default()
+        .add_url_schemes(&["data"])
+        .clean(&html)
+        .to_string();
+    Ok(sanitized)
 }
 
 fn tag_to_icon(tag: &WorldTag) -> &str {
