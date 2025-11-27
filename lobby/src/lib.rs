@@ -179,7 +179,9 @@ pub async fn main() -> crate::error::Result<()> {
     let redis_cfg = Config::from_url(&valkey_url);
     let redis_pool = redis_cfg.create_pool(Some(Runtime::Tokio1))?;
 
-    let limits = Limits::default().limit("string", 2.megabytes());
+    let limits = Limits::default()
+        .limit("string", 2.megabytes())
+        .limit("form", 256.kilobytes());
     let shutdown_config = ShutdownConfig {
         grace: 0,
         mercy: 0,
