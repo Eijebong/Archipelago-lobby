@@ -81,6 +81,13 @@ if __name__ == "__main__":
     ap_handler = handler.ApHandler(apworlds_dir, custom_apworlds_dir)
     ap_checker = checker.YamlChecker(ap_handler)
 
+    apworld_path = f"{custom_apworlds_dir}/{apworld}-{version}.apworld"
+    if not os.path.isfile(apworld_path):
+        apworld_path = f"{apworlds_dir}/{apworld}-{version}.apworld"
+
+    if os.path.isfile(apworld_path):
+        ap_handler.check_apworld_directory_name(apworld_path, apworld)
+
     ap_handler.load_apworld(apworld, version)
     yaml_content = generate_template(apworld, world_name)
 

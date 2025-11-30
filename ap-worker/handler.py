@@ -42,6 +42,16 @@ class ApHandler:
     def __del__(self):
         shutil.rmtree(self.tempdir)
 
+    def check_apworld_directory_name(self, apworld_path, apworld_name):
+        with zipfile.ZipFile(apworld_path, "r") as zf:
+            for name in zf.namelist():
+                parts = name.split('/')
+                if len(parts) > 1 and parts[0] == apworld_name:
+                    return
+
+            root_dirs = {name.split('/')[0] for name in zf.namelist() if '/' in name}
+            raise Exception(f"Apworld must contain a directory named '{apworld_name}'. Found: {sorted(root_dirs)}")
+
     def read_apworld_manifest(self, apworld_path):
         """
         Read the archipelago.json manifest from an apworld file.
