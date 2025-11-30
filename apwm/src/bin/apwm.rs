@@ -43,6 +43,12 @@ enum Command {
         #[clap(short)]
         lobby_url: Option<Url>,
     },
+    ApplyDiffs {
+        #[clap(short)]
+        index_path: PathBuf,
+        #[clap(short)]
+        diffs_dir: PathBuf,
+    },
 }
 
 #[derive(clap::Parser)]
@@ -87,6 +93,12 @@ async fn main() -> Result<()> {
                 }
             }
             diff(&index_path, &from, &from_ref, &output, &lobby_url).await?;
+        }
+        Command::ApplyDiffs {
+            index_path,
+            diffs_dir,
+        } => {
+            apply_diffs(&index_path, &diffs_dir)?;
         }
     }
 
@@ -248,6 +260,16 @@ async fn install(
         std::fs::copy(&apworld_path, &destination)
             .with_context(|| format!("Cannot copy {:?} to {:?}", &apworld_path, &destination))?;
     }
+
+    Ok(())
+}
+
+fn apply_diffs(index_path: &Path, diffs_dir: &Path) -> Result<()> {
+    let lock_path = index_path.join("index.lock");
+    let mut lock = apwm::IndexLock::new(&lock_path)?;
+
+    lock.apply_diffs_from_dir(diffs_dir)?;
+    lock.write()?;
 
     Ok(())
 }
