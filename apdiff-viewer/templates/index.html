@@ -101,7 +101,7 @@
                 {% if file.is_binary %}
                 <div class="binary-file">Binary file</div>
                 {% else %}
-                <div id="{{ file_id }}-content" class="dc">
+                <div id="{{ file_id }}-content" class="dc" onfocusin="this.blur()">
                     <table class="diff-table">
                         <tbody>
                         {% for line in file.lines %}
