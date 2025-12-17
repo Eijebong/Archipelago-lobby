@@ -302,10 +302,7 @@ mod tests {
             )]),
         };
 
-        std::fs::write(
-            diffs_dir.join("test.apdiff"),
-            serde_json::to_string(&diff)?,
-        )?;
+        std::fs::write(diffs_dir.join("test.apdiff"), serde_json::to_string(&diff)?)?;
 
         lock.apply_diffs_from_dir(&diffs_dir)?;
         lock.write()?;
