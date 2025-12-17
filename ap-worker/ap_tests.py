@@ -205,7 +205,7 @@ if __name__ == "__main__":
     loaded_worlds = list(AutoWorldRegister.world_types.keys())
     for loaded_world in loaded_worlds:
         # Those 2 worlds are essential to testing (who could've seen this coming, yet another dependency on ALTTP)
-        if loaded_world in ("Test Game", "A Link to the Past"):
+        if loaded_world in ("Test Game", "APQuest"):
             continue
 
         if loaded_world != world_name:

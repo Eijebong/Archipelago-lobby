@@ -52,6 +52,11 @@ for f in $1/worlds/*; do
         continue
     fi
 
+    # This is required for tests (FIXME: Load it at test time instead)
+    if [[ "$(basename $f)" == "apquest" ]]; then
+        continue
+    fi
+
     (cd $(dirname $f) && zip -r ${DEST}/$(basename $f)-${VERSION}.apworld $(basename $f))
     rm -Rf "$f"
 done
