@@ -41,7 +41,7 @@
 
             {% if self.ty.is_room() %}
                 <label for="room_url">Room URL:</label>
-                <input {{ ro }} type="text" id="room_url" name="room.room_url" value="{{self.room.room_url}}">
+                <input {{ ro }} type="text" id="room_url" name="room.room_url" value="{{self.room.room_url}}" placeholder="https://archipelago.gg/room/<id>">
             {% else %}
                 <input {{ ro }} type="hidden" id="room_url" name="room.room_url" value="{{self.room.room_url}}">
             {% endif %}
