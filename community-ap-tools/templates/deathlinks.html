@@ -62,14 +62,13 @@ button {
                 </tr>
             </thead>
             <tbody>
-                {% for slot in ap_room.tracker_info.slots %}
-                {% let lobby_slot = lobby_room.yamls[slot.id - 1] %}
+                {% for slot in slots %}
                 <tr data-slot-id="{{ slot.id }}">
                     <td>{{ slot.id }}</td>
                     <td>{{ slot.name }}</td>
                     <td>{{ slot.game }}</td>
-                    <td>@{{ lobby_slot.discord_handle }}</td>
-                    <td class="deathlink-status"></td>
+                    <td>@{{ slot.discord_handle }}</td>
+                    <td class="deathlink-status">{% if slot.is_excluded %}Disabled{% else %}Enabled{% endif %}</td>
                     <td>
                         <button class="toggle-deathlink" data-slot-id="{{ slot.id }}">Toggle</button>
                     </td>
@@ -79,7 +78,19 @@ button {
         </table>
 
         <h2>Deathlink Statistics</h2>
-        <div id="deathlink-stats"></div>
+        <div id="deathlink-stats">
+            {% if deathlinks.is_empty() %}
+            <p>No deathlinks recorded yet.</p>
+            {% else %}
+            <p>Total deathlinks: {{ deathlinks.len() }}</p>
+            <p>Deaths by slot:</p>
+            <ul>
+                {% for slot_count in deaths_by_slot %}
+                <li>Slot {{ slot_count.slot }} ({{ slot_count.name }}): {{ slot_count.count }} deaths</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
 
         <table id="deathlink-history-table">
             <thead>
@@ -91,95 +102,28 @@ button {
                 </tr>
             </thead>
             <tbody id="deathlink-history-body">
+                {% for dl in deathlinks %}
+                <tr>
+                    <td>{{ dl.created_at }}</td>
+                    <td>{{ dl.slot }}</td>
+                    <td>{{ dl.source }}</td>
+                    <td>{{ dl.cause.as_deref().unwrap_or("N/A") }}</td>
+                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </body>
 
     <script>
-        const AP_ROOM_ID = '{{ ap_room_id }}';
-
-        async function fetchDeathlinks() {
-            const response = await fetch('/api/deathlinks/' + AP_ROOM_ID);
-            const deathlinks = await response.json();
-            updateDeathlinksStats(deathlinks);
-        }
-
-        async function fetchExclusions() {
-            const response = await fetch('/api/deathlink_exclusions');
-            const data = await response.json();
-            updateExclusionStatus(data.excluded_slots);
-        }
-
-        function updateExclusionStatus(excludedSlots) {
-            const rows = document.querySelectorAll('#deathlink-status-table tbody tr');
-            rows.forEach(row => {
-                const slotId = parseInt(row.dataset.slotId);
-                const isExcluded = excludedSlots.includes(slotId);
+        document.querySelectorAll('.toggle-deathlink').forEach(button => {
+            button.addEventListener('click', async () => {
+                const slotId = parseInt(button.dataset.slotId);
+                const row = button.closest('tr');
                 const statusCell = row.querySelector('.deathlink-status');
-                statusCell.innerText = isExcluded ? 'Disabled' : 'Enabled';
-            });
-        }
-
-        function updateDeathlinksStats(deathlinks) {
-            const stats = document.getElementById('deathlink-stats');
-            const historyBody = document.getElementById('deathlink-history-body');
-
-            if (deathlinks.length === 0) {
-                stats.innerText = 'No deathlinks recorded yet.';
-                return;
-            }
-
-            const slotCounts = {};
-            deathlinks.forEach(dl => {
-                slotCounts[dl.slot] = (slotCounts[dl.slot] || 0) + 1;
-            });
-
-            let statsHtml = '<p>Total deathlinks: ' + deathlinks.length + '</p><p>Deaths by slot:</p><ul>';
-            Object.entries(slotCounts).sort((a, b) => b[1] - a[1]).forEach(([slot, count]) => {
-                statsHtml += '<li>Slot ' + slot + ': ' + count + ' deaths</li>';
-            });
-            statsHtml += '</ul>';
-            stats.innerHTML = statsHtml;
-
-            historyBody.innerHTML = '';
-            deathlinks.forEach(dl => {
-                const row = document.createElement('tr');
-                const td1 = document.createElement('td');
-                td1.innerText = new Date(dl.created_at).toLocaleString();
-                const td2 = document.createElement('td');
-                td2.innerText = dl.slot;
-                const td3 = document.createElement('td');
-                td3.innerText = dl.source;
-                const td4 = document.createElement('td');
-                td4.innerText = dl.cause || 'N/A';
-                row.appendChild(td1);
-                row.appendChild(td2);
-                row.appendChild(td3);
-                row.appendChild(td4);
-                historyBody.appendChild(row);
-            });
-        }
-
-        async function toggleDeathlink(slotId, currentlyExcluded) {
-            const method = currentlyExcluded ? 'DELETE' : 'POST';
-            await fetch('/api/deathlink_exclusions/' + slotId, {
-                method: method
-            });
-            await fetchExclusions();
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchDeathlinks();
-            fetchExclusions();
-
-            document.querySelectorAll('.toggle-deathlink').forEach(button => {
-                button.addEventListener('click', () => {
-                    const slotId = parseInt(button.dataset.slotId);
-                    const row = button.closest('tr');
-                    const statusCell = row.querySelector('.deathlink-status');
-                    const isExcluded = statusCell.innerText === 'Disabled';
-                    toggleDeathlink(slotId, isExcluded);
-                });
+                const isExcluded = statusCell.innerText === 'Disabled';
+                const method = isExcluded ? 'DELETE' : 'POST';
+                await fetch('/api/deathlink_exclusions/' + slotId, { method });
+                statusCell.innerText = isExcluded ? 'Enabled' : 'Disabled';
             });
         });
     </script>

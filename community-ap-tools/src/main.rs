@@ -1,4 +1,4 @@
-use std::{borrow::Cow, ffi::OsStr, path::PathBuf, str::FromStr};
+use std::{borrow::Cow, collections::HashMap, ffi::OsStr, path::PathBuf, str::FromStr};
 
 use anyhow::{Context, anyhow};
 use askama::Template;
@@ -40,14 +40,43 @@ pub struct RunIndexTpl {
     slot_passwords: SlotPasswords,
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Deathlink {
+    pub slot: usize,
+    pub source: String,
+    pub cause: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SlotDeathCount {
+    pub slot: usize,
+    pub name: String,
+    pub count: usize,
+}
+
+#[derive(Deserialize)]
+struct ExclusionsResponse {
+    excluded_slots: Vec<usize>,
+}
+
+pub struct DeathlinksSlot {
+    pub id: usize,
+    pub name: String,
+    pub game: String,
+    pub discord_handle: String,
+    pub is_excluded: bool,
+}
+
 #[derive(Template, WebTemplate)]
 #[template(path = "deathlinks.html")]
 pub struct DeathlinksIndexTpl {
     lobby_room: LobbyRoom,
-    ap_room: ApRoom,
     lobby_root_url: String,
     is_session_valid: bool,
-    ap_room_id: String,
+    slots: Vec<DeathlinksSlot>,
+    deathlinks: Vec<Deathlink>,
+    deaths_by_slot: Vec<SlotDeathCount>,
 }
 
 #[derive(rust_embed::RustEmbed)]
@@ -150,29 +179,7 @@ async fn root(
     root_run(session, lobby_room, ap_room, slot_passwords, config).await
 }
 
-#[rocket::get("/deathlinks")]
-async fn deathlinks(
-    _session: LoggedInSession,
-    lobby_room: LobbyRoom,
-    ap_room: ApRoom,
-    config: &State<Config>,
-) -> crate::error::Result<DeathlinksIndexTpl> {
-    let room_id = lobby_room.id.to_string();
-    Ok(DeathlinksIndexTpl {
-        lobby_room,
-        ap_room,
-        lobby_root_url: config.lobby_root_url.to_string(),
-        is_session_valid: config.is_session_valid,
-        ap_room_id: room_id,
-    })
-}
-
-#[rocket::get("/api/deathlinks/<room_id>")]
-async fn proxy_get_deathlinks(
-    _session: LoggedInSession,
-    room_id: &str,
-    config: &State<Config>,
-) -> crate::error::Result<String> {
+async fn fetch_deathlinks(config: &Config, room_id: &str) -> crate::error::Result<Vec<Deathlink>> {
     let apx_api_root = config
         .apx_api_root
         .as_ref()
@@ -189,14 +196,10 @@ async fn proxy_get_deathlinks(
         .send()
         .await?;
 
-    Ok(response.text().await?)
+    Ok(response.json().await?)
 }
 
-#[rocket::get("/api/deathlink_exclusions")]
-async fn proxy_get_exclusions(
-    _session: LoggedInSession,
-    config: &State<Config>,
-) -> crate::error::Result<String> {
+async fn fetch_exclusions(config: &Config) -> crate::error::Result<Vec<usize>> {
     let apx_api_root = config
         .apx_api_root
         .as_ref()
@@ -213,7 +216,58 @@ async fn proxy_get_exclusions(
         .send()
         .await?;
 
-    Ok(response.text().await?)
+    let data: ExclusionsResponse = response.json().await?;
+    Ok(data.excluded_slots)
+}
+
+#[rocket::get("/deathlinks")]
+async fn deathlinks(
+    _session: LoggedInSession,
+    lobby_room: LobbyRoom,
+    ap_room: ApRoom,
+    config: &State<Config>,
+) -> crate::error::Result<DeathlinksIndexTpl> {
+    let room_id = lobby_room.id.to_string();
+
+    let deathlinks = fetch_deathlinks(config, &room_id).await.unwrap_or_default();
+    let excluded_slots = fetch_exclusions(config).await.unwrap_or_default();
+
+    let slots: Vec<DeathlinksSlot> = ap_room
+        .tracker_info
+        .slots
+        .iter()
+        .zip(lobby_room.yamls.iter())
+        .map(|(slot, lobby_slot)| DeathlinksSlot {
+            id: slot.id,
+            name: slot.name.clone(),
+            game: slot.game.clone(),
+            discord_handle: lobby_slot.discord_handle.clone(),
+            is_excluded: excluded_slots.contains(&slot.id),
+        })
+        .collect();
+
+    let slot_names: HashMap<usize, &str> = slots.iter().map(|s| (s.id, s.name.as_str())).collect();
+    let mut deaths_by_slot: Vec<SlotDeathCount> = deathlinks
+        .iter()
+        .map(|dl| dl.slot)
+        .counts()
+        .into_iter()
+        .map(|(slot, count)| SlotDeathCount {
+            slot,
+            name: slot_names[&slot].to_string(),
+            count,
+        })
+        .collect();
+    deaths_by_slot.sort_by(|a, b| b.count.cmp(&a.count));
+
+    Ok(DeathlinksIndexTpl {
+        lobby_room,
+        lobby_root_url: config.lobby_root_url.to_string(),
+        is_session_valid: config.is_session_valid,
+        slots,
+        deathlinks,
+        deaths_by_slot,
+    })
 }
 
 #[rocket::post("/api/deathlink_exclusions/<slot>")]
@@ -623,8 +677,6 @@ async fn main() -> crate::error::Result<()> {
                 dist,
                 root,
                 deathlinks,
-                proxy_get_deathlinks,
-                proxy_get_exclusions,
                 proxy_add_exclusion,
                 proxy_remove_exclusion,
                 release,
