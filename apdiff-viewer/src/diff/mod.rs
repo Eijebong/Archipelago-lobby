@@ -443,12 +443,9 @@ fn is_single_line_comment(scope_str: &str) -> bool {
 /// This helps prevent single-line constructs like # comments from bleeding into next lines
 /// while allowing multi-line constructs like triple-quoted strings to persist
 fn should_reset_parser_state(current_scopes: &ScopeStack) -> bool {
-    use syntect::parsing::SCOPE_REPO;
-    let repo = SCOPE_REPO.lock().unwrap();
-
     // Check if we're currently in a single-line comment scope
     current_scopes.scopes.iter().any(|scope| {
-        let scope_str = repo.to_string(*scope);
+        let scope_str = scope.build_string();
         is_single_line_comment(&scope_str)
     })
 }
@@ -476,11 +473,8 @@ fn is_invalid_scope_str(scope_str: &str) -> bool {
 /// Check if a scope represents an error or invalid syntax
 fn is_invalid_scope(scope_stack: &ScopeStack) -> bool {
     // In TextMate/Sublime Text scope conventions, invalid syntax is marked with scopes starting with "invalid."
-    use syntect::parsing::SCOPE_REPO;
-    let repo = SCOPE_REPO.lock().unwrap();
-
     scope_stack.scopes.iter().any(|scope| {
-        let scope_str = repo.to_string(*scope);
+        let scope_str = scope.build_string();
         is_invalid_scope_str(&scope_str)
     })
 }
