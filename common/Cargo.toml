@@ -6,8 +6,8 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.86"
 deadpool = "0.12.1"
-diesel = { version = "2.2.2", features = ["uuid", "chrono", "serde_json"] }
-diesel-async = { version = "0.6", features = ["postgres", "deadpool", "async-connection-wrapper"] }
+diesel = { version = "2.3.5", features = ["uuid", "chrono", "serde_json"] }
+diesel-async = { version = "0.7", features = ["postgres", "deadpool", "async-connection-wrapper"] }
 diesel_migrations = { version = "2.2.0", features = ["postgres"] }
 futures-util = "0.3.30"
 once_cell = "1.19.0"
