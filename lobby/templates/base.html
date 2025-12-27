@@ -15,28 +15,28 @@
     </head>
     <body>
         <nav id="navigation">
-            {% call menu::app_menu_item("Rooms", "fa-brands fa-buffer", "/", "index", base.cur_module) %}
+            {% call menu::app_menu_item("Rooms", "fa-brands fa-buffer", "/", "index", base.cur_module) %}{% endcall %}
             {% block room_navigation %}
             {% endblock %}
-            {% call menu::app_menu_item("Apworlds", "fa fa-globe", "/worlds", "apworlds", base.cur_module) %}
+            {% call menu::app_menu_item("Apworlds", "fa fa-globe", "/worlds", "apworlds", base.cur_module) %}{% endcall %}
 
             <span class="separator"></span>
 
             {% if base.is_logged_in %}
                 {% if base.is_admin %}
-                    {% call menu::app_menu_item("All rooms", "fa fa-list", "/rooms", "rooms", base.cur_module) %}
+                    {% call menu::app_menu_item("All rooms", "fa fa-list", "/rooms", "rooms", base.cur_module) %}{% endcall %}
                 {% else %}
-                    {% call menu::app_menu_item("My rooms", "fa fa-list", "/rooms", "rooms", base.cur_module) %}
+                    {% call menu::app_menu_item("My rooms", "fa fa-list", "/rooms", "rooms", base.cur_module) %}{% endcall %}
                 {% endif %}
 
-                {% call menu::app_menu_item("Create new room", "fa fa-plus", "/create-room", "create-room", base.cur_module) %}
-                {% call menu::app_menu_item("Templates", "fa fa-code", "/room-templates", "room-templates", base.cur_module) %}
+                {% call menu::app_menu_item("Create new room", "fa fa-plus", "/create-room", "create-room", base.cur_module) %}{% endcall %}
+                {% call menu::app_menu_item("Templates", "fa fa-code", "/room-templates", "room-templates", base.cur_module) %}{% endcall %}
                 {% block template_navigation %}
                 {% endblock %}
                 <span class="separator"></span>
-                {% call menu::app_menu_item("Logout", "fa fa-sign-out", "/auth/logout", "logout", base.cur_module) %}
+                {% call menu::app_menu_item("Logout", "fa fa-sign-out", "/auth/logout", "logout", base.cur_module) %}{% endcall %}
             {% else %}
-                {% call menu::app_menu_item("Login", "fa fa-sign-in", "/auth/login", "login", base.cur_module) %}
+                {% call menu::app_menu_item("Login", "fa fa-sign-in", "/auth/login", "login", base.cur_module) %}{% endcall %}
             {% endif %}
 
             <a class="source-code" href="https://github.com/Eijebong/Archipelago-lobby" id="github"><span><i class="fa-brands fa-github"></i></span></a>

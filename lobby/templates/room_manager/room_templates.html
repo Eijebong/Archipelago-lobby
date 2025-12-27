@@ -2,8 +2,8 @@
 {% import "menu.html.tera" as menu %}
 
 {% block menu %}
-    {% call menu::menu_item("Templates", "", "/room-templates", true, "room-templates") %}
-    {% call menu::menu_item("Create template", "", "/room-templates/create", false, "create-room-template") %}
+    {% call menu::menu_item("Templates", "", "/room-templates", true, "room-templates") %}{% endcall %}
+    {% call menu::menu_item("Create template", "", "/room-templates/create", false, "create-room-template") %}{% endcall %}
 {% endblock %}
 
 {% block main %}

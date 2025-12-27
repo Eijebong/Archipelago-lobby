@@ -1,10 +1,10 @@
 {% macro paginated_rooms_table(rooms, page, max_page) %}
     {% let (closed_rooms, open_rooms) = crate::views::utils::partition_rooms_by_closed(rooms) %}
     {% if open_rooms.len() != 0 %}
-        {% call rooms_table(open_rooms, "List of open rooms") %}
+        {% call rooms_table(open_rooms, "List of open rooms") %}{% endcall %}
     {% endif %}
     {% if closed_rooms.len() != 0 %}
-        {% call rooms_table(closed_rooms, "List of rooms you previously participated in") %}
+        {% call rooms_table(closed_rooms, "List of rooms you previously participated in") %}{% endcall %}
     {% endif %}
 
     {% if rooms.len() == 0 %}

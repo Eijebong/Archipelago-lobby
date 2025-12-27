@@ -3,20 +3,20 @@
 
 {% block menu %}
     {% let room_url = format!("/room/{}", self.room.id) %}
-    {% call menu::menu_item("Room", "", room_url, false, "room-menu") %}
+    {% call menu::menu_item("Room", "", room_url, false, "room-menu") %}{% endcall %}
     {% if base.is_logged_in && room.settings.show_apworlds %}
         {% let apworlds_url = format!("/room/{}/worlds", self.room.id) %}
-        {% call menu::menu_item("Apworlds", "", apworlds_url, false, "apworldsButton") %}
+        {% call menu::menu_item("Apworlds", "", apworlds_url, false, "apworldsButton") %}{% endcall %}
     {% endif %}
     {% let edit_url = format!("/edit-room/{}", self.room.id) %}
-    {% call menu::menu_item("Edit room", "", edit_url, false, "editButton") %}
+    {% call menu::menu_item("Edit room", "", edit_url, false, "editButton") %}{% endcall %}
     {% let gen_url = format!("/room/{}/generation", self.room.id) %}
-    {% call menu::menu_item("Generation", "", gen_url, true, "genButton") %}
+    {% call menu::menu_item("Generation", "", gen_url, true, "genButton") %}{% endcall %}
 {% endblock %}
 
 {% block room_navigation %}
     {% let room_url = format!("/room/{}", self.room.id) %}
-    {% call menu::app_menu_item(room.settings.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}
+    {% call menu::app_menu_item(room.settings.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}{% endcall %}
 {% endblock %}
 
 {% block main %}

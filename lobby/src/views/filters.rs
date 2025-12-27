@@ -8,6 +8,7 @@ use itertools::Itertools;
 use crate::db::Json;
 use crate::extractor::{YamlFeature, YamlFeatures};
 
+#[askama::filter_fn]
 pub fn yaml_features(
     features: &Json<YamlFeatures>,
     _values: &dyn Values,
@@ -63,6 +64,7 @@ fn feature_to_name(feature: &YamlFeature) -> &str {
     }
 }
 
+#[askama::filter_fn]
 pub fn markdown(text: &str, _values: &dyn Values) -> askama::Result<impl Display, Infallible>
 where
 {
@@ -95,6 +97,7 @@ fn tag_to_name(tag: &WorldTag) -> &str {
     }
 }
 
+#[askama::filter_fn]
 pub fn world_tags(
     world_and_origin: &(&World, &WorldOrigin),
     _values: &dyn Values,

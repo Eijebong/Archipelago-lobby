@@ -4,14 +4,14 @@
 
 {% block template_navigation %}
     {% let tpl_url = format!("/room-templates/{}/rooms", self.tpl.id) %}
-    {% call menu::app_menu_item(tpl.tpl_name, "menu-indented fa-classic fa-angle-right", tpl_url, "template", base.cur_module) %}
+    {% call menu::app_menu_item(tpl.tpl_name, "menu-indented fa-classic fa-angle-right", tpl_url, "template", base.cur_module) %}{% endcall %}
 {% endblock %}
 
 {% block main %}
 
 <h6 style="margin: 0;">List of rooms created from the template {{+ tpl.tpl_name }}</h6>
 {% if rooms.len() != 0 %}
-    {% call room_list::paginated_rooms_table(rooms, current_page, max_pages) %}
+{% call room_list::paginated_rooms_table(rooms, current_page, max_pages) %}{% endcall %}
 {% else %}
     You haven't used this template to open any room yet.
 {% endif %}

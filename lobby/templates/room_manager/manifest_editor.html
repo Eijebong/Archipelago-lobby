@@ -14,7 +14,7 @@
         <label class="unstyled" for="me-enabled-{{row.apworld_name}}"></label>
     </td>
     <td>{{ row.world.display_name }}</td>
-    <td>{% call emit_apworld_version_select(row) %}
+    <td>{% call emit_apworld_version_select(row) %}{% endcall %}</td>
 </tr>
 {% endmacro %}
 
@@ -41,7 +41,7 @@
     </thead>
     <tbody>
     {% for row in manifest_builder.rows() %}
-        {% call emit_apworld_row(row) %}
+        {% call emit_apworld_row(row) %}{% endcall %}
     {% endfor %}
     </tbody>
 </table>

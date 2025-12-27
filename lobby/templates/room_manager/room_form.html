@@ -1,6 +1,6 @@
 {% import "utils.html.tera" as utils %}
 
-{% let ro %}
+{% decl ro %}
 {% if self.read_only %}
     {% let ro = " disabled " %}
 {% else %}

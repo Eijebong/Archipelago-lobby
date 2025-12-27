@@ -129,7 +129,7 @@ async fn root_run(
         .sort_by_key(|slot| slot.status.clone());
 
     ap_room.tracker_info.slots.sort_by_key(|slot| {
-        match filters::slot_status(slot, &()).unwrap_or("green") {
+        match filters::slot_status_fn(slot).unwrap_or("green") {
             "green" => 2,
             "yellow" => 1,
             "red" => 0,

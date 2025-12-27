@@ -3,6 +3,6 @@
 {% import "shared/room_list.html" as room_list %}
 {% block main %}
 
-{% call room_list::paginated_rooms_table(rooms, current_page, max_pages) %}
+{% call room_list::paginated_rooms_table(rooms, current_page, max_pages) %}{% endcall %}
 
 {%endblock%}

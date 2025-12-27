@@ -3,17 +3,17 @@
 {% import "utils.html.tera" as utils %}
 
 {% block menu %}
-    {% call menu::menu_item("Room info", "", "#", true, "room-options") %}
-    {% call menu::menu_item("Advanced options", "", "#", false, "advanced-options") %}
-    {% call menu::menu_item("Apworlds", "", "#", false, "apworlds-editor") %}
-    {% call menu::menu_item("Generation options", "", "#", false, "gen-options") %}
+    {% call menu::menu_item("Room info", "", "#", true, "room-options") %}{% endcall %}
+    {% call menu::menu_item("Advanced options", "", "#", false, "advanced-options") %}{% endcall %}
+    {% call menu::menu_item("Apworlds", "", "#", false, "apworlds-editor") %}{% endcall %}
+    {% call menu::menu_item("Generation options", "", "#", false, "gen-options") %}{% endcall %}
 {% endblock %}
 
 {% block template_navigation %}
     {% match tpl %}
     {% when Some with (tpl) %}
         {% let tpl_url = format!("/room-templates/{}", tpl.id) %}
-        {% call menu::app_menu_item(tpl.tpl_name, "menu-indented fa-classic fa-angle-right", tpl_url, "template", base.cur_module) %}
+        {% call menu::app_menu_item(tpl.tpl_name, "menu-indented fa-classic fa-angle-right", tpl_url, "template", base.cur_module) %}{% endcall %}
     {% when None %}
     {% endmatch %}
 {% endblock %}
