@@ -11,12 +11,10 @@ use std::{
 
 use anyhow::{bail, Result};
 use chrono::{DateTime, Utc};
-use redis::{
-    aio::MultiplexedConnection, AsyncCommands, ErrorKind, FromRedisValue, PushInfo, PushKind,
-    RedisError,
-};
+use deadpool_redis::Pool;
+use redis::{AsyncCommands, ErrorKind, FromRedisValue, PushKind, RedisError};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use tokio::{sync::broadcast, task::JoinHandle};
+use tokio::task::JoinHandle;
 use tracing::{error, warn};
 use uuid::Uuid;
 
@@ -34,6 +32,8 @@ pub enum WorkQueueError {
     InvalidJobStatus(String),
     #[error("Redis error: {0}")]
     Redis(#[from] redis::RedisError),
+    #[error("Pool error: {0}")]
+    Pool(#[from] deadpool_redis::PoolError),
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
     #[error("Other error: {0}")]
@@ -192,10 +192,10 @@ pub struct WorkQueue<
     claims_key: String,
     results_key: String,
     stats_key: String,
-    client: MultiplexedConnection,
+    pool: Pool,
+    redis_client: redis::Client,
     reclaim_timeout: Duration,
     claim_timeout: Duration,
-    pubsub_rx: broadcast::Receiver<PushInfo>,
     result_callback: Option<ResolveCallback<P, R>>,
     _phantom: PhantomData<(P, R)>,
 }
@@ -206,13 +206,21 @@ impl<
     > WorkQueue<P, R>
 {
     async fn reclaim_checker_inner(
-        mut conn: MultiplexedConnection,
+        pool: Pool,
         reclaim_timeout: Duration,
         claims_key: String,
         queue_key: String,
     ) {
         loop {
             tokio::time::sleep(reclaim_timeout / 2).await;
+
+            let mut conn = match pool.get().await {
+                Ok(conn) => conn,
+                Err(e) => {
+                    tracing::error!("Reclaim checker failed to get connection from pool: {}", e);
+                    continue;
+                }
+            };
 
             let queue_claims = match conn.hgetall::<_, HashMap<String, Claim>>(&claims_key).await {
                 Ok(claims) => claims,
@@ -248,7 +256,7 @@ impl<
                         .del(job_claim_key)
                         .hdel(&claims_key, claim.job_id.to_string())
                         .publish(&queue_key, 0)
-                        .exec_async(&mut conn)
+                        .exec_async(&mut *conn)
                         .await;
 
                     if let Err(e) = res {
@@ -264,10 +272,10 @@ impl<
     }
 
     pub fn start_reclaim_checker(&self) -> JoinHandle<()> {
-        let conn = self.client.clone();
+        let pool = self.pool.clone();
 
         tokio::spawn(Self::reclaim_checker_inner(
-            conn,
+            pool,
             self.reclaim_timeout,
             self.claims_key.clone(),
             self.queue_key.clone(),
@@ -275,7 +283,7 @@ impl<
     }
 
     pub async fn process_orphaned_job_results(&self) -> Result<()> {
-        let mut conn = self.client.clone();
+        let mut conn = self.pool.get().await?;
         let result_keys = conn
             .keys::<_, Vec<String>>(format!("{}:*", self.results_key))
             .await?;
@@ -310,7 +318,7 @@ impl<
             let job_result = conn.get::<_, JobResult<R>>(&result_key).await?;
 
             let callback = self.result_callback.as_ref().unwrap().clone();
-            let mut conn = self.client.clone();
+            let pool = self.pool.clone();
             tokio::spawn(async move {
                 let processed = match callback(desc, job_result).await {
                     Ok(processed) => processed,
@@ -324,6 +332,7 @@ impl<
                     return Ok(());
                 }
 
+                let mut conn = pool.get().await?;
                 conn.del::<_, i64>(job_key).await?;
                 conn.del::<_, i64>(result_key).await?;
 
@@ -335,7 +344,7 @@ impl<
     }
 
     pub async fn reclaim_job(&self, job_id: &JobId, worker_id: &str) -> Result<(), WorkQueueError> {
-        let mut conn = self.client.clone();
+        let mut conn = self.pool.get().await?;
 
         let Some(mut current_claim) = conn
             .hget::<_, _, Option<Claim>>(&self.claims_key, job_id.to_string())
@@ -363,7 +372,7 @@ impl<
         status: JobStatus,
         result: R,
     ) -> Result<(), WorkQueueError> {
-        let mut conn = self.client.clone();
+        let mut conn = self.pool.get().await?;
 
         if !status.is_resolved() {
             return Err(WorkQueueError::InvalidJobStatus(
@@ -396,7 +405,7 @@ impl<
             .set::<_, JobResult<R>>(self.get_result_key(&job_id), job_result.clone())
             .incr(self.get_stats_key(status.as_stat_name()), 1)
             .publish::<_, u8>(self.get_result_key(&job_id), status as u8)
-            .exec_async(&mut conn)
+            .exec_async(&mut *conn)
             .await
             .map_err(WorkQueueError::Redis)?;
 
@@ -404,6 +413,7 @@ impl<
             let callback = result_callback.clone();
             let job_key = self.get_job_key(&job_id);
             let result_key = self.get_result_key(&job_id);
+            let pool = self.pool.clone();
             tokio::spawn(async move {
                 let processed = callback(desc, job_result)
                     .await
@@ -412,6 +422,7 @@ impl<
                     return Ok(());
                 }
 
+                let mut conn = pool.get().await.map_err(WorkQueueError::Pool)?;
                 conn.del::<_, i64>(job_key)
                     .await
                     .map_err(WorkQueueError::Redis)?;
@@ -429,14 +440,14 @@ impl<
     /// Return the job's status. Returns `Ok(None)` if the job doesn't exist in the queue nor in
     /// the results.
     pub async fn get_job_status(&self, job_id: &JobId) -> Result<Option<JobStatus>> {
-        let mut conn = self.client.clone();
+        let mut conn = self.pool.get().await?;
         let result_key = self.get_result_key(job_id);
 
         let (is_resolved, is_claimed, is_queued): (bool, bool, bool) = redis::pipe()
             .exists(self.get_result_key(job_id))
             .hexists(&self.claims_key, job_id.to_string())
             .exists(self.get_job_key(job_id))
-            .query_async(&mut conn)
+            .query_async(&mut *conn)
             .await?;
 
         if is_resolved {
@@ -470,13 +481,22 @@ impl<
             return Err(WorkQueueError::JobNotFound);
         }
 
-        let mut conn = self.client.clone();
+        let mut conn = self.pool.get().await?;
+
+        let (tx, mut rx) = tokio::sync::broadcast::channel(16);
+        let config = redis::AsyncConnectionConfig::new().set_push_sender(tx);
+        let mut pubsub_conn = self
+            .redis_client
+            .get_multiplexed_async_connection_with_config(&config)
+            .await
+            .map_err(WorkQueueError::Redis)?;
 
         let mut remaining_time = timeout.unwrap_or(Duration::from_secs(3600 * 24));
         let start = Instant::now();
 
         let channel_name = self.get_result_key(job_id);
-        conn.subscribe(&channel_name)
+        pubsub_conn
+            .subscribe(&channel_name)
             .await
             .map_err(WorkQueueError::Redis)?;
 
@@ -485,15 +505,15 @@ impl<
             .await
             .map_err(WorkQueueError::Redis)?;
         if let Some(result) = job_result {
-            conn.unsubscribe(&channel_name)
+            pubsub_conn
+                .unsubscribe(&channel_name)
                 .await
                 .map_err(WorkQueueError::Redis)?;
             return Ok(Some(result.status));
         }
 
         let status = loop {
-            let result =
-                tokio::time::timeout(remaining_time, self.pubsub_rx.resubscribe().recv()).await;
+            let result = tokio::time::timeout(remaining_time, rx.recv()).await;
 
             let Ok(result) = result else { return Ok(None) };
 
@@ -526,7 +546,8 @@ impl<
             };
             let Ok(status) = from_utf8(&raw_status) else {
                 tracing::warn!("Invalid status on pubsub: {:?}", raw_status);
-                conn.unsubscribe(&channel_name)
+                pubsub_conn
+                    .unsubscribe(&channel_name)
                     .await
                     .map_err(WorkQueueError::Redis)?;
                 return Ok(Some(JobStatus::InternalError));
@@ -534,7 +555,8 @@ impl<
 
             let Ok(status) = status.parse::<u8>() else {
                 tracing::warn!("Invalid status on pubsub: {:?}", status);
-                conn.unsubscribe(&channel_name)
+                pubsub_conn
+                    .unsubscribe(&channel_name)
                     .await
                     .map_err(WorkQueueError::Redis)?;
                 return Ok(Some(JobStatus::InternalError));
@@ -543,7 +565,8 @@ impl<
             break status;
         };
 
-        conn.unsubscribe(&channel_name)
+        pubsub_conn
+            .unsubscribe(&channel_name)
             .await
             .map_err(WorkQueueError::Redis)?;
 
@@ -554,7 +577,7 @@ impl<
 
     /// Returns the result for the given job id
     pub async fn get_job_result(&self, job_id: JobId) -> Result<R> {
-        let mut conn = self.client.clone();
+        let mut conn = self.pool.get().await?;
         let result_key = self.get_result_key(&job_id);
         let result_str = conn.get::<_, String>(result_key).await?;
 
@@ -563,25 +586,34 @@ impl<
 
     /// Delete the job result for the given job id
     pub async fn delete_job_result(&self, job_id: JobId) -> Result<()> {
-        let mut conn = self.client.clone();
+        let mut conn = self.pool.get().await?;
 
         let result_key = self.get_result_key(&job_id);
         let job_key = self.get_job_key(&job_id);
         redis::pipe()
             .del(result_key)
             .del(job_key)
-            .exec_async(&mut conn)
+            .exec_async(&mut *conn)
             .await?;
 
         Ok(())
     }
 
-    /// Tries to getu a job for 30s and returns `Ok(None)` if nothing shows up.
+    /// Tries to get a job for 30s and returns `Ok(None)` if nothing shows up.
     /// When a job is claimed, register the worker's claim on the job.
     pub async fn claim_job(&self, worker_id: &str) -> Result<Option<Job<P>>> {
         tracing::trace!("Worker {} is trying to claim a job", worker_id);
 
-        let mut conn = self.client.clone();
+        let mut conn = self.pool.get().await?;
+
+        let (tx, mut rx) = tokio::sync::broadcast::channel(16);
+        let config = redis::AsyncConnectionConfig::new().set_push_sender(tx);
+        let mut pubsub_conn = self
+            .redis_client
+            .get_multiplexed_async_connection_with_config(&config)
+            .await?;
+        pubsub_conn.subscribe(&self.queue_key).await?;
+
         let mut remaining_time = self.claim_timeout;
         let start = Instant::now();
 
@@ -602,8 +634,7 @@ impl<
                 break (*job_id, *priority, desc.params);
             };
 
-            let result =
-                tokio::time::timeout(remaining_time, self.pubsub_rx.resubscribe().recv()).await;
+            let result = tokio::time::timeout(remaining_time, rx.recv()).await;
 
             if result.is_err() {
                 // Timeout
@@ -635,7 +666,7 @@ impl<
         priority: Priority,
         deadline_in: Duration,
     ) -> Result<JobId> {
-        let mut conn = self.client.clone();
+        let mut conn = self.pool.get().await?;
 
         let job_id = JobId::new();
         tracing::info!(
@@ -663,7 +694,7 @@ impl<
             .set(&job_key, job_desc_str)
             .zadd(&self.queue_key, job_id.to_string(), priority as i8)
             .publish(&self.queue_key, 0)
-            .exec_async(&mut conn)
+            .exec_async(&mut *conn)
             .await?;
 
         Ok(job_id)
@@ -672,7 +703,7 @@ impl<
     /// Cancel a job. If the job is claimed, the worker will receive an error on reclaim and should
     /// actually cancel the job at that moment.
     pub async fn cancel_job(&self, job_id: JobId) -> Result<()> {
-        let mut conn = self.client.clone();
+        let mut conn = self.pool.get().await?;
 
         tracing::info!("Cancelling job {}", job_id);
 
@@ -680,14 +711,14 @@ impl<
             .zrem(&self.queue_key, job_id.to_string())
             .del(self.get_job_key(&job_id))
             .hdel(&self.claims_key, job_id.to_string())
-            .exec_async(&mut conn)
+            .exec_async(&mut *conn)
             .await?;
 
         Ok(())
     }
 
     pub async fn get_stats(&self) -> Result<QueueStats> {
-        let mut conn = self.client.clone();
+        let mut conn = self.pool.get().await?;
 
         let jobs_failed = conn
             .get::<_, Option<u64>>(self.get_stats_key("failed"))

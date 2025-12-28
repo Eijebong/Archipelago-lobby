@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, time::Duration};
 
 use anyhow::Result;
-use redis::AsyncConnectionConfig;
+use deadpool_redis::{Config, Runtime};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{ResolveCallback, WorkQueue};
@@ -30,24 +30,21 @@ impl<
     }
 
     pub async fn build(self, valkey_conn: &str) -> Result<WorkQueue<T, R>> {
-        let client = redis::Client::open(valkey_conn)?;
-        let (tx, rx) = tokio::sync::broadcast::channel(1024);
-        let config = AsyncConnectionConfig::new().set_push_sender(tx);
-        let mut client = client
-            .get_multiplexed_async_connection_with_config(&config)
-            .await?;
-        let queue_key = format!("wq:{}:queue", self.queue_name);
-        client.subscribe(&queue_key).await?;
+        let pool_config = Config::from_url(valkey_conn);
+        let pool = pool_config.create_pool(Some(Runtime::Tokio1))?;
+
+        // Client for creating pubsub connections
+        let redis_client = redis::Client::open(valkey_conn)?;
 
         Ok(WorkQueue {
             claims_key: format!("wq:{}:claims", self.queue_name),
             results_key: format!("wq:{}:results", self.queue_name),
             stats_key: format!("wq:{}:stats", self.queue_name),
-            queue_key,
+            queue_key: format!("wq:{}:queue", self.queue_name),
             reclaim_timeout: self.reclaim_timeout,
             claim_timeout: self.claim_timeout,
-            client,
-            pubsub_rx: rx,
+            pool,
+            redis_client,
             result_callback: self.result_callback,
             _phantom: PhantomData,
         })

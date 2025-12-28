@@ -5772,6 +5772,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "deadpool-redis",
  "redis",
  "serde",
  "serde_json",
