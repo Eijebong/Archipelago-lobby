@@ -1,6 +1,6 @@
-{% extends "base.html" %}
-{% import "menu.html.tera" as menu %}
+{% extends "room/_base.html" %}
 {% import "shared/apworlds_table.html" as apworlds_table %}
+
 {% block menu %}
     {% let room_url = format!("/room/{}", self.room.id) %}
     {% call menu::menu_item("Room", "", room_url, false, "") %}{% endcall %}
@@ -12,11 +12,6 @@
         {% let gen_url = format!("/room/{}/generation", self.room.id) %}
         {% call menu::menu_item("Generation", "", gen_url, false, "genButton") %}{% endcall %}
     {% endif %}
-{% endblock %}
-
-{% block room_navigation %}
-    {% let room_url = format!("/room/{}", self.room.id) %}
-    {% call menu::app_menu_item(room.settings.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}{% endcall %}
 {% endblock %}
 
 {% block main %}
@@ -61,5 +56,3 @@
 
 {% block styles %}
 {% endblock %}
-
-

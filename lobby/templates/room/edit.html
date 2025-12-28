@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% import "utils.html.tera" as utils %}
+
+{% block room_navigation %}
+    {% match room %}
+    {% when Some with (room) %}
+        {% let room_url = format!("/room/{}", room.id) %}
+        {% call menu::app_menu_item(room.settings.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}{% endcall %}
+    {% when None %}
+    {% endmatch %}
+{% endblock %}
+
+{% block menu %}
+    {% call menu::menu_item("Room info", "", "#", true, "room-options") %}{%endcall %}
+    {% call menu::menu_item("Advanced options", "", "#", false, "advanced-options") %}{% endcall %}
+    {% call menu::menu_item("Apworlds", "", "#", false, "apworlds-editor") %}{% endcall %}
+    {% call menu::menu_item("Generation options", "", "#", false, "gen-options") %}{% endcall %}
+{% endblock %}
+
+{% block main %}
+
+{{ room_settings_form|safe }}
+
+{% endblock %}

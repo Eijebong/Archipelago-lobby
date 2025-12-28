@@ -15,11 +15,9 @@ use std::str::FromStr;
 
 use crate::{Context, TplContext};
 
-use super::room_manager::RoomSettingsForm;
-use super::{
-    manifest_editor::manifest_from_form,
-    room_manager::{parse_date, validate_room_form},
-    room_settings::{RoomSettingsBuilder, RoomSettingsType},
+use super::manifest_editor::manifest_from_form;
+use super::room_settings::{
+    parse_date, validate_room_form, RoomSettingsBuilder, RoomSettingsForm, RoomSettingsType,
 };
 
 #[derive(Debug, FromForm)]
@@ -31,14 +29,14 @@ pub struct CreateTplForm<'a> {
 }
 
 #[derive(Template, WebTemplate)]
-#[template(path = "room_manager/room_templates.html")]
+#[template(path = "room_templates/list.html")]
 pub struct ListRoomTemplatesTpl<'a> {
     base: TplContext<'a>,
     room_templates: Vec<RoomTemplate>,
 }
 
 #[derive(Template, WebTemplate)]
-#[template(path = "room_manager/edit_room_template.html")]
+#[template(path = "room_templates/edit.html")]
 pub struct EditRoomTemplateTpl<'a> {
     base: TplContext<'a>,
     tpl: Option<RoomTemplate>,
@@ -46,7 +44,7 @@ pub struct EditRoomTemplateTpl<'a> {
 }
 
 #[derive(Template, WebTemplate)]
-#[template(path = "room_manager/room_templates_associated.html")]
+#[template(path = "room_templates/rooms.html")]
 pub struct AssociatedRoomsTpl<'a> {
     base: TplContext<'a>,
     tpl: RoomTemplate,

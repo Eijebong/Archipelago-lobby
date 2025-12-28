@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+
+{% block room_navigation %}
+    {% let room_url = format!("/room/{}", self.room.id) %}
+    {% call menu::app_menu_item(room.settings.name, "menu-indented fa-classic fa-angle-right", room_url, "room", base.cur_module) %}{% endcall %}
+{% endblock %}

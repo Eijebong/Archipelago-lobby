@@ -1,104 +1,36 @@
-#![allow(clippy::blocks_in_conditions)]
+use std::str::FromStr;
 
-use crate::db::{self, Author, NewRoom, Room, RoomFilter, RoomId, RoomTemplateId};
+use crate::db::{self, NewRoom, Room, RoomId, RoomTemplateId};
 use crate::error::{RedirectTo, Result, WithContext};
 use crate::index_manager::IndexManager;
 use crate::jobs::YamlValidationQueue;
 use crate::session::LoggedInSession;
 use crate::yaml::revalidate_yamls_if_necessary;
-use anyhow::Context as _;
 use askama::Template;
 use askama_web::WebTemplate;
-use chrono::{DateTime, TimeZone, Utc};
 use rocket::form::Form;
-use rocket::http;
-use rocket::http::uri::Absolute;
 use rocket::response::Redirect;
-use rocket::{get, post, FromForm};
-use std::str::FromStr;
+use rocket::State;
+use rocket::{get, post};
 
 use crate::{Context, TplContext};
-use rocket::State;
 
-use super::manifest_editor::{manifest_from_form, ManifestForm};
-use super::room_settings::RoomSettingsBuilder;
-use super::room_settings::RoomSettingsType;
+use crate::views::manifest_editor::manifest_from_form;
+use crate::views::room_settings::{
+    parse_date, validate_room_form, CreateRoomForm, RoomSettingsBuilder, RoomSettingsType,
+};
 
 #[derive(Template, WebTemplate)]
-#[template(path = "room_manager/edit_room.html")]
-struct EditRoom<'a> {
+#[template(path = "room/edit.html")]
+pub struct EditRoom<'a> {
     base: TplContext<'a>,
     room: Option<Room>,
     room_settings_form: RoomSettingsBuilder<'a>,
 }
 
-#[derive(FromForm, Debug)]
-pub struct CreateRoomForm<'a> {
-    room: RoomSettingsForm<'a>,
-}
-
-#[derive(FromForm, Debug)]
-pub struct RoomSettingsForm<'a> {
-    pub room_name: &'a str,
-    pub room_description: &'a str,
-    pub close_date: &'a str,
-    pub tz_offset: i32,
-    pub room_url: &'a str,
-    pub yaml_validation: bool,
-    pub allow_unsupported: bool,
-    pub allow_invalid_yamls: bool,
-    pub yaml_limit_per_user: bool,
-    pub yaml_limit_per_user_nb: i32,
-    pub yaml_limit_bypass_list: &'a str,
-    pub show_apworlds: bool,
-    pub me: ManifestForm<'a>,
-    pub meta_file: String,
-    pub is_bundle_room: bool,
-}
-
-#[derive(Template, WebTemplate)]
-#[template(path = "room_manager/rooms.html")]
-struct ListRoomsTpl<'a> {
-    base: TplContext<'a>,
-    rooms: Vec<Room>,
-    current_page: u64,
-    max_pages: u64,
-}
-
-#[get("/rooms?<page>")]
-#[tracing::instrument(skip_all)]
-async fn my_rooms<'a>(
-    ctx: &State<Context>,
-    session: LoggedInSession,
-    page: Option<u64>,
-) -> Result<ListRoomsTpl<'a>> {
-    let author_filter = if session.0.is_admin {
-        Author::Any
-    } else {
-        Author::User(session.user_id())
-    };
-
-    let mut conn = ctx.db_pool.get().await?;
-    let current_page = page.unwrap_or(1);
-
-    let (rooms, max_pages) = db::list_rooms(
-        RoomFilter::default().with_author(author_filter),
-        Some(current_page),
-        &mut conn,
-    )
-    .await?;
-
-    Ok(ListRoomsTpl {
-        base: TplContext::from_session("rooms", session.0, ctx).await,
-        rooms,
-        current_page,
-        max_pages,
-    })
-}
-
 #[get("/create-room?<from_template>")]
 #[tracing::instrument(skip_all)]
-async fn create_room<'a>(
+pub async fn create_room<'a>(
     from_template: Option<RoomTemplateId>,
     session: LoggedInSession,
     index_manager: &State<IndexManager>,
@@ -129,21 +61,9 @@ async fn create_room<'a>(
     })
 }
 
-pub fn parse_date(date: &str, tz_offset: i32) -> Result<DateTime<Utc>> {
-    let offset = chrono::FixedOffset::west_opt(tz_offset * 60)
-        .ok_or_else(|| crate::error::Error(anyhow::anyhow!("Wrong timezone offset")))?;
-    let datetime = chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%dT%H:%M")?;
-    let date = offset
-        .from_local_datetime(&datetime)
-        .single()
-        .ok_or_else(|| crate::error::Error(anyhow::anyhow!("Cannot parse passed datetime")))?;
-
-    Ok(date.into())
-}
-
 #[post("/create-room?<from_template>", data = "<room_form>")]
 #[tracing::instrument(skip_all)]
-async fn create_room_submit<'a>(
+pub async fn create_room_submit<'a>(
     from_template: Option<RoomTemplateId>,
     redirect_to: &RedirectTo,
     ctx: &State<Context>,
@@ -205,7 +125,7 @@ async fn create_room_submit<'a>(
 
 #[get("/edit-room/<room_id>")]
 #[tracing::instrument(skip(ctx, session, index_manager))]
-async fn edit_room<'a>(
+pub async fn edit_room<'a>(
     ctx: &State<Context>,
     room_id: RoomId,
     session: LoggedInSession,
@@ -235,7 +155,7 @@ async fn edit_room<'a>(
 
 #[get("/edit-room/<room_id>/delete")]
 #[tracing::instrument(skip(ctx, session))]
-async fn delete_room(
+pub async fn delete_room(
     ctx: &State<Context>,
     room_id: RoomId,
     session: LoggedInSession,
@@ -262,7 +182,7 @@ async fn delete_room(
     session,
     yaml_validation_queue
 ))]
-async fn edit_room_submit<'a>(
+pub async fn edit_room_submit<'a>(
     redirect_to: &RedirectTo,
     room_id: RoomId,
     mut room_form: Form<CreateRoomForm<'a>>,
@@ -320,59 +240,8 @@ async fn edit_room_submit<'a>(
     Ok(Redirect::to(format!("/room/{room_id}")))
 }
 
-pub fn validate_room_form(room_form: &mut RoomSettingsForm<'_>) -> Result<()> {
-    if room_form.room_name.trim().is_empty() {
-        return Err(anyhow::anyhow!("The room name shouldn't be empty").into());
-    }
-
-    if room_form.room_name.len() > 200 {
-        return Err(anyhow::anyhow!("The room name shouldn't exceed 200 characters. Seriously it doesn't need to be that long.").into());
-    }
-
-    let room_url = room_form.room_url.trim();
-    if !room_url.is_empty() {
-        if let Err(e) = http::uri::Uri::parse::<Absolute>(room_url) {
-            return Err(anyhow::anyhow!("Error while parsing room URL: {}", e).into());
-        }
-    }
-    room_form.room_url = room_url;
-
-    if room_form.yaml_limit_per_user && room_form.yaml_limit_per_user_nb <= 0 {
-        return Err(
-            anyhow::anyhow!("The per player YAML limit should be greater or equal to 1").into(),
-        );
-    }
-
-    if !room_form.yaml_limit_bypass_list.is_empty() {
-        let possible_ids = room_form.yaml_limit_bypass_list.split(',');
-        for possible_id in possible_ids {
-            if i64::from_str(possible_id).is_err() {
-                return Err(anyhow::anyhow!(
-                    "The YAML limit bypass list should be a comma delimited list of discord IDs."
-                )
-                .into());
-            }
-        }
-    }
-
-    room_form.meta_file = room_form.meta_file.trim().to_string();
-    if !room_form.meta_file.is_empty() {
-        serde_yaml::from_str::<MetaFile>(&room_form.meta_file)
-            .context("Failed to parse meta file. Make sure it includes a `meta_description`")?;
-    }
-
-    Ok(())
-}
-
-#[derive(serde::Deserialize)]
-#[allow(dead_code)]
-pub struct MetaFile {
-    meta_description: String,
-}
-
 pub fn routes() -> Vec<rocket::Route> {
     rocket::routes![
-        my_rooms,
         create_room,
         edit_room,
         delete_room,

@@ -1,11 +1,5 @@
-{% extends "base.html" %}
-{% import "menu.html.tera" as menu %}
+{% extends "room_templates/_base.html" %}
 {% import "shared/room_list.html" as room_list %}
-
-{% block template_navigation %}
-    {% let tpl_url = format!("/room-templates/{}/rooms", self.tpl.id) %}
-    {% call menu::app_menu_item(tpl.tpl_name, "menu-indented fa-classic fa-angle-right", tpl_url, "template", base.cur_module) %}{% endcall %}
-{% endblock %}
 
 {% block main %}
 

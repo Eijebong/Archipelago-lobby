@@ -21,7 +21,7 @@
 {% endmatch %}
     <div id='option-pages'>
         {% if !self.ty.is_room() %}
-        {% include "room_manager/room_form_tpl_section.html" %}
+        {% include "shared/room_form_tpl_section.html" %}
         {% endif %}
         <div class="options-tab" id="section-room-options">
             <label for="room_name">Room name:</label>
@@ -99,7 +99,7 @@
         </div>
 
         <div class="options-tab" id="section-apworlds-editor">
-        {% include "room_manager/manifest_editor.html" %}
+        {% include "shared/manifest_editor.html" %}
         </div>
 
         <div class="options-tab" id="section-gen-options">

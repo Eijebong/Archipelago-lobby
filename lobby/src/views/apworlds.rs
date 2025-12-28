@@ -26,7 +26,7 @@ use crate::Context;
 use crate::TplContext;
 
 #[derive(Template, WebTemplate)]
-#[template(path = "apworlds.html")]
+#[template(path = "apworld/main.html")]
 struct WorldsListTpl<'a> {
     base: TplContext<'a>,
     index: Index,

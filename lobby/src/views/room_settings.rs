@@ -1,15 +1,106 @@
 use std::fmt::Display;
+use std::str::FromStr;
 
 use crate::db::{Room, RoomSettings, RoomTemplate};
 use crate::error::Result;
+use anyhow::Context as _;
 use apwm::Manifest;
 use askama::Template;
 use askama_web::WebTemplate;
+use chrono::{DateTime, TimeZone, Utc};
+use rocket::http;
+use rocket::FromForm;
 use uuid::Uuid;
 
 use crate::TplContext;
 
-use super::manifest_editor::ManifestFormBuilder;
+use super::manifest_editor::{ManifestForm, ManifestFormBuilder};
+
+#[derive(FromForm, Debug)]
+pub struct CreateRoomForm<'a> {
+    pub room: RoomSettingsForm<'a>,
+}
+
+#[derive(FromForm, Debug)]
+pub struct RoomSettingsForm<'a> {
+    pub room_name: &'a str,
+    pub room_description: &'a str,
+    pub close_date: &'a str,
+    pub tz_offset: i32,
+    pub room_url: &'a str,
+    pub yaml_validation: bool,
+    pub allow_unsupported: bool,
+    pub allow_invalid_yamls: bool,
+    pub yaml_limit_per_user: bool,
+    pub yaml_limit_per_user_nb: i32,
+    pub yaml_limit_bypass_list: &'a str,
+    pub show_apworlds: bool,
+    pub me: ManifestForm<'a>,
+    pub meta_file: String,
+    pub is_bundle_room: bool,
+}
+
+pub fn parse_date(date: &str, tz_offset: i32) -> Result<DateTime<Utc>> {
+    let offset = chrono::FixedOffset::west_opt(tz_offset * 60)
+        .ok_or_else(|| crate::error::Error(anyhow::anyhow!("Wrong timezone offset")))?;
+    let datetime = chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%dT%H:%M")?;
+    let date = offset
+        .from_local_datetime(&datetime)
+        .single()
+        .ok_or_else(|| crate::error::Error(anyhow::anyhow!("Cannot parse passed datetime")))?;
+
+    Ok(date.into())
+}
+
+pub fn validate_room_form(room_form: &mut RoomSettingsForm<'_>) -> Result<()> {
+    if room_form.room_name.trim().is_empty() {
+        return Err(anyhow::anyhow!("The room name shouldn't be empty").into());
+    }
+
+    if room_form.room_name.len() > 200 {
+        return Err(anyhow::anyhow!("The room name shouldn't exceed 200 characters. Seriously it doesn't need to be that long.").into());
+    }
+
+    let room_url = room_form.room_url.trim();
+    if !room_url.is_empty() {
+        if let Err(e) = http::uri::Uri::parse::<http::uri::Absolute>(room_url) {
+            return Err(anyhow::anyhow!("Error while parsing room URL: {}", e).into());
+        }
+    }
+    room_form.room_url = room_url;
+
+    if room_form.yaml_limit_per_user && room_form.yaml_limit_per_user_nb <= 0 {
+        return Err(
+            anyhow::anyhow!("The per player YAML limit should be greater or equal to 1").into(),
+        );
+    }
+
+    if !room_form.yaml_limit_bypass_list.is_empty() {
+        let possible_ids = room_form.yaml_limit_bypass_list.split(',');
+        for possible_id in possible_ids {
+            if i64::from_str(possible_id).is_err() {
+                return Err(anyhow::anyhow!(
+                    "The YAML limit bypass list should be a comma delimited list of discord IDs."
+                )
+                .into());
+            }
+        }
+    }
+
+    room_form.meta_file = room_form.meta_file.trim().to_string();
+    if !room_form.meta_file.is_empty() {
+        serde_yaml::from_str::<MetaFile>(&room_form.meta_file)
+            .context("Failed to parse meta file. Make sure it includes a `meta_description`")?;
+    }
+
+    Ok(())
+}
+
+#[derive(serde::Deserialize)]
+#[allow(dead_code)]
+pub struct MetaFile {
+    meta_description: String,
+}
 
 pub enum RoomSettingsType {
     Room,
@@ -39,7 +130,7 @@ impl Display for RoomSettingsType {
 }
 
 #[derive(Template, WebTemplate)]
-#[template(path = "room_manager/room_form.html")]
+#[template(path = "shared/room_form.html")]
 pub struct RoomSettingsBuilder<'a> {
     base: TplContext<'a>,
     room: RoomSettings,

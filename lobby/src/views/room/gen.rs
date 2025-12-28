@@ -35,7 +35,7 @@ use crate::utils::RenamedFile;
 use crate::{Context, TplContext};
 
 #[derive(Template, WebTemplate)]
-#[template(path = "room_gen.html")]
+#[template(path = "room/gen.html")]
 struct GenRoomTpl<'a> {
     base: TplContext<'a>,
     room: Room,
