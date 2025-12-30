@@ -145,20 +145,22 @@
 
   li
     counter-increment: step-counter
-    display: flex
-    align-items: flex-start
-    gap: 1em
-    margin-bottom: 0.75em
-    padding: 0.75em 1em
+    margin-bottom: 0.5em
+    padding: 0.75em 1em 0.75em 3.5em
     background: hsla(0,0%,0%,0.2)
     border-radius: 2px
+    position: relative
 
     &::before
       content: counter(step-counter)
+      position: absolute
+      left: 0.75em
+      top: 50%
+      transform: translateY(-50%)
       display: flex
       align-items: center
       justify-content: center
-      min-width: 1.8em
+      width: 1.8em
       height: 1.8em
       background: hsl(200, 50%, 45%)
       border-radius: 50%
