@@ -15,7 +15,7 @@
     </head>
     <body>
         <nav id="navigation">
-            {% call menu::app_menu_item("Rooms", "fa-brands fa-buffer", "/", "index", base.cur_module) %}{% endcall %}
+            {% call menu::app_menu_item("Index", "fa-brands fa-buffer", "/", "index", base.cur_module) %}{% endcall %}
             {% block room_navigation %}
             {% endblock %}
             {% call menu::app_menu_item("Apworlds", "fa fa-globe", "/worlds", "apworlds", base.cur_module) %}{% endcall %}

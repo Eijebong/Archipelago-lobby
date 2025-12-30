@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block menu %}
+    {% if base.is_logged_in %}
+        {% call menu::menu_item("My rooms", "", "/", !(is_help | defined_or(false)), base.cur_module) %}{% endcall %}
+    {% endif %}
+
+    {% call menu::menu_item("Help", "", "/help", is_help | defined_or(false) , base.cur_module) %}{% endcall %}
+{% endblock menu %}
+

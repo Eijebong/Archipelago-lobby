@@ -25,6 +25,12 @@ mod utils;
 
 pub use room::YamlContent;
 
+#[derive(rocket::Responder)]
+enum Index<'a> {
+    RoomList(IndexTpl<'a>),
+    Help(HelpTpl<'a>),
+}
+
 #[derive(Template, WebTemplate)]
 #[template(path = "index/main.html")]
 struct IndexTpl<'a> {
@@ -34,13 +40,23 @@ struct IndexTpl<'a> {
     max_pages: u64,
 }
 
+#[derive(Template, WebTemplate)]
+#[template(path = "index/help.html")]
+struct HelpTpl<'a> {
+    base: TplContext<'a>,
+}
+
 #[get("/?<page>")]
 #[tracing::instrument(skip_all)]
 async fn root<'a>(
     page: Option<u64>,
     session: Session,
     ctx: &'a State<Context>,
-) -> Result<IndexTpl<'a>> {
+) -> Result<Index<'a>> {
+    if !session.is_logged_in {
+        return Ok(Index::Help(help(session, ctx).await?));
+    }
+
     let mut conn = ctx.db_pool.get().await?;
     let current_page = page.unwrap_or(1);
 
@@ -58,11 +74,19 @@ async fn root<'a>(
         return Box::pin(root(None, session, ctx)).await;
     }
 
-    Ok(IndexTpl {
+    Ok(Index::RoomList(IndexTpl {
         base: TplContext::from_session("index", session, ctx).await,
         rooms,
         current_page,
         max_pages,
+    }))
+}
+
+#[get("/help")]
+#[tracing::instrument(skip_all)]
+async fn help<'a>(session: Session, ctx: &'a State<Context>) -> Result<HelpTpl<'a>> {
+    Ok(HelpTpl {
+        base: TplContext::from_session("index", session, ctx).await,
     })
 }
 
@@ -94,7 +118,7 @@ fn favicon() -> Option<(ContentType, Cow<'static, [u8]>)> {
 struct Asset;
 
 pub fn routes() -> Vec<rocket::Route> {
-    let mut all_routes = routes![root, dist, favicon,];
+    let mut all_routes = routes![root, dist, favicon, help];
     all_routes.extend(room::routes());
     all_routes
 }

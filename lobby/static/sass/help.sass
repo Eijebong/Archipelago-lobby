@@ -1,0 +1,240 @@
+.help-validation-result
+  vertical-align: middle
+  display: inline-block
+  margin-right: 4px
+
+.help-section
+  background: hsla(0,0%,0%,0.25)
+  border: 1px solid hsla(0,0%,100%,0.08)
+  border-radius: 2px
+  padding: 1.5em 2em
+  margin-bottom: 1.5em
+  box-shadow: 0 2px 4px hsla(0,0%,0%,0.2)
+
+  h2
+    border-bottom: 2px solid hsl(200, 50%, 45%)
+    display: flex
+    align-items: center
+    gap: 0.5em
+
+    i
+      color: hsl(200, 60%, 60%)
+
+  h3
+    color: hsl(200, 50%, 75%)
+    font-size: 1.2em
+
+  h4
+    color: hsl(200, 30%, 70%)
+
+  .styled
+    td:first-child
+      width: 30%
+      font-weight: bold
+      color: hsl(200, 40%, 80%)
+
+.quick-start
+  background: hsla(200,50%,20%,0.4)
+  border: 1px solid hsl(200, 50%, 40%)
+  border-radius: 2px
+  padding: 1.5em
+  margin: 1.5em 0
+
+  h3
+    margin: 0 0 1em 0 !important
+    color: hsl(200, 70%, 80%)
+    font-size: 1.1em
+    text-transform: uppercase
+    letter-spacing: 0.05em
+
+.quick-start-steps
+  display: flex
+  gap: 1em
+  flex-wrap: wrap
+
+.quick-step
+  flex: 1
+  min-width: 150px
+  background: hsla(0,0%,0%,0.3)
+  border-radius: 2px
+  padding: 1em
+  text-align: center
+
+.quick-step-num
+  display: inline-flex
+  align-items: center
+  justify-content: center
+  width: 2em
+  height: 2em
+  background: hsl(200, 50%, 45%)
+  border-radius: 50%
+  font-weight: bold
+  font-size: 1.1em
+
+.quick-step-text
+  font-size: 0.95em
+  line-height: 1.4
+
+.toc-grid
+  display: grid
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))
+  gap: 0.75em
+  list-style: none
+  padding: 0
+
+  li
+    background: hsla(0,0%,0%,0.3)
+    border-radius: 2px
+    border-left: 3px solid hsl(200, 50%, 50%)
+
+    &:hover
+      background: hsla(200,50%,50%,0.2)
+
+  a
+    display: flex
+    align-items: center
+    gap: 0.5em
+    padding: 0.75em 1em
+    font-weight: bold
+
+  i
+    color: hsl(200, 50%, 65%)
+    width: 1.2em
+    text-align: center
+
+.info-box
+  background: hsla(200, 50%, 30%, 0.3)
+  border-left: 4px solid hsl(200, 60%, 55%)
+  padding: 1em 1.25em
+  margin: 1em 0
+  display: flex
+  gap: 0.75em
+  align-items: flex-start
+
+  i
+    color: hsl(200, 70%, 70%)
+    font-size: 1.2em
+    margin-top: 0.1em
+
+  p
+    margin: 0
+
+.tip-box
+  background: hsla(45, 60%, 30%, 0.3)
+  border-left: 4px solid hsl(45, 70%, 55%)
+  border-radius: 0 6px 6px 0
+  padding: 1em 1.25em
+  margin: 1em 0
+  display: flex
+  gap: 0.75em
+  align-items: flex-start
+
+  i
+    color: hsl(45, 80%, 65%)
+    font-size: 1.2em
+    margin-top: 0.1em
+
+  p
+    margin: 0
+    line-height: 1.5
+
+.steps
+  counter-reset: step-counter
+  list-style: none
+  padding: 0
+
+  li
+    counter-increment: step-counter
+    display: flex
+    align-items: flex-start
+    gap: 1em
+    margin-bottom: 0.75em
+    padding: 0.75em 1em
+    background: hsla(0,0%,0%,0.2)
+    border-radius: 2px
+
+    &::before
+      content: counter(step-counter)
+      display: flex
+      align-items: center
+      justify-content: center
+      min-width: 1.8em
+      height: 1.8em
+      background: hsl(200, 50%, 45%)
+      border-radius: 50%
+      font-weight: bold
+
+.styled-list
+  list-style: none
+  padding: 0
+  margin-left: 1.5em
+
+  li
+    padding: 0.15em 0 0.15em 1em
+    position: relative
+
+    &::before
+      content: "•"
+      position: absolute
+      left: 0
+      color: hsl(200, 50%, 60%)
+
+.faq-item
+  border-bottom: 1px solid hsla(0,0%,100%,0.1)
+
+  &:last-child
+    border-bottom: none
+
+  summary
+    padding: 0.75em 0
+    cursor: pointer
+    font-weight: bold
+    color: hsl(200, 50%, 80%)
+    display: flex
+    align-items: center
+    gap: 0.5em
+    list-style: none
+
+    &::-webkit-details-marker
+      display: none
+
+    &::before
+      content: "\f054"
+      font-family: "Font Awesome 6 Free"
+      font-weight: 900
+      font-size: 0.7em
+      color: hsl(200, 50%, 60%)
+      width: 1em
+
+    &:hover
+      color: hsl(200, 60%, 90%)
+
+  &[open] summary::before
+    transform: rotate(90deg)
+
+  .faq-content
+    padding: 0 0 0.75em 1.5em
+    color: hsl(0, 0%, 80%)
+
+    p
+      margin: 0 0 0.5em 0
+
+.help-intro
+  font-size: 1.1em
+  color: hsl(0, 0%, 85%)
+
+.two-col
+  display: grid
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr))
+  gap: 1em
+
+  > div
+    background: hsla(0,0%,0%,0.15)
+    border-radius: 2px
+    padding: 1em
+
+  h4
+    margin-top: 0
+    color: hsl(200, 50%, 75%)
+    border-bottom: 1px solid hsla(200, 50%, 50%, 0.3)
+    padding-bottom: 0.5em

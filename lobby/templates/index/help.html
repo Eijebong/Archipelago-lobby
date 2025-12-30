@@ -1,0 +1,279 @@
+{% extends "index/_base.html" %}
+
+{% block menu %}
+    {% let is_help = true %}
+    {{ super() }}
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="/static/css/help.css?{{ base.css_version }}">
+{% endblock %}
+
+{% block main %}
+<section class="help-section">
+    <p class="help-intro">
+        This lobby is a web application for organizing and managing
+        <a href="https://archipelago.gg">Archipelago</a> multiworld randomizer sessions.
+        It handles YAML collection, validation, and can handle generation if
+        you restrict yourself to a list of trusted worlds.
+    </p>
+
+    <ul class="toc-grid">
+        <li><a href="#for-players"><i class="fa fa-user"></i> For Players</a></li>
+        <li><a href="#for-organizers"><i class="fa fa-crown"></i> For Organizers</a></li>
+        <li><a href="#generation"><i class="fa fa-cogs"></i> Generation</a></li>
+        <li><a href="#faq"><i class="fa fa-question-circle"></i> FAQ</a></li>
+    </ul>
+</section>
+
+<section id="for-players" class="help-section">
+    <h2><i class="fa fa-user"></i> For Players</h2>
+
+    <div class="quick-start">
+        <h3>Quick Start</h3>
+        <div class="quick-start-steps">
+            <div class="quick-step">
+                <div class="quick-step-num">1</div>
+                <div class="quick-step-text">Open the room link from your organizer</div>
+            </div>
+            <div class="quick-step">
+                <div class="quick-step-num">2</div>
+                <div class="quick-step-text">Log in with Discord</div>
+            </div>
+            <div class="quick-step">
+                <div class="quick-step-num">3</div>
+                <div class="quick-step-text">Upload your YAML file</div>
+            </div>
+            <div class="quick-step">
+                <div class="quick-step-num">4</div>
+                <div class="quick-step-text">Wait for the host to share the archipelago room details after generation</div>
+            </div>
+        </div>
+    </div>
+
+
+    <h3>Joining a Room</h3>
+    <p>
+        To participate in an Archipelago session, you'll need a room link from the organizer.
+        This is typically shared via Discord or other community channels.
+    </p>
+
+    <h3>Uploading Your YAML</h3>
+    <ol class="steps">
+        <li>Log in via Discord using the button in the navigation</li>
+        <li>Navigate to the room page using the link from your organizer</li>
+        <li>Click <strong>Upload yaml</strong> in the menu bar</li>
+        <li>Select your YAML file(s) and submit</li>
+    </ol>
+
+    <div class="tip-box">
+        <i class="fa fa-lightbulb"></i>
+        <p>You can upload multiple YAML files at once if the room allows it.</p>
+    </div>
+
+    <h3>After Generation</h3>
+    <p>Once the room organizer generates the seed, they will share the room information with you. This includes:</p>
+
+    <div class="two-col">
+        <div>
+            <h4><i class="fa fa-server"></i> Connection Info</h4>
+            <p>Server address and port to connect your client.</p>
+        </div>
+        <div>
+            <h4><i class="fa fa-download"></i> Patch File</h4>
+            <p>Game-specific patch to apply to your game.</p>
+        </div>
+    </div>
+
+    <hr>
+
+    <h3>Creating a YAML file</h3>
+
+    <p>A YAML file represents a slot in a multiworld. It contains information about the game you're going to play as well as its randomization options. There are multiple ways to generate a YAML file for your game:</p>
+    <ul class="styled-list">
+        <li>If your game is supported, you can use the official <a href="https://archipelago.gg/games">online option editor</a> for it. (Find your game then click on <strong>Options Page</strong></li>
+        <li>You can use the local option editor by installing the apworld file for your game then in the archipelago launcher clicking <strong>Options creator</strong></li>
+        <li>You can create or edit your YAML file manually with any text editor. You can get a default template by installing the apworld then clicking on <strong>Generate Templates</strong> in the archipelago launcher</li>
+    </ul>
+
+    <h3>Validation Status</h3>
+    <table class="styled">
+        <thead>
+            <tr><th>Status</th><th>Meaning</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="help-validation-result validation-result validation-validated"></span>Validated</td><td>YAML passed all validation checks</td></tr>
+            <tr><td><span class="help-validation-result validation-result validation-failed"></span>Failed</td><td>Validation errors found. Click to see details</td></tr>
+            <tr><td><span class="help-validation-result validation-result validation-unsupported"></span>Unsupported</td><td>YAML didn't get validated because the game isn't in the supported list</td></tr>
+            <tr><td><span class="help-validation-result validation-result validation-unknown"></span>Unknown</td><td>Validation pending or disabled</td></tr>
+        </tbody>
+    </table>
+
+    <div class="tip-box">
+        <i class="fa fa-lightbulb"></i>
+        <p>If your YAML fails validation but the room owner allowed invalid YAMLs, you can click on it to see the detailed error message. Otherwise it'll be displayed at the top of the page.</p>
+    </div>
+</section>
+
+<section id="for-organizers" class="help-section">
+    <h2><i class="fa fa-crown"></i> For Room Organizers</h2>
+
+    <h3>Creating a Room</h3>
+    <p>
+        Click <strong>Create new room</strong> in the navigation to set up a new Archipelago session and fill in the different fields.
+    </p>
+
+    <h4>Basic Settings</h4>
+    <table class="styled">
+        <thead>
+            <tr><th>Setting</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Room name</td><td>The name for your room. Keep it short and concise</td></tr>
+            <tr><td>Description</td><td>An optional description where you can explicit the rules and expectations (supports Markdown)</td></tr>
+            <tr><td>Close date</td><td>Deadline for YAML submissions. After this time YAML submissions will be closed. The time is shown in your local timezone</td></tr>
+            <tr><td>Room URL</td><td>The link to your archipelago room after you've hosted it. This is only visible to people that have uploaded a YAML in the room</td></tr>
+        </tbody>
+    </table>
+
+    <h4>Validation Settings</h4>
+    <p>
+    YAML files will always be validated for syntax, name and presence of a
+    game. By default, they'll also be validated against a list of trusted
+    worlds although you can easily opt out with the following settings.
+    </p>
+    <table class="styled">
+        <thead>
+            <tr><th>Setting</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Enable validation</td><td>Automatically validate uploaded YAMLs against trusted APWorlds</td></tr>
+            <tr><td>Allow unsupported games</td><td>Accept YAMLs (without further validation) if the apworld isn't in the trusted list</td></tr>
+            <tr><td>Allow invalid YAMLs</td><td>Validate YAMLs against the list of trusted apworld but transforms the error into a warning.</td></tr>
+        </tbody>
+    </table>
+
+    <div class="tip-box">
+        <i class="fa fa-lightbulb"></i>
+        <p>If you want to use your own list of apworlds, I recommend enabling both <strong>Allow unsupported games</strong> and <strong>Allow invalid YAMLs</strong> and then checking failures manually to see if they're expected or not.</p>
+    </div>
+
+    <h4>Other options</h4>
+    <table class="styled">
+        <thead>
+            <tr><th>Setting</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>YAML limit per player</td><td>Maximum number of YAMLs each player can upload</td></tr>
+            <tr><td>Keep YAMLs bundled</td><td>You can opt into keeping YAMLs
+                    into a single "bundle" on upload which keeps YAMLs into a
+                    single entity instead of splitting them. This is useful if
+            you intend on submitting your YAMLs to the async bucket on the
+            archipelago server</td></tr>
+        </tbody>
+    </table>
+
+    <h4>Apworlds</h4>
+    <p>The apworld tab allows you to disable specific apworlds for the room as
+    well as locking them to a specific version. You can also choose to "freeze"
+    the apworlds to the current versions so they won't get affected by future
+    apworld updates while your room is still going. This is especially valuable
+    for large sessions where you might have validated certain versions of
+    apworlds ahead of time.</p>
+
+    <div class="info-box">
+        <i class="fa fa-info-circle"></i>
+        <p>Only apworld versions present in the <a href="https://github.com/Eijebong/Archipelago-index">apworld index</a> can be chosen from.</p>
+    </div>
+
+    <h3>Using Templates</h3>
+    <p>
+        Templates let you save room configurations for reuse. Create a template from an existing room
+        or from scratch via the <strong>Templates</strong> menu.
+        Templates are great for recurring events. Save your settings and
+        allowed apworlds once, then quickly spawn new rooms.
+    </p>
+</section>
+
+<section id="generation" class="help-section">
+    <h2><i class="fa fa-cogs"></i> Generation</h2>
+
+    <p>If you limit yourself to apworlds that are in the index of trusted worlds, you can use the lobby to generate your archipelago.</p>
+
+    <h3>Starting Generation</h3>
+    <p>
+        The Room organizer can start seed generation from the <strong>Generation</strong> tab.
+    </p>
+
+    <h4>Pre-generation Checklist</h4>
+    <ul class="styled-list">
+        <li>All YAMLs must pass validation</li>
+        <li>The room must contain less than 75 YAMLs</li>
+        <li>The room must be closed (no further YAML modifications are allowed)</li>
+    </ul>
+    <p>If you meet these conditions, then you will be able to click <strong>Start Generation</strong></p>
+
+    <div class="info-box">
+        <i class="fa fa-info-circle"></i>
+        <p>Starting a generation will freeze the apworld versions in the room so that the <strong>Apworlds</strong> will show the versions the room was generated with.</p>
+    </div>
+
+    <h3>After Generation</h3>
+    <p>Once the generation completes successfully:</p>
+    <ul class="styled-list">
+        <li>Patch files become available for download (where applicable) on the same page as the YAMLs</li>
+        <li>You will be able to download the generation output. Upload it to archipelago.gg <a href="https://archipelago.gg/uploads">here</a></li>
+    </ul>
+
+    <h3>What to do if the generation failed or I need to regenerate</h3>
+
+    <p>If the generation fails it's either because you hit a bug in a world or
+    because someone has got some plando options that make generation fail. You
+    can retry generating by clicking on <strong>Delete generation</strong> then
+    try again. If it still doesn't work, you should try to figure out what YAML
+    is the cause for the failure. If the failure message is not clear about the
+    reason for failure, there's no good way of finding out what YAML is
+    responsible but I suggest looking for complicated plando blocks or YAMLs
+    with <strong>Everything</strong> in their local/nonlocal items.</p>
+
+    <p>If you need to regenerate because someone was late and you decided to
+    accept it anyway, you can do so by deleting the current generation and then
+    changing the close date.</p>
+</section>
+
+<section id="faq" class="help-section">
+    <h2><i class="fa fa-question-circle"></i> Frequently Asked Questions</h2>
+
+    <details class="faq-item">
+        <summary>My YAML failed validation but I think it's correct</summary>
+        <div class="faq-content">
+            <p>
+                The APWorld version used for validation may differ from what
+                you used to create your YAML. Check if your options match the
+                APWorld version configured for the room. It's possible that the
+                apworld used for validation is out of date.
+            </p>
+        </div>
+    </details>
+
+    <details class="faq-item">
+        <summary>Where do I get the server address?</summary>
+        <div class="faq-content">
+            <p>
+                After the host generates, they will share the server address
+                with you in one way or another. Until then, if you uploaded
+                your YAML you can just wait.
+            </p>
+        </div>
+    </details>
+
+    <details class="faq-item">
+        <summary>Can I update my YAML after uploading?</summary>
+        <div class="faq-content">
+            <p>
+                Yes, you can delete your existing YAML and upload a new one, as long as the room hasn't closed.
+            </p>
+        </div>
+    </details>
+</section>
+{% endblock %}
