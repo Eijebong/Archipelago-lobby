@@ -145,9 +145,10 @@ class OptionsGenQueue(LobbyQueue):
                         continue
 
                     display_name = getattr(option_value, "display_name", option_name)
+                    description = (option_value.__doc__ or "").strip()
                     option_def = {
                         "default": get_default(option_value),
-                        "description": option_value.__doc__,
+                        "description": description,
                         "ty": ty,
                         "display_name": display_name,
                     }
