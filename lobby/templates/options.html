@@ -55,11 +55,11 @@
         {% when "bool" %}
         {% when "range" %}
             {% let (min, max) = option_def.range_bounds() %}
-            <input name="{{option_name}}" type="number" value="{{option_def.default}}" min="{{min}}" max="{{max}}"/>
+            <input id="{{option_name}}" name="{{option_name}}" type="number" value="{{option_def.default}}" min="{{min}}" max="{{max}}"/>
         {% when "named_range" %}
             {% let (min, max) = option_def.range_bounds() %}
             <input type="hidden" name="{{option_name}}" class="preset-hidden"/>
-            <select class="preset-select" data-target="{{option_name}}_input">
+            <select id="{{option_name}}" class="preset-select" data-target="{{option_name}}_input">
                 <option value="">Custom</option>
                 {% for suggestion in option_def.suggestions() %}
                 <option value="{{suggestion}}">{{suggestion}}</option>
@@ -68,7 +68,7 @@
             <input type="number" id="{{option_name}}_input" value="{{option_def.default}}" min="{{min}}" max="{{max}}"/>
         {% when "text_choice" %}
             <input type="hidden" name="{{option_name}}" class="preset-hidden"/>
-            <select class="preset-select" data-target="{{option_name}}_input">
+            <select id="{{option_name}}" class="preset-select" data-target="{{option_name}}_input">
                 <option value="">Custom</option>
                 {% for suggestion in option_def.suggestions() %}
                 <option value="{{suggestion}}">{{suggestion}}</option>
@@ -76,14 +76,14 @@
             </select>
             <input type="text" id="{{option_name}}_input" value="{{option_def.default_str()}}"/>
         {% when "choice" %}
-            <select name="{{option_name}}">
+            <select id="{{option_name}}" name="{{option_name}}">
             {% for choice in option_def.choices() %}
                 <option value="{{choice}}" {%+ if option_def.default_str() == choice %}selected{% endif %}>{{choice}}</option>
             {% endfor %}
             </select>
         {% when "set" %}
             <input type="hidden" name="{{option_name}}" class="set-hidden"/>
-            <select multiple>
+            <select id="{{option_name}}" multiple>
             {% for value in option_def.valid_keys() %}
                 <option value="{{value}}" {%+ if option_def.default_contains(value) %}selected{% endif %}>{{value}}</option>
             {% endfor %}
@@ -119,7 +119,7 @@
         {% when "dict" %}
             <span class="option-not-supported">Not editable in this UI</span>
         {% else %}
-            <input name="{{option_name}}" type="text" value="{{option_def.default_str()}}"/>
+            <input id="{{option_name}}" name="{{option_name}}" type="text" value="{{option_def.default_str()}}"/>
         {% endmatch %}
         {% if option_def.ty != "dict" %}
         <button type="button" class="option-reset" title="Reset to default"><i class="fa fa-rotate"></i></button>
