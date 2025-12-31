@@ -170,18 +170,20 @@ form
     padding: 0.5em 0.75em
 
     &:before
-      content: "#"
+      font-family: "Font Awesome 6 Free"
+      font-weight: 900
+      content: "\f00c"
       color: transparent
       text-shadow: none
-      display: inline-block
-      width: 1em
-      height: 100%
+      display: inline-flex
+      align-items: center
+      justify-content: center
+      width: 1.2em
+      aspect-ratio: 1
       background-color: hsla(0,0%,0%,0.1)
-      margin: -0.5em -0.75em
-      padding: 0.5em 0.5em
-      margin-right: 0.75em
+      margin-right: 0.5em
       box-shadow: inset 0 0 1px hsla(0,0%,0%,0.5)
-      float: left
+      vertical-align: middle
 
 
   input[type=radio] + label:before
@@ -201,7 +203,9 @@ form
 
 
   input[type=checkbox]:checked + label:before
-    content: "✓"
+    font-family: "Font Awesome 6 Free"
+    font-weight: 900
+    content: "\f00c"
     color: white
     text-align: center
 
