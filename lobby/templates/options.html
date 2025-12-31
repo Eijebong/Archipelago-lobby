@@ -124,6 +124,14 @@
         {% if option_def.ty != "dict" %}
         <button type="button" class="option-reset" title="Reset to default"><i class="fa fa-rotate"></i></button>
         {% endif %}
+        {% match option_def.ty.as_str() %}
+        {% when "set" %}
+        {% when "list" %}
+        {% when "counter" %}
+        {% when "dict" %}
+        {% else %}
+        <button type="button" class="option-random" title="Randomize"><i class="fa fa-dice"></i></button>
+        {% endmatch %}
     </div>
 {% endmacro %}
 
@@ -271,7 +279,29 @@
     document.querySelectorAll('.option-row').forEach(row => {
         resetToDefault(row);
         const resetBtn = row.querySelector('.option-reset');
-        if (resetBtn) resetBtn.onclick = () => resetToDefault(row);
+        if (resetBtn) resetBtn.onclick = () => {
+            resetToDefault(row);
+            const randomBtn = row.querySelector('.option-random');
+            if (randomBtn) randomBtn.classList.remove('active');
+        };
+    });
+
+    document.querySelectorAll('.option-random').forEach(btn => {
+        const row = btn.closest('.option-row');
+        btn.onclick = () => {
+            const isActive = btn.classList.toggle('active');
+            const name = row.dataset.name;
+            const inputs = row.querySelectorAll('input:not([type="hidden"]), select');
+
+            if (isActive) {
+                inputs.forEach(input => input.disabled = true);
+                const hidden = row.querySelector('.bool-hidden, .preset-hidden, input[name="' + name + '"]');
+                if (hidden) hidden.value = 'random';
+            } else {
+                inputs.forEach(input => input.disabled = false);
+                resetToDefault(row);
+            }
+        };
     });
 
     // Handle preset select changes
