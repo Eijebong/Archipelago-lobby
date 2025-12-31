@@ -9,6 +9,8 @@ from wq import LobbyQueue, JobStatus
 import handler  # noqa: E402
 import checker  # noqa: E402
 
+from enum import Enum
+
 from worlds import AutoWorldRegister
 from Options import (
     Choice,
@@ -59,8 +61,14 @@ async def main(loop):
     await OptionsGenQueue(ap_handler, root_url, worker_name, token, loop).run()
 
 def safe_json(value):
+    if isinstance(value, Enum):
+        return value.value
     if isinstance(value, (frozenset, set)):
-        return list(value)
+        return [safe_json(v) for v in value]
+    if isinstance(value, list):
+        return [safe_json(v) for v in value]
+    if isinstance(value, dict):
+        return {k: safe_json(v) for k, v in value.items()}
     return value
 
 def get_default(option):
@@ -159,7 +167,7 @@ class OptionsGenQueue(LobbyQueue):
                     if suggestions := get_suggestions(option_value):
                         option_def["suggestions"] = suggestions
                     if valid_keys is not None:
-                        option_def["valid_keys"] = valid_keys
+                        option_def["valid_keys"] = safe_json(valid_keys)
                     option_group_options[option_name] = option_def
                 if option_group_options:
                     game_options[group] = option_group_options
