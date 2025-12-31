@@ -1053,6 +1053,10 @@ body:has(dialog[open])
           float: none
           vertical-align: middle
 
+      .bool-checkbox:disabled + label
+        opacity: 0.5
+        cursor: not-allowed
+
     &[data-type="named_range"],
     &[data-type="text_choice"]
       grid-template-rows: auto auto
