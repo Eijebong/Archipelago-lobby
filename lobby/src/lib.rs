@@ -184,7 +184,8 @@ pub async fn main() -> crate::error::Result<()> {
 
     let limits = Limits::default()
         .limit("string", 2.megabytes())
-        .limit("form", 256.kilobytes());
+        .limit("form", 256.kilobytes())
+        .limit("json", 10.megabytes());
     let shutdown_config = ShutdownConfig {
         grace: 0,
         mercy: 0,
