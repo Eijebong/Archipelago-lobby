@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+
+{% block main %}
+<form>
+    <select name="apworld" id="apworld">
+        <option value="" {%+ if selected_apworld.is_none() %} selected {% endif %}>Select apworld</option>
+        {% for (apworld_name, world_name) in self.apworlds %}
+        <option value="{{apworld_name}}" {%+ if selected_apworld.as_ref() == Some(*apworld_name) %} selected {% endif %}>{{world_name}}</option>
+        {% endfor %}
+    </select>
+
+    {% if let Some(selected_apworld) = self.selected_apworld %}
+        <select name="version" id="version">
+            <option value="" {%+ if selected_version.is_none() %} selected {% endif %}>Select version</option>
+            {% for version in self.versions %}
+            <option value="{{version}}" {%+ if selected_version.as_ref() == Some(*version) %} selected {% endif %}>{{version}}</option>
+            {% endfor %}
+        </select>
+    {% endif %}
+</form>
+
+{% if let (Some(apworld), Some(version)) = (self.selected_apworld.as_ref(), self.selected_version.as_ref()) %}
+<form id="options-form" method="POST" action="/options/{{apworld}}/{{version}}/download">
+{% else %}
+<form id="options-form">
+{% endif %}
+{% if self.options.is_some() %}
+    <div class="option-row">
+        <label for="player">Player name</label>
+        <input type="text" id="player" name="player" placeholder="Player"/>
+    </div>
+{% endif %}
+{% if let Some(option_groups) = self.options %}
+    {% for (option_group, options) in option_groups.iter() %}
+        <h2>{{option_group}}</h2>
+        {% for (option_name, option_def) in options.iter() %}
+            {% call option_input(option_name, option_def) %}{% endcall %}
+        {% endfor %}
+    {% endfor %}
+    <button type="submit">Download YAML</button>
+{% endif %}
+</form>
+{% endblock %}
+
+{% macro option_input(option_name, option_def) %}
+    <div class="option-row" data-type="{{option_def.ty}}" data-default="{{option_def.default_json()}}" data-name="{{option_name}}">
+        {% match option_def.ty.as_str() %}
+        {% when "bool" %}
+            <input type="hidden" name="{{option_name}}" class="bool-hidden" value="{{option_def.default_str()}}"/>
+            <input type="checkbox" id="{{option_name}}" class="bool-checkbox" {%+ if option_def.default_str() == "true" %}checked{% endif %}/>
+        {% else %}
+        {% endmatch %}
+        <label for="{{option_name}}">{{option_def.display_name}} <i class="fa fa-circle-question" title="{{option_def.description}}"></i></label>
+        {% match option_def.ty.as_str() %}
+        {% when "bool" %}
+        {% when "range" %}
+            {% let (min, max) = option_def.range_bounds() %}
+            <input name="{{option_name}}" type="number" value="{{option_def.default}}" min="{{min}}" max="{{max}}"/>
+        {% when "named_range" %}
+            {% let (min, max) = option_def.range_bounds() %}
+            <input type="hidden" name="{{option_name}}" class="preset-hidden"/>
+            <select class="preset-select" data-target="{{option_name}}_input">
+                <option value="">Custom</option>
+                {% for suggestion in option_def.suggestions() %}
+                <option value="{{suggestion}}">{{suggestion}}</option>
+                {% endfor %}
+            </select>
+            <input type="number" id="{{option_name}}_input" value="{{option_def.default}}" min="{{min}}" max="{{max}}"/>
+        {% when "text_choice" %}
+            <input type="hidden" name="{{option_name}}" class="preset-hidden"/>
+            <select class="preset-select" data-target="{{option_name}}_input">
+                <option value="">Custom</option>
+                {% for suggestion in option_def.suggestions() %}
+                <option value="{{suggestion}}">{{suggestion}}</option>
+                {% endfor %}
+            </select>
+            <input type="text" id="{{option_name}}_input" value="{{option_def.default_str()}}"/>
+        {% when "choice" %}
+            <select name="{{option_name}}">
+            {% for choice in option_def.choices() %}
+                <option value="{{choice}}" {%+ if option_def.default_str() == choice %}selected{% endif %}>{{choice}}</option>
+            {% endfor %}
+            </select>
+        {% when "set" %}
+            <input type="hidden" name="{{option_name}}" class="set-hidden"/>
+            <select multiple>
+            {% for value in option_def.valid_keys() %}
+                <option value="{{value}}" {%+ if option_def.default_contains(value) %}selected{% endif %}>{{value}}</option>
+            {% endfor %}
+            </select>
+        {% when "list" %}
+            <input type="hidden" name="{{option_name}}" class="item-list-hidden"/>
+            <div class="item-list" data-type="list" data-default="{{option_def.default_json()}}">
+                <div class="item-list-items" id="{{option_name}}_items"></div>
+                <div class="item-list-add-row">
+                    <input type="text" list="{{option_name}}_datalist" placeholder="Add item..." class="item-list-input"/>
+                    <datalist id="{{option_name}}_datalist">
+                        {% for value in option_def.valid_keys() %}
+                        <option value="{{value}}">
+                        {% endfor %}
+                    </datalist>
+                    <button type="button" class="item-list-add">+</button>
+                </div>
+            </div>
+        {% when "counter" %}
+            <input type="hidden" name="{{option_name}}" class="item-list-hidden"/>
+            <div class="item-list" data-type="counter" data-default="{{option_def.default_json()}}">
+                <div class="item-list-items" id="{{option_name}}_items"></div>
+                <div class="item-list-add-row">
+                    <input type="text" list="{{option_name}}_datalist" placeholder="Add item..." class="item-list-input"/>
+                    <datalist id="{{option_name}}_datalist">
+                        {% for value in option_def.valid_keys() %}
+                        <option value="{{value}}">
+                        {% endfor %}
+                    </datalist>
+                    <button type="button" class="item-list-add">+</button>
+                </div>
+            </div>
+        {% when "dict" %}
+            <span class="option-not-supported">Not editable in this UI</span>
+        {% else %}
+            <input name="{{option_name}}" type="text" value="{{option_def.default_str()}}"/>
+        {% endmatch %}
+        {% if option_def.ty != "dict" %}
+        <button type="button" class="option-reset" title="Reset to default"><i class="fa fa-rotate"></i></button>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% block scripts %}
+<script>
+    const apworld_input = document.getElementById("apworld");
+    apworld_input.onchange = function(event) {
+        const apworld_name = event.target.value;
+        if (!apworld_name) return;
+        window.location.href = `/options/${apworld_name}`
+    }
+
+    const version_input = document.getElementById("version");
+    if (version_input) {
+        version_input.onchange = function(event) {
+            const apworld_name = apworld_input.value;
+            const version = event.target.value;
+            if (!version) return;
+            window.location.href = `/options/${apworld_name}/${version}`
+        }
+    }
+
+    // Sync bool checkboxes to hidden inputs
+    document.querySelectorAll('.bool-checkbox').forEach(checkbox => {
+        const hidden = checkbox.closest('.option-row').querySelector('.bool-hidden');
+        checkbox.onchange = () => { hidden.value = checkbox.checked ? 'true' : 'false'; };
+    });
+
+    // Make multi-selects toggle on click without needing Ctrl
+    // But preserve Shift-click for range selection
+    document.querySelectorAll('select[multiple]').forEach(select => {
+        const row = select.closest('.option-row');
+        const hidden = row.querySelector('.set-hidden');
+
+        function syncSet() {
+            if (hidden) {
+                const values = Array.from(select.selectedOptions).map(o => o.value);
+                hidden.value = JSON.stringify(values);
+            }
+        }
+
+        select.onmousedown = (e) => {
+            if (e.target.tagName === 'OPTION' && !e.shiftKey) {
+                e.preventDefault();
+                e.target.selected = !e.target.selected;
+                select.dispatchEvent(new Event('change'));
+            }
+        };
+        select.onchange = syncSet;
+        syncSet();
+    });
+
+    function createListItem(type, name, quantity = 1) {
+        const item = document.createElement('div');
+        item.className = 'item-list-item';
+        item.dataset.name = name;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = name;
+        item.appendChild(nameSpan);
+
+        if (type === 'counter') {
+            const qtyInput = document.createElement('input');
+            qtyInput.type = 'number';
+            qtyInput.min = '1';
+            qtyInput.value = quantity;
+            qtyInput.className = 'item-list-qty';
+            item.appendChild(qtyInput);
+        }
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = '×';
+        removeBtn.className = 'item-list-remove';
+        removeBtn.onclick = () => item.remove();
+        item.appendChild(removeBtn);
+
+        return item;
+    }
+
+    function resetToDefault(row) {
+        const type = row.dataset.type;
+        if (!type || type === 'dict') return;
+        const defaultValue = JSON.parse(row.dataset.default);
+
+        switch (type) {
+            case 'bool': {
+                const checked = defaultValue === true || defaultValue === 'true';
+                row.querySelector('.bool-checkbox').checked = checked;
+                row.querySelector('.bool-hidden').value = checked ? 'true' : 'false';
+                break;
+            }
+            case 'range':
+                row.querySelector('input[type="number"]').value = defaultValue;
+                break;
+            case 'named_range':
+            case 'text_choice': {
+                const select = row.querySelector('.preset-select');
+                const input = document.getElementById(select.dataset.target);
+                const hidden = row.querySelector('.preset-hidden');
+                const matchingOption = Array.from(select.options).find(opt => opt.value === String(defaultValue));
+                if (matchingOption) {
+                    select.value = String(defaultValue);
+                    input.disabled = true;
+                    hidden.value = String(defaultValue);
+                } else {
+                    select.value = '';
+                    input.value = defaultValue;
+                    input.disabled = false;
+                    hidden.value = defaultValue;
+                }
+                break;
+            }
+            case 'choice':
+                row.querySelector('select').value = defaultValue;
+                break;
+            case 'set': {
+                const selectEl = row.querySelector('select[multiple]');
+                Array.from(selectEl.options).forEach(opt => {
+                    opt.selected = defaultValue.includes(opt.value);
+                });
+                row.querySelector('.set-hidden').value = JSON.stringify(defaultValue);
+                break;
+            }
+            case 'list':
+            case 'counter': {
+                const itemsContainer = row.querySelector('.item-list-items');
+                itemsContainer.innerHTML = '';
+                if (type === 'list' && Array.isArray(defaultValue)) {
+                    defaultValue.forEach(name => itemsContainer.appendChild(createListItem(type, name)));
+                } else if (type === 'counter' && typeof defaultValue === 'object') {
+                    Object.entries(defaultValue).forEach(([name, qty]) => {
+                        itemsContainer.appendChild(createListItem(type, name, qty));
+                    });
+                }
+                break;
+            }
+            default:
+                const input = row.querySelector('input[type="text"]');
+                if (input) input.value = defaultValue;
+        }
+    }
+
+    // Initialize all options to defaults and set up reset buttons
+    document.querySelectorAll('.option-row').forEach(row => {
+        resetToDefault(row);
+        const resetBtn = row.querySelector('.option-reset');
+        if (resetBtn) resetBtn.onclick = () => resetToDefault(row);
+    });
+
+    // Handle preset select changes
+    document.querySelectorAll('.preset-select').forEach(select => {
+        const row = select.closest('.option-row');
+        const input = document.getElementById(select.dataset.target);
+        const hidden = row.querySelector('.preset-hidden');
+        if (!input || !hidden) return;
+
+        function sync() {
+            hidden.value = select.value || input.value;
+        }
+
+        select.onchange = () => {
+            if (select.value) {
+                input.disabled = true;
+            } else {
+                input.disabled = false;
+            }
+            sync();
+        };
+        input.onchange = sync;
+        input.oninput = sync;
+        sync();
+    });
+
+    // Handle item-list add functionality
+    document.querySelectorAll('.item-list').forEach(container => {
+        const row = container.closest('.option-row');
+        const type = row.dataset.type;
+        const itemsContainer = container.querySelector('.item-list-items');
+        const input = container.querySelector('.item-list-input');
+        const addBtn = container.querySelector('.item-list-add');
+        const hiddenInput = row.querySelector('.item-list-hidden');
+
+        function syncHidden() {
+            if (type === 'list') {
+                const items = Array.from(itemsContainer.querySelectorAll('.item-list-item'))
+                    .map(item => item.dataset.name);
+                hiddenInput.value = JSON.stringify(items);
+            } else {
+                const counter = {};
+                itemsContainer.querySelectorAll('.item-list-item').forEach(item => {
+                    counter[item.dataset.name] = parseInt(item.querySelector('.item-list-qty').value);
+                });
+                hiddenInput.value = JSON.stringify(counter);
+            }
+        }
+
+        // Override createListItem's remove to also sync
+        const origCreateListItem = createListItem;
+        container.createListItem = (name, qty) => {
+            const item = origCreateListItem(type, name, qty);
+            item.querySelector('.item-list-remove').onclick = () => { item.remove(); syncHidden(); };
+            if (type === 'counter') {
+                item.querySelector('.item-list-qty').onchange = syncHidden;
+            }
+            return item;
+        };
+
+        addBtn.onclick = () => {
+            const name = input.value.trim();
+            if (!name) return;
+
+            if (type === 'counter') {
+                const existing = itemsContainer.querySelector(`[data-name="${CSS.escape(name)}"]`);
+                if (existing) {
+                    const qtyInput = existing.querySelector('.item-list-qty');
+                    qtyInput.value = parseInt(qtyInput.value) + 1;
+                    input.value = '';
+                    syncHidden();
+                    return;
+                }
+            }
+
+            itemsContainer.appendChild(container.createListItem(name));
+            input.value = '';
+            syncHidden();
+        };
+
+        input.onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addBtn.click();
+            }
+        };
+
+        // Initial sync after resetToDefault populates items
+        syncHidden();
+    });
+
+</script>
+{% endblock %}

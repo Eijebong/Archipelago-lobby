@@ -3,7 +3,10 @@ use anyhow::anyhow;
 use rocket::http::Status;
 use std::collections::HashMap;
 
-use crate::jobs::{GenerationParams, YamlValidationParams, YamlValidationResponse};
+use crate::jobs::{
+    GenerationParams, OptionsGenParams, OptionsGenResponse, YamlValidationParams,
+    YamlValidationResponse,
+};
 use wq::{JobId, JobStatus, WorkQueueError};
 
 #[derive(serde::Deserialize)]
@@ -154,5 +157,6 @@ pub struct QueueTokens<'a>(pub HashMap<&'a str, String>);
 
 declare_queues!(
     yaml_validation<YamlValidationParams, YamlValidationResponse>,
-    generation<GenerationParams, ()>
+    generation<GenerationParams, ()>,
+    options_gen<OptionsGenParams, OptionsGenResponse>
 );

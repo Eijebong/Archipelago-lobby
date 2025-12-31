@@ -88,9 +88,7 @@ pub struct RedirectTo(pub OnceLock<String>);
 
 impl RedirectTo {
     pub fn set(&self, value: &str) {
-        self.0
-            .set(value.to_string())
-            .expect("Failed to set value for RedirectTo");
+        let _ = self.0.set(value.to_string());
     }
 }
 

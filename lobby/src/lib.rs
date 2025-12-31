@@ -29,7 +29,7 @@ use rocket_prometheus::PrometheusMetrics;
 use crate::index_manager::IndexManager;
 use crate::jobs::{
     get_generation_callback, get_yaml_validation_callback, GenerationOutDir, GenerationQueue,
-    YamlValidationQueue,
+    OptionsGenQueue, YamlValidationQueue,
 };
 use views::queues::QueueTokens;
 
@@ -123,6 +123,9 @@ impl Handler for MetricsRoute {
         let generation_queue = req.rocket().state::<GenerationQueue>().unwrap();
         let stats = generation_queue.get_stats().await.unwrap();
         self.1.update_queue("generation", stats);
+        let options_gen_queue = req.rocket().state::<OptionsGenQueue>().unwrap();
+        let stats = options_gen_queue.get_stats().await.unwrap();
+        self.1.update_queue("options_gen", stats);
 
         let mut conn = ctx.db_pool.get().await.unwrap();
         self.2.refresh(&mut conn).await.unwrap();
@@ -226,6 +229,12 @@ pub async fn main() -> crate::error::Result<()> {
         .expect("Failed to create job queue for generation");
     generation_queue.start_reclaim_checker();
 
+    let options_gen_queue = OptionsGenQueue::builder("options_gen")
+        .with_reclaim_timeout(Duration::from_secs(10))
+        .build(&valkey_url)
+        .await
+        .expect("Failed to create job queue for options gen");
+
     let queue_tokens = QueueTokens(HashMap::from([
         (
             "yaml_validation",
@@ -234,6 +243,10 @@ pub async fn main() -> crate::error::Result<()> {
         (
             "generation",
             std::env::var("GENERATION_QUEUE_TOKEN").context("GENERATION_QUEUE_TOKEN")?,
+        ),
+        (
+            "options_gen",
+            std::env::var("OPTIONS_GEN_QUEUE_TOKEN").context("OPTIONS_GEN_QUEUE_TOKEN")?,
         ),
     ]));
     let queue_counters = QueueCounters::new(prometheus.registry())?;
@@ -250,6 +263,7 @@ pub async fn main() -> crate::error::Result<()> {
         .mount("/", views::routes())
         .mount("/", views::room_templates::routes())
         .mount("/", views::apworlds::routes())
+        .mount("/", views::options_gen::routes())
         .mount("/auth/", views::auth::routes())
         .mount("/api/", views::api::routes())
         .mount(
@@ -266,6 +280,7 @@ pub async fn main() -> crate::error::Result<()> {
         .manage(index_manager)
         .manage(yaml_validation_queue)
         .manage(generation_queue)
+        .manage(options_gen_queue)
         .manage(queue_tokens)
         .attach(OAuth2::<Discord>::fairing("discord"))
         .launch()

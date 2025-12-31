@@ -17,6 +17,7 @@ pub mod apworlds;
 pub mod auth;
 pub mod filters;
 pub mod manifest_editor;
+pub mod options_gen;
 pub mod queues;
 pub mod room;
 pub mod room_settings;

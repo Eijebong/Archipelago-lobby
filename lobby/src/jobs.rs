@@ -11,10 +11,12 @@ use std::{
 use anyhow::{Context, Result};
 use diesel_async::pooled_connection::deadpool::Pool;
 use diesel_async::AsyncPgConnection;
+use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use semver::Version;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tracing::info;
 use wq::{JobDesc, JobId, JobResult, JobStatus, WorkQueue};
 
@@ -47,6 +49,77 @@ pub struct GenerationParams {
 
 pub type GenerationQueue = WorkQueue<GenerationParams, ()>;
 pub struct GenerationOutDir(pub PathBuf);
+
+#[derive(Serialize, Deserialize)]
+pub struct OptionsGenParams {
+    pub apworld: (String, Version),
+    pub otlp_context: HashMap<String, String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct OptionDef {
+    pub default: Value,
+    pub description: String,
+    pub ty: String,
+    pub display_name: String,
+    #[serde(default)]
+    pub range: Option<(i64, i64)>,
+    #[serde(default)]
+    pub choices: Option<Vec<String>>,
+    #[serde(default)]
+    pub suggestions: Option<Vec<String>>,
+    #[serde(default)]
+    pub valid_keys: Option<Vec<String>>,
+}
+
+impl OptionDef {
+    pub fn range_bounds(&self) -> (i64, i64) {
+        self.range.expect("range_bounds called on non-range option")
+    }
+
+    pub fn choices(&self) -> &[String] {
+        self.choices
+            .as_ref()
+            .expect("choices called on non-choice option")
+    }
+
+    pub fn suggestions(&self) -> &[String] {
+        self.suggestions
+            .as_ref()
+            .expect("suggestions called on non-named_range/text_choice option")
+    }
+
+    pub fn valid_keys(&self) -> &[String] {
+        self.valid_keys
+            .as_ref()
+            .expect("valid_keys called on non-set/list option")
+    }
+
+    pub fn default_str(&self) -> &str {
+        self.default.as_str().unwrap_or_default()
+    }
+
+    pub fn default_contains(&self, value: &str) -> bool {
+        self.default
+            .as_array()
+            .map(|arr| arr.iter().any(|v| v.as_str() == Some(value)))
+            .unwrap_or(false)
+    }
+
+    pub fn default_json(&self) -> String {
+        self.default.to_string()
+    }
+}
+pub type OptionsDef = IndexMap<String, IndexMap<String, OptionDef>>;
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct OptionsGenResponse {
+    // Option group -> (Option name, Option def)
+    pub options: OptionsDef,
+    pub error: Option<String>,
+}
+
+pub type OptionsGenQueue = WorkQueue<OptionsGenParams, OptionsGenResponse>;
 
 pub fn get_yaml_validation_callback(
     db_pool: Pool<AsyncPgConnection>,

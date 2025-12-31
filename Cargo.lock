@@ -170,6 +170,7 @@ dependencies = [
  "dotenvy",
  "git2",
  "http",
+ "indexmap",
  "itertools",
  "log",
  "once_cell",
