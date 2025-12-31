@@ -19,7 +19,7 @@ async fn claim_resolve_jobs(
                 "test",
                 claim.job_id,
                 status,
-                TestWorkResult(claim.params.0.clone()),
+                Some(TestWorkResult(claim.params.0.clone())),
             )
             .await?;
     }

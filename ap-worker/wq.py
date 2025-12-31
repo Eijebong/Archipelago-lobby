@@ -62,16 +62,14 @@ class LobbyQueue:
         loop.run_until_complete(self.close())
 
     async def claim_job(self):
-        resp = await self.post("claim_job", json={"worker_id": self.worker_id})
-        resp.raise_for_status()
+        async with self.post("claim_job", json={"worker_id": self.worker_id}) as resp:
+            resp.raise_for_status()
+            job_raw = await resp.json()
+            if job_raw is None:
+                return None
+            return Job(self, **job_raw)
 
-        job_raw = await resp.json()
-        if job_raw is None:
-            return None
-
-        return Job(self, **job_raw)
-
-    async def post(self, route, *args, **kwargs):
+    def post(self, route, *args, **kwargs):
         route = "/queues/{}/{}".format(self.queue_name, route)
         if 'headers' not in kwargs:
             kwargs['headers'] = {}
@@ -82,9 +80,7 @@ class LobbyQueue:
             del kwargs['otlp_context']
 
         kwargs['headers']['X-Worker-Auth'] = self.token
-        result = await self.client.post(route, *args, **kwargs)
-        result.raise_for_status()
-        return result
+        return self.client.post(route, *args, **kwargs)
 
     async def close(self):
         await self.client.close()
@@ -234,20 +230,44 @@ class Job:
         self.ctx = TraceContextTextMapPropagator().extract(carrier=params['otlp_context'])
 
     async def resolve(self, status, result):
+        should_fallback = False
         try:
-            resp = await self._queue.post("resolve_job", json={"worker_id": self._queue.worker_id, "job_id": self.job_id, "status": status.value, "result": result})
-            resp.raise_for_status()
-        except aiohttp.ClientResponseError as e:
-            if e.status == 410:
-                raise JobCancelledException(f"Job {self.job_id} has been cancelled")
-            raise
+            async with self._queue.post("resolve_job", json={"worker_id": self._queue.worker_id, "job_id": self.job_id, "status": status.value, "result": result}) as resp:
+                if resp.status == 410:
+                    raise JobCancelledException(f"Job {self.job_id} has been cancelled")
+                if 400 <= resp.status < 500 and result is not None:
+                    print(f"Job {self.job_id}: resolve failed with {resp.status}, resolving as InternalError")
+                    # Consume body to properly release connection
+                    await resp.read()
+                    should_fallback = True
+                else:
+                    resp.raise_for_status()
+        except (OSError, aiohttp.ClientError) as e:
+            if result is not None:
+                print(f"Job {self.job_id}: resolve failed with {e}, resolving as InternalError")
+                should_fallback = True
+            else:
+                raise
+
+        if should_fallback:
+            await self._resolve_internal_error()
+
+    async def _resolve_internal_error(self):
+        for attempt in range(3):
+            try:
+                async with self._queue.post("resolve_job", json={"worker_id": self._queue.worker_id, "job_id": self.job_id, "status": JobStatus.InternalError.value, "result": None}) as resp:
+                    resp.raise_for_status()
+                    return
+            except (OSError, aiohttp.ClientError) as e:
+                if attempt < 2:
+                    print(f"Job {self.job_id}: fallback resolve attempt {attempt + 1} failed with {e}, retrying...")
+                    await asyncio.sleep(0.1)
+                else:
+                    raise
 
     async def reclaim(self):
-        try:
-            resp = await self._queue.post("reclaim_job", json={"worker_id": self._queue.worker_id, "job_id": self.job_id})
-            resp.raise_for_status()
-        except aiohttp.ClientResponseError as e:
-            if e.status == 410:
+        async with self._queue.post("reclaim_job", json={"worker_id": self._queue.worker_id, "job_id": self.job_id}) as resp:
+            if resp.status == 410:
                 raise JobCancelledException(f"Job {self.job_id} has been cancelled")
-            raise
+            resp.raise_for_status()
 

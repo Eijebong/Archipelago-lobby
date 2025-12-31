@@ -200,7 +200,7 @@ async fn test_delete_result() -> Result<()> {
             "test",
             job.job_id,
             JobStatus::Success,
-            TestWorkResult(job.job_id.to_string()),
+            Some(TestWorkResult(job.job_id.to_string())),
         )
         .await?;
 

@@ -6,7 +6,7 @@ use crate::JobStatus;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct JobResult<R: Clone> {
     pub status: JobStatus,
-    pub result: R,
+    pub result: Option<R>,
 }
 
 impl<R: DeserializeOwned + Serialize + Clone> ToRedisArgs for JobResult<R> {

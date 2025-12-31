@@ -77,7 +77,7 @@ pub async fn queue_resolve_job(queue: &WorkQueue<TestWork, TestWorkResult>) -> R
             "test",
             job.job_id,
             JobStatus::Success,
-            TestWorkResult(job.params.0.clone()),
+            Some(TestWorkResult(job.params.0.clone())),
         )
         .await?;
 

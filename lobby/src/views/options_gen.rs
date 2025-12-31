@@ -118,13 +118,15 @@ async fn options_gen_api<'a>(
         ))?
     }
     if matches!(status, JobStatus::Failure) {
-        dbg!(options_gen_queue.get_job_result(job_id).await?.error);
         options_gen_queue.delete_job_result(job_id).await?;
         Err(anyhow!("Generating option definitions failed, try again."))?
     }
 
     assert_eq!(status, JobStatus::Success);
-    let options = options_gen_queue.get_job_result(job_id).await?;
+    let options = options_gen_queue
+        .get_job_result(job_id)
+        .await?
+        .expect("Success status should always have a result");
     options_gen_queue.delete_job_result(job_id).await?;
 
     {

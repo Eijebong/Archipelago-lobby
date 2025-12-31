@@ -321,10 +321,10 @@ async fn validate_yaml(
     if matches!(status, JobStatus::Failure) {
         let result = yaml_validation_queue.get_job_result(job_id).await?;
         yaml_validation_queue.delete_job_result(job_id).await?;
-        return Ok(YamlValidationJobResult::Failure(
-            params.apworlds,
-            result.error.unwrap_or_else(|| "Internal Error".to_string()),
-        ));
+        let error = result
+            .and_then(|r| r.error)
+            .unwrap_or_else(|| "Internal Error".to_string());
+        return Ok(YamlValidationJobResult::Failure(params.apworlds, error));
     }
 
     yaml_validation_queue.delete_job_result(job_id).await?;

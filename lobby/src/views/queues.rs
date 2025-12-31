@@ -25,7 +25,7 @@ pub struct ResolveJobForm<R: Clone> {
     worker_id: String,
     job_id: JobId,
     status: JobStatus,
-    result: R,
+    result: Option<R>,
 }
 
 fn wq_err_to_api_err(err: WorkQueueError) -> ApiError {

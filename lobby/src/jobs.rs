@@ -161,7 +161,10 @@ pub fn get_yaml_validation_callback(
 
             let (status, error) = match result.status {
                 wq::JobStatus::Success => (YamlValidationStatus::Validated, None),
-                wq::JobStatus::Failure => (YamlValidationStatus::Failed, result.result.error),
+                wq::JobStatus::Failure => (
+                    YamlValidationStatus::Failed,
+                    result.result.and_then(|r| r.error),
+                ),
                 wq::JobStatus::InternalError => (
                     YamlValidationStatus::Failed,
                     Some("Internal error".to_string()),

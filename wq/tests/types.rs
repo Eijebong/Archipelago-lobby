@@ -20,17 +20,34 @@ fn test_roundtrip_claim() -> Result<()> {
 }
 
 #[test]
-fn test_job_result() -> Result<()> {
+fn test_job_result_with_value() -> Result<()> {
     let valkey = start_valkey()?;
 
     let mut redis = redis::Client::open(valkey.url())?;
-    let original_result = JobResult {
+    let original_result: JobResult<String> = JobResult {
         status: JobStatus::Success,
-        result: (),
+        result: Some("test result".to_string()),
     };
 
     redis.set::<_, _, ()>("roundtrip-result", &original_result)?;
-    let gotten_result = redis.get::<_, JobResult<_>>("roundtrip-result")?;
+    let gotten_result = redis.get::<_, JobResult<String>>("roundtrip-result")?;
+    assert_eq!(original_result, gotten_result);
+
+    Ok(())
+}
+
+#[test]
+fn test_job_result_with_none() -> Result<()> {
+    let valkey = start_valkey()?;
+
+    let mut redis = redis::Client::open(valkey.url())?;
+    let original_result: JobResult<String> = JobResult {
+        status: JobStatus::InternalError,
+        result: None,
+    };
+
+    redis.set::<_, _, ()>("roundtrip-result-none", &original_result)?;
+    let gotten_result = redis.get::<_, JobResult<String>>("roundtrip-result-none")?;
     assert_eq!(original_result, gotten_result);
 
     Ok(())

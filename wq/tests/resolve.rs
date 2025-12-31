@@ -41,13 +41,13 @@ async fn test_resolve_success() -> Result<()> {
             "test",
             job.job_id,
             JobStatus::Success,
-            TestWorkResult(job.params.0.clone()),
+            Some(TestWorkResult(job.params.0.clone())),
         )
         .await?;
 
     let result = conn.get::<_, JobResult<TestWorkResult>>(queue.get_result_key(&job.job_id))?;
     assert_eq!(result.status, JobStatus::Success);
-    assert_eq!(result.result.0, job.params.0);
+    assert_eq!(result.result.as_ref().unwrap().0, job.params.0);
 
     Ok(())
 }
@@ -78,7 +78,7 @@ async fn test_resolve_with_non_resolved_status() -> Result<()> {
             "test",
             job.job_id,
             JobStatus::Pending,
-            TestWorkResult(job.params.0.clone())
+            Some(TestWorkResult(job.params.0.clone()))
         )
         .await
         .is_err());
@@ -87,7 +87,7 @@ async fn test_resolve_with_non_resolved_status() -> Result<()> {
             "test",
             job.job_id,
             JobStatus::Running,
-            TestWorkResult(job.params.0)
+            Some(TestWorkResult(job.params.0))
         )
         .await
         .is_err());
@@ -123,7 +123,7 @@ async fn test_reresolve() -> Result<()> {
             "test",
             job.job_id,
             JobStatus::Success,
-            TestWorkResult(job.params.0.clone()),
+            Some(TestWorkResult(job.params.0.clone())),
         )
         .await?;
     let second_resolve = queue
@@ -131,7 +131,7 @@ async fn test_reresolve() -> Result<()> {
             "test",
             job.job_id,
             JobStatus::Failure,
-            TestWorkResult(job.params.0.clone()),
+            Some(TestWorkResult(job.params.0.clone())),
         )
         .await;
 
@@ -139,7 +139,7 @@ async fn test_reresolve() -> Result<()> {
 
     let result = conn.get::<_, JobResult<TestWorkResult>>(queue.get_result_key(&job.job_id))?;
     assert_eq!(result.status, JobStatus::Success);
-    assert_eq!(result.result.0, job.params.0);
+    assert_eq!(result.result.as_ref().unwrap().0, job.params.0);
 
     Ok(())
 }
@@ -158,7 +158,7 @@ async fn test_resolve_non_existant() -> Result<()> {
             "test",
             job_id,
             JobStatus::Failure,
-            TestWorkResult("".to_string()),
+            Some(TestWorkResult("".to_string())),
         )
         .await;
 
@@ -191,7 +191,7 @@ async fn test_resolve_wrong_worker() -> Result<()> {
             "wrong",
             job.job_id,
             JobStatus::Success,
-            TestWorkResult(job.params.0.clone()),
+            Some(TestWorkResult(job.params.0.clone())),
         )
         .await;
 
@@ -225,11 +225,11 @@ async fn test_get_result() -> Result<()> {
             "test",
             job.job_id,
             JobStatus::Success,
-            TestWorkResult(job.params.0.clone()),
+            Some(TestWorkResult(job.params.0.clone())),
         )
         .await?;
 
-    let result = queue.get_job_result(job.job_id).await?;
+    let result = queue.get_job_result(job.job_id).await?.unwrap();
     assert_eq!(result.0, job.params.0);
 
     Ok(())
@@ -248,7 +248,11 @@ async fn test_callback_on_resolve_processed() -> Result<()> {
         result: JobResult<TestWorkResult>,
     ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         Box::pin(async move {
-            *HAS_BEEN_CALLED.lock().unwrap() = !result.result.0.is_empty();
+            *HAS_BEEN_CALLED.lock().unwrap() = result
+                .result
+                .as_ref()
+                .map(|r| !r.0.is_empty())
+                .unwrap_or(false);
             Ok(true)
         })
     }
@@ -286,7 +290,11 @@ async fn test_callback_on_resolve_not_processed() -> Result<()> {
         result: JobResult<TestWorkResult>,
     ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         Box::pin(async move {
-            *HAS_BEEN_CALLED.lock().unwrap() = !result.result.0.is_empty();
+            *HAS_BEEN_CALLED.lock().unwrap() = result
+                .result
+                .as_ref()
+                .map(|r| !r.0.is_empty())
+                .unwrap_or(false);
             Ok(false)
         })
     }
@@ -323,7 +331,11 @@ async fn test_callback_on_resolve_error() -> Result<()> {
         result: JobResult<TestWorkResult>,
     ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         Box::pin(async move {
-            *HAS_BEEN_CALLED.lock().unwrap() = !result.result.0.is_empty();
+            *HAS_BEEN_CALLED.lock().unwrap() = result
+                .result
+                .as_ref()
+                .map(|r| !r.0.is_empty())
+                .unwrap_or(false);
             Err(anyhow::anyhow!("oof"))
         })
     }
@@ -370,7 +382,11 @@ async fn test_callback_orphaned_jobs() -> Result<()> {
         result: JobResult<TestWorkResult>,
     ) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         Box::pin(async move {
-            *HAS_BEEN_CALLED.lock().unwrap() = !result.result.0.is_empty();
+            *HAS_BEEN_CALLED.lock().unwrap() = result
+                .result
+                .as_ref()
+                .map(|r| !r.0.is_empty())
+                .unwrap_or(false);
             Ok(true)
         })
     }

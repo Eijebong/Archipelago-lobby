@@ -365,12 +365,13 @@ impl<
 
     /// Resolve the job `job_id` by setting its status and result. This will effectively remove the
     /// job from the queue and claims, set the result and notify everyone waiting on the job ID.
+    /// The result can be None, which is useful for InternalError when the worker cannot produce a valid result.
     pub async fn resolve_job(
         &self,
         worker_id: &str,
         job_id: JobId,
         status: JobStatus,
-        result: R,
+        result: Option<R>,
     ) -> Result<(), WorkQueueError> {
         let mut conn = self.pool.get().await?;
 
@@ -576,7 +577,7 @@ impl<
     }
 
     /// Returns the result for the given job id
-    pub async fn get_job_result(&self, job_id: JobId) -> Result<R> {
+    pub async fn get_job_result(&self, job_id: JobId) -> Result<Option<R>> {
         let mut conn = self.pool.get().await?;
         let result_key = self.get_result_key(&job_id);
         let result_str = conn.get::<_, String>(result_key).await?;

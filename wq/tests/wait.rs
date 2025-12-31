@@ -37,7 +37,7 @@ async fn test_wait_for_resolve() -> Result<()> {
                 "test",
                 job.job_id,
                 JobStatus::Success,
-                TestWorkResult(job.params.0.clone()),
+                Some(TestWorkResult(job.params.0.clone())),
             )
             .await
             .expect("Failed to resolve job");
@@ -106,7 +106,7 @@ async fn test_wait_for_already_resolved() -> Result<()> {
             "test",
             job.job_id,
             JobStatus::Success,
-            TestWorkResult(job.params.0),
+            Some(TestWorkResult(job.params.0)),
         )
         .await
         .expect("Failed to resolve job");
