@@ -80,11 +80,11 @@ async fn options_gen_api<'a>(
     });
 
     let job_id = options_gen_queue
-        .enqueue_job(&params, wq::Priority::High, Duration::from_secs(60))
+        .enqueue_job(&params, wq::Priority::High, Duration::from_secs(10))
         .await?;
 
     let Some(status) = options_gen_queue
-        .wait_for_job(&job_id, Some(Duration::from_secs(60)))
+        .wait_for_job(&job_id, Some(Duration::from_secs(10)))
         .await?
     else {
         Err(anyhow!(
