@@ -314,9 +314,6 @@ select
   margin: -0.2em 0
   width: 100%
 
-  option
-    background-color: hsl(220, 15%, 25%)
-
 
 label + select
   display: block
@@ -984,17 +981,11 @@ body:has(dialog[open])
         opacity: 0.4
         cursor: not-allowed
 
-    select:not([multiple]) option
-      background-color: hsl(220, 15%, 25%)
-
     select[multiple]
       grid-column: 2
       min-height: 120px
       margin: 0
       background-color: hsla(0, 0%, 0%, 0.3)
-
-      option
-        background-color: hsl(220, 15%, 25%)
 
       option:checked
         background: hsl(200, 40%, 35%) linear-gradient(hsl(200, 40%, 35%), hsl(200, 40%, 35%))
