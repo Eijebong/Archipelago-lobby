@@ -13,10 +13,13 @@ use indexmap::IndexMap;
 use rocket::{form::Form, http::uri::Host, http::Header, Route, State};
 use semver::Version;
 use std::{collections::HashMap, str::FromStr, time::Duration};
+use tokio::sync::RwLock;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use wq::JobStatus;
 
 use crate::jobs::{OptionsGenParams, OptionsGenQueue};
+
+pub type OptionsCache = RwLock<HashMap<(String, Version), OptionsDef>>;
 
 #[derive(rocket::Responder)]
 #[response(status = 200, content_type = "application/yaml")]
@@ -42,6 +45,7 @@ async fn options_gen_api<'a>(
     apworld_name: &'a str,
     version: String,
     options_gen_queue: &State<OptionsGenQueue>,
+    options_cache: &State<OptionsCache>,
     index_manager: &'a State<IndexManager>,
     ctx: &'a State<Context>,
     session: Session,
@@ -68,9 +72,25 @@ async fn options_gen_api<'a>(
         Err(anyhow!("Unkown version for this apworld"))?
     }
 
-    // TODO: Cache these per apworld/version, maybe on start even? Maybe on refresh?
+    let parsed_version = Version::from_str(&version)?;
+    let cache_key = (apworld_name.to_string(), parsed_version.clone());
+
+    {
+        let cache = options_cache.read().await;
+        if let Some(cached_options) = cache.get(&cache_key) {
+            return Ok(OptionsTpl {
+                base: TplContext::from_session("options", session, ctx).await,
+                apworlds,
+                versions,
+                selected_apworld: Some(apworld_name.to_string()),
+                selected_version: Some(version.to_string()),
+                options: Some(cached_options.clone()),
+            });
+        }
+    }
+
     let mut params = OptionsGenParams {
-        apworld: (apworld_name.to_string(), Version::from_str(&version)?),
+        apworld: (apworld_name.to_string(), parsed_version),
         otlp_context: HashMap::new(),
     };
 
@@ -107,6 +127,11 @@ async fn options_gen_api<'a>(
     let options = options_gen_queue.get_job_result(job_id).await?;
     options_gen_queue.delete_job_result(job_id).await?;
 
+    {
+        let mut cache = options_cache.write().await;
+        cache.insert(cache_key, options.options.clone());
+    }
+
     Ok(OptionsTpl {
         base: TplContext::from_session("options", session, ctx).await,
         apworlds,
@@ -122,6 +147,7 @@ async fn options_apworld_versions<'a>(
     apworld_name: &'a str,
     index_manager: &'a State<IndexManager>,
     options_gen_queue: &State<OptionsGenQueue>,
+    options_cache: &State<OptionsCache>,
     ctx: &'a State<Context>,
     session: Session,
     redirect_to: &RedirectTo,
@@ -131,12 +157,6 @@ async fn options_apworld_versions<'a>(
     let Some(apworld) = index.worlds.get(apworld_name) else {
         Err(anyhow!("Unkown apworld"))?
     };
-    let mut apworlds: Vec<(String, String)> = index
-        .worlds
-        .iter()
-        .map(|(apworld_name, world)| (apworld_name.clone(), world.name.clone()))
-        .collect();
-    apworlds.sort_by_key(|(_, world_name)| world_name.to_lowercase());
     let versions: Vec<String> = apworld
         .versions
         .keys()
@@ -144,11 +164,13 @@ async fn options_apworld_versions<'a>(
         .rev()
         .collect();
     let last_version = versions.first().unwrap().to_string();
+    drop(index);
 
     options_gen_api(
         apworld_name,
         last_version,
         options_gen_queue,
+        options_cache,
         index_manager,
         ctx,
         session,

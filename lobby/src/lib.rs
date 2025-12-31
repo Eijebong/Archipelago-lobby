@@ -31,6 +31,7 @@ use crate::jobs::{
     get_generation_callback, get_yaml_validation_callback, GenerationOutDir, GenerationQueue,
     OptionsGenQueue, YamlValidationQueue,
 };
+use views::options_gen::OptionsCache;
 use views::queues::QueueTokens;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
@@ -236,6 +237,8 @@ pub async fn main() -> crate::error::Result<()> {
         .await
         .expect("Failed to create job queue for options gen");
 
+    let options_cache: OptionsCache = tokio::sync::RwLock::new(HashMap::new());
+
     let queue_tokens = QueueTokens(HashMap::from([
         (
             "yaml_validation",
@@ -282,6 +285,7 @@ pub async fn main() -> crate::error::Result<()> {
         .manage(yaml_validation_queue)
         .manage(generation_queue)
         .manage(options_gen_queue)
+        .manage(options_cache)
         .manage(queue_tokens)
         .attach(OAuth2::<Discord>::fairing("discord"))
         .launch()
