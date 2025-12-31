@@ -41,6 +41,14 @@ struct OptionsTpl<'a> {
 }
 
 #[rocket::get("/options/<apworld_name>/<version>")]
+#[tracing::instrument(skip(
+    options_gen_queue,
+    options_cache,
+    index_manager,
+    ctx,
+    session,
+    redirect_to
+))]
 async fn options_gen_api<'a>(
     apworld_name: &'a str,
     version: String,
@@ -145,6 +153,14 @@ async fn options_gen_api<'a>(
 }
 
 #[rocket::get("/options/<apworld_name>")]
+#[tracing::instrument(skip(
+    options_gen_queue,
+    options_cache,
+    index_manager,
+    ctx,
+    session,
+    redirect_to
+))]
 async fn options_apworld_versions<'a>(
     apworld_name: &'a str,
     index_manager: &'a State<IndexManager>,
@@ -182,6 +198,7 @@ async fn options_apworld_versions<'a>(
 }
 
 #[rocket::get("/options")]
+#[tracing::instrument(skip(index_manager, ctx, session))]
 async fn options_gen<'a>(
     index_manager: &State<IndexManager>,
     ctx: &'a State<Context>,
@@ -206,6 +223,7 @@ async fn options_gen<'a>(
 }
 
 #[rocket::post("/options/<apworld_name>/<_version>/download", data = "<form>")]
+#[tracing::instrument(skip(host, index_manager, form))]
 async fn download_yaml<'a>(
     apworld_name: &str,
     _version: &str,
