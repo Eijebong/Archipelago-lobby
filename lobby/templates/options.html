@@ -280,6 +280,7 @@
         resetToDefault(row);
         const resetBtn = row.querySelector('.option-reset');
         if (resetBtn) resetBtn.onclick = () => {
+            row.querySelectorAll('input:not([type="hidden"]), select').forEach(input => input.disabled = false);
             resetToDefault(row);
             const randomBtn = row.querySelector('.option-random');
             if (randomBtn) randomBtn.classList.remove('active');
