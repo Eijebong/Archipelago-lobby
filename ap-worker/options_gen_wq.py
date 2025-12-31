@@ -59,7 +59,7 @@ async def main(loop):
     await OptionsGenQueue(ap_handler, root_url, worker_name, token, loop).run()
 
 def safe_json(value):
-    if isinstance(value, frozenset):
+    if isinstance(value, (frozenset, set)):
         return list(value)
     return value
 
