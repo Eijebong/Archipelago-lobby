@@ -994,6 +994,20 @@ body:has(dialog[open])
         opacity: 0.4
         cursor: not-allowed
 
+    .range-wrapper
+      grid-column: 2
+      display: flex
+      align-items: center
+      gap: 0.75em
+
+      input
+        flex: 1
+
+      .range-hint
+        font-size: 0.85em
+        opacity: 0.6
+        white-space: nowrap
+
     select[multiple]
       grid-column: 2
       min-height: 120px
@@ -1073,7 +1087,7 @@ body:has(dialog[open])
         align-self: start
         padding-top: 0.5em
 
-      .option-reset
+      .option-reset, .option-random
         grid-row: 1 / 3
         align-self: start
 

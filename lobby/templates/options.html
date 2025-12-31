@@ -55,7 +55,10 @@
         {% when "bool" %}
         {% when "range" %}
             {% let (min, max) = option_def.range_bounds() %}
-            <input id="{{option_name}}" name="{{option_name}}" type="number" value="{{option_def.default}}" min="{{min}}" max="{{max}}"/>
+            <div class="range-wrapper">
+                <input id="{{option_name}}" name="{{option_name}}" type="number" value="{{option_def.default}}" min="{{min}}" max="{{max}}"/>
+                <span class="range-hint">({{min}} - {{max}})</span>
+            </div>
         {% when "named_range" %}
             {% let (min, max) = option_def.range_bounds() %}
             <input type="hidden" name="{{option_name}}" class="preset-hidden"/>
@@ -65,7 +68,10 @@
                 <option value="{{suggestion}}">{{suggestion}}</option>
                 {% endfor %}
             </select>
-            <input type="number" id="{{option_name}}_input" value="{{option_def.default}}" min="{{min}}" max="{{max}}"/>
+            <div class="range-wrapper">
+                <input type="number" id="{{option_name}}_input" value="{{option_def.default}}" min="{{min}}" max="{{max}}"/>
+                <span class="range-hint">({{min}} - {{max}})</span>
+            </div>
         {% when "text_choice" %}
             <input type="hidden" name="{{option_name}}" class="preset-hidden"/>
             <select id="{{option_name}}" class="preset-select" data-target="{{option_name}}_input">
