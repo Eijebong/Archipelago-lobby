@@ -50,7 +50,7 @@
             <input type="checkbox" id="{{option_name}}" class="bool-checkbox" {%+ if option_def.default_str() == "true" %}checked{% endif %}/>
         {% else %}
         {% endmatch %}
-        <label for="{{option_name}}">{{option_def.display_name}} <i class="fa fa-circle-question" title="{{option_def.description}}"></i></label>
+        <label for="{{option_name}}">{{option_def.display_name}} <i class="fa fa-circle-question tooltip-icon" tabindex="0" data-tooltip="{{option_def.description}}"></i></label>
         {% match option_def.ty.as_str() %}
         {% when "bool" %}
         {% when "range" %}
@@ -398,6 +398,11 @@
 
         // Initial sync after resetToDefault populates items
         syncHidden();
+    });
+
+    // Prevent tooltip clicks from triggering label behavior
+    document.querySelectorAll('.tooltip-icon').forEach(icon => {
+        icon.onclick = (e) => e.preventDefault();
     });
 
 </script>
