@@ -124,10 +124,11 @@ def get_valid_keys(option, world):
     if not issubclass(option, (OptionSet, OptionList, OptionCounter)):
         return None
     valid_keys = list(option.valid_keys)
-    if getattr(option, 'verify_item_name', False):
-        valid_keys += list(world.item_name_to_id.keys())
-    if getattr(option, 'verify_location_name', False):
-        valid_keys += list(world.location_name_to_id.keys())
+    if not valid_keys:
+        if getattr(option, 'verify_item_name', False):
+            valid_keys += list(world.item_name_to_id.keys())
+        if getattr(option, 'verify_location_name', False):
+            valid_keys += list(world.location_name_to_id.keys())
     return valid_keys
 
 class OptionsGenQueue(LobbyQueue):
