@@ -180,15 +180,33 @@
         {% when "set" %}
             {% if option_def.has_valid_keys() %}
             {% let parr = self.prefilled_array(prefilled) %}
-            <select id="{{option_name}}" multiple>
-            {% for value in option_def.valid_keys() %}
-                {% if let Some(arr) = parr %}
-                <option value="{{value}}" {%+ if self.array_contains_str(arr, value) %}selected{% endif %}>{{value}}</option>
-                {% else %}
-                <option value="{{value}}" {%+ if option_def.default_contains(value) %}selected{% endif %}>{{value}}</option>
-                {% endif %}
-            {% endfor %}
-            </select>
+            <div class="set-picker" id="{{option_name}}_picker">
+                <div class="set-selected" id="{{option_name}}_selected">
+                    {% if let Some(arr) = parr %}
+                        {% for item in arr %}
+                            {% if let Some(name) = item.as_str() %}
+                            <div class="item-list-item" data-value="{{name}}"><span>{{name}}</span> <button type="button" class="item-list-remove">×</button></div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        {% for value in option_def.valid_keys() %}
+                            {% if option_def.default_contains(value) %}
+                            <div class="item-list-item" data-value="{{value}}"><span>{{value}}</span> <button type="button" class="item-list-remove">×</button></div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <input type="text" class="set-filter" placeholder="Filter options..." id="{{option_name}}_filter"/>
+                <select id="{{option_name}}" multiple class="set-options">
+                {% for value in option_def.valid_keys() %}
+                    {% if let Some(arr) = parr %}
+                    <option value="{{value}}" {%+ if self.array_contains_str(arr, value) %}selected{% endif %}>{{value}}</option>
+                    {% else %}
+                    <option value="{{value}}" {%+ if option_def.default_contains(value) %}selected{% endif %}>{{value}}</option>
+                    {% endif %}
+                {% endfor %}
+                </select>
+            </div>
             {% else %}
             <span class="option-not-supported">Not editable in this UI</span>
             {% endif %}
@@ -427,7 +445,13 @@
                 if (!select) return; // Non-editable
                 Array.from(select.options).forEach(opt => {
                     opt.selected = defaultValue.includes(opt.value);
+                    opt.style.display = '';
                 });
+                const filter = row.querySelector('.set-filter');
+                if (filter) filter.value = '';
+                if (select.classList.contains('set-options')) {
+                    updateSetChips(select);
+                }
                 break;
             }
             case 'list':
@@ -458,6 +482,57 @@
                 e.preventDefault();
                 e.target.selected = !e.target.selected;
             }
+        };
+    });
+
+    const MAX_CHIPS = 100;
+    function updateSetChips(select) {
+        const picker = select.closest('.set-picker');
+        const chipsContainer = picker.querySelector('.set-selected');
+        chipsContainer.innerHTML = '';
+        const selected = Array.from(select.selectedOptions);
+        const toShow = selected.slice(0, MAX_CHIPS);
+        toShow.forEach(opt => {
+            const chip = document.createElement('div');
+            chip.className = 'item-list-item';
+            chip.dataset.value = opt.value;
+            chip.innerHTML = `<span>${opt.value}</span><button type="button" class="item-list-remove">×</button>`;
+            chip.querySelector('.item-list-remove').onclick = () => {
+                opt.selected = false;
+                updateSetChips(select);
+            };
+            chipsContainer.appendChild(chip);
+        });
+        if (selected.length > MAX_CHIPS) {
+            const more = document.createElement('div');
+            more.className = 'item-list-item set-chip-more';
+            more.textContent = `+${selected.length - MAX_CHIPS} more`;
+            chipsContainer.appendChild(more);
+        }
+    }
+
+    document.querySelectorAll('.set-picker').forEach(picker => {
+        const select = picker.querySelector('select');
+        const filter = picker.querySelector('.set-filter');
+
+        picker.querySelectorAll('.set-selected .item-list-remove').forEach(btn => {
+            btn.onclick = () => {
+                const chip = btn.closest('.item-list-item');
+                const value = chip.dataset.value;
+                const option = select.querySelector(`option[value="${CSS.escape(value)}"]`);
+                if (option) option.selected = false;
+                updateSetChips(select);
+            };
+        });
+
+        select.addEventListener('mouseup', () => updateSetChips(select));
+
+        filter.oninput = () => {
+            const query = filter.value.toLowerCase();
+            Array.from(select.options).forEach(opt => {
+                const matches = opt.value.toLowerCase().includes(query);
+                opt.style.display = matches ? '' : 'none';
+            });
         };
     });
 
