@@ -56,7 +56,7 @@
         {% when "range" %}
             {% let (min, max) = option_def.range_bounds() %}
             <div class="range-wrapper">
-                <input id="{{option_name}}" name="{{option_name}}" type="number" value="{{option_def.default}}" min="{{min}}" max="{{max}}"/>
+                <input id="{{option_name}}" name="{{option_name}}" type="number" value="{{option_def.default}}" min="{{min}}" max="{{max}}" required/>
                 <span class="range-hint">({{min}} - {{max}})</span>
             </div>
         {% when "named_range" %}
@@ -69,7 +69,7 @@
                 {% endfor %}
             </select>
             <div class="range-wrapper">
-                <input type="number" id="{{option_name}}_input" value="{{option_def.default}}" min="{{min}}" max="{{max}}"/>
+                <input type="number" id="{{option_name}}_input" value="{{option_def.default}}" min="{{min}}" max="{{max}}" required/>
                 <span class="range-hint">({{min}} - {{max}})</span>
             </div>
         {% when "text_choice" %}
