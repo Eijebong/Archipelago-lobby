@@ -44,6 +44,7 @@ struct GenRoomTpl<'a> {
 }
 
 #[rocket::get("/room/<room_id>/generation")]
+#[tracing::instrument(skip(session, ctx))]
 async fn gen_room(
     room_id: RoomId,
     session: LoggedInSession,
@@ -134,6 +135,7 @@ async fn gen_room_status<'a>(
 }
 
 #[rocket::get("/room/<room_id>/generation/start")]
+#[tracing::instrument(skip(session, redirect_to, gen_queue, index_manager, ctx))]
 async fn gen_room_start(
     room_id: RoomId,
     session: LoggedInSession,
@@ -172,6 +174,7 @@ async fn gen_room_start(
 }
 
 #[rocket::get("/room/<room_id>/generation/cancel")]
+#[tracing::instrument(skip(session, redirect_to, gen_queue, ctx))]
 async fn gen_room_cancel(
     room_id: RoomId,
     session: LoggedInSession,
@@ -205,6 +208,7 @@ async fn gen_room_cancel(
 }
 
 #[rocket::get("/room/<room_id>/generation/logs")]
+#[tracing::instrument(skip(session, generation_out_dir, ctx))]
 async fn gen_room_logs<'a>(
     room_id: RoomId,
     session: LoggedInSession,
@@ -245,6 +249,7 @@ async fn gen_room_logs<'a>(
 }
 
 #[rocket::get("/room/<room_id>/generation/logs/stream")]
+#[tracing::instrument(skip(session, generation_out_dir, generation_queue, ctx))]
 async fn gen_room_logs_stream<'a>(
     room_id: RoomId,
     session: LoggedInSession,
@@ -319,6 +324,7 @@ async fn gen_room_logs_stream<'a>(
 }
 
 #[rocket::get("/room/<room_id>/generation/output")]
+#[tracing::instrument(skip(session, generation_out_dir, ctx))]
 async fn gen_room_output<'a>(
     room_id: RoomId,
     session: LoggedInSession,
@@ -359,6 +365,7 @@ async fn gen_room_output<'a>(
     });
 }
 
+#[tracing::instrument(skip(room, yamls, gen_queue, index, conn), fields(room_id = %room.id))]
 async fn enqueue_gen_job(
     room: &Room,
     yamls: Vec<Yaml>,
@@ -427,6 +434,7 @@ async fn enqueue_gen_job(
     Ok(job_id)
 }
 
+#[tracing::instrument(skip_all, fields(room_id = %room.id))]
 async fn get_info_for_gen(
     room: &Room,
     session: &LoggedInSession,

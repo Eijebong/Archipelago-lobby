@@ -17,7 +17,8 @@ use regex::Regex;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tracing::info;
+use tracing::{info, Instrument};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 use wq::{JobDesc, JobId, JobResult, JobStatus, WorkQueue};
 
 use crate::{
@@ -129,62 +130,78 @@ pub fn get_yaml_validation_callback(
           -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
         let inner_pool = db_pool.clone();
 
-        Box::pin(async move {
-            // If the job doesn't specify a yaml ID we have nothing to do, it's a new insertion and
-            // the caller is in charge of waiting for the result
-            let Some(yaml_id) = desc.params.yaml_id else {
-                return Ok(false);
-            };
+        // Extract the OTLP context from the job params to link this callback to the original request
+        let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
+            propagator.extract(&desc.params.otlp_context)
+        });
+        let span = tracing::info_span!(
+            "yaml_validation_callback",
+            yaml_id = ?desc.params.yaml_id,
+            job_status = ?result.status,
+        );
+        let _ = span.set_parent(parent_cx);
 
-            let mut conn = inner_pool.get().await?;
+        Box::pin(
+            async move {
+                // If the job doesn't specify a yaml ID we have nothing to do, it's a new insertion and
+                // the caller is in charge of waiting for the result
+                let Some(yaml_id) = desc.params.yaml_id else {
+                    return Ok(false);
+                };
 
-            let yaml = db::get_yaml_by_id(yaml_id, &mut conn).await;
-            let yaml = match yaml {
-                Ok(yaml) => yaml,
-                Err(e) => {
-                    if e.0.is::<diesel::result::Error>()
-                        && e.0.downcast_ref::<diesel::result::Error>().unwrap()
-                            == &diesel::result::Error::NotFound
-                    {
-                        info!("Received job result for a YAML that no longer exists, ignoring it");
-                        return Ok(true);
+                let mut conn = inner_pool.get().await?;
+
+                let yaml = db::get_yaml_by_id(yaml_id, &mut conn).await;
+                let yaml = match yaml {
+                    Ok(yaml) => yaml,
+                    Err(e) => {
+                        if e.0.is::<diesel::result::Error>()
+                            && e.0.downcast_ref::<diesel::result::Error>().unwrap()
+                                == &diesel::result::Error::NotFound
+                        {
+                            info!(
+                                "Received job result for a YAML that no longer exists, ignoring it"
+                            );
+                            return Ok(true);
+                        }
+
+                        return Err(e.0);
                     }
+                };
 
-                    return Err(e.0);
+                if yaml.last_validation_time.and_utc() > desc.submitted_at {
+                    info!("Received a job older than the last validation, ignoring it");
+                    return Ok(true);
                 }
-            };
 
-            if yaml.last_validation_time.and_utc() > desc.submitted_at {
-                info!("Received a job older than the last validation, ignoring it");
-                return Ok(true);
+                let (status, error) = match result.status {
+                    wq::JobStatus::Success => (YamlValidationStatus::Validated, None),
+                    wq::JobStatus::Failure => (
+                        YamlValidationStatus::Failed,
+                        result.result.and_then(|r| r.error),
+                    ),
+                    wq::JobStatus::InternalError => (
+                        YamlValidationStatus::Failed,
+                        Some("Internal error".to_string()),
+                    ),
+                    _ => unreachable!(),
+                };
+
+                db::update_yaml_status(
+                    yaml_id,
+                    status,
+                    error.clone(),
+                    desc.params.apworlds,
+                    desc.submitted_at,
+                    &mut conn,
+                )
+                .await
+                .map_err(|e| e.0)?;
+
+                Ok(true)
             }
-
-            let (status, error) = match result.status {
-                wq::JobStatus::Success => (YamlValidationStatus::Validated, None),
-                wq::JobStatus::Failure => (
-                    YamlValidationStatus::Failed,
-                    result.result.and_then(|r| r.error),
-                ),
-                wq::JobStatus::InternalError => (
-                    YamlValidationStatus::Failed,
-                    Some("Internal error".to_string()),
-                ),
-                _ => unreachable!(),
-            };
-
-            db::update_yaml_status(
-                yaml_id,
-                status,
-                error.clone(),
-                desc.params.apworlds,
-                desc.submitted_at,
-                &mut conn,
-            )
-            .await
-            .map_err(|e| e.0)?;
-
-            Ok(true)
-        })
+            .instrument(span),
+        )
     };
 
     Arc::pin(callback)
@@ -200,26 +217,44 @@ pub fn get_generation_callback(
         let inner_pool = db_pool.clone();
         let inner_generation_output_dir = generation_output_dir.clone();
 
-        Box::pin(async move {
-            let mut conn = inner_pool.get().await?;
+        // Extract the OTLP context from the job params to link this callback to the original request
+        let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
+            propagator.extract(&desc.params.otlp_context)
+        });
+        let span = tracing::info_span!(
+            "generation_callback",
+            room_id = %desc.params.room_id,
+            job_status = ?result.status,
+        );
+        let _ = span.set_parent(parent_cx);
 
-            let status = if result.status == JobStatus::Success {
-                GenerationStatus::Done
-            } else {
-                GenerationStatus::Failed
-            };
+        Box::pin(
+            async move {
+                let mut conn = inner_pool.get().await?;
 
-            db::update_generation_status_for_room(desc.params.room_id, status, &mut conn)
-                .await
-                .map_err(|e| e.0)?;
+                let status = if result.status == JobStatus::Success {
+                    GenerationStatus::Done
+                } else {
+                    GenerationStatus::Failed
+                };
 
-            if result.status == JobStatus::Success {
-                refresh_gen_patches(desc.params.room_id, &inner_generation_output_dir, &mut conn)
+                db::update_generation_status_for_room(desc.params.room_id, status, &mut conn)
+                    .await
+                    .map_err(|e| e.0)?;
+
+                if result.status == JobStatus::Success {
+                    refresh_gen_patches(
+                        desc.params.room_id,
+                        &inner_generation_output_dir,
+                        &mut conn,
+                    )
                     .await?;
-            }
+                }
 
-            Ok(true)
-        })
+                Ok(true)
+            }
+            .instrument(span),
+        )
     };
 
     Arc::pin(callback)
@@ -228,6 +263,7 @@ pub fn get_generation_callback(
 static AP_PATCH_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new("AP[_-][0-9]+[_-]P([0-9]+)[_-](.*)\\..*").unwrap());
 
+#[tracing::instrument(skip(conn))]
 pub async fn refresh_gen_patches(
     room_id: RoomId,
     generation_output_dir: &Path,
@@ -252,6 +288,7 @@ pub async fn refresh_gen_patches(
     Ok(())
 }
 
+#[tracing::instrument(skip(room_yamls))]
 pub fn get_yamls_patches_association(
     job_id: JobId,
     generation_output_dir: &Path,

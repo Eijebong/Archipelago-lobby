@@ -103,6 +103,7 @@ macro_rules! declare_queues {
             }
 
             #[rocket::post("/claim_job", data="<data>")]
+            #[tracing::instrument(skip(auth, queue, data), fields(queue = stringify!($mod_name)))]
             async fn claim_job(auth: ApiResult<QueueAuth>, queue: &State<WorkQueue<$param_ty, $resp_ty>>, data: Json<ClaimJobForm>) -> ApiResult<Json<Option<Job<$param_ty>>>> {
                 auth?;
 
@@ -110,6 +111,7 @@ macro_rules! declare_queues {
             }
 
             #[rocket::post("/reclaim_job", data="<data>")]
+            #[tracing::instrument(skip_all, fields(queue = stringify!($mod_name)))]
             async fn reclaim_job(auth: ApiResult<QueueAuth>, queue: &State<WorkQueue<$param_ty, $resp_ty>>, data: Json<ReclaimJobForm>) -> ApiResult<()> {
                 auth?;
 
@@ -119,9 +121,8 @@ macro_rules! declare_queues {
             }
 
             #[rocket::post("/resolve_job", data="<data>")]
-            #[tracing::instrument(skip_all)]
+            #[tracing::instrument(skip_all, fields(queue = stringify!($mod_name)))]
             async fn resolve_job(auth: ApiResult<QueueAuth>, queue: &State<WorkQueue<$param_ty, $resp_ty>>, data: Json<ResolveJobForm<$resp_ty>>) -> ApiResult<()> {
-                // TODO: Attach this to the sent otlp context
                 auth?;
 
                 queue.resolve_job(&data.worker_id, data.job_id, data.status, data.result.clone()).await.map_err(wq_err_to_api_err)?;

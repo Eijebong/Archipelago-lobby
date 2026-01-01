@@ -24,6 +24,7 @@ use std::time::Duration;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use wq::JobStatus;
 
+#[tracing::instrument(skip_all)]
 pub fn parse_raw_yamls(yamls: &[&str]) -> Result<Vec<(String, YamlFile)>> {
     let yaml = yamls
         .iter()
@@ -377,6 +378,7 @@ fn is_reserved_name(player_name: &str) -> bool {
     player_name.to_lowercase() == "meta" || player_name.to_lowercase() == "archipelago"
 }
 
+#[tracing::instrument(skip(index_manager, manifest))]
 pub async fn get_apworlds_for_games(
     index_manager: &IndexManager,
     manifest: &Manifest,
@@ -414,6 +416,7 @@ pub async fn get_apworlds_for_games(
     }
 }
 
+#[tracing::instrument(skip(index_manager, yaml_validation_queue, conn), fields(room_id = %room.id))]
 pub async fn revalidate_yamls_if_necessary(
     room: &Room,
     index_manager: &State<IndexManager>,
@@ -480,6 +483,7 @@ fn should_revalidate_yaml(
     false
 }
 
+#[tracing::instrument(skip(index_manager, yaml_validation_queue, conn), fields(yaml_id = %yaml.id, room_id = %room.id))]
 pub async fn queue_yaml_validation(
     yaml: &Yaml,
     room: &Room,
