@@ -52,6 +52,9 @@
         <label for="player">Player name</label>
         <input type="text" id="player" name="player" placeholder="Player" value="{{self.prefilled_player_name.as_deref().unwrap_or_default()}}"/>
     </div>
+    {% if let Some(desc) = self.prefilled_description %}
+    <input type="hidden" name="description" value="{{desc}}"/>
+    {% endif %}
 {% endif %}
 {% if let Some(option_groups) = self.options %}
     {% for (option_group, options) in option_groups.iter() %}
@@ -538,6 +541,9 @@
 
             const formData = new FormData();
             formData.append('player', document.getElementById('player')?.value || '');
+
+            const descInput = form.querySelector('input[name="description"]');
+            if (descInput) formData.append('description', descInput.value);
 
             document.querySelectorAll('.option-row[data-name]').forEach(row => {
                 const name = row.dataset.name;

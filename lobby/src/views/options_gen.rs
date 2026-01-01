@@ -46,6 +46,7 @@ struct OptionsTpl<'a> {
     warnings: Vec<String>,
     prefilled_values: Option<HashMap<String, serde_json::Value>>,
     prefilled_player_name: Option<String>,
+    prefilled_description: Option<String>,
     yaml_option_names: HashSet<String>,
 }
 
@@ -231,6 +232,7 @@ async fn options_gen_api<'a>(
         warnings: vec![],
         prefilled_values: None,
         prefilled_player_name: None,
+        prefilled_description: None,
         yaml_option_names: HashSet::new(),
     })
 }
@@ -305,6 +307,7 @@ async fn options_gen<'a>(
         warnings: vec![],
         prefilled_values: None,
         prefilled_player_name: None,
+        prefilled_description: None,
         yaml_option_names: HashSet::new(),
     })
 }
@@ -329,6 +332,11 @@ async fn edit_yaml<'a>(
 
     let player_name = yaml
         .get("name")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let description = yaml
+        .get("description")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
@@ -451,6 +459,7 @@ async fn edit_yaml<'a>(
         warnings,
         prefilled_values: Some(prefilled_values),
         prefilled_player_name: player_name,
+        prefilled_description: description,
         yaml_option_names,
     })
 }
@@ -477,10 +486,16 @@ async fn download_yaml<'a>(
         player_name
     };
 
+    let description = form
+        .get("description")
+        .filter(|s| !s.is_empty())
+        .cloned()
+        .unwrap_or_else(|| format!("Generated on https://{}/options/{}", host, apworld_name));
+
     // Build game options
     let mut game_options: IndexMap<String, serde_json::Value> = IndexMap::new();
     for (key, value) in form.iter() {
-        if key == "player" {
+        if key == "player" || key == "description" {
             continue;
         }
         // Try to parse as JSON for complex types (lists, counters, bools, numbers)
@@ -501,10 +516,7 @@ async fn download_yaml<'a>(
     );
     root.insert(
         "description".to_string(),
-        serde_yaml::Value::String(format!(
-            "Generated on https://{}/options/{}",
-            host, apworld_name
-        )),
+        serde_yaml::Value::String(description),
     );
     root.insert(game_name.clone(), serde_yaml::to_value(&game_options)?);
 
