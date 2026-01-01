@@ -223,6 +223,19 @@
         if (!type || type === 'dict') return;
         const defaultValue = JSON.parse(row.dataset.default);
 
+        // If the default is "random", activate the random button instead of setting a value
+        if (defaultValue === 'random') {
+            const randomBtn = row.querySelector('.option-random');
+            if (randomBtn) {
+                randomBtn.classList.add('active');
+                const name = row.dataset.name;
+                row.querySelectorAll('input:not([type="hidden"]), select').forEach(input => input.disabled = true);
+                const hidden = row.querySelector('.bool-hidden, .preset-hidden, input[name="' + name + '"]');
+                if (hidden) hidden.value = 'random';
+            }
+            return;
+        }
+
         switch (type) {
             case 'bool': {
                 const checked = defaultValue === true || defaultValue === 'true';
@@ -287,9 +300,9 @@
         const resetBtn = row.querySelector('.option-reset');
         if (resetBtn) resetBtn.onclick = () => {
             row.querySelectorAll('input:not([type="hidden"]), select').forEach(input => input.disabled = false);
-            resetToDefault(row);
             const randomBtn = row.querySelector('.option-random');
             if (randomBtn) randomBtn.classList.remove('active');
+            resetToDefault(row);
         };
     });
 
@@ -306,7 +319,18 @@
                 if (hidden) hidden.value = 'random';
             } else {
                 inputs.forEach(input => input.disabled = false);
-                resetToDefault(row);
+                const defaultValue = JSON.parse(row.dataset.default);
+                if (defaultValue !== 'random') {
+                    resetToDefault(row);
+                } else {
+                    // For number inputs, set to minimum value
+                    const numberInput = row.querySelector('input[type="number"]');
+                    if (numberInput && numberInput.min) {
+                        numberInput.value = numberInput.min;
+                        const hidden = row.querySelector('.preset-hidden, input[name="' + name + '"]');
+                        if (hidden) hidden.value = numberInput.min;
+                    }
+                }
             }
         };
     });
