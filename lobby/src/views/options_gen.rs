@@ -10,7 +10,7 @@ use askama::Template;
 use askama_web::WebTemplate;
 use http::header::CONTENT_DISPOSITION;
 use indexmap::IndexMap;
-use rocket::{form::Form, http::uri::Host, http::Header, Route, State};
+use rocket::{form::Form, FromForm, http::uri::Host, http::Header, Route, State};
 use semver::Version;
 use std::{collections::HashMap, str::FromStr, time::Duration};
 use tokio::sync::RwLock;
@@ -38,6 +38,109 @@ struct OptionsTpl<'a> {
     selected_apworld: Option<String>,
     selected_version: Option<String>,
     options: Option<OptionsDef>,
+
+    warnings: Vec<String>,
+    prefilled_values: Option<HashMap<String, serde_json::Value>>,
+    prefilled_player_name: Option<String>,
+}
+
+impl OptionsTpl<'_> {
+    fn get_prefilled(&self, option_name: &str) -> Option<&serde_json::Value> {
+        self.prefilled_values.as_ref().and_then(|pv| pv.get(option_name))
+    }
+
+    // Helper functions for template value extraction
+    fn prefilled_bool(&self, prefilled: &Option<&serde_json::Value>, default: bool) -> bool {
+        prefilled.and_then(|v| v.as_bool()).unwrap_or(default)
+    }
+
+    fn prefilled_str<'a>(&self, prefilled: &'a Option<&'a serde_json::Value>) -> Option<&'a str> {
+        prefilled.and_then(|v| v.as_str())
+    }
+
+    fn prefilled_array<'a>(&self, prefilled: &'a Option<&'a serde_json::Value>) -> Option<&'a Vec<serde_json::Value>> {
+        prefilled.and_then(|v| v.as_array())
+    }
+
+    fn prefilled_object<'a>(&self, prefilled: &'a Option<&'a serde_json::Value>) -> Option<&'a serde_json::Map<String, serde_json::Value>> {
+        prefilled.and_then(|v| v.as_object())
+    }
+
+    fn array_contains_str(&self, arr: &[serde_json::Value], s: &str) -> bool {
+        arr.iter().any(|v| v.as_str() == Some(s))
+    }
+
+    fn suggestions_contain(&self, suggestions: &[String], s: &str) -> bool {
+        suggestions.iter().any(|sug| sug == s)
+    }
+}
+
+/// Helper to fetch OptionsDef, using cache if available or queuing a job if not.
+#[tracing::instrument(skip(options_gen_queue, options_cache))]
+async fn get_options_def(
+    apworld_name: &str,
+    version: &Version,
+    options_gen_queue: &State<OptionsGenQueue>,
+    options_cache: &State<OptionsCache>,
+) -> Result<OptionsDef> {
+    let cache_key = (apworld_name.to_string(), version.clone());
+
+    {
+        let cache = options_cache.read().await;
+        if let Some(cached_options) = cache.get(&cache_key) {
+            return Ok(cached_options.clone());
+        }
+    }
+
+    let mut params = OptionsGenParams {
+        apworld: (apworld_name.to_string(), version.clone()),
+        otlp_context: HashMap::new(),
+    };
+
+    let cx = tracing::Span::current().context();
+    opentelemetry::global::get_text_map_propagator(|propagator| {
+        propagator.inject_context(&cx, &mut params.otlp_context)
+    });
+
+    let job_id = options_gen_queue
+        .enqueue_job(&params, wq::Priority::High, Duration::from_secs(10))
+        .await?;
+
+    let Some(status) = options_gen_queue
+        .wait_for_job(&job_id, Some(Duration::from_secs(10)))
+        .await?
+    else {
+        tracing::error!(%job_id, %apworld_name, %version, "Options gen job timed out");
+        Err(anyhow!(
+            "The option definitions could not get fetched, try again in a bit"
+        ))?
+    };
+    if matches!(status, JobStatus::InternalError) {
+        tracing::error!(%job_id, %apworld_name, %version, "Options gen job returned internal error");
+        options_gen_queue.cancel_job(job_id).await?;
+        Err(anyhow!(
+            "There was an unexpected error while generating option definitions, try again."
+        ))?
+    }
+    if matches!(status, JobStatus::Failure) {
+        tracing::error!(%job_id, %apworld_name, %version, "Options gen job failed");
+        options_gen_queue.delete_job_result(job_id).await?;
+        Err(anyhow!("Generating option definitions failed, try again."))?
+    }
+
+    assert_eq!(status, JobStatus::Success);
+    let result = options_gen_queue
+        .get_job_result(job_id)
+        .await?
+        .expect("Success status should always have a result");
+    options_gen_queue.delete_job_result(job_id).await?;
+
+    {
+        let mut cache = options_cache.write().await;
+        cache.insert(cache_key, result.options.clone());
+    }
+
+    Ok(result.options)
 }
 
 #[rocket::get("/options/<apworld_name>/<version>")]
@@ -79,71 +182,10 @@ async fn options_gen_api<'a>(
     if !versions.contains(&version.to_string()) {
         Err(anyhow!("Unkown version for this apworld"))?
     }
+    drop(index);
 
     let parsed_version = Version::from_str(&version)?;
-    let cache_key = (apworld_name.to_string(), parsed_version.clone());
-
-    {
-        let cache = options_cache.read().await;
-        if let Some(cached_options) = cache.get(&cache_key) {
-            return Ok(OptionsTpl {
-                base: TplContext::from_session("options", session, ctx).await,
-                apworlds,
-                versions,
-                selected_apworld: Some(apworld_name.to_string()),
-                selected_version: Some(version.to_string()),
-                options: Some(cached_options.clone()),
-            });
-        }
-    }
-
-    let mut params = OptionsGenParams {
-        apworld: (apworld_name.to_string(), parsed_version),
-        otlp_context: HashMap::new(),
-    };
-
-    let cx = tracing::Span::current().context();
-    opentelemetry::global::get_text_map_propagator(|propagator| {
-        propagator.inject_context(&cx, &mut params.otlp_context)
-    });
-
-    let job_id = options_gen_queue
-        .enqueue_job(&params, wq::Priority::High, Duration::from_secs(10))
-        .await?;
-
-    let Some(status) = options_gen_queue
-        .wait_for_job(&job_id, Some(Duration::from_secs(10)))
-        .await?
-    else {
-        tracing::error!(%job_id, %apworld_name, %version, "Options gen job timed out");
-        Err(anyhow!(
-            "The option definitions could not get fetched, try again in a bit"
-        ))?
-    };
-    if matches!(status, JobStatus::InternalError) {
-        tracing::error!(%job_id, %apworld_name, %version, "Options gen job returned internal error");
-        options_gen_queue.cancel_job(job_id).await?;
-        Err(anyhow!(
-            "There was an unexpected error while generating option definitions, try again."
-        ))?
-    }
-    if matches!(status, JobStatus::Failure) {
-        tracing::error!(%job_id, %apworld_name, %version, "Options gen job failed");
-        options_gen_queue.delete_job_result(job_id).await?;
-        Err(anyhow!("Generating option definitions failed, try again."))?
-    }
-
-    assert_eq!(status, JobStatus::Success);
-    let options = options_gen_queue
-        .get_job_result(job_id)
-        .await?
-        .expect("Success status should always have a result");
-    options_gen_queue.delete_job_result(job_id).await?;
-
-    {
-        let mut cache = options_cache.write().await;
-        cache.insert(cache_key, options.options.clone());
-    }
+    let options = get_options_def(apworld_name, &parsed_version, options_gen_queue, options_cache).await?;
 
     Ok(OptionsTpl {
         base: TplContext::from_session("options", session, ctx).await,
@@ -151,7 +193,10 @@ async fn options_gen_api<'a>(
         versions,
         selected_apworld: Some(apworld_name.to_string()),
         selected_version: Some(version.to_string()),
-        options: Some(options.options),
+        options: Some(options),
+        warnings: vec![],
+        prefilled_values: None,
+        prefilled_player_name: None,
     })
 }
 
@@ -222,6 +267,116 @@ async fn options_gen<'a>(
         selected_apworld: None,
         selected_version: None,
         options: None,
+        warnings: vec![],
+        prefilled_values: None,
+        prefilled_player_name: None,
+    })
+}
+
+#[derive(FromForm)]
+struct YamlUpload<'a> {
+    yaml: &'a str,
+}
+
+#[rocket::post("/options/edit", data = "<form>")]
+#[tracing::instrument(skip(options_gen_queue, options_cache, index_manager, ctx, session, form))]
+async fn edit_yaml<'a>(
+    form: Form<YamlUpload<'a>>,
+    options_gen_queue: &State<OptionsGenQueue>,
+    options_cache: &State<OptionsCache>,
+    index_manager: &'a State<IndexManager>,
+    ctx: &'a State<Context>,
+    session: Session,
+) -> Result<OptionsTpl<'a>> {
+    let yaml: serde_yaml::Value = serde_yaml::from_str(form.yaml)
+        .map_err(|e| anyhow!("Failed to parse YAML: {}", e))?;
+
+    let player_name = yaml
+        .get("name")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let game_field = yaml.get("game").ok_or_else(|| anyhow!("YAML is missing 'game' field"))?;
+
+    let game_name = if let Some(s) = game_field.as_str() {
+        s.to_string()
+    } else if game_field.is_mapping() {
+        return Err(anyhow!("Weighted game randomizers are not supported. Please use a YAML with a single game.").into());
+    } else {
+        return Err(anyhow!("Invalid 'game' field in YAML").into());
+    };
+
+    let index = index_manager.index.read().await;
+    let (apworld_name, latest_version) = index
+        .worlds
+        .iter()
+        .find(|(_, world)| world.name == game_name)
+        .map(|(name, world)| {
+            let latest = world.versions.keys().max().unwrap().clone();
+            (name.clone(), latest)
+        })
+        .ok_or_else(|| anyhow!("Game '{}' not found", game_name))?;
+
+    let mut apworlds: Vec<(String, String)> = index
+        .worlds
+        .iter()
+        .map(|(apworld_name, world)| (apworld_name.clone(), world.name.clone()))
+        .collect();
+    apworlds.sort_by_key(|(_, world_name)| world_name.to_lowercase());
+
+    let versions: Vec<String> = index
+        .worlds
+        .get(&apworld_name)
+        .unwrap()
+        .versions
+        .keys()
+        .map(|v| v.to_string())
+        .rev()
+        .collect();
+    drop(index);
+
+    let options = get_options_def(&apworld_name, &latest_version, options_gen_queue, options_cache).await?;
+
+    let option_defs: HashMap<&String, &crate::jobs::OptionDef> = options
+        .iter()
+        .flat_map(|(_, group_options)| group_options.iter())
+        .collect();
+
+    let game_options = yaml
+        .get(&game_name)
+        .and_then(|v| v.as_mapping());
+
+    let mut prefilled_values: HashMap<String, serde_json::Value> = HashMap::new();
+    let mut warnings: Vec<String> = vec![];
+
+    if let Some(game_opts) = game_options {
+        for (key, value) in game_opts {
+            let key_str = key.as_str().unwrap_or_default().to_string();
+            if let Some(option_def) = option_defs.get(&key_str) {
+                // Check for weighted options: mapping value but not a counter type
+                if value.is_mapping() && option_def.ty != "counter" {
+                    warnings.push(format!("{} (weighted options not supported)", key_str));
+                    continue;
+                }
+                let json_value = serde_json::to_value(value)
+                    .unwrap_or(serde_json::Value::Null);
+                prefilled_values.insert(key_str, json_value);
+            } else {
+                warnings.push(key_str);
+            }
+        }
+    }
+
+    Ok(OptionsTpl {
+        base: TplContext::from_session("options", session, ctx).await,
+        apworlds,
+        versions,
+        selected_apworld: Some(apworld_name),
+        selected_version: Some(latest_version.to_string()),
+        options: Some(options),
+        warnings,
+        prefilled_values: Some(prefilled_values),
+        prefilled_player_name: player_name,
     })
 }
 
@@ -292,6 +447,7 @@ pub fn routes() -> Vec<Route> {
         options_apworld_versions,
         options_gen_api,
         options_gen,
+        edit_yaml,
         download_yaml,
     ]
 }
