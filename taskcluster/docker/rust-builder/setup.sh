@@ -13,7 +13,7 @@ Components: main
 Enabled: yes
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 EOF
-apt update && apt install -y libpq-dev valkey python3 git libssl-dev pkg-config watchexec-cli liblzma-dev zlib1g-dev mold clang
+apt update && apt install -y --no-install-recommends libpq-dev valkey python3 git libssl-dev pkg-config watchexec-cli liblzma-dev zlib1g-dev mold
 apt autoremove -y
 rm -rf /var/lib/apt/lists/*
 
