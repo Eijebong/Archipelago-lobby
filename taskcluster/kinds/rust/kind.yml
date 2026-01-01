@@ -13,6 +13,7 @@ task-defaults:
   worker-type-build: linux-medium
   with-tests: true
   skip-argocd-webhook: true
+  cache-name: ap-lobby-workspace
 
 tasks:
     ap-lobby:
