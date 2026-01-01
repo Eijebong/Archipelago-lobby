@@ -10,6 +10,7 @@ use rocket::{
     fairing::{Fairing, Info, Kind},
     Request, Response,
 };
+use sentry_tracing::EventFilter;
 use tracing::{Level, Span};
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -43,12 +44,17 @@ fn init_tracer(endpoint: &str) -> SdkTracerProvider {
 }
 
 pub fn init_tracing_subscriber(endpoint: Option<String>) -> OtelGuard {
+    let sentry_layer = sentry_tracing::layer().event_filter(|md| match *md.level() {
+        Level::ERROR => EventFilter::Event,
+        _ => EventFilter::Breadcrumb,
+    });
+
     let subscriber = tracing_subscriber::registry()
         .with(tracing_subscriber::filter::LevelFilter::from_level(
             Level::INFO,
         ))
         .with(tracing_subscriber::fmt::layer())
-        .with(sentry_tracing::layer());
+        .with(sentry_layer);
 
     let provider = if let Some(endpoint) = endpoint {
         let provider = init_tracer(&endpoint);

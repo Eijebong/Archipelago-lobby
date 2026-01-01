@@ -115,17 +115,20 @@ async fn options_gen_api<'a>(
         .wait_for_job(&job_id, Some(Duration::from_secs(10)))
         .await?
     else {
+        tracing::error!(%job_id, %apworld_name, %version, "Options gen job timed out");
         Err(anyhow!(
             "The option definitions could not get fetched, try again in a bit"
         ))?
     };
     if matches!(status, JobStatus::InternalError) {
+        tracing::error!(%job_id, %apworld_name, %version, "Options gen job returned internal error");
         options_gen_queue.cancel_job(job_id).await?;
         Err(anyhow!(
             "There was an unexpected error while generating option definitions, try again."
         ))?
     }
     if matches!(status, JobStatus::Failure) {
+        tracing::error!(%job_id, %apworld_name, %version, "Options gen job failed");
         options_gen_queue.delete_job_result(job_id).await?;
         Err(anyhow!("Generating option definitions failed, try again."))?
     }

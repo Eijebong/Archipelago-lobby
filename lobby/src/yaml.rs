@@ -308,14 +308,14 @@ async fn validate_yaml(
         .wait_for_job(&job_id, Some(Duration::from_secs(30)))
         .await?
     else {
-        // TODO: alert, this is not normal
+        tracing::error!(%job_id, "YAML validation job timed out");
         yaml_validation_queue.cancel_job(job_id).await?;
         Err(anyhow!("Timed out while validating this YAML. Either generation is very slow or the service is overloaded. Try again a bit later."))?
     };
 
     if matches!(status, JobStatus::InternalError) {
+        tracing::error!(%job_id, "YAML validation job returned internal error");
         yaml_validation_queue.cancel_job(job_id).await?;
-        // TODO: Alert, this is not normal either
         Err(anyhow!("Internal error while validating this YAML. This should not happen, please report the bug."))?
     }
 
