@@ -98,11 +98,13 @@
             <input type="number" id="weight-modal-new-value" placeholder="Value">
             <button type="button" id="weight-modal-add-btn">Add</button>
         </div>
-        <div id="weight-modal-items"></div>
-        <div class="modal-buttons">
-            <button type="button" id="weight-modal-save">Save</button>
-            <button type="button" id="weight-modal-cancel">Cancel</button>
-        </div>
+        <form id="weight-modal-form">
+            <div id="weight-modal-items"></div>
+            <div class="modal-buttons">
+                <button type="submit" id="weight-modal-save">Save</button>
+                <button type="button" id="weight-modal-cancel">Cancel</button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
@@ -614,6 +616,7 @@
         const input = document.createElement('input');
         input.type = 'number';
         input.min = '0';
+        input.required = true;
         input.value = weight;
         input.dataset.choice = choice;
 
@@ -704,13 +707,14 @@
         currentWeightRow = null;
     }
 
-    function saveWeights() {
+    function saveWeights(e) {
+        e.preventDefault();
         if (!currentWeightRow) return;
 
         const weights = {};
         let hasAnyWeight = false;
         weightModalItems.querySelectorAll('input').forEach(input => {
-            const weight = parseInt(input.value) || 0;
+            const weight = parseInt(input.value);
             if (weight > 0) {
                 weights[input.dataset.choice] = weight;
                 hasAnyWeight = true;
@@ -734,7 +738,7 @@
         closeWeightModal();
     }
 
-    document.getElementById('weight-modal-save')?.addEventListener('click', saveWeights);
+    document.getElementById('weight-modal-form')?.addEventListener('submit', saveWeights);
     document.getElementById('weight-modal-cancel')?.addEventListener('click', closeWeightModal);
 
     weightModal?.addEventListener('click', (e) => {
