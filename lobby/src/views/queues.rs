@@ -111,8 +111,9 @@ macro_rules! declare_queues {
             }
 
             #[rocket::post("/reclaim_job", data="<data>")]
-            #[tracing::instrument(skip_all, fields(queue = stringify!($mod_name)))]
+            #[tracing::instrument(skip_all, fields(queue = stringify!($mod_name), job_id))]
             async fn reclaim_job(auth: ApiResult<QueueAuth>, queue: &State<WorkQueue<$param_ty, $resp_ty>>, data: Json<ReclaimJobForm>) -> ApiResult<()> {
+                tracing::Span::current().record("job_id", tracing::field::display(&data.job_id));
                 auth?;
 
                 queue.reclaim_job(&data.job_id, &data.worker_id).await.map_err(wq_err_to_api_err)?;
@@ -121,8 +122,10 @@ macro_rules! declare_queues {
             }
 
             #[rocket::post("/resolve_job", data="<data>")]
-            #[tracing::instrument(skip_all, fields(queue = stringify!($mod_name)))]
+            #[tracing::instrument(skip_all, fields(queue = stringify!($mod_name), job_id, job_status))]
             async fn resolve_job(auth: ApiResult<QueueAuth>, queue: &State<WorkQueue<$param_ty, $resp_ty>>, data: Json<ResolveJobForm<$resp_ty>>) -> ApiResult<()> {
+                tracing::Span::current().record("job_id", tracing::field::display(&data.job_id));
+                tracing::Span::current().record("job_status", tracing::field::debug(&data.status));
                 auth?;
 
                 queue.resolve_job(&data.worker_id, data.job_id, data.status, data.result.clone()).await.map_err(wq_err_to_api_err)?;
