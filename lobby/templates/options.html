@@ -150,6 +150,7 @@
             {% endfor %}
             </select>
         {% when "set" %}
+            {% if option_def.has_valid_keys() %}
             {% let parr = self.prefilled_array(prefilled) %}
             <select id="{{option_name}}" multiple>
             {% for value in option_def.valid_keys() %}
@@ -160,7 +161,11 @@
                 {% endif %}
             {% endfor %}
             </select>
+            {% else %}
+            <span class="option-not-supported">Not editable in this UI</span>
+            {% endif %}
         {% when "list" %}
+            {% if option_def.has_valid_keys() %}
             {% let parr = self.prefilled_array(prefilled) %}
             <div class="item-list" data-type="list" data-default="{{option_def.default_json()}}" {%+ if parr.is_some() %}data-prefilled="true"{% endif %}>
                 <div class="item-list-items" id="{{option_name}}_items">
@@ -185,7 +190,11 @@
                     <button type="button" class="item-list-add">+</button>
                 </div>
             </div>
+            {% else %}
+            <span class="option-not-supported">Not editable in this UI</span>
+            {% endif %}
         {% when "counter" %}
+            {% if option_def.has_valid_keys() %}
             {% let pobj = self.prefilled_object(prefilled) %}
             <div class="item-list" data-type="counter" data-default="{{option_def.default_json()}}" {%+ if pobj.is_some() %}data-prefilled="true"{% endif %}>
                 <div class="item-list-items" id="{{option_name}}_items">
@@ -209,23 +218,25 @@
                     <button type="button" class="item-list-add">+</button>
                 </div>
             </div>
+            {% else %}
+            <span class="option-not-supported">Not editable in this UI</span>
+            {% endif %}
         {% when "dict" %}
             <span class="option-not-supported">Not editable in this UI</span>
         {% else %}
-            {% if let Some(v) = self.prefilled_str(prefilled) %}
+            {% if option_def.has_complex_default() %}
+            <span class="option-not-supported">Not editable in this UI</span>
+            {% else if let Some(v) = self.prefilled_str(prefilled) %}
             <input id="{{option_name}}" type="text" value="{{v}}"/>
             {% else %}
             <input id="{{option_name}}" type="text" value="{{option_def.default_str()}}"/>
             {% endif %}
         {% endmatch %}
-        {% if option_def.ty != "dict" %}
+        {% if option_def.is_editable() %}
         <button type="button" class="option-reset" title="Reset to default"><i class="fa fa-rotate"></i></button>
         {% endif %}
         {% match option_def.ty.as_str() %}
-        {% when "set" %}
-        {% when "list" %}
-        {% when "counter" %}
-        {% when "dict" %}
+        {% when "set" | "list" | "counter" | "dict" | "text" %}
         {% else %}
         <button type="button" class="option-random" title="Randomize"><i class="fa fa-dice"></i></button>
         {% endmatch %}
@@ -383,14 +394,18 @@
             case 'choice':
                 row.querySelector('select').value = defaultValue;
                 break;
-            case 'set':
-                Array.from(row.querySelector('select[multiple]').options).forEach(opt => {
+            case 'set': {
+                const select = row.querySelector('select[multiple]');
+                if (!select) return; // Non-editable
+                Array.from(select.options).forEach(opt => {
                     opt.selected = defaultValue.includes(opt.value);
                 });
                 break;
+            }
             case 'list':
             case 'counter': {
                 const itemsContainer = row.querySelector('.item-list-items');
+                if (!itemsContainer) return; // Non-editable
                 itemsContainer.innerHTML = '';
                 if (type === 'list' && Array.isArray(defaultValue)) {
                     defaultValue.forEach(name => itemsContainer.appendChild(createListItem(type, name)));

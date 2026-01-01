@@ -141,16 +141,12 @@ class OptionsGenQueue(LobbyQueue):
             name, world = world_from_apworld_name(job.params["apworld"][0])
 
             game_options = {}
-            option_groups = get_option_groups(world, Visibility.simple_ui)
+            option_groups = get_option_groups(world, Visibility.template)
             for group, options in option_groups.items():
                 option_group_options = {}
                 for option_name, option_value in options.items():
                     ty = get_type(option_value)
                     valid_keys = get_valid_keys(option_value, world)
-
-                    # Skip set/list/counter without valid_keys
-                    if ty in ('set', 'list', 'counter') and not valid_keys:
-                        continue
 
                     display_name = getattr(option_value, "display_name", option_name)
                     description = (option_value.__doc__ or "").strip()

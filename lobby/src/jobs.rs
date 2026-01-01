@@ -96,6 +96,27 @@ impl OptionDef {
             .expect("valid_keys called on non-set/list option")
     }
 
+    pub fn has_valid_keys(&self) -> bool {
+        self.valid_keys.as_ref().map(|v| !v.is_empty()).unwrap_or(false)
+    }
+
+    pub fn has_complex_default(&self) -> bool {
+        self.default.is_array() || self.default.is_object()
+    }
+
+    pub fn is_editable(&self) -> bool {
+        if self.ty == "dict" {
+            return false;
+        }
+        if matches!(self.ty.as_str(), "set" | "list" | "counter") && !self.has_valid_keys() {
+            return false;
+        }
+        if self.ty == "text" && self.has_complex_default() {
+            return false;
+        }
+        true
+    }
+
     pub fn default_str(&self) -> &str {
         self.default.as_str().unwrap_or_default()
     }
