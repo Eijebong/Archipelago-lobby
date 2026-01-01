@@ -12,7 +12,11 @@ use http::header::CONTENT_DISPOSITION;
 use indexmap::IndexMap;
 use rocket::{form::Form, http::uri::Host, http::Header, FromForm, Route, State};
 use semver::Version;
-use std::{collections::HashMap, str::FromStr, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+    time::Duration,
+};
 use tokio::sync::RwLock;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use wq::JobStatus;
@@ -42,6 +46,7 @@ struct OptionsTpl<'a> {
     warnings: Vec<String>,
     prefilled_values: Option<HashMap<String, serde_json::Value>>,
     prefilled_player_name: Option<String>,
+    yaml_option_names: HashSet<String>,
 }
 
 impl OptionsTpl<'_> {
@@ -91,6 +96,10 @@ impl OptionsTpl<'_> {
             .and_then(|v| v.as_object())
             .map(|obj| serde_json::to_string(obj).unwrap_or_default())
             .unwrap_or_default()
+    }
+
+    fn is_new_option(&self, option_name: &str) -> bool {
+        self.prefilled_values.is_some() && !self.yaml_option_names.contains(option_name)
     }
 }
 
@@ -222,6 +231,7 @@ async fn options_gen_api<'a>(
         warnings: vec![],
         prefilled_values: None,
         prefilled_player_name: None,
+        yaml_option_names: HashSet::new(),
     })
 }
 
@@ -295,6 +305,7 @@ async fn options_gen<'a>(
         warnings: vec![],
         prefilled_values: None,
         prefilled_player_name: None,
+        yaml_option_names: HashSet::new(),
     })
 }
 
@@ -382,12 +393,15 @@ async fn edit_yaml<'a>(
 
     let mut prefilled_values: HashMap<String, serde_json::Value> = HashMap::new();
     let mut warnings: Vec<String> = vec![];
+    let mut yaml_option_names: HashSet<String> = HashSet::new();
 
     const WEIGHTED_TYPES: &[&str] = &["bool", "choice", "named_range", "text_choice", "range"];
 
     if let Some(game_opts) = game_options {
         for (key, value) in game_opts {
             let key_str = key.as_str().unwrap_or_default().to_string();
+            yaml_option_names.insert(key_str.clone());
+
             if let Some(option_def) = option_defs.get(&key_str) {
                 // "counter" and "dict" types naturally have mapping values, don't warn for those
                 if value.is_mapping()
@@ -419,6 +433,7 @@ async fn edit_yaml<'a>(
         warnings,
         prefilled_values: Some(prefilled_values),
         prefilled_player_name: player_name,
+        yaml_option_names,
     })
 }
 
