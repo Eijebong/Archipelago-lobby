@@ -63,6 +63,7 @@ pub struct NewGeneration {
     status: String,
 }
 
+#[tracing::instrument(skip(conn))]
 pub async fn get_generation_for_room(
     room_id: RoomId,
     conn: &mut AsyncPgConnection,
@@ -85,6 +86,7 @@ pub async fn get_generation_for_room(
         }))
 }
 
+#[tracing::instrument(skip(conn))]
 pub async fn insert_generation_for_room(
     room_id: RoomId,
     job_id: JobId,
@@ -101,6 +103,7 @@ pub async fn insert_generation_for_room(
     Ok(())
 }
 
+#[tracing::instrument(skip(conn))]
 pub async fn delete_generation_for_room(
     room_id: RoomId,
     conn: &mut AsyncPgConnection,
@@ -125,6 +128,7 @@ pub async fn delete_generation_for_room(
     Ok(())
 }
 
+#[tracing::instrument(skip(new_status, conn))]
 pub async fn update_generation_status_for_room(
     room_id: RoomId,
     new_status: GenerationStatus,

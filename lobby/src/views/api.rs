@@ -63,6 +63,7 @@ pub struct RoomInfo {
 }
 
 #[get("/room/<room_id>")]
+#[tracing::instrument(skip(_session, ctx))]
 pub(crate) async fn room_info(
     room_id: RoomId,
     _session: LoggedInSession,
@@ -224,6 +225,7 @@ pub(crate) async fn retry_yaml(
 }
 
 #[get("/room/<room_id>/refresh_patches")]
+#[tracing::instrument(skip(_session, gen_output_dir, ctx))]
 pub(crate) async fn refresh_patches(
     _session: AdminSession,
     room_id: RoomId,
@@ -237,6 +239,7 @@ pub(crate) async fn refresh_patches(
 }
 
 #[get("/room/<room_id>/slots_passwords")]
+#[tracing::instrument(skip(_session, ctx))]
 pub(crate) async fn slots_passwords(
     _session: AdminSession,
     room_id: RoomId,
@@ -269,6 +272,7 @@ pub(crate) async fn slots_passwords(
 }
 
 #[post("/room/<room_id>/set_password/<yaml_id>", data = "<request>")]
+#[tracing::instrument(skip(_session, request, ctx))]
 pub(crate) async fn set_password(
     _session: AdminSession,
     room_id: RoomId,

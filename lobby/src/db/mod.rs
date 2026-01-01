@@ -130,6 +130,7 @@ impl RoomFilter {
     }
 }
 
+#[tracing::instrument(skip(conn))]
 pub async fn get_room_stats(conn: &mut AsyncPgConnection) -> Result<Vec<(i64, RoomId)>> {
     Ok(yamls::table
         .inner_join(rooms::table.on(yamls::room_id.eq(rooms::id)))

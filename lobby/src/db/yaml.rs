@@ -267,6 +267,7 @@ pub async fn associate_patch_files(
     Ok(())
 }
 
+#[tracing::instrument(skip(password, conn))]
 pub async fn update_yaml_password(
     yaml_id: YamlId,
     password: Option<String>,
