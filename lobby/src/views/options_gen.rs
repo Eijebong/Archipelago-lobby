@@ -48,6 +48,8 @@ struct OptionsTpl<'a> {
     prefilled_player_name: Option<String>,
     prefilled_description: Option<String>,
     yaml_option_names: HashSet<String>,
+    // Options whose prefilled values are no longer valid for the current definitions
+    outdated_values: HashSet<String>,
 }
 
 impl OptionsTpl<'_> {
@@ -101,6 +103,10 @@ impl OptionsTpl<'_> {
 
     fn is_new_option(&self, option_name: &str) -> bool {
         self.prefilled_values.is_some() && !self.yaml_option_names.contains(option_name)
+    }
+
+    fn is_outdated(&self, option_name: &str) -> bool {
+        self.outdated_values.contains(option_name)
     }
 }
 
@@ -234,6 +240,7 @@ async fn options_gen_api<'a>(
         prefilled_player_name: None,
         prefilled_description: None,
         yaml_option_names: HashSet::new(),
+        outdated_values: HashSet::new(),
     })
 }
 
@@ -309,12 +316,82 @@ async fn options_gen<'a>(
         prefilled_player_name: None,
         prefilled_description: None,
         yaml_option_names: HashSet::new(),
+        outdated_values: HashSet::new(),
     })
 }
 
 #[derive(FromForm)]
 struct YamlUpload<'a> {
     yaml: &'a str,
+}
+
+fn validate_option_value(value: &serde_json::Value, option_def: &crate::jobs::OptionDef) -> bool {
+    // For weighted options, only validate non-zero weighted values
+    if let Some(obj) = value.as_object() {
+        return obj
+            .iter()
+            .filter(|(_, v)| v.as_i64().map(|n| n != 0).unwrap_or(true))
+            .all(|(k, _)| validate_single_value(k, option_def));
+    }
+
+    if let Some(s) = value.as_str() {
+        return validate_single_value(s, option_def);
+    }
+    if let Some(n) = value.as_i64() {
+        return validate_numeric_value(n, option_def);
+    }
+    if let Some(arr) = value.as_array() {
+        if !option_def.has_valid_keys() {
+            return true;
+        }
+        let valid_keys = option_def.valid_keys();
+        return arr.iter().all(|v| {
+            v.as_str()
+                .map(|s| valid_keys.iter().any(|k| k == s))
+                .unwrap_or(true)
+        });
+    }
+    true
+}
+
+fn validate_single_value(value: &str, option_def: &crate::jobs::OptionDef) -> bool {
+    match option_def.ty.as_str() {
+        "choice" => option_def
+            .choices
+            .as_ref()
+            .map(|c| c.iter().any(|choice| choice == value))
+            .unwrap_or(true),
+        "text_choice" => option_def
+            .suggestions
+            .as_ref()
+            .map(|s| s.iter().any(|sug| sug == value))
+            .unwrap_or(true),
+        "named_range" => {
+            if let Some(suggestions) = &option_def.suggestions {
+                if suggestions.iter().any(|s| s == value) {
+                    return true;
+                }
+            }
+            if let Ok(n) = value.parse::<i64>() {
+                return validate_numeric_value(n, option_def);
+            }
+            false
+        }
+        _ => true,
+    }
+}
+
+fn validate_numeric_value(value: i64, option_def: &crate::jobs::OptionDef) -> bool {
+    match option_def.ty.as_str() {
+        "range" | "named_range" => {
+            if let Some((min, max)) = option_def.range {
+                value >= min && value <= max
+            } else {
+                true
+            }
+        }
+        _ => true,
+    }
 }
 
 #[rocket::post("/options/edit", data = "<form>")]
@@ -402,6 +479,7 @@ async fn edit_yaml<'a>(
     let mut prefilled_values: HashMap<String, serde_json::Value> = HashMap::new();
     let mut warnings: Vec<String> = vec![];
     let mut yaml_option_names: HashSet<String> = HashSet::new();
+    let mut outdated_values: HashSet<String> = HashSet::new();
 
     const WEIGHTED_TYPES: &[&str] = &["bool", "choice", "named_range", "text_choice", "range"];
 
@@ -445,6 +523,13 @@ async fn edit_yaml<'a>(
 
             let json_value =
                 serde_json::to_value(coalesced.unwrap_or(value)).unwrap_or(serde_json::Value::Null);
+
+            if option_def.is_editable() && !validate_option_value(&json_value, option_def) {
+                outdated_values.insert(key_str);
+                // If invalid, don't insert it in prefill so it gets reset
+                continue;
+            }
+
             prefilled_values.insert(key_str, json_value);
         }
     }
@@ -461,6 +546,7 @@ async fn edit_yaml<'a>(
         prefilled_player_name: player_name,
         prefilled_description: description,
         yaml_option_names,
+        outdated_values,
     })
 }
 
