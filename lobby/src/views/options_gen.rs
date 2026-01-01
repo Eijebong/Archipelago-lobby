@@ -10,7 +10,7 @@ use askama::Template;
 use askama_web::WebTemplate;
 use http::header::CONTENT_DISPOSITION;
 use indexmap::IndexMap;
-use rocket::{form::Form, FromForm, http::uri::Host, http::Header, Route, State};
+use rocket::{form::Form, http::uri::Host, http::Header, FromForm, Route, State};
 use semver::Version;
 use std::{collections::HashMap, str::FromStr, time::Duration};
 use tokio::sync::RwLock;
@@ -46,7 +46,9 @@ struct OptionsTpl<'a> {
 
 impl OptionsTpl<'_> {
     fn get_prefilled(&self, option_name: &str) -> Option<&serde_json::Value> {
-        self.prefilled_values.as_ref().and_then(|pv| pv.get(option_name))
+        self.prefilled_values
+            .as_ref()
+            .and_then(|pv| pv.get(option_name))
     }
 
     // Helper functions for template value extraction
@@ -58,11 +60,17 @@ impl OptionsTpl<'_> {
         prefilled.and_then(|v| v.as_str())
     }
 
-    fn prefilled_array<'a>(&self, prefilled: &'a Option<&'a serde_json::Value>) -> Option<&'a Vec<serde_json::Value>> {
+    fn prefilled_array<'a>(
+        &self,
+        prefilled: &'a Option<&'a serde_json::Value>,
+    ) -> Option<&'a Vec<serde_json::Value>> {
         prefilled.and_then(|v| v.as_array())
     }
 
-    fn prefilled_object<'a>(&self, prefilled: &'a Option<&'a serde_json::Value>) -> Option<&'a serde_json::Map<String, serde_json::Value>> {
+    fn prefilled_object<'a>(
+        &self,
+        prefilled: &'a Option<&'a serde_json::Value>,
+    ) -> Option<&'a serde_json::Map<String, serde_json::Value>> {
         prefilled.and_then(|v| v.as_object())
     }
 
@@ -196,7 +204,13 @@ async fn options_gen_api<'a>(
     drop(index);
 
     let parsed_version = Version::from_str(&version)?;
-    let options = get_options_def(apworld_name, &parsed_version, options_gen_queue, options_cache).await?;
+    let options = get_options_def(
+        apworld_name,
+        &parsed_version,
+        options_gen_queue,
+        options_cache,
+    )
+    .await?;
 
     Ok(OptionsTpl {
         base: TplContext::from_session("options", session, ctx).await,
@@ -299,20 +313,25 @@ async fn edit_yaml<'a>(
     ctx: &'a State<Context>,
     session: Session,
 ) -> Result<OptionsTpl<'a>> {
-    let yaml: serde_yaml::Value = serde_yaml::from_str(form.yaml)
-        .map_err(|e| anyhow!("Failed to parse YAML: {}", e))?;
+    let yaml: serde_yaml::Value =
+        serde_yaml::from_str(form.yaml).map_err(|e| anyhow!("Failed to parse YAML: {}", e))?;
 
     let player_name = yaml
         .get("name")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    let game_field = yaml.get("game").ok_or_else(|| anyhow!("YAML is missing 'game' field"))?;
+    let game_field = yaml
+        .get("game")
+        .ok_or_else(|| anyhow!("YAML is missing 'game' field"))?;
 
     let game_name = if let Some(s) = game_field.as_str() {
         s.to_string()
     } else if game_field.is_mapping() {
-        return Err(anyhow!("Weighted game randomizers are not supported. Please use a YAML with a single game.").into());
+        return Err(anyhow!(
+            "Weighted game randomizers are not supported. Please use a YAML with a single game."
+        )
+        .into());
     } else {
         return Err(anyhow!("Invalid 'game' field in YAML").into());
     };
@@ -346,16 +365,20 @@ async fn edit_yaml<'a>(
         .collect();
     drop(index);
 
-    let options = get_options_def(&apworld_name, &latest_version, options_gen_queue, options_cache).await?;
+    let options = get_options_def(
+        &apworld_name,
+        &latest_version,
+        options_gen_queue,
+        options_cache,
+    )
+    .await?;
 
     let option_defs: HashMap<&String, &crate::jobs::OptionDef> = options
         .iter()
         .flat_map(|(_, group_options)| group_options.iter())
         .collect();
 
-    let game_options = yaml
-        .get(&game_name)
-        .and_then(|v| v.as_mapping());
+    let game_options = yaml.get(&game_name).and_then(|v| v.as_mapping());
 
     let mut prefilled_values: HashMap<String, serde_json::Value> = HashMap::new();
     let mut warnings: Vec<String> = vec![];
@@ -372,11 +395,13 @@ async fn edit_yaml<'a>(
                     && option_def.ty != "dict"
                     && !WEIGHTED_TYPES.contains(&option_def.ty.as_str())
                 {
-                    warnings.push(format!("{} (weighted options not supported for this type)", key_str));
+                    warnings.push(format!(
+                        "{} (weighted options not supported for this type)",
+                        key_str
+                    ));
                     continue;
                 }
-                let json_value = serde_json::to_value(value)
-                    .unwrap_or(serde_json::Value::Null);
+                let json_value = serde_json::to_value(value).unwrap_or(serde_json::Value::Null);
                 prefilled_values.insert(key_str, json_value);
             } else {
                 warnings.push(key_str);

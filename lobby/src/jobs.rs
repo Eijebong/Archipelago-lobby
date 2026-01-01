@@ -97,7 +97,10 @@ impl OptionDef {
     }
 
     pub fn has_valid_keys(&self) -> bool {
-        self.valid_keys.as_ref().map(|v| !v.is_empty()).unwrap_or(false)
+        self.valid_keys
+            .as_ref()
+            .map(|v| !v.is_empty())
+            .unwrap_or(false)
     }
 
     pub fn has_complex_default(&self) -> bool {
