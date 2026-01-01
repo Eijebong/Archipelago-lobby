@@ -1,33 +1,56 @@
 {% extends "base.html" %}
 
+{% block styles %}
+<link rel="stylesheet" href="/static/css/help.css?{{ base.css_version }}">
+{% endblock %}
+
 {% block main %}
 <noscript>
     Gotta enable javascript for this to work, sorry
 </noscript>
 
+{% if self.selected_apworld.is_none() %}
+<section class="help-section">
+    <div class="two-col">
+        <div>
+            <h4><i class="fa fa-file-circle-plus"></i> Create New YAML</h4>
+            <p>Start fresh with a new configuration file for your game</p>
+            <form>
+                <select name="apworld" id="apworld" style="width: 100%">
+                    <option value="">Select a game...</option>
+                    {% for (apworld_name, world_name) in self.apworlds %}
+                    <option value="{{apworld_name}}">{{world_name}}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+
+        <div>
+            <h4><i class="fa fa-file-pen"></i> Edit Existing YAML</h4>
+            <p>Upload and modify an existing configuration file</p>
+            <form method="POST" action="/options/edit" id="yaml-upload-form">
+                <input type="file" name="yaml_file" id="yaml-upload" accept=".yaml,.yml" style="display:none">
+                <input type="hidden" name="yaml" id="yaml-content">
+                <button type="button" id="upload-yaml-btn" class="validation-button">Choose File</button>
+            </form>
+        </div>
+    </div>
+</section>
+{% else %}
 <form>
-    <select name="apworld" id="apworld">
-        <option value="" {%+ if selected_apworld.is_none() %} selected {% endif %}>Select apworld</option>
+    <select name="apworld" id="apworld" {%+ if self.prefilled_values.is_some() %}disabled{% endif %}>
         {% for (apworld_name, world_name) in self.apworlds %}
         <option value="{{apworld_name}}" {%+ if selected_apworld.as_ref() == Some(*apworld_name) %} selected {% endif %}>{{world_name}}</option>
         {% endfor %}
     </select>
 
     {% if let Some(selected_apworld) = self.selected_apworld %}
-        <select name="version" id="version">
-            <option value="" {%+ if selected_version.is_none() %} selected {% endif %}>Select version</option>
+        <select name="version" id="version" {%+ if self.prefilled_values.is_some() %}disabled{% endif %}>
             {% for version in self.versions %}
             <option value="{{version}}" {%+ if selected_version.as_ref() == Some(*version) %} selected {% endif %}>{{version}}</option>
             {% endfor %}
         </select>
     {% endif %}
-</form>
-
-{% if self.selected_apworld.is_none() %}
-<form method="POST" action="/options/edit" id="yaml-upload-form">
-    <input type="file" name="yaml_file" id="yaml-upload" accept=".yaml,.yml" style="display:none">
-    <input type="hidden" name="yaml" id="yaml-content">
-    <button type="button" id="upload-yaml-btn">Upload existing YAML</button>
 </form>
 {% endif %}
 
