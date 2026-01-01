@@ -402,24 +402,42 @@ async fn edit_yaml<'a>(
             let key_str = key.as_str().unwrap_or_default().to_string();
             yaml_option_names.insert(key_str.clone());
 
-            if let Some(option_def) = option_defs.get(&key_str) {
-                // "counter" and "dict" types naturally have mapping values, don't warn for those
-                if value.is_mapping()
-                    && option_def.ty != "counter"
-                    && option_def.ty != "dict"
-                    && !WEIGHTED_TYPES.contains(&option_def.ty.as_str())
-                {
-                    warnings.push(format!(
-                        "{} (weighted options not supported for this type)",
-                        key_str
-                    ));
-                    continue;
-                }
-                let json_value = serde_json::to_value(value).unwrap_or(serde_json::Value::Null);
-                prefilled_values.insert(key_str, json_value);
-            } else {
+            let Some(option_def) = option_defs.get(&key_str) else {
                 warnings.push(key_str);
+                continue;
+            };
+
+            let is_weighted_type = WEIGHTED_TYPES.contains(&option_def.ty.as_str());
+            if value.is_mapping()
+                && option_def.ty != "counter"
+                && option_def.ty != "dict"
+                && !is_weighted_type
+            {
+                warnings.push(format!(
+                    "{} (weighted options not supported for this type)",
+                    key_str
+                ));
+                continue;
             }
+
+            let coalesced = value.as_mapping().and_then(|mapping| {
+                if !is_weighted_type {
+                    return None;
+                }
+                let non_zero: Vec<_> = mapping
+                    .iter()
+                    .filter(|(_, v)| v.as_i64().map(|n| n != 0).unwrap_or(true))
+                    .collect();
+                if non_zero.len() == 1 {
+                    Some(non_zero[0].0)
+                } else {
+                    None
+                }
+            });
+
+            let json_value =
+                serde_json::to_value(coalesced.unwrap_or(value)).unwrap_or(serde_json::Value::Null);
+            prefilled_values.insert(key_str, json_value);
         }
     }
 
