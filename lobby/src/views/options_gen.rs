@@ -355,6 +355,11 @@ fn validate_option_value(value: &serde_json::Value, option_def: &crate::jobs::Op
 }
 
 fn validate_single_value(value: &str, option_def: &crate::jobs::OptionDef) -> bool {
+    // "random", "random-low", "random-high", etc. are always valid
+    if value.starts_with("random") {
+        return true;
+    }
+
     match option_def.ty.as_str() {
         "choice" => option_def
             .choices
