@@ -2,7 +2,7 @@
 
 set -e
 
-apt update && apt install -y curl yarnpkg
+apt update && apt install -y curl
 curl -fsSL https://github.com/watchexec/watchexec/releases/download/cli-v1.20.5/watchexec-1.20.5-x86_64-unknown-linux-gnu.deb -o /tmp/watchexec.deb
 dpkg -i /tmp/watchexec.deb
 cat > /etc/apt/sources.list.d/debian-backports.sources <<EOF
@@ -16,7 +16,6 @@ EOF
 apt update && apt install -y libpq-dev valkey python3 git libssl-dev pkg-config watchexec-cli liblzma-dev zlib1g-dev mold clang
 apt autoremove -y
 rm -rf /var/lib/apt/lists/*
-ln -s /usr/bin/yarnpkg /usr/bin/yarn
 
 rustup component add clippy rustfmt
 
