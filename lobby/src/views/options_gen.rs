@@ -407,8 +407,11 @@ async fn edit_yaml<'a>(
     options_cache: &State<OptionsCache>,
     index_manager: &'a State<IndexManager>,
     ctx: &'a State<Context>,
+    redirect_to: &RedirectTo,
     session: Session,
 ) -> Result<OptionsTpl<'a>> {
+    redirect_to.set("/options");
+
     let yaml: serde_yaml::Value =
         serde_yaml::from_str(form.yaml).map_err(|e| anyhow!("Failed to parse YAML: {}", e))?;
 
