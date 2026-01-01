@@ -160,6 +160,11 @@
         }
     }
 
+    function getRowHidden(row) {
+        const name = row.dataset.name;
+        return row.querySelector('.bool-hidden, .preset-hidden, input[name="' + name + '"]');
+    }
+
     // Sync bool checkboxes to hidden inputs
     document.querySelectorAll('.bool-checkbox').forEach(checkbox => {
         const hidden = checkbox.closest('.option-row').querySelector('.bool-hidden');
@@ -228,9 +233,8 @@
             const randomBtn = row.querySelector('.option-random');
             if (randomBtn) {
                 randomBtn.classList.add('active');
-                const name = row.dataset.name;
                 row.querySelectorAll('input:not([type="hidden"]), select').forEach(input => input.disabled = true);
-                const hidden = row.querySelector('.bool-hidden, .preset-hidden, input[name="' + name + '"]');
+                const hidden = getRowHidden(row);
                 if (hidden) hidden.value = 'random';
             }
             return;
@@ -310,12 +314,11 @@
         const row = btn.closest('.option-row');
         btn.onclick = () => {
             const isActive = btn.classList.toggle('active');
-            const name = row.dataset.name;
             const inputs = row.querySelectorAll('input:not([type="hidden"]), select');
 
             if (isActive) {
                 inputs.forEach(input => input.disabled = true);
-                const hidden = row.querySelector('.bool-hidden, .preset-hidden, input[name="' + name + '"]');
+                const hidden = getRowHidden(row);
                 if (hidden) hidden.value = 'random';
             } else {
                 inputs.forEach(input => input.disabled = false);
@@ -327,7 +330,7 @@
                     const numberInput = row.querySelector('input[type="number"]');
                     if (numberInput && numberInput.min) {
                         numberInput.value = numberInput.min;
-                        const hidden = row.querySelector('.preset-hidden, input[name="' + name + '"]');
+                        const hidden = getRowHidden(row);
                         if (hidden) hidden.value = numberInput.min;
                     }
                 }
