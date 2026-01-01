@@ -643,22 +643,31 @@
         weightModalTitle.textContent = `Configure weights for: ${optionName}`;
         weightModalItems.innerHTML = '';
 
-        if (type === 'range' || (choices.length === 0 && range)) {
+        const allowCustom = range || choices.length === 0;
+        if (allowCustom) {
             weightModalAdd.classList.remove('hidden');
             if (range) {
                 weightModalNewValue.min = range[0];
                 weightModalNewValue.max = range[1];
                 weightModalNewValue.placeholder = `Value (${range[0]}-${range[1]})`;
-            }
-            if (existingWeights) {
-                Object.entries(existingWeights).forEach(([choice, weight]) => {
-                    weightModalItems.appendChild(createWeightItem(choice, weight, true));
-                });
+            } else {
+                weightModalNewValue.removeAttribute('min');
+                weightModalNewValue.removeAttribute('max');
+                weightModalNewValue.placeholder = 'Value';
             }
         } else {
             weightModalAdd.classList.add('hidden');
-            choices.forEach(choice => {
-                weightModalItems.appendChild(createWeightItem(choice, existingWeights?.[choice] ?? 0, false));
+        }
+
+        choices.forEach(choice => {
+            weightModalItems.appendChild(createWeightItem(choice, existingWeights?.[choice] ?? 0, false));
+        });
+
+        if (existingWeights) {
+            Object.entries(existingWeights).forEach(([choice, weight]) => {
+                if (!choices.includes(choice)) {
+                    weightModalItems.appendChild(createWeightItem(choice, weight, true));
+                }
             });
         }
 
