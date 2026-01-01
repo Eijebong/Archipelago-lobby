@@ -73,6 +73,17 @@ impl OptionsTpl<'_> {
     fn suggestions_contain(&self, suggestions: &[String], s: &str) -> bool {
         suggestions.iter().any(|sug| sug == s)
     }
+
+    fn is_weighted(&self, prefilled: &Option<&serde_json::Value>) -> bool {
+        prefilled.map(|v| v.is_object()).unwrap_or(false)
+    }
+
+    fn weights_json(&self, prefilled: &Option<&serde_json::Value>) -> String {
+        prefilled
+            .and_then(|v| v.as_object())
+            .map(|obj| serde_json::to_string(obj).unwrap_or_default())
+            .unwrap_or_default()
+    }
 }
 
 /// Helper to fetch OptionsDef, using cache if available or queuing a job if not.
@@ -349,13 +360,19 @@ async fn edit_yaml<'a>(
     let mut prefilled_values: HashMap<String, serde_json::Value> = HashMap::new();
     let mut warnings: Vec<String> = vec![];
 
+    const WEIGHTED_TYPES: &[&str] = &["bool", "choice", "named_range", "text_choice", "range"];
+
     if let Some(game_opts) = game_options {
         for (key, value) in game_opts {
             let key_str = key.as_str().unwrap_or_default().to_string();
             if let Some(option_def) = option_defs.get(&key_str) {
-                // Check for weighted options: mapping value but not a counter type
-                if value.is_mapping() && option_def.ty != "counter" {
-                    warnings.push(format!("{} (weighted options not supported)", key_str));
+                // "counter" and "dict" types naturally have mapping values, don't warn for those
+                if value.is_mapping()
+                    && option_def.ty != "counter"
+                    && option_def.ty != "dict"
+                    && !WEIGHTED_TYPES.contains(&option_def.ty.as_str())
+                {
+                    warnings.push(format!("{} (weighted options not supported for this type)", key_str));
                     continue;
                 }
                 let json_value = serde_json::to_value(value)

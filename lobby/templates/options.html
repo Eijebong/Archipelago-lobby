@@ -64,10 +64,35 @@
     <button type="submit">Download YAML</button>
 {% endif %}
 </form>
+
+<div id="weight-modal" class="modal hidden">
+    <div class="modal-content">
+        <h3 id="weight-modal-title">Configure Weights</h3>
+        <div id="weight-modal-add" class="weight-add-row hidden">
+            <input type="number" id="weight-modal-new-value" placeholder="Value">
+            <button type="button" id="weight-modal-add-btn">Add</button>
+        </div>
+        <div id="weight-modal-items"></div>
+        <div class="modal-buttons">
+            <button type="button" id="weight-modal-save">Save</button>
+            <button type="button" id="weight-modal-cancel">Cancel</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% macro option_input(option_name, option_def, prefilled) %}
-    <div class="option-row" data-type="{{option_def.ty}}" data-default="{{option_def.default_json()}}" data-name="{{option_name}}">
+    <div class="option-row" data-type="{{option_def.ty}}" data-default="{{option_def.default_json()}}" data-name="{{option_name}}"
+        {%~ match option_def.ty.as_str() ~%}
+        {%~ when "bool" %} data-choices='["true","false"]'
+        {%~ when "choice" %} data-choices='{{option_def.choices()|json}}'
+        {%~ when "named_range" %} data-choices='{{option_def.suggestions()|json}}' data-range='{{option_def.range_bounds().0}},{{option_def.range_bounds().1}}'
+        {%~ when "text_choice" %} data-choices='{{option_def.suggestions()|json}}'
+        {%~ when "range" %} data-range='{{option_def.range_bounds().0}},{{option_def.range_bounds().1}}'
+        {%~ else ~%}
+        {%~ endmatch ~%}
+        {%~ if self.is_weighted(prefilled) %} data-weights='{{self.weights_json(prefilled)}}'{% endif ~%}
+    >
         {% match option_def.ty.as_str() %}
         {% when "bool" %}
             <input type="checkbox" id="{{option_name}}" class="bool-checkbox" {%+ if self.prefilled_bool(prefilled, option_def.default_str() == "true") %}checked{% endif %}/>
@@ -204,6 +229,11 @@
         {% else %}
         <button type="button" class="option-random" title="Randomize"><i class="fa fa-dice"></i></button>
         {% endmatch %}
+        {% match option_def.ty.as_str() %}
+        {% when "choice" | "named_range" | "bool" | "text_choice" | "range" %}
+        <button type="button" class="option-weighted {%+ if self.is_weighted(prefilled) %} active{% endif %}" title="Configure weights"><i class="fa fa-scale-balanced"></i></button>
+        {% else %}
+        {% endmatch %}
     </div>
 {% endmacro %}
 
@@ -245,6 +275,11 @@
         const randomBtn = row.querySelector('.option-random');
         if (randomBtn && randomBtn.classList.contains('active')) {
             return 'random';
+        }
+
+        const weightedBtn = row.querySelector('.option-weighted');
+        if (weightedBtn && weightedBtn.classList.contains('active') && row.dataset.weights) {
+            return JSON.parse(row.dataset.weights);
         }
 
         switch (type) {
@@ -394,11 +429,20 @@
             btn.onclick = () => btn.closest('.item-list-item').remove();
         });
 
+        if (row.dataset.weights) {
+            row.querySelectorAll('input:not([type="hidden"]), select').forEach(el => el.disabled = true);
+        }
+
         const resetBtn = row.querySelector('.option-reset');
         if (resetBtn) resetBtn.onclick = () => {
             row.querySelectorAll('input, select').forEach(input => input.disabled = false);
             const randomBtn = row.querySelector('.option-random');
             if (randomBtn) randomBtn.classList.remove('active');
+            const weightedBtn = row.querySelector('.option-weighted');
+            if (weightedBtn) {
+                weightedBtn.classList.remove('active');
+                delete row.dataset.weights;
+            }
             resetToDefault(row);
         };
 
@@ -409,6 +453,11 @@
 
             if (isActive) {
                 inputs.forEach(input => input.disabled = true);
+                const weightedBtn = row.querySelector('.option-weighted');
+                if (weightedBtn) {
+                    weightedBtn.classList.remove('active');
+                    delete row.dataset.weights;
+                }
             } else {
                 inputs.forEach(input => input.disabled = false);
                 const defaultValue = JSON.parse(row.dataset.default);
@@ -503,6 +552,148 @@
             .catch(err => alert('Failed to download: ' + err.message));
         };
     }
+
+    const weightModal = document.getElementById('weight-modal');
+    const weightModalTitle = document.getElementById('weight-modal-title');
+    const weightModalItems = document.getElementById('weight-modal-items');
+    const weightModalAdd = document.getElementById('weight-modal-add');
+    const weightModalNewValue = document.getElementById('weight-modal-new-value');
+    let currentWeightRow = null;
+
+    function createWeightItem(choice, weight, removable = false) {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'weight-item';
+
+        const label = document.createElement('label');
+        label.textContent = choice;
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '0';
+        input.value = weight;
+        input.dataset.choice = choice;
+
+        itemDiv.appendChild(label);
+        itemDiv.appendChild(input);
+
+        if (removable) {
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'weight-item-remove';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = () => itemDiv.remove();
+            itemDiv.appendChild(removeBtn);
+        }
+
+        return itemDiv;
+    }
+
+    function openWeightModal(row) {
+        currentWeightRow = row;
+        const optionName = row.dataset.name;
+        const type = row.dataset.type;
+        const choices = JSON.parse(row.dataset.choices || '[]');
+        const existingWeights = row.dataset.weights ? JSON.parse(row.dataset.weights) : null;
+        const range = row.dataset.range ? row.dataset.range.split(',').map(Number) : null;
+
+        weightModalTitle.textContent = `Configure weights for: ${optionName}`;
+        weightModalItems.innerHTML = '';
+
+        if (type === 'range' || (choices.length === 0 && range)) {
+            weightModalAdd.classList.remove('hidden');
+            if (range) {
+                weightModalNewValue.min = range[0];
+                weightModalNewValue.max = range[1];
+                weightModalNewValue.placeholder = `Value (${range[0]}-${range[1]})`;
+            }
+            if (existingWeights) {
+                Object.entries(existingWeights).forEach(([choice, weight]) => {
+                    weightModalItems.appendChild(createWeightItem(choice, weight, true));
+                });
+            }
+        } else {
+            weightModalAdd.classList.add('hidden');
+            choices.forEach(choice => {
+                weightModalItems.appendChild(createWeightItem(choice, existingWeights?.[choice] ?? 0, false));
+            });
+        }
+
+        weightModal.classList.remove('hidden');
+    }
+
+    document.getElementById('weight-modal-add-btn')?.addEventListener('click', () => {
+        if (!weightModalNewValue.checkValidity()) {
+            weightModalNewValue.reportValidity();
+            return;
+        }
+        const value = weightModalNewValue.value.trim();
+        if (!value) return;
+
+        const existing = weightModalItems.querySelector(`input[data-choice="${CSS.escape(value)}"]`);
+        if (existing) {
+            existing.focus();
+            return;
+        }
+
+        weightModalItems.appendChild(createWeightItem(value, 50, true));
+        weightModalNewValue.value = '';
+    });
+
+    weightModalNewValue?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('weight-modal-add-btn').click();
+        }
+    });
+
+    function closeWeightModal() {
+        weightModal.classList.add('hidden');
+        currentWeightRow = null;
+    }
+
+    function saveWeights() {
+        if (!currentWeightRow) return;
+
+        const weights = {};
+        let hasAnyWeight = false;
+        weightModalItems.querySelectorAll('input').forEach(input => {
+            const weight = parseInt(input.value) || 0;
+            if (weight > 0) {
+                weights[input.dataset.choice] = weight;
+                hasAnyWeight = true;
+            }
+        });
+
+        const weightedBtn = currentWeightRow.querySelector('.option-weighted');
+        if (hasAnyWeight) {
+            currentWeightRow.dataset.weights = JSON.stringify(weights);
+            weightedBtn.classList.add('active');
+            // Disable other inputs when weighted
+            currentWeightRow.querySelectorAll('input:not([type="hidden"]), select').forEach(el => el.disabled = true);
+            const randomBtn = currentWeightRow.querySelector('.option-random');
+            if (randomBtn) randomBtn.classList.remove('active');
+        } else {
+            delete currentWeightRow.dataset.weights;
+            weightedBtn.classList.remove('active');
+            currentWeightRow.querySelectorAll('input:not([type="hidden"]), select').forEach(el => el.disabled = false);
+        }
+
+        closeWeightModal();
+    }
+
+    document.getElementById('weight-modal-save')?.addEventListener('click', saveWeights);
+    document.getElementById('weight-modal-cancel')?.addEventListener('click', closeWeightModal);
+
+    weightModal?.addEventListener('click', (e) => {
+        if (e.target === weightModal) closeWeightModal();
+    });
+
+    document.querySelectorAll('.option-weighted').forEach(btn => {
+        btn.onclick = () => {
+            const row = btn.closest('.option-row');
+            openWeightModal(row);
+        };
+    });
 
     // Prevent tooltip clicks from triggering label behavior
     document.querySelectorAll('.tooltip-icon').forEach(icon => {

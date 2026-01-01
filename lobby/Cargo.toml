@@ -9,7 +9,7 @@ default-run = "ap-lobby"
 [dependencies]
 apwm = { path = "../apwm", default-features = false }
 anyhow = "1.0.86"
-askama = "0.15"
+askama = { version = "0.15", features = ["serde_json"] }
 askama_web = { version = "0.15", features = ["rocket-0.5"] }
 base64 = "0.22"
 common = { path = "../common" }
