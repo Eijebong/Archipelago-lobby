@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 
 {% block main %}
+<noscript>
+    Gotta enable javascript for this to work, sorry
+</noscript>
+
 <form>
     <select name="apworld" id="apworld">
         <option value="" {%+ if selected_apworld.is_none() %} selected {% endif %}>Select apworld</option>
@@ -46,7 +50,6 @@
     <div class="option-row" data-type="{{option_def.ty}}" data-default="{{option_def.default_json()}}" data-name="{{option_name}}">
         {% match option_def.ty.as_str() %}
         {% when "bool" %}
-            <input type="hidden" name="{{option_name}}" class="bool-hidden" value="{{option_def.default_str()}}"/>
             <input type="checkbox" id="{{option_name}}" class="bool-checkbox" {%+ if option_def.default_str() == "true" %}checked{% endif %}/>
         {% else %}
         {% endmatch %}
@@ -56,12 +59,11 @@
         {% when "range" %}
             {% let (min, max) = option_def.range_bounds() %}
             <div class="range-wrapper">
-                <input id="{{option_name}}" name="{{option_name}}" type="number" value="{{option_def.default}}" min="{{min}}" max="{{max}}" required/>
+                <input id="{{option_name}}" type="number" value="{{option_def.default}}" min="{{min}}" max="{{max}}" required/>
                 <span class="range-hint">({{min}} - {{max}})</span>
             </div>
         {% when "named_range" %}
             {% let (min, max) = option_def.range_bounds() %}
-            <input type="hidden" name="{{option_name}}" class="preset-hidden"/>
             <select id="{{option_name}}" class="preset-select" data-target="{{option_name}}_input">
                 <option value="">Custom</option>
                 {% for suggestion in option_def.suggestions() %}
@@ -73,7 +75,6 @@
                 <span class="range-hint">({{min}} - {{max}})</span>
             </div>
         {% when "text_choice" %}
-            <input type="hidden" name="{{option_name}}" class="preset-hidden"/>
             <select id="{{option_name}}" class="preset-select" data-target="{{option_name}}_input">
                 <option value="">Custom</option>
                 {% for suggestion in option_def.suggestions() %}
@@ -82,20 +83,18 @@
             </select>
             <input type="text" id="{{option_name}}_input" value="{{option_def.default_str()}}"/>
         {% when "choice" %}
-            <select id="{{option_name}}" name="{{option_name}}">
+            <select id="{{option_name}}">
             {% for choice in option_def.choices() %}
                 <option value="{{choice}}" {%+ if option_def.default_str() == choice %}selected{% endif %}>{{choice}}</option>
             {% endfor %}
             </select>
         {% when "set" %}
-            <input type="hidden" name="{{option_name}}" class="set-hidden"/>
             <select id="{{option_name}}" multiple>
             {% for value in option_def.valid_keys() %}
                 <option value="{{value}}" {%+ if option_def.default_contains(value) %}selected{% endif %}>{{value}}</option>
             {% endfor %}
             </select>
         {% when "list" %}
-            <input type="hidden" name="{{option_name}}" class="item-list-hidden"/>
             <div class="item-list" data-type="list" data-default="{{option_def.default_json()}}">
                 <div class="item-list-items" id="{{option_name}}_items"></div>
                 <div class="item-list-add-row">
@@ -109,7 +108,6 @@
                 </div>
             </div>
         {% when "counter" %}
-            <input type="hidden" name="{{option_name}}" class="item-list-hidden"/>
             <div class="item-list" data-type="counter" data-default="{{option_def.default_json()}}">
                 <div class="item-list-items" id="{{option_name}}_items"></div>
                 <div class="item-list-add-row">
@@ -125,7 +123,7 @@
         {% when "dict" %}
             <span class="option-not-supported">Not editable in this UI</span>
         {% else %}
-            <input id="{{option_name}}" name="{{option_name}}" type="text" value="{{option_def.default_str()}}"/>
+            <input id="{{option_name}}" type="text" value="{{option_def.default_str()}}"/>
         {% endmatch %}
         {% if option_def.ty != "dict" %}
         <button type="button" class="option-reset" title="Reset to default"><i class="fa fa-rotate"></i></button>
@@ -160,40 +158,45 @@
         }
     }
 
-    function getRowHidden(row) {
-        const name = row.dataset.name;
-        return row.querySelector('.bool-hidden, .preset-hidden, input[name="' + name + '"]');
-    }
-
-    // Sync bool checkboxes to hidden inputs
-    document.querySelectorAll('.bool-checkbox').forEach(checkbox => {
-        const hidden = checkbox.closest('.option-row').querySelector('.bool-hidden');
-        checkbox.onchange = () => { hidden.value = checkbox.checked ? 'true' : 'false'; };
-    });
-
-    // Make multi-selects toggle on click without needing Ctrl
-    // But preserve Shift-click for range selection
-    document.querySelectorAll('select[multiple]').forEach(select => {
-        const row = select.closest('.option-row');
-        const hidden = row.querySelector('.set-hidden');
-
-        function syncSet() {
-            if (hidden) {
-                const values = Array.from(select.selectedOptions).map(o => o.value);
-                hidden.value = JSON.stringify(values);
-            }
+    function getRowValue(row) {
+        const type = row.dataset.type;
+        const randomBtn = row.querySelector('.option-random');
+        if (randomBtn && randomBtn.classList.contains('active')) {
+            return 'random';
         }
 
-        select.onmousedown = (e) => {
-            if (e.target.tagName === 'OPTION' && !e.shiftKey) {
-                e.preventDefault();
-                e.target.selected = !e.target.selected;
-                select.dispatchEvent(new Event('change'));
+        switch (type) {
+            case 'bool':
+                return row.querySelector('.bool-checkbox').checked;
+            case 'range':
+                return parseInt(row.querySelector('input[type="number"]').value);
+            case 'named_range': {
+                const select = row.querySelector('.preset-select');
+                if (select.value) return select.value;
+                return parseInt(document.getElementById(select.dataset.target).value);
             }
-        };
-        select.onchange = syncSet;
-        syncSet();
-    });
+            case 'text_choice': {
+                const select = row.querySelector('.preset-select');
+                if (select.value) return select.value;
+                return document.getElementById(select.dataset.target).value;
+            }
+            case 'choice':
+                return row.querySelector('select').value;
+            case 'set':
+                return Array.from(row.querySelector('select[multiple]').selectedOptions).map(o => o.value);
+            case 'list':
+                return Array.from(row.querySelectorAll('.item-list-item')).map(item => item.dataset.name);
+            case 'counter': {
+                const counter = {};
+                row.querySelectorAll('.item-list-item').forEach(item => {
+                    counter[item.dataset.name] = parseInt(item.querySelector('.item-list-qty').value);
+                });
+                return counter;
+            }
+            default:
+                return row.querySelector('input[type="text"]')?.value || '';
+        }
+    }
 
     function createListItem(type, name, quantity = 1) {
         const item = document.createElement('div');
@@ -228,25 +231,20 @@
         if (!type || type === 'dict') return;
         const defaultValue = JSON.parse(row.dataset.default);
 
-        // If the default is "random", activate the random button instead of setting a value
+        // If the default is "random", activate the random button
         if (defaultValue === 'random') {
             const randomBtn = row.querySelector('.option-random');
             if (randomBtn) {
                 randomBtn.classList.add('active');
-                row.querySelectorAll('input:not([type="hidden"]), select').forEach(input => input.disabled = true);
-                const hidden = getRowHidden(row);
-                if (hidden) hidden.value = 'random';
+                row.querySelectorAll('input, select').forEach(input => input.disabled = true);
             }
             return;
         }
 
         switch (type) {
-            case 'bool': {
-                const checked = defaultValue === true || defaultValue === 'true';
-                row.querySelector('.bool-checkbox').checked = checked;
-                row.querySelector('.bool-hidden').value = checked ? 'true' : 'false';
+            case 'bool':
+                row.querySelector('.bool-checkbox').checked = defaultValue === true || defaultValue === 'true';
                 break;
-            }
             case 'range':
                 row.querySelector('input[type="number"]').value = defaultValue;
                 break;
@@ -254,31 +252,25 @@
             case 'text_choice': {
                 const select = row.querySelector('.preset-select');
                 const input = document.getElementById(select.dataset.target);
-                const hidden = row.querySelector('.preset-hidden');
                 const matchingOption = Array.from(select.options).find(opt => opt.value === String(defaultValue));
                 if (matchingOption) {
                     select.value = String(defaultValue);
                     input.disabled = true;
-                    hidden.value = String(defaultValue);
                 } else {
                     select.value = '';
                     input.value = defaultValue;
                     input.disabled = false;
-                    hidden.value = defaultValue;
                 }
                 break;
             }
             case 'choice':
                 row.querySelector('select').value = defaultValue;
                 break;
-            case 'set': {
-                const selectEl = row.querySelector('select[multiple]');
-                Array.from(selectEl.options).forEach(opt => {
+            case 'set':
+                Array.from(row.querySelector('select[multiple]').options).forEach(opt => {
                     opt.selected = defaultValue.includes(opt.value);
                 });
-                row.querySelector('.set-hidden').value = JSON.stringify(defaultValue);
                 break;
-            }
             case 'list':
             case 'counter': {
                 const itemsContainer = row.querySelector('.item-list-items');
@@ -292,34 +284,41 @@
                 }
                 break;
             }
-            default:
+            default: {
                 const input = row.querySelector('input[type="text"]');
                 if (input) input.value = defaultValue;
+            }
         }
     }
 
-    // Initialize all options to defaults and set up reset buttons
+    // Make multi-selects toggle on click without needing Ctrl
+    document.querySelectorAll('select[multiple]').forEach(select => {
+        select.onmousedown = (e) => {
+            if (e.target.tagName === 'OPTION' && !e.shiftKey) {
+                e.preventDefault();
+                e.target.selected = !e.target.selected;
+            }
+        };
+    });
+
     document.querySelectorAll('.option-row').forEach(row => {
         resetToDefault(row);
+
         const resetBtn = row.querySelector('.option-reset');
         if (resetBtn) resetBtn.onclick = () => {
-            row.querySelectorAll('input:not([type="hidden"]), select').forEach(input => input.disabled = false);
+            row.querySelectorAll('input, select').forEach(input => input.disabled = false);
             const randomBtn = row.querySelector('.option-random');
             if (randomBtn) randomBtn.classList.remove('active');
             resetToDefault(row);
         };
-    });
 
-    document.querySelectorAll('.option-random').forEach(btn => {
-        const row = btn.closest('.option-row');
-        btn.onclick = () => {
-            const isActive = btn.classList.toggle('active');
-            const inputs = row.querySelectorAll('input:not([type="hidden"]), select');
+        const randomBtn = row.querySelector('.option-random');
+        if (randomBtn) randomBtn.onclick = () => {
+            const isActive = randomBtn.classList.toggle('active');
+            const inputs = row.querySelectorAll('input, select');
 
             if (isActive) {
                 inputs.forEach(input => input.disabled = true);
-                const hidden = getRowHidden(row);
-                if (hidden) hidden.value = 'random';
             } else {
                 inputs.forEach(input => input.disabled = false);
                 const defaultValue = JSON.parse(row.dataset.default);
@@ -330,36 +329,17 @@
                     const numberInput = row.querySelector('input[type="number"]');
                     if (numberInput && numberInput.min) {
                         numberInput.value = numberInput.min;
-                        const hidden = getRowHidden(row);
-                        if (hidden) hidden.value = numberInput.min;
                     }
                 }
             }
         };
     });
 
-    // Handle preset select changes
+    // Handle preset select changes (enable/disable custom input)
     document.querySelectorAll('.preset-select').forEach(select => {
-        const row = select.closest('.option-row');
         const input = document.getElementById(select.dataset.target);
-        const hidden = row.querySelector('.preset-hidden');
-        if (!input || !hidden) return;
-
-        function sync() {
-            hidden.value = select.value || input.value;
-        }
-
-        select.onchange = () => {
-            if (select.value) {
-                input.disabled = true;
-            } else {
-                input.disabled = false;
-            }
-            sync();
-        };
-        input.onchange = sync;
-        input.oninput = sync;
-        sync();
+        if (!input) return;
+        select.onchange = () => { input.disabled = !!select.value; };
     });
 
     // Handle item-list add functionality
@@ -369,32 +349,6 @@
         const itemsContainer = container.querySelector('.item-list-items');
         const input = container.querySelector('.item-list-input');
         const addBtn = container.querySelector('.item-list-add');
-        const hiddenInput = row.querySelector('.item-list-hidden');
-
-        function syncHidden() {
-            if (type === 'list') {
-                const items = Array.from(itemsContainer.querySelectorAll('.item-list-item'))
-                    .map(item => item.dataset.name);
-                hiddenInput.value = JSON.stringify(items);
-            } else {
-                const counter = {};
-                itemsContainer.querySelectorAll('.item-list-item').forEach(item => {
-                    counter[item.dataset.name] = parseInt(item.querySelector('.item-list-qty').value);
-                });
-                hiddenInput.value = JSON.stringify(counter);
-            }
-        }
-
-        // Override createListItem's remove to also sync
-        const origCreateListItem = createListItem;
-        container.createListItem = (name, qty) => {
-            const item = origCreateListItem(type, name, qty);
-            item.querySelector('.item-list-remove').onclick = () => { item.remove(); syncHidden(); };
-            if (type === 'counter') {
-                item.querySelector('.item-list-qty').onchange = syncHidden;
-            }
-            return item;
-        };
 
         addBtn.onclick = () => {
             const name = input.value.trim();
@@ -406,14 +360,12 @@
                     const qtyInput = existing.querySelector('.item-list-qty');
                     qtyInput.value = parseInt(qtyInput.value) + 1;
                     input.value = '';
-                    syncHidden();
                     return;
                 }
             }
 
-            itemsContainer.appendChild(container.createListItem(name));
+            itemsContainer.appendChild(createListItem(type, name));
             input.value = '';
-            syncHidden();
         };
 
         input.onkeypress = (e) => {
@@ -422,15 +374,49 @@
                 addBtn.click();
             }
         };
-
-        // Initial sync after resetToDefault populates items
-        syncHidden();
     });
+
+    const form = document.getElementById('options-form');
+    if (form) {
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            if (!form.reportValidity()) return;
+
+            const formData = new FormData();
+            formData.append('player', document.getElementById('player')?.value || '');
+
+            document.querySelectorAll('.option-row[data-name]').forEach(row => {
+                const name = row.dataset.name;
+                const value = getRowValue(row);
+                formData.append(name, typeof value === 'object' || typeof value === 'boolean' ? JSON.stringify(value) : value);
+            });
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Download failed');
+                const disposition = response.headers.get('Content-Disposition');
+                const match = disposition?.match(/filename="(.+)"/);
+                const filename = match ? match[1] : 'options.yaml';
+                return response.blob().then(blob => ({ blob, filename }));
+            })
+            .then(({ blob, filename }) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            })
+            .catch(err => alert('Failed to download: ' + err.message));
+        };
+    }
 
     // Prevent tooltip clicks from triggering label behavior
     document.querySelectorAll('.tooltip-icon').forEach(icon => {
         icon.onclick = (e) => e.preventDefault();
     });
-
 </script>
 {% endblock %}
