@@ -114,6 +114,12 @@ impl OptionsTpl<'_> {
             .unwrap_or_default()
     }
 
+    fn prefilled_json(&self, prefilled: &Option<&serde_json::Value>) -> String {
+        prefilled
+            .map(|v| serde_json::to_string(v).unwrap_or_default())
+            .unwrap_or_default()
+    }
+
     fn is_new_option(&self, option_name: &str) -> bool {
         self.prefilled_values.is_some() && !self.yaml_option_names.contains(option_name)
     }

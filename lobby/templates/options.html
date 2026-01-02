@@ -208,6 +208,7 @@
                 </select>
             </div>
             {% else %}
+            <input type="hidden" id="{{option_name}}" value='{% if prefilled.is_some() %}{{self.prefilled_json(prefilled)|e}}{% else %}{{option_def.default_json()|e}}{% endif %}'/>
             <span class="option-not-supported">Not editable in this UI</span>
             {% endif %}
         {% when "list" %}
@@ -237,6 +238,7 @@
                 </div>
             </div>
             {% else %}
+            <input type="hidden" id="{{option_name}}" value='{% if prefilled.is_some() %}{{self.prefilled_json(prefilled)|e}}{% else %}{{option_def.default_json()|e}}{% endif %}'/>
             <span class="option-not-supported">Not editable in this UI</span>
             {% endif %}
         {% when "counter" %}
@@ -265,12 +267,15 @@
                 </div>
             </div>
             {% else %}
+            <input type="hidden" id="{{option_name}}" value='{% if prefilled.is_some() %}{{self.prefilled_json(prefilled)|e}}{% else %}{{option_def.default_json()|e}}{% endif %}'/>
             <span class="option-not-supported">Not editable in this UI</span>
             {% endif %}
         {% when "dict" %}
+            <input type="hidden" id="{{option_name}}" value='{% if prefilled.is_some() %}{{self.prefilled_json(prefilled)|e}}{% else %}{{option_def.default_json()|e}}{% endif %}'/>
             <span class="option-not-supported">Not editable in this UI</span>
         {% else %}
             {% if option_def.has_complex_default() %}
+            <input type="hidden" id="{{option_name}}" value='{% if prefilled.is_some() %}{{self.prefilled_json(prefilled)|e}}{% else %}{{option_def.default_json()|e}}{% endif %}'/>
             <span class="option-not-supported">Not editable in this UI</span>
             {% else if let Some(v) = self.prefilled_str(prefilled) %}
             <input id="{{option_name}}" type="text" value="{{v}}"/>
@@ -648,6 +653,13 @@
 
             document.querySelectorAll('.option-row[data-name]').forEach(row => {
                 const name = row.dataset.name;
+
+                if (row.querySelector('.option-not-supported')) {
+                    const hiddenInput = row.querySelector('input[type="hidden"]');
+                    formData.append(name, hiddenInput.value);
+                    return;
+                }
+
                 const value = getRowValue(row);
                 formData.append(name, typeof value === 'object' || typeof value === 'boolean' ? JSON.stringify(value) : value);
             });
