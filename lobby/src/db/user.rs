@@ -1,4 +1,5 @@
 use diesel::prelude::*;
+use diesel::result::OptionalExtension;
 use diesel::{Insertable, Queryable};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
@@ -10,6 +11,18 @@ use crate::schema::discord_users;
 pub struct DiscordUser {
     pub id: i64,
     pub username: String,
+}
+
+#[tracing::instrument(skip(conn))]
+pub async fn get_username(user_id: i64, conn: &mut AsyncPgConnection) -> Result<Option<String>> {
+    let username = discord_users::table
+        .filter(discord_users::id.eq(user_id))
+        .select(discord_users::username)
+        .first::<String>(conn)
+        .await
+        .optional()?;
+
+    Ok(username)
 }
 
 #[tracing::instrument(skip(conn, discord_id), fields(%discord_id))]

@@ -73,7 +73,7 @@
 {% if self.options.is_some() %}
     <div class="option-row">
         <label for="player">Player name</label>
-        <input type="text" id="player" name="player" placeholder="Player" value="{{self.prefilled_player_name.as_deref().unwrap_or_default()}}"/>
+        <input type="text" id="player" name="player" placeholder="{{self.default_player_name}}" value="{{self.prefilled_player_name.as_deref().unwrap_or(&self.default_player_name)}}"/>
     </div>
     {% if let Some(desc) = self.prefilled_description %}
     <input type="hidden" name="description" value="{{desc}}"/>

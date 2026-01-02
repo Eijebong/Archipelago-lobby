@@ -1,4 +1,5 @@
 use crate::{
+    db::get_username,
     error::{RedirectTo, Result},
     index_manager::IndexManager,
     jobs::OptionsDef,
@@ -22,6 +23,17 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 use wq::JobStatus;
 
 use crate::jobs::{OptionsGenParams, OptionsGenQueue};
+
+async fn get_default_player_name(session: &Session, ctx: &Context) -> String {
+    if let Some(user_id) = session.user_id {
+        let mut conn = ctx.db_pool.get().await.unwrap();
+        if let Ok(Some(username)) = get_username(user_id, &mut conn).await {
+            let truncated = username.chars().take(14).collect::<String>();
+            return format!("{}{{NUMBER}}", truncated);
+        }
+    }
+    "Player{NUMBER}".to_string()
+}
 
 pub type OptionsCache = RwLock<HashMap<(String, Version), OptionsDef>>;
 
@@ -50,6 +62,7 @@ struct OptionsTpl<'a> {
     yaml_option_names: HashSet<String>,
     // Options whose prefilled values are no longer valid for the current definitions
     outdated_values: HashSet<String>,
+    default_player_name: String,
 }
 
 impl OptionsTpl<'_> {
@@ -228,6 +241,8 @@ async fn options_gen_api<'a>(
     )
     .await?;
 
+    let default_player_name = get_default_player_name(&session, ctx).await;
+
     Ok(OptionsTpl {
         base: TplContext::from_session("options", session, ctx).await,
         apworlds,
@@ -241,6 +256,7 @@ async fn options_gen_api<'a>(
         prefilled_description: None,
         yaml_option_names: HashSet::new(),
         outdated_values: HashSet::new(),
+        default_player_name,
     })
 }
 
@@ -304,6 +320,8 @@ async fn options_gen<'a>(
         .collect();
     apworlds.sort_by_key(|(_, world_name)| world_name.to_lowercase());
 
+    let default_player_name = get_default_player_name(&session, ctx).await;
+
     Ok(OptionsTpl {
         base: TplContext::from_session("options", session, ctx).await,
         apworlds,
@@ -317,6 +335,7 @@ async fn options_gen<'a>(
         prefilled_description: None,
         yaml_option_names: HashSet::new(),
         outdated_values: HashSet::new(),
+        default_player_name,
     })
 }
 
@@ -542,6 +561,8 @@ async fn edit_yaml<'a>(
         }
     }
 
+    let default_player_name = get_default_player_name(&session, ctx).await;
+
     Ok(OptionsTpl {
         base: TplContext::from_session("options", session, ctx).await,
         apworlds,
@@ -555,6 +576,7 @@ async fn edit_yaml<'a>(
         prefilled_description: description,
         yaml_option_names,
         outdated_values,
+        default_player_name,
     })
 }
 
