@@ -943,20 +943,16 @@ body:has(dialog[open])
 #options-form
   display: flex
   flex-direction: column
-  height: calc(100vh - 6em)
 
   .options-content
     flex: 1
     overflow: auto
-    padding-bottom: 1em
 
   .options-submit
-    position: sticky
-    bottom: 0
     background: hsl(207, 30%, 12%)
-    padding: 0.5em 0
-    margin-top: 8px
-    border-top: 1px solid hsla(0, 0%, 100%, 0.1)
+    padding: 0.5em
+    border-top: 1px solid hsla(0, 100%, 100%, 20%)
+    margin-bottom: 4px
 
     button[type="submit"]
       display: block
@@ -973,6 +969,19 @@ body:has(dialog[open])
     text-align: left
     background: hsl(207, 20%, 15%)
 
+@media (min-width: 768px)
+  #options-form
+    height: calc(100vh - 4em - 2px)
+
+@media (max-width: 768px)
+  #options-form
+    height: calc(100dvh - 5em)
+
+    .options-submit
+      border-bottom: none
+      margin: 0
+
+#options-form
   label
     display: block
 
