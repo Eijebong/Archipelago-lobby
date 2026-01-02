@@ -567,7 +567,11 @@ async fn edit_yaml<'a>(
         }
     }
 
-    let default_player_name = get_default_player_name(&session, ctx).await;
+    // If we have a prefilled player name, then the default doesn't matter since it won't be used
+    let default_player_name = match &player_name {
+        Some(_) => "Player{NUMBER}".to_string(),
+        None => get_default_player_name(&session, ctx).await,
+    };
 
     Ok(OptionsTpl {
         base: TplContext::from_session("options", session, ctx).await,
