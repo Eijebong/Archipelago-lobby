@@ -542,8 +542,8 @@
         if (!itemList) {
             resetToDefault(row);
         }
-        // Wire up remove buttons on pre-rendered items
-        row.querySelectorAll('.item-list-remove').forEach(btn => {
+
+        row.querySelectorAll('.item-list .item-list-remove').forEach(btn => {
             btn.onclick = () => btn.closest('.item-list-item').remove();
         });
 
