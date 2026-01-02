@@ -849,8 +849,38 @@
         };
     });
 
-    // Prevent tooltip clicks from triggering label behavior
     document.querySelectorAll('.tooltip-icon').forEach(icon => {
+        const text = icon.dataset.tooltip;
+        if (!text) return;
+
+        const tip = document.createElement('span');
+        tip.className = 'tooltip-box';
+        tip.textContent = text;
+        icon.appendChild(tip);
+
+        const position = () => {
+            tip.style.left = '';
+
+            const iconRect = icon.getBoundingClientRect();
+            const tipRect = tip.getBoundingClientRect();
+
+            let left = (icon.offsetWidth - tipRect.width) / 2;
+
+            const absLeft = iconRect.left + left;
+            const leftMargin = 220;
+            const rightMargin = 20;
+            if (absLeft < leftMargin) {
+                left -= absLeft - leftMargin;
+            }
+            if (absLeft + tipRect.width > window.innerWidth - rightMargin) {
+                left -= (absLeft + tipRect.width) - (window.innerWidth - rightMargin);
+            }
+
+            tip.style.left = left + 'px';
+        };
+
+        icon.addEventListener('mouseenter', position);
+        icon.addEventListener('focus', position);
         icon.onclick = (e) => e.preventDefault();
     });
 </script>
