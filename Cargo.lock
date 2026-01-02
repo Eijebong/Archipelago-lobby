@@ -240,6 +240,7 @@ dependencies = [
  "anyhow",
  "clap",
  "env_logger",
+ "futures",
  "git2",
  "http",
  "http-serde",

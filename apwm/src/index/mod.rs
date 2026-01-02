@@ -2,6 +2,7 @@ pub mod lock;
 pub mod world;
 
 use anyhow::{bail, Context, Result};
+use futures::stream::{self, StreamExt};
 use http::Uri;
 use lock::IndexLock;
 use semver::Version;
@@ -91,6 +92,16 @@ impl Index {
 
         std::fs::create_dir_all(destination)?;
 
+        struct DownloadTask {
+            apworld_name: String,
+            version: Version,
+            world: World,
+            destination_path: PathBuf,
+            expected_checksum: Option<String>,
+        }
+
+        let mut download_tasks = Vec::new();
+
         for (apworld_name, world) in &self.worlds {
             for (version, origin) in &world.versions {
                 log::debug!("Refreshing world: {apworld_name}, version: {version}");
@@ -147,17 +158,35 @@ impl Index {
                     }
                 }
 
-                log::debug!("Copying world into worlds folder.");
+                download_tasks.push(DownloadTask {
+                    apworld_name: apworld_name.clone(),
+                    version: version.clone(),
+                    world: world.clone(),
+                    destination_path: apworld_destination_path,
+                    expected_checksum,
+                });
+            }
+        }
+
+        let mut stream = stream::iter(download_tasks)
+            .map(|task| async move {
+                log::debug!("Copying world {} into worlds folder.", task.apworld_name);
                 let apworld_destination = OpenOptions::new()
                     .write(true)
                     .create(true)
                     .truncate(true)
-                    .open(&apworld_destination_path)?;
-                let checksum = world
-                    .copy_to(version, &apworld_destination, expected_checksum)
+                    .open(&task.destination_path)?;
+                let checksum = task
+                    .world
+                    .copy_to(&task.version, &apworld_destination, task.expected_checksum)
                     .await?;
-                new_lock.set_checksum(apworld_name, version, &checksum);
-            }
+                Ok::<_, anyhow::Error>((task.apworld_name, task.version, checksum))
+            })
+            .buffer_unordered(10);
+
+        while let Some(result) = stream.next().await {
+            let (apworld_name, version, checksum) = result?;
+            new_lock.set_checksum(&apworld_name, &version, &checksum);
         }
 
         Ok(new_lock)
