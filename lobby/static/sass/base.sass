@@ -941,18 +941,19 @@ body:has(dialog[open])
   height: 40vh
 
 #options-form
-  display: flex
-  flex-direction: column
+  display: block
+  overflow: auto
 
   .options-content
     flex: 1
-    overflow: auto
 
   .options-submit
     background: hsl(207, 30%, 12%)
     padding: 0.5em
     border-top: 1px solid hsla(0, 100%, 100%, 20%)
     margin-bottom: 4px
+    position: sticky
+    bottom: 0
 
     button[type="submit"]
       display: block
