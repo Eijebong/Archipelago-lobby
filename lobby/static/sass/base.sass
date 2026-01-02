@@ -1069,6 +1069,10 @@ body:has(dialog[open])
         &:focus .tooltip-box
           opacity: 1
 
+        @media (max-width: 768px)
+          .tooltip-box
+            max-width: calc(100vw - 100px)
+
     input[type="text"],
     input[type="number"],
     select:not([multiple])

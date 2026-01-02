@@ -867,7 +867,7 @@
             let left = (icon.offsetWidth - tipRect.width) / 2;
 
             const absLeft = iconRect.left + left;
-            const leftMargin = 230;
+            const leftMargin = window.innerWidth <= 768 ? 60 : 230;
             const rightMargin = 20;
             if (absLeft < leftMargin) {
                 left -= absLeft - leftMargin;
