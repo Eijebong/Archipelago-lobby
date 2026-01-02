@@ -272,7 +272,7 @@ def check_yaml(game, name, yaml):
         traceback.print_exc()
 
 
-        return False, f"Validation error for {name}:\n{error}"
+        return False, f"Validation error for {name} ({game}):\n{error}"
 
     return True, "OK"
 
