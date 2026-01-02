@@ -481,6 +481,7 @@
             if (e.target.tagName === 'OPTION' && !e.shiftKey) {
                 e.preventDefault();
                 e.target.selected = !e.target.selected;
+                select.dispatchEvent(new Event('change'));
             }
         };
     });
@@ -525,7 +526,7 @@
             };
         });
 
-        select.addEventListener('mouseup', () => updateSetChips(select));
+        select.addEventListener('change', () => updateSetChips(select));
 
         filter.oninput = () => {
             const query = filter.value.toLowerCase();
