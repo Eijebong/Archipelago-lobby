@@ -8,9 +8,14 @@ use crate::session::Session;
 use crate::{Context, TplContext};
 use askama::Template;
 use askama_web::WebTemplate;
-use rocket::http::ContentType;
+use diesel::IntoSql;
+use diesel_async::RunQueryDsl;
+use redis::AsyncCommands;
+use rocket::http::{ContentType, Status};
 use rocket::routes;
+use rocket::serde::json::Json;
 use rocket::{get, State};
+use serde::Serialize;
 
 pub mod api;
 pub mod apworlds;
@@ -45,6 +50,47 @@ struct IndexTpl<'a> {
 #[template(path = "index/help.html")]
 struct HelpTpl<'a> {
     base: TplContext<'a>,
+}
+
+#[derive(Serialize)]
+struct HealthResponse {
+    status: &'static str,
+    db: &'static str,
+    redis: &'static str,
+}
+
+#[get("/health")]
+async fn health(ctx: &State<Context>) -> (Status, Json<HealthResponse>) {
+    let db_ok = match ctx.db_pool.get().await {
+        Ok(mut conn) => diesel::select(1.into_sql::<diesel::sql_types::Integer>())
+            .execute(&mut conn)
+            .await
+            .is_ok(),
+        Err(_) => false,
+    };
+
+    let redis_ok = match ctx.redis_pool.get().await {
+        Ok(mut conn) => {
+            let result: std::result::Result<String, _> = conn.ping().await;
+            result.is_ok()
+        }
+        Err(_) => false,
+    };
+
+    let all_ok = db_ok && redis_ok;
+    let response = HealthResponse {
+        status: if all_ok { "healthy" } else { "unhealthy" },
+        db: if db_ok { "ok" } else { "error" },
+        redis: if redis_ok { "ok" } else { "error" },
+    };
+
+    let status = if all_ok {
+        Status::Ok
+    } else {
+        Status::ServiceUnavailable
+    };
+
+    (status, Json(response))
 }
 
 #[get("/?<page>")]
@@ -119,7 +165,7 @@ fn favicon() -> Option<(ContentType, Cow<'static, [u8]>)> {
 struct Asset;
 
 pub fn routes() -> Vec<rocket::Route> {
-    let mut all_routes = routes![root, dist, favicon, help];
+    let mut all_routes = routes![root, dist, favicon, help, health];
     all_routes.extend(room::routes());
     all_routes
 }

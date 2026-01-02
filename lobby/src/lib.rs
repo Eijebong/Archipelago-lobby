@@ -199,8 +199,8 @@ pub async fn main() -> crate::error::Result<()> {
 
     let discord_config = DiscordConfig::from_figment(&figment)?;
     let prometheus = PrometheusMetrics::new().with_request_filter(|request| {
-        request.uri().path() != "/metrics"
-            && request.uri().path().segments().last() != Some("claim_job")
+        let path = request.uri().path();
+        path != "/metrics" && path != "/health" && path.segments().last() != Some("claim_job")
     });
     prometheus
         .registry()

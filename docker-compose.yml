@@ -73,7 +73,7 @@ services:
     ports:
       - "8000:8000"
     healthcheck:
-      test: curl http://127.0.0.1:8000/
+      test: curl -f http://127.0.0.1:8000/health
       interval: 5s
       timeout: 1s
       retries: 100
