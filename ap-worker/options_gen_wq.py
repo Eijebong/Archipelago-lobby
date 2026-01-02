@@ -76,6 +76,13 @@ def get_default(option):
     # XXX: We might need to broaden this
     if isinstance(default, int) and hasattr(option, 'name_lookup') and default in option.name_lookup:
         return option.name_lookup[default]
+
+    # Convert named ranges defaults to their alias when possible
+    if isinstance(default, int) and hasattr(option, 'special_range_names'):
+        for name, value in option.special_range_names.items():
+            if value == default:
+                return name
+
     return safe_json(default)
 
 def get_type(option):

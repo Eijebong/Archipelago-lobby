@@ -103,6 +103,19 @@ impl OptionsTpl<'_> {
         suggestions.iter().any(|sug| sug == s)
     }
 
+    fn default_is_suggestion(&self, option_def: &crate::jobs::OptionDef) -> bool {
+        if let Some(default_str) = option_def.default.as_str() {
+            if let Some(suggestions) = &option_def.suggestions {
+                return suggestions.iter().any(|s| s == default_str);
+            }
+        }
+        false
+    }
+
+    fn default_str<'a>(&self, option_def: &'a crate::jobs::OptionDef) -> Option<&'a str> {
+        option_def.default.as_str()
+    }
+
     fn is_weighted(&self, prefilled: &Option<&serde_json::Value>) -> bool {
         prefilled.map(|v| v.is_object()).unwrap_or(false)
     }

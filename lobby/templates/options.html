@@ -142,15 +142,19 @@
         {% when "named_range" %}
             {% let (min, max) = option_def.range_bounds() %}
             {% let pstr = self.prefilled_str(prefilled) %}
+            {% let default_is_suggestion = self.default_is_suggestion(option_def) %}
+            {% let default_str = self.default_str(option_def) %}
             <select id="{{option_name}}" class="preset-select" data-target="{{option_name}}_input">
                 <option value="">Custom</option>
                 {% for suggestion in option_def.suggestions() %}
-                <option value="{{suggestion}}" {%+ if pstr == Some(*suggestion) %}selected{% endif %}>{{suggestion}}</option>
+                <option value="{{suggestion}}" {%+ if pstr == Some(*suggestion) || (pstr.is_none() && default_str == Some(*suggestion)) %}selected{% endif %}>{{suggestion}}</option>
                 {% endfor %}
             </select>
             <div class="range-wrapper">
                 {% if let Some(v) = prefilled %}
                 <input type="number" id="{{option_name}}_input" value="{{v}}" min="{{min}}" max="{{max}}" required {%+ if pstr.is_some() %}disabled{% endif %}/>
+                {% else if default_is_suggestion %}
+                <input type="number" id="{{option_name}}_input" value="{{min}}" min="{{min}}" max="{{max}}" required disabled/>
                 {% else %}
                 <input type="number" id="{{option_name}}_input" value="{{option_def.default}}" min="{{min}}" max="{{max}}" required/>
                 {% endif %}
