@@ -71,6 +71,7 @@
 <form id="options-form">
 {% endif %}
 {% if self.options.is_some() %}
+    <div class="options-content">
     <div class="option-row">
         <label for="player">Player name</label>
         <input type="text" id="player" name="player" placeholder="{{self.default_player_name}}" value="{{self.prefilled_player_name.as_deref().unwrap_or(&self.default_player_name)}}"/>
@@ -87,7 +88,10 @@
             {% call option_input(option_name, option_def, prefilled) %}{% endcall %}
         {% endfor %}
     {% endfor %}
-    <button type="submit">Download YAML</button>
+    </div>
+    <div class="options-submit">
+        <button type="submit"><i class="fa fa-download"></i> Download YAML</button>
+    </div>
 {% endif %}
 </form>
 
