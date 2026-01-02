@@ -21,6 +21,7 @@
                         {{ world.display_name }}
                     {% endmatch %}
 
+                    <a href="/options/{{id}}/{{version}}" class="create-yaml-btn" title="Create YAML"><i class="fa fa-file-circle-plus"></i></a>
                     <span class="world-tags">{{ (world,origin)|world_tags|safe }}</span>
                 </td>
                 <td>{{ version }}</td>
