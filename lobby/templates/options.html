@@ -661,7 +661,8 @@
                 }
 
                 const value = getRowValue(row);
-                formData.append(name, typeof value === 'object' || typeof value === 'boolean' ? JSON.stringify(value) : value);
+                const type = row.dataset.type;
+                formData.append(name, typeof value === 'object' || typeof value === 'boolean' || type === 'text' ? JSON.stringify(value) : value);
             });
 
             fetch(form.action, {
