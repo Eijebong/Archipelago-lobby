@@ -40,6 +40,7 @@
         {% endif %}
     </a>
     <a href="/room/{{ self.room.id }}/generation/output" style="display: none" class="validation-button" id="gen-output-button">Download generation output</a>
+    <p style="display: none; margin-top: 1em" id="ap-upload-hint">Next step: <a href="https://archipelago.gg/uploads" target="_blank">Upload to Archipelago.gg</a></p>
 {% else %}
     {% let is_ok_for_gen = self.generation_checklist.values().min().copied().unwrap_or_default() %}
 
@@ -101,6 +102,7 @@
         function setGenStatusSuccess() {
             document.getElementById("gen-del-button").innerText = "Delete generation"
             document.getElementById("gen-output-button").style.display = "inline"
+            document.getElementById("ap-upload-hint").style.display = "block"
         }
 
         function setGenStatusFailure() {
