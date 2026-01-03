@@ -72,14 +72,14 @@ function openYamlPopup(title, yaml, roomId, yamlId, validationStatus, error, exp
     const buttonContainer = document.createElement("div");
     buttonContainer.classList = "button-container";
 
-    const downloadButton = document.createElement("a");
+    const downloadButton = document.createElement("button");
     downloadButton.innerText = "Download";
-    downloadButton.classList = "validation-button";
-    downloadButton.href = "/room/" + roomId + "/download/" + yamlId;
+    downloadButton.classList = "button-emulator validation-button";
+    downloadButton.onclick = () => { window.location.href = "/room/" + roomId + "/download/" + yamlId };
 
     const closeButton = document.createElement("button");
     closeButton.innerText = "Close";
-    closeButton.classList = "cancel-button";
+    closeButton.classList = "button-emulator cancel-button";
     closeButton.onclick = () => { popup.close(); };
     popup.onclose = () => body.removeChild(popup);
 
