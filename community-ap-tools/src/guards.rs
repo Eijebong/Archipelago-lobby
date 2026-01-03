@@ -24,8 +24,6 @@ pub struct YamlInfo {
 
 #[derive(Deserialize, Debug)]
 pub struct SlotPasswordInfo {
-    pub slot_number: usize,
-    pub player_name: String,
     pub password: Option<String>,
 }
 
@@ -42,12 +40,9 @@ pub struct LobbyRoom {
 #[derive(Deserialize, Debug)]
 pub struct RoomStatus {
     pub tracker: String,
-    pub last_port: u16,
 }
 
 pub struct ApRoom {
-    pub id: String,
-    pub room_status: RoomStatus,
     pub tracker_info: TrackerInfo,
 }
 
@@ -237,8 +232,6 @@ impl<'r> FromRequest<'r> for ApRoom {
         });
 
         Outcome::Success(ApRoom {
-            id: config.ap_room_id.clone(),
-            room_status,
             tracker_info,
         })
     }
