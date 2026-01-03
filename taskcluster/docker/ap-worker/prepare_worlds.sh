@@ -27,11 +27,6 @@ for f in $1/worlds/*; do
         continue
     fi
 
-    # FF1 throws errors when loaded as a .apworld
-    if [[ "$(basename $f)" == "ff1" ]]; then
-        continue
-    fi
-
     # Lufia2AC throws errors when loaded as a .apworld
     if [[ "$(basename $f)" == "lufia2ac" ]]; then
         continue
