@@ -110,6 +110,7 @@ impl Responder<'_, 'static> for Error {
             RedirectTo(lock)
         });
         let error_message = self.0.to_string();
+        tracing::warn!(error = %self.0, "Request failed");
 
         let session = Session::from_request_sync(request);
         tokio::task::block_in_place(|| {
