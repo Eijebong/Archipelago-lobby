@@ -27,11 +27,6 @@ for f in $1/worlds/*; do
         continue
     fi
 
-    # SM throws errors when trying to get presets as a .apworld
-    if [[ "$(basename $f)" == "sm" ]]; then
-        continue
-    fi
-
     # This is required for tests (FIXME: Load it at test time instead)
     if [[ "$(basename $f)" == "apquest" ]]; then
         continue
