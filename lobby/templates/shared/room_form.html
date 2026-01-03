@@ -89,7 +89,7 @@
                     <tr>
                         <td>Delete this {{+ self.ty }}? {%+ if self.ty.is_room() %} This will delete all associated YAMLs, there is no going back. {% endif %}</td>
                         <td>
-                            <a href="{{ ty.as_route_base() }}/{{room_id}}/delete" class="cancel-button" data-confirm-del=true data-resource-type="{{ self.ty }}" data-resource-name="{{self.room.name}}">Delete {{+ self.ty }}</a>
+                            <a href="{{ ty.as_route_base() }}/{{room_id}}/delete" class="button-emulator cancel-button" data-confirm-del=true data-resource-type="{{ self.ty }}" data-resource-name="{{self.room.name}}">Delete {{+ self.ty }}</a>
                         </td>
                     </tr>
                 </table>

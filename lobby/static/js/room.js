@@ -26,7 +26,7 @@ function openConfirmationPopup(resourceName, resourceType, callback, extra) {
     const buttonContainer = document.createElement("div");
     buttonContainer.classList = "button-container";
 
-    const deleteButton = document.createElement("a");
+    const deleteButton = document.createElement("button");
     deleteButton.innerText = "Yes, delete it";
     deleteButton.classList = "cancel-button";
     deleteButton.onclick = () => { callback(); }

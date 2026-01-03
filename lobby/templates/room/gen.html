@@ -32,14 +32,14 @@
             </tr>
         </tbody>
     </table>
-    <a href="/room/{{ self.room.id }}/generation/cancel" class="cancel-button" id="gen-del-button" data-confirm-del="true" data-resource-type="generation" data-resource-name="for room {{+ self.room.settings.name }}">
+    <a href="/room/{{ self.room.id }}/generation/cancel" class="button-emulator cancel-button" id="gen-del-button" data-confirm-del="true" data-resource-type="generation" data-resource-name="for room {{+ self.room.settings.name }}">
         {% if current_gen.status == GenerationStatus::Pending || current_gen.status == GenerationStatus::Running %}
         Cancel generation
         {% else %}
         Delete generation
         {% endif %}
     </a>
-    <a href="/room/{{ self.room.id }}/generation/output" style="display: none" class="validation-button" id="gen-output-button">Download generation output</a>
+    <a href="/room/{{ self.room.id }}/generation/output" style="display: none" class="button-emulator validation-button" id="gen-output-button">Download generation output</a>
     <p style="display: none; margin-top: 1em" id="ap-upload-hint">Next step: <a href="https://archipelago.gg/uploads" target="_blank">Upload to Archipelago.gg</a></p>
 {% else %}
     {% let is_ok_for_gen = self.generation_checklist.values().min().copied().unwrap_or_default() %}
@@ -59,9 +59,9 @@
     </table>
 
     {% if is_ok_for_gen %}
-        <a class='validation-button' href='/room/{{ self.room.id }}/generation/start' >Start generation</a>
+        <a class='button-emulator validation-button' href='/room/{{ self.room.id }}/generation/start' >Start generation</a>
     {% else %}
-        <a class='cancel-button not-clickable'>Start generation</a>
+        <a class='button-emulator cancel-button not-clickable'>Start generation</a>
     {% endif %}
 {% endif %}
 
