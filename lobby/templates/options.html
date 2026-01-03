@@ -54,6 +54,11 @@
 </form>
 {% endif %}
 
+{% if let (Some(apworld), Some(version)) = (self.selected_apworld.as_ref(), self.selected_version.as_ref()) %}
+<form id="options-form" method="POST" action="/options/{{apworld}}/{{version}}/download">
+{% else %}
+<form id="options-form">
+{% endif %}
 {% if !self.warnings.is_empty() %}
 <div id="yaml-warnings">
     <strong>The following options from your YAML are not recognized (they may have been removed or renamed):</strong>
@@ -65,11 +70,6 @@
 </div>
 {% endif %}
 
-{% if let (Some(apworld), Some(version)) = (self.selected_apworld.as_ref(), self.selected_version.as_ref()) %}
-<form id="options-form" method="POST" action="/options/{{apworld}}/{{version}}/download">
-{% else %}
-<form id="options-form">
-{% endif %}
 {% if self.options.is_some() %}
     <div class="options-content">
     <div class="option-row">
