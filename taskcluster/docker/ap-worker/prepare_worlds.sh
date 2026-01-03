@@ -32,11 +32,6 @@ for f in $1/worlds/*; do
         continue
     fi
 
-    # OoT throws errors when loaded as a .apworld
-    if [[ "$(basename $f)" == "oot" ]]; then
-        continue
-    fi
-
     # Raft throws errors when loaded as a .apworld
     if [[ "$(basename $f)" == "raft" ]]; then
         continue
