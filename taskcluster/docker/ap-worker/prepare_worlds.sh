@@ -27,11 +27,6 @@ for f in $1/worlds/*; do
         continue
     fi
 
-    # Lufia2AC throws errors when loaded as a .apworld
-    if [[ "$(basename $f)" == "lufia2ac" ]]; then
-        continue
-    fi
-
     # SM throws errors when trying to get presets as a .apworld
     if [[ "$(basename $f)" == "sm" ]]; then
         continue
