@@ -108,7 +108,7 @@ impl OptionDef {
     }
 
     pub fn is_editable(&self) -> bool {
-        if self.ty == "dict" {
+        if self.ty == "dict" || self.ty == "unknown" {
             return false;
         }
         if matches!(self.ty.as_str(), "set" | "list" | "counter") && !self.has_valid_keys() {

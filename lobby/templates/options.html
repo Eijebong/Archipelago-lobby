@@ -281,6 +281,13 @@
         {% when "dict" %}
             <input type="hidden" id="{{option_name}}" value='{% if prefilled.is_some() %}{{self.prefilled_json(prefilled)|e}}{% else %}{{option_def.default_json()|e}}{% endif %}'/>
             <span class="option-not-supported">Not editable in this UI</span>
+        {% when "unknown" %}
+            {% if prefilled.is_some() %}
+                <input type="hidden" id="{{option_name}}" value='{{self.prefilled_json(prefilled)|e}}'/>
+                <span class="option-not-supported">Not editable in this UI</span>
+            {% else %}
+                <span class="option-not-supported">Not editable in this UI. No default value</span>
+            {% endif %}
         {% else %}
             {% if option_def.has_complex_default() %}
             <input type="hidden" id="{{option_name}}" value='{% if prefilled.is_some() %}{{self.prefilled_json(prefilled)|e}}{% else %}{{option_def.default_json()|e}}{% endif %}'/>
@@ -664,7 +671,9 @@
 
                 if (row.querySelector('.option-not-supported')) {
                     const hiddenInput = row.querySelector('input[type="hidden"]');
-                    formData.append(name, hiddenInput.value);
+                    if (hiddenInput) {
+                        formData.append(name, hiddenInput.value);
+                    }
                     return;
                 }
 
