@@ -10,6 +10,7 @@ use rocket::http::CookieJar;
 use rocket::response::Redirect;
 use rocket::{get, State};
 use rocket_oauth2::{OAuth2, TokenResponse};
+use tracing::Instrument;
 
 #[get("/login?<redirect>")]
 #[tracing::instrument(skip_all)]
@@ -55,7 +56,16 @@ async fn login_discord_callback(
     let client = reqwest::Client::new();
     let user = get_discord_user(&client, token).await?;
 
-    revoke_token(&client, &config.client_id, &config.client_secret, token).await?;
+    let client_id = config.client_id.clone();
+    let client_secret = config.client_secret.clone();
+    let token = token.to_owned();
+    let span = tracing::Span::current();
+    tokio::spawn(
+        async move {
+            let _ = revoke_token(&client, &client_id, &client_secret, &token).await;
+        }
+        .instrument(span),
+    );
 
     let discord_id = user.id.parse()?;
 
