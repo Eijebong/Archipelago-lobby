@@ -27,6 +27,10 @@ for f in $1/worlds/*; do
         continue
     fi
 
+    # OoT is load bearing for pmd_eos until https://github.com/CrypticMonkey33/ArchipelagoExplorersOfSky/pull/238 gets merged
+    if [[ "$(basename $f)" == "oot" ]]; then
+        continue
+    fi
     (cd $(dirname $f) && zip -r ${DEST}/$(basename $f)-${VERSION}.apworld $(basename $f))
     rm -Rf "$f"
 done
