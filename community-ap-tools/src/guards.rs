@@ -231,9 +231,7 @@ impl<'r> FromRequest<'r> for ApRoom {
             dp.0.pop().unwrap().data
         });
 
-        Outcome::Success(ApRoom {
-            tracker_info,
-        })
+        Outcome::Success(ApRoom { tracker_info })
     }
 }
 
