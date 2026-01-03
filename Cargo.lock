@@ -3651,7 +3651,7 @@ dependencies = [
 [[package]]
 name = "rocket_oauth2"
 version = "0.5.0"
-source = "git+https://github.com/jebrosen/rocket_oauth2.git#c3a583b6abe2d34cfbfa5d8da803b2d264c3a406"
+source = "git+https://github.com/Eijebong/rocket_oauth2.git#6f04a64c688850a430b41c9479af5c47372fc9ab"
 dependencies = [
  "async-trait",
  "base64",
@@ -3664,6 +3664,7 @@ dependencies = [
  "rocket",
  "serde",
  "serde_json",
+ "tracing",
  "url",
 ]
 
