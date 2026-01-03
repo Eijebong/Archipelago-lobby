@@ -191,8 +191,15 @@ async fn get_options_def(
     }
     if matches!(status, JobStatus::Failure) {
         tracing::error!(%job_id, %apworld_name, %version, "Options gen job failed");
+        let result = options_gen_queue
+            .get_job_result(job_id)
+            .await?
+            .expect("Success failure should always have a result");
         options_gen_queue.delete_job_result(job_id).await?;
-        Err(anyhow!("Generating option definitions failed, try again."))?
+        Err(anyhow!(
+            "Generating option definitions failed, try again. {}",
+            result.error.unwrap_or_else(|| "Unknown error".to_string())
+        ))?
     }
 
     assert_eq!(status, JobStatus::Success);

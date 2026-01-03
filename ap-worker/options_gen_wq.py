@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import asyncio
@@ -177,6 +178,10 @@ class OptionsGenQueue(LobbyQueue):
                 if option_group_options:
                     game_options[group] = option_group_options
             result = {"options": game_options}
+            # Try dumping the options as JSON. We need to do that later and it's better
+            # if we fail earlier than trying to dump this to the result pipe as that
+            # just internal errors instead of showing a failure.
+            json.dumps(result)
             status = JobStatus.Failure if 'error' in result else JobStatus.Success
             return status, result
         except Exception as e:
