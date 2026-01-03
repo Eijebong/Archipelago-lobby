@@ -24,6 +24,7 @@ import test.general.test_fill
 import test.general.test_ids
 import warnings
 from semver import Version
+from Utils import __version__ as ap_version
 warnings.simplefilter("ignore")
 
 class Annotation():
@@ -200,6 +201,7 @@ if __name__ == "__main__":
     os.makedirs(output_folder, exist_ok=True)
     ap_handler = handler.ApHandler(apworlds_dir, custom_apworlds_dir)
     ap_handler.load_apworld(apworld, version)
+    ap_handler.load_apworld("apquest", ap_version)
 
     # Unload as many worlds as possible before running tests
     loaded_worlds = list(AutoWorldRegister.world_types.keys())
