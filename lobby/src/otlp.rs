@@ -1,4 +1,8 @@
-use opentelemetry::{global, trace::TracerProvider, KeyValue};
+use opentelemetry::{
+    global,
+    trace::{TraceContextExt, TracerProvider},
+    KeyValue,
+};
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{
     propagation::TraceContextPropagator,
@@ -12,7 +16,7 @@ use rocket::{
 };
 use sentry_tracing::EventFilter;
 use tracing::{Level, Span};
-use tracing_opentelemetry::OpenTelemetryLayer;
+use tracing_opentelemetry::{OpenTelemetryLayer, OpenTelemetrySpanExt};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn resource() -> Resource {
@@ -90,7 +94,18 @@ impl Fairing for TracingFairing {
     fn info(&self) -> Info {
         Info {
             name: "Tracing Fairing",
-            kind: Kind::Response,
+            kind: Kind::Request | Kind::Response,
+        }
+    }
+
+    async fn on_request(&self, _req: &mut Request<'_>, _data: &mut rocket::Data<'_>) {
+        let otel_ctx = Span::current().context();
+        let otel_span = otel_ctx.span();
+        let span_ctx = otel_span.span_context();
+        if span_ctx.is_valid() {
+            sentry::configure_scope(|scope| {
+                scope.set_tag("otel.trace_id", span_ctx.trace_id().to_string());
+            });
         }
     }
 
