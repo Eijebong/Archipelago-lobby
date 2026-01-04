@@ -49,8 +49,8 @@ counter = "0.7.0"
 comrak = { version = "0.49", default-features = false }
 ammonia = "4"
 wq = { path = "../wq" }
-sentry = "0.38.1"
-sentry-tracing = "0.38.1"
+sentry = "0.46.0"
+sentry-tracing = "0.46.0"
 regex = "1.11.1"
 rocket_ws = "=0.1.0"
 deadpool-redis = "0.22.0"
