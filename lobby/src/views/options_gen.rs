@@ -35,7 +35,7 @@ async fn get_default_player_name(session: &Session, ctx: &Context) -> String {
     "Player{NUMBER}".to_string()
 }
 
-pub type OptionsCache = RwLock<HashMap<(String, Version), OptionsDef>>;
+pub type OptionsCache = std::sync::Arc<RwLock<HashMap<(String, Version), OptionsDef>>>;
 
 #[derive(rocket::Responder)]
 #[response(status = 200, content_type = "application/yaml")]
@@ -184,37 +184,76 @@ async fn get_options_def(
     };
     if matches!(status, JobStatus::InternalError) {
         tracing::error!(%job_id, %apworld_name, %version, "Options gen job returned internal error");
-        options_gen_queue.cancel_job(job_id).await?;
         Err(anyhow!(
             "There was an unexpected error while generating option definitions, try again."
         ))?
     }
     if matches!(status, JobStatus::Failure) {
         tracing::error!(%job_id, %apworld_name, %version, "Options gen job failed");
-        let result = options_gen_queue
-            .get_job_result(job_id)
-            .await?
-            .expect("Success failure should always have a result");
-        options_gen_queue.delete_job_result(job_id).await?;
-        Err(anyhow!(
-            "Generating option definitions failed, try again. {}",
-            result.error.unwrap_or_else(|| "Unknown error".to_string())
-        ))?
+        Err(anyhow!("Generating option definitions failed, try again."))?
     }
 
-    assert_eq!(status, JobStatus::Success);
-    let result = options_gen_queue
-        .get_job_result(job_id)
-        .await?
-        .expect("Success status should always have a result");
-    options_gen_queue.delete_job_result(job_id).await?;
+    // The queue callback handles caching on success
+    let cache = options_cache.read().await;
+    cache
+        .get(&cache_key)
+        .cloned()
+        .ok_or_else(|| anyhow!("Options not found in cache after successful job").into())
+}
 
-    {
-        let mut cache = options_cache.write().await;
-        cache.insert(cache_key, result.options.clone());
+pub struct OptionsPreloadFairing;
+
+#[rocket::async_trait]
+impl rocket::fairing::Fairing for OptionsPreloadFairing {
+    fn info(&self) -> rocket::fairing::Info {
+        rocket::fairing::Info {
+            name: "Options Preload",
+            kind: rocket::fairing::Kind::Liftoff,
+        }
     }
 
-    Ok(result.options)
+    #[tracing::instrument(name = "options_preload", skip_all)]
+    async fn on_liftoff(&self, rocket: &rocket::Rocket<rocket::Orbit>) {
+        if std::env::var("PRELOAD_OPTIONS_DEFS").is_err() {
+            return;
+        }
+
+        let index_manager = rocket.state::<IndexManager>().unwrap();
+        let options_gen_queue = rocket.state::<OptionsGenQueue>().unwrap();
+
+        let worlds: Vec<_> = {
+            let index = index_manager.index.read().await;
+            index
+                .worlds
+                .iter()
+                .filter_map(|(apworld_name, world)| {
+                    let latest_version = world.versions.keys().max()?;
+                    Some((apworld_name.clone(), latest_version.clone()))
+                })
+                .collect()
+        };
+
+        tracing::info!("Enqueuing options preload for {} worlds", worlds.len());
+
+        for (apworld_name, version) in worlds {
+            let mut params = OptionsGenParams {
+                apworld: (apworld_name.clone(), version.clone()),
+                otlp_context: HashMap::new(),
+            };
+
+            let cx = tracing::Span::current().context();
+            opentelemetry::global::get_text_map_propagator(|propagator| {
+                propagator.inject_context(&cx, &mut params.otlp_context)
+            });
+
+            if let Err(e) = options_gen_queue
+                .enqueue_job(&params, wq::Priority::Low, Duration::from_secs(120))
+                .await
+            {
+                tracing::warn!(%apworld_name, %version, %e, "Failed to enqueue preload job");
+            }
+        }
+    }
 }
 
 #[rocket::get("/options/<apworld_name>/<version>")]

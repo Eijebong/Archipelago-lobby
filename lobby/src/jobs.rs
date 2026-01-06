@@ -146,6 +146,48 @@ pub struct OptionsGenResponse {
 
 pub type OptionsGenQueue = WorkQueue<OptionsGenParams, OptionsGenResponse>;
 
+pub fn get_options_gen_callback(
+    options_cache: crate::views::options_gen::OptionsCache,
+) -> wq::ResolveCallback<OptionsGenParams, OptionsGenResponse> {
+    let callback = move |desc: JobDesc<OptionsGenParams>,
+                         result: JobResult<OptionsGenResponse>|
+          -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> {
+        let cache = options_cache.clone();
+
+        let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
+            propagator.extract(&desc.params.otlp_context)
+        });
+        let span = tracing::info_span!(
+            "options_gen_callback",
+            apworld = %desc.params.apworld.0,
+            version = %desc.params.apworld.1,
+            job_status = ?result.status,
+        );
+        let _ = span.set_parent(parent_cx);
+
+        Box::pin(
+            async move {
+                if result.status != JobStatus::Success {
+                    return Ok(true);
+                }
+
+                let Some(response) = result.result else {
+                    return Ok(true);
+                };
+
+                let cache_key = (desc.params.apworld.0, desc.params.apworld.1);
+                let mut cache = cache.write().await;
+                cache.insert(cache_key, response.options);
+
+                Ok(true)
+            }
+            .instrument(span),
+        )
+    };
+
+    Arc::pin(callback)
+}
+
 pub fn get_yaml_validation_callback(
     db_pool: Pool<AsyncPgConnection>,
 ) -> wq::ResolveCallback<YamlValidationParams, YamlValidationResponse> {

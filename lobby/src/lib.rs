@@ -28,10 +28,10 @@ use rocket_prometheus::PrometheusMetrics;
 
 use crate::index_manager::IndexManager;
 use crate::jobs::{
-    get_generation_callback, get_yaml_validation_callback, GenerationOutDir, GenerationQueue,
-    OptionsGenQueue, YamlValidationQueue,
+    get_generation_callback, get_options_gen_callback, get_yaml_validation_callback,
+    GenerationOutDir, GenerationQueue, OptionsGenQueue, YamlValidationQueue,
 };
-use views::options_gen::OptionsCache;
+use views::options_gen::{OptionsCache, OptionsPreloadFairing};
 use views::queues::QueueTokens;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
@@ -231,13 +231,14 @@ pub async fn main() -> crate::error::Result<()> {
         .expect("Failed to create job queue for generation");
     generation_queue.start_reclaim_checker();
 
+    let options_cache: OptionsCache = std::sync::Arc::new(tokio::sync::RwLock::new(HashMap::new()));
+
     let options_gen_queue = OptionsGenQueue::builder("options_gen")
+        .with_callback(get_options_gen_callback(options_cache.clone()))
         .with_reclaim_timeout(Duration::from_secs(10))
         .build(&valkey_url)
         .await
         .expect("Failed to create job queue for options gen");
-
-    let options_cache: OptionsCache = tokio::sync::RwLock::new(HashMap::new());
 
     let queue_tokens = QueueTokens(HashMap::from([
         (
@@ -288,6 +289,7 @@ pub async fn main() -> crate::error::Result<()> {
         .manage(options_cache)
         .manage(queue_tokens)
         .attach(OAuth2::<Discord>::fairing("discord"))
+        .attach(OptionsPreloadFairing)
         .launch()
         .await
         .unwrap();
