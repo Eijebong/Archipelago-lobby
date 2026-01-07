@@ -647,20 +647,33 @@ async fn edit_yaml<'a>(
     })
 }
 
-#[rocket::post("/options/<apworld_name>/<_version>/download", data = "<form>")]
-#[tracing::instrument(skip(host, index_manager, form))]
+#[rocket::post("/options/<apworld_name>/<version>/download", data = "<form>")]
+#[tracing::instrument(skip(host, index_manager, form, options_gen_queue, options_cache))]
 async fn download_yaml<'a>(
     apworld_name: &str,
-    _version: &str,
+    version: &str,
     host: &Host<'_>,
     form: Form<HashMap<String, String>>,
     index_manager: &State<IndexManager>,
+    options_gen_queue: &State<OptionsGenQueue>,
+    options_cache: &State<OptionsCache>,
 ) -> Result<YamlDownload<'a>> {
-    let index = index_manager.index.read().await;
-    let Some(apworld) = index.worlds.get(apworld_name) else {
-        Err(anyhow!("Unknown apworld"))?
+    let game_name = {
+        let index = index_manager.index.read().await;
+        let Some(apworld) = index.worlds.get(apworld_name) else {
+            Err(anyhow!("Unknown apworld"))?
+        };
+        apworld.name.clone()
     };
-    let game_name = &apworld.name;
+
+    let parsed_version = Version::from_str(version)?;
+    let options = get_options_def(
+        apworld_name,
+        &parsed_version,
+        options_gen_queue,
+        options_cache,
+    )
+    .await?;
 
     let player_name = form.get("player").map(|s| s.as_str()).unwrap_or("Player");
     let player_name = if player_name.is_empty() {
@@ -675,16 +688,17 @@ async fn download_yaml<'a>(
         .cloned()
         .unwrap_or_else(|| format!("Generated on https://{}/options/{}", host, apworld_name));
 
-    // Build game options
+    // Build game options in definition order
     let mut game_options: IndexMap<String, serde_json::Value> = IndexMap::new();
-    for (key, value) in form.iter() {
-        if key == "player" || key == "description" {
-            continue;
+    for (_group_name, group_options) in options.iter() {
+        for (option_name, _option_def) in group_options.iter() {
+            if let Some(value) = form.get(option_name) {
+                // Try to parse as JSON for complex types (lists, counters, bools, numbers)
+                let parsed = serde_json::from_str::<serde_json::Value>(value)
+                    .unwrap_or_else(|_| serde_json::Value::String(value.clone()));
+                game_options.insert(option_name.clone(), parsed);
+            }
         }
-        // Try to parse as JSON for complex types (lists, counters, bools, numbers)
-        let parsed = serde_json::from_str::<serde_json::Value>(value)
-            .unwrap_or_else(|_| serde_json::Value::String(value.clone()));
-        game_options.insert(key.clone(), parsed);
     }
 
     // Build the full YAML structure
