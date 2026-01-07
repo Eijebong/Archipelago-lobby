@@ -3,13 +3,14 @@ use std::str::FromStr;
 
 use crate::db::{Room, RoomSettings, RoomTemplate};
 use crate::error::Result;
-use anyhow::Context as _;
+use anyhow::anyhow;
 use apwm::Manifest;
 use askama::Template;
 use askama_web::WebTemplate;
 use chrono::{DateTime, TimeZone, Utc};
 use rocket::http;
 use rocket::FromForm;
+use saphyr::LoadableYamlNode;
 use uuid::Uuid;
 
 use crate::TplContext;
@@ -89,17 +90,20 @@ pub fn validate_room_form(room_form: &mut RoomSettingsForm<'_>) -> Result<()> {
 
     room_form.meta_file = room_form.meta_file.trim().to_string();
     if !room_form.meta_file.is_empty() {
-        serde_saphyr::from_str::<MetaFile>(&room_form.meta_file)
-            .context("Failed to parse meta file. Make sure it includes a `meta_description`")?;
+        let docs = saphyr::YamlOwned::load_from_str(&room_form.meta_file)
+            .map_err(|e| anyhow!("Failed to parse meta file: {}", e))?;
+        let meta = docs
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("Meta file is empty"))?;
+        if meta
+            .as_mapping_get("meta_description").is_none_or(|v| v.as_str().is_none())
+        {
+            return Err(anyhow!("Meta file must include a `meta_description` string field").into());
+        }
     }
 
     Ok(())
-}
-
-#[derive(serde::Deserialize)]
-#[allow(dead_code)]
-pub struct MetaFile {
-    meta_description: String,
 }
 
 pub enum RoomSettingsType {
