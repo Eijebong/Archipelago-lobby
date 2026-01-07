@@ -4,8 +4,8 @@ use crate::error::Result;
 use anyhow::anyhow;
 use apwm::Index;
 use once_cell::sync::Lazy;
+use saphyr::{LoadableYamlNode, YamlOwned as Value};
 use serde::{Deserialize, Serialize};
-use serde_yaml::Value;
 
 use crate::db::YamlFile;
 
@@ -57,7 +57,7 @@ fn is_trueish(option: &Value) -> bool {
         return value;
     }
 
-    if let Some(value) = option.as_i64() {
+    if let Some(value) = option.as_integer() {
         return value != 0;
     }
 
@@ -122,7 +122,7 @@ impl<'a> Extractor<'a> {
             panic!("You should call set_game before")
         };
 
-        let Some(option) = game_yaml.get(path) else {
+        let Some(option) = game_yaml.as_mapping_get(path) else {
             return Ok(0);
         };
 
@@ -141,7 +141,7 @@ impl<'a> Extractor<'a> {
             panic!("You should call set_game before")
         };
 
-        let Some(option) = game_yaml.get(path) else {
+        let Some(option) = game_yaml.as_mapping_get(path) else {
             return Ok(());
         };
 
@@ -179,11 +179,7 @@ impl<'a> Extractor<'a> {
     }
 
     pub fn set_game(&mut self, game_name: &'a str, probability: u32) -> Result<()> {
-        let Some(map) = self.yaml.as_mapping() else {
-            Err(anyhow!("The main body of the YAML should be a map"))?
-        };
-
-        let Some(game_yaml) = map.get(game_name) else {
+        let Some(game_yaml) = self.yaml.as_mapping_get(game_name) else {
             Err(anyhow!(format!(
                 "The requested game isn't present in the YAML: {}",
                 game_name
@@ -234,7 +230,7 @@ impl<'a> Extractor<'a> {
 }
 
 fn get_option_map<K: for<'a> Deserialize<'a> + std::hash::Hash + Eq>(
-    option: &serde_yaml::Value,
+    option: &Value,
     transform: fn(&Value) -> Result<K>,
 ) -> Result<HashMap<K, u32>> {
     if let Ok(value) = transform(option) {
@@ -250,33 +246,32 @@ fn get_option_map<K: for<'a> Deserialize<'a> + std::hash::Hash + Eq>(
     let mut ret = HashMap::new();
     for (key, value) in map.iter() {
         let Ok(key) = transform(key) else { continue };
-        if value != 0 {
-            ret.insert(key, value.as_u64().unwrap() as u32);
+        if let Some(v) = value.as_integer() {
+            if v != 0 {
+                ret.insert(key, v as u32);
+            }
         }
     }
 
     Ok(ret)
 }
 
-fn get_option_probability(
-    option: &serde_yaml::Value,
-    is_true_callback: fn(&Value) -> bool,
-) -> Result<u32> {
+fn get_option_probability(option: &Value, is_true_callback: fn(&Value) -> bool) -> Result<u32> {
     if is_true_callback(option) {
         return Ok(MAX_WEIGHT);
     }
 
     if option.is_mapping() {
         let map = option.as_mapping().unwrap();
-        let total: u64 = map.values().filter_map(|v| v.as_u64()).sum();
-        let mut on_count = 0;
+        let total: i64 = map.values().filter_map(|v| v.as_integer()).sum();
+        let mut on_count = 0i64;
         for (key, value) in map.iter() {
-            if !value.is_u64() {
+            let Some(v) = value.as_integer() else {
                 continue;
-            }
+            };
 
-            if value != 0 && get_option_probability(key, is_true_callback)? != 0 {
-                on_count += value.as_u64().unwrap();
+            if v != 0 && get_option_probability(key, is_true_callback)? != 0 {
+                on_count += v;
             }
         }
 
@@ -342,7 +337,11 @@ pub static EXTRACTORS: Lazy<HashMap<&'static str, Box<dyn FeatureExtractor + Sen
     });
 
 pub fn extract_features(index: &Index, parsed: &YamlFile, raw_yaml: &str) -> Result<YamlFeatures> {
-    let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+    let docs = Value::load_from_str(raw_yaml)?;
+    let yaml = docs
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("No YAML document found"))?;
     let mut extractor = Extractor::new(&yaml)?;
 
     match &parsed.game {
@@ -395,7 +394,7 @@ mod tests {
 
     use crate::error::Result;
     use anyhow::anyhow;
-    use serde_yaml::Value;
+    use saphyr::{LoadableYamlNode, YamlOwned as Value};
 
     use super::{Extractor, FeatureExtractor, YamlFeature};
 
@@ -410,7 +409,7 @@ mod tests {
             extractor.register_feature(YamlFeature::DeathLink, "death_link")?;
             extractor.register_feature(YamlFeature::TrainerSanity, "trainersanity")?;
             extractor.register_ranged_feature(YamlFeature::OrbSanity, "orbulons", 2, 5, |v| {
-                Ok(v.as_u64().ok_or_else(|| anyhow!("Nope"))?)
+                Ok(v.as_integer().ok_or_else(|| anyhow!("Nope"))? as u64)
             })?;
             extractor.with_weight(5000, |extractor: &mut Extractor| -> Result<()> {
                 extractor.register_feature(YamlFeature::DeathLink, "half_deathlink")?;
@@ -431,7 +430,10 @@ Test:
   trainersanity: false
   other_option: false
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -451,7 +453,10 @@ Test:
   trainersanity: 'false'
   other_option: false
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -471,7 +476,10 @@ Test:
   trainersanity: 1
   other_option: 100
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -491,7 +499,10 @@ Test:
   trainersanity: '1'
   other_option: 100
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -515,7 +526,10 @@ Test:
     false: 50
   other_option: 100
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -539,7 +553,10 @@ Test:
     false: 80
   other_option: 100
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -573,7 +590,10 @@ Other:
     true: 90
     false: 10
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 9000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -604,7 +624,10 @@ Test:
     5: 0
     6: 0
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -630,7 +653,10 @@ Test:
     5: 0
     6: 50
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -656,7 +682,10 @@ Test:
     5: 0
     6: 50
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -682,7 +711,10 @@ Test:
     5: 0
     6: 0
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -708,7 +740,10 @@ Test:
     5: 50
     6: 50
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -728,7 +763,10 @@ Test:
   trainersanity: false
   other_option: false
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -751,7 +789,10 @@ Test:
     true: 50
     false: 50
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 10000)?;
         game_extractor.extract_features(&mut extractor)?;
@@ -778,7 +819,10 @@ Other:
     true: 50
     false: 50
         "#;
-        let yaml: Value = serde_yaml::from_str(raw_yaml)?;
+        let yaml: Value = Value::load_from_str(raw_yaml)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No YAML document"))?;
         let mut extractor = Extractor::new(&yaml)?;
         extractor.set_game("Test", 5000)?;
         game_extractor.extract_features(&mut extractor)?;

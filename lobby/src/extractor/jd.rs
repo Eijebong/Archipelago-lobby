@@ -1,7 +1,6 @@
 use anyhow::anyhow;
-use serde_yaml::Value;
 
-use super::{Extractor, FeatureExtractor, YamlFeature};
+use super::{Extractor, FeatureExtractor, Value, YamlFeature};
 use crate::error::Result;
 
 pub struct JakAndDaxter;

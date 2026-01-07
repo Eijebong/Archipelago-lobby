@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
         async move {
             for (yaml_id, raw_yaml) in &all_yamls {
                 let Ok(parsed) =
-                    serde_yaml::from_str::<YamlFile>(raw_yaml.trim_start_matches('\u{feff}'))
+                    serde_saphyr::from_str::<YamlFile>(raw_yaml.trim_start_matches('\u{feff}'))
                 else {
                     continue;
                 };

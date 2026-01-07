@@ -17,7 +17,6 @@ use regex::Regex;
 
 use rocket::State;
 use semver::Version;
-use serde_yaml::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::BufReader;
 use std::time::Duration;
@@ -46,21 +45,22 @@ pub fn parse_raw_yamls(yamls: &[&str]) -> Result<Vec<(String, YamlFile)>> {
                 anyhow::bail!("Invalid yaml file. Syntax error.")
             };
 
-            let raw_parsed_yaml = match serde_yaml::from_str::<Value>(&doc) {
+            let parsed: YamlFile = match serde_saphyr::from_str(&doc) {
                 Ok(doc) => doc,
                 Err(e) => {
                     let error_str = e.to_string();
-                    if error_str.contains("duplicate entry") && (error_str.contains("name") || error_str.contains("game")) {
+                    if (error_str.contains("duplicate entry") || error_str.contains("duplicate mapping key"))
+                        && (error_str.contains("name") || error_str.contains("game"))
+                    {
                         anyhow::bail!("Your YAML contains duplicate keys. This usually means you forgot to add '---' to separate multiple YAML documents.");
+                    }
+                    if error_str.contains("missing field") {
+                        anyhow::bail!(
+                            "This does not look like an archipelago YAML. Check that it has both a `name` and a `game` field."
+                        );
                     }
                     anyhow::bail!("Your YAML syntax is invalid: {}", e)
                 },
-            };
-
-            let Ok(parsed) = serde_yaml::from_value(raw_parsed_yaml) else {
-                anyhow::bail!(
-                    "This does not look like an archipelago YAML. Check that it has both a `name` and a `game` field."
-                )
             };
             Ok((doc.trim().trim_start_matches("---").trim().to_string(), parsed))
         })
@@ -491,7 +491,7 @@ pub async fn queue_yaml_validation(
     yaml_validation_queue: &State<YamlValidationQueue>,
     conn: &mut AsyncPgConnection,
 ) -> Result<()> {
-    let Ok(parsed) = serde_yaml::from_str::<YamlFile>(&yaml.content) else {
+    let Ok(parsed) = serde_saphyr::from_str::<YamlFile>(&yaml.content) else {
         Err(anyhow!(
             "Internal error, unable to reparse a YAML that was already parsed before"
         ))?

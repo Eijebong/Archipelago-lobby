@@ -496,8 +496,8 @@ async fn edit_yaml<'a>(
 ) -> Result<OptionsTpl<'a>> {
     redirect_to.set("/options");
 
-    let yaml: serde_yaml::Value =
-        serde_yaml::from_str(form.yaml).map_err(|e| anyhow!("Failed to parse YAML: {}", e))?;
+    let yaml: serde_json::Value =
+        serde_saphyr::from_str(form.yaml).map_err(|e| anyhow!("Failed to parse YAML: {}", e))?;
 
     let player_name = yaml
         .get("name")
@@ -515,7 +515,7 @@ async fn edit_yaml<'a>(
 
     let game_name = if let Some(s) = game_field.as_str() {
         s.to_string()
-    } else if game_field.is_mapping() {
+    } else if game_field.is_object() {
         return Err(anyhow!(
             "Weighted game randomizers are not supported. Please use a YAML with a single game."
         )
@@ -566,7 +566,7 @@ async fn edit_yaml<'a>(
         .flat_map(|(_, group_options)| group_options.iter())
         .collect();
 
-    let game_options = yaml.get(&game_name).and_then(|v| v.as_mapping());
+    let game_options = yaml.get(&game_name).and_then(|v| v.as_object());
 
     let mut prefilled_values: HashMap<String, serde_json::Value> = HashMap::new();
     let mut warnings: Vec<String> = vec![];
@@ -576,17 +576,16 @@ async fn edit_yaml<'a>(
     const WEIGHTED_TYPES: &[&str] = &["bool", "choice", "named_range", "text_choice", "range"];
 
     if let Some(game_opts) = game_options {
-        for (key, value) in game_opts {
-            let key_str = key.as_str().unwrap_or_default().to_string();
+        for (key_str, value) in game_opts {
             yaml_option_names.insert(key_str.clone());
 
-            let Some(option_def) = option_defs.get(&key_str) else {
-                warnings.push(key_str);
+            let Some(option_def) = option_defs.get(key_str) else {
+                warnings.push(key_str.clone());
                 continue;
             };
 
             let is_weighted_type = WEIGHTED_TYPES.contains(&option_def.ty.as_str());
-            if value.is_mapping()
+            if value.is_object()
                 && option_def.ty != "counter"
                 && option_def.ty != "dict"
                 && !is_weighted_type
@@ -598,7 +597,7 @@ async fn edit_yaml<'a>(
                 continue;
             }
 
-            let coalesced = value.as_mapping().and_then(|mapping| {
+            let coalesced = value.as_object().and_then(|mapping| {
                 if !is_weighted_type {
                     return None;
                 }
@@ -607,22 +606,21 @@ async fn edit_yaml<'a>(
                     .filter(|(_, v)| v.as_i64().map(|n| n != 0).unwrap_or(true))
                     .collect();
                 if non_zero.len() == 1 {
-                    Some(non_zero[0].0)
+                    Some(serde_json::Value::String(non_zero[0].0.clone()))
                 } else {
                     None
                 }
             });
 
-            let json_value =
-                serde_json::to_value(coalesced.unwrap_or(value)).unwrap_or(serde_json::Value::Null);
+            let json_value = coalesced.unwrap_or_else(|| value.clone());
 
             if option_def.is_editable() && !validate_option_value(&json_value, option_def) {
-                outdated_values.insert(key_str);
+                outdated_values.insert(key_str.clone());
                 // If invalid, don't insert it in prefill so it gets reset
                 continue;
             }
 
-            prefilled_values.insert(key_str, json_value);
+            prefilled_values.insert(key_str.clone(), json_value);
         }
     }
 
@@ -690,22 +688,22 @@ async fn download_yaml<'a>(
     }
 
     // Build the full YAML structure
-    let mut root: IndexMap<String, serde_yaml::Value> = IndexMap::new();
+    let mut root: IndexMap<String, serde_json::Value> = IndexMap::new();
     root.insert(
         "game".to_string(),
-        serde_yaml::Value::String(game_name.clone()),
+        serde_json::Value::String(game_name.clone()),
     );
     root.insert(
         "name".to_string(),
-        serde_yaml::Value::String(player_name.to_string()),
+        serde_json::Value::String(player_name.to_string()),
     );
     root.insert(
         "description".to_string(),
-        serde_yaml::Value::String(description),
+        serde_json::Value::String(description),
     );
-    root.insert(game_name.clone(), serde_yaml::to_value(&game_options)?);
+    root.insert(game_name.clone(), serde_json::to_value(&game_options)?);
 
-    let yaml = serde_yaml::to_string(&root)?;
+    let yaml = serde_saphyr::to_string(&root)?;
 
     let value = format!("attachment; filename=\"{}.yaml\"", player_name);
     Ok(YamlDownload {

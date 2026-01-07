@@ -1,6 +1,4 @@
-use serde_yaml::Value;
-
-use super::{Extractor, FeatureExtractor, YamlFeature};
+use super::{Extractor, FeatureExtractor, Value, YamlFeature};
 use crate::error::Result;
 
 pub struct DlcQuest;
@@ -34,8 +32,8 @@ impl FeatureExtractor for DlcQuest {
 }
 
 fn coin_value_to_u64(value: &Value) -> Result<u64> {
-    if let Some(value) = value.as_u64() {
-        return Ok(value);
+    if let Some(value) = value.as_integer() {
+        return Ok(value as u64);
     }
 
     let Some(value) = value.as_str() else {

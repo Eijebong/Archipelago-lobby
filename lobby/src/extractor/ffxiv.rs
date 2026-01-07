@@ -1,6 +1,4 @@
-use serde_yaml::Value;
-
-use super::{is_trueish, Extractor, FeatureExtractor, YamlFeature};
+use super::{is_trueish, Extractor, FeatureExtractor, Value, YamlFeature};
 use crate::error::Result;
 
 #[allow(clippy::upper_case_acronyms)]

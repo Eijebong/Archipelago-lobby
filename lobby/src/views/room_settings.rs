@@ -89,7 +89,7 @@ pub fn validate_room_form(room_form: &mut RoomSettingsForm<'_>) -> Result<()> {
 
     room_form.meta_file = room_form.meta_file.trim().to_string();
     if !room_form.meta_file.is_empty() {
-        serde_yaml::from_str::<MetaFile>(&room_form.meta_file)
+        serde_saphyr::from_str::<MetaFile>(&room_form.meta_file)
             .context("Failed to parse meta file. Make sure it includes a `meta_description`")?;
     }
 
