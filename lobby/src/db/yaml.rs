@@ -308,5 +308,11 @@ impl YamlWithoutContent {
 }
 
 fn sanitize_yaml_name(name: &str) -> String {
-    name.replace(['/', '\\', '<', '>', ':', '?', '*', '|', '"'], "_")
+    let mut sanitized = name.replace(['/', '\\', '<', '>', ':', '?', '*', '|', '"'], "_");
+
+    if sanitized.starts_with('.') {
+        sanitized.replace_range(0..1, "_");
+    }
+
+    sanitized
 }
