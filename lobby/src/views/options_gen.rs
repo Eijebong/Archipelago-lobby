@@ -283,7 +283,7 @@ async fn options_gen_api<'a>(
     let mut apworlds: Vec<(String, String)> = index
         .worlds
         .iter()
-        .map(|(apworld_name, world)| (apworld_name.clone(), world.name.clone()))
+        .map(|(apworld_name, world)| (apworld_name.clone(), world.display_name.clone()))
         .collect();
     apworlds.sort_by_key(|(_, world_name)| world_name.to_lowercase());
     let versions: Vec<String> = apworld
@@ -381,7 +381,7 @@ async fn options_gen<'a>(
     let mut apworlds: Vec<(String, String)> = index
         .worlds
         .iter()
-        .map(|(apworld_name, world)| (apworld_name.clone(), world.name.clone()))
+        .map(|(apworld_name, world)| (apworld_name.clone(), world.display_name.clone()))
         .collect();
     apworlds.sort_by_key(|(_, world_name)| world_name.to_lowercase());
 
@@ -538,7 +538,7 @@ async fn edit_yaml<'a>(
     let mut apworlds: Vec<(String, String)> = index
         .worlds
         .iter()
-        .map(|(apworld_name, world)| (apworld_name.clone(), world.name.clone()))
+        .map(|(apworld_name, world)| (apworld_name.clone(), world.display_name.clone()))
         .collect();
     apworlds.sort_by_key(|(_, world_name)| world_name.to_lowercase());
 
