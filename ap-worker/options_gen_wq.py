@@ -135,8 +135,10 @@ def get_valid_keys(option, world):
     if not valid_keys:
         if getattr(option, 'verify_item_name', False):
             valid_keys += list(world.item_name_to_id.keys())
+            valid_keys += list(world.item_name_groups.keys())
         if getattr(option, 'verify_location_name', False):
             valid_keys += list(world.location_name_to_id.keys())
+            valid_keys += list(world.location_name_groups.keys())
     valid_keys.sort(key=str.lower)
     return valid_keys
 
