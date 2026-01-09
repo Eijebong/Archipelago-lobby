@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufReader, Cursor, Read, Write};
 
@@ -41,14 +41,25 @@ pub struct RoomTpl<'a> {
     is_my_room: bool,
     room_info: Option<db::RoomInfo>,
     current_user_has_yaml_in_room: bool,
+    game_display_names: HashMap<String, String>,
+}
+
+impl RoomTpl<'_> {
+    fn get_game_display_name<'a>(&'a self, game: &'a str) -> &'a str {
+        self.game_display_names
+            .get(game)
+            .map(|s| s.as_str())
+            .unwrap_or(game)
+    }
 }
 
 #[get("/room/<room_id>")]
-#[tracing::instrument(skip(ctx, session))]
+#[tracing::instrument(skip(ctx, session, index_manager))]
 pub async fn room<'a>(
     room_id: RoomId,
     ctx: &State<Context>,
     session: Session,
+    index_manager: &State<IndexManager>,
 ) -> Result<RoomTpl<'a>> {
     let mut conn = ctx.db_pool.get().await?;
     let (room, author_name, room_info) = db::get_room_and_author(room_id, &mut conn).await?;
@@ -68,6 +79,21 @@ pub async fn room<'a>(
         .any(|yaml| Some(yaml.0.owner_id) == session.user_id);
     let current_user_has_yaml_in_room = user_has_yaml || is_my_room;
 
+    // Build game name to display name map from the index
+    let game_display_names = {
+        let index = index_manager.index.read().await;
+        yamls
+            .iter()
+            .map(|(yaml, _)| &yaml.game)
+            .unique()
+            .filter_map(|game_name| {
+                index
+                    .get_world_by_name(game_name)
+                    .map(|world| (game_name.clone(), world.display_name.clone()))
+            })
+            .collect::<HashMap<_, _>>()
+    };
+
     Ok(RoomTpl {
         base: TplContext::from_session("room", session, ctx).await,
         player_count: yamls.len(),
@@ -81,6 +107,7 @@ pub async fn room<'a>(
         is_my_room,
         room_info,
         current_user_has_yaml_in_room: user_has_yaml,
+        game_display_names,
     })
 }
 
