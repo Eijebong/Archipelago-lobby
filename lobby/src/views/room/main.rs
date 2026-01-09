@@ -65,21 +65,6 @@ pub async fn room<'a>(
     let (room, author_name, room_info) = db::get_room_and_author(room_id, &mut conn).await?;
     let mut yamls = db::get_yamls_for_room_with_author_names(room_id, &mut conn).await?;
 
-    yamls.sort_by(|a, b| a.0.game.to_lowercase().cmp(&b.0.game.to_lowercase()));
-    let unique_player_count = yamls.iter().unique_by(|yaml| yaml.0.owner_id).count();
-    let unique_game_count = yamls
-        .iter()
-        .filter(|yaml| !&yaml.0.game.starts_with("Random ("))
-        .unique_by(|yaml| &yaml.0.game)
-        .count();
-
-    let is_my_room = session.is_admin || session.user_id == Some(room.settings.author_id);
-    let user_has_yaml = yamls
-        .iter()
-        .any(|yaml| Some(yaml.0.owner_id) == session.user_id);
-    let current_user_has_yaml_in_room = user_has_yaml || is_my_room;
-
-    // Build game name to display name map from the index
     let game_display_names = {
         let index = index_manager.index.read().await;
         yamls
@@ -93,6 +78,25 @@ pub async fn room<'a>(
             })
             .collect::<HashMap<_, _>>()
     };
+
+    yamls.sort_by(|a, b| {
+        let a_display = game_display_names.get(&a.0.game).unwrap_or(&a.0.game);
+        let b_display = game_display_names.get(&b.0.game).unwrap_or(&b.0.game);
+        a_display.to_lowercase().cmp(&b_display.to_lowercase())
+    });
+
+    let unique_player_count = yamls.iter().unique_by(|yaml| yaml.0.owner_id).count();
+    let unique_game_count = yamls
+        .iter()
+        .filter(|yaml| !&yaml.0.game.starts_with("Random ("))
+        .unique_by(|yaml| &yaml.0.game)
+        .count();
+
+    let is_my_room = session.is_admin || session.user_id == Some(room.settings.author_id);
+    let user_has_yaml = yamls
+        .iter()
+        .any(|yaml| Some(yaml.0.owner_id) == session.user_id);
+    let current_user_has_yaml_in_room = user_has_yaml || is_my_room;
 
     Ok(RoomTpl {
         base: TplContext::from_session("room", session, ctx).await,
