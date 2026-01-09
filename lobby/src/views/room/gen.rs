@@ -109,7 +109,12 @@ async fn gen_room_status<'a>(
     Ok({
         rocket_ws::Stream! { _ws =>
             loop {
-                if let Some(job_status) = gen_queue.get_job_status(&current_gen.job_id).await.unwrap() {
+                let Ok(job_status) = gen_queue.get_job_status(&current_gen.job_id).await else {
+                    yield rocket_ws::Message::Text(job_status_to_client_str(&JobStatus::InternalError).to_string());
+                    break;
+                };
+
+                if let Some(job_status) = job_status {
                     yield rocket_ws::Message::Text(job_status_to_client_str(&job_status).to_string());
                     if job_status.is_resolved() {
                         break;
