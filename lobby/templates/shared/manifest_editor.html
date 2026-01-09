@@ -54,8 +54,8 @@ function forEachApworld(callback) {
     const rows = document.querySelectorAll("#me-editor > tbody > tr");
     for (const row of rows) {
         callback({
-            checkbox: row.children[0].children[0],
-            versions: row.lastChild.children[0],
+            checkbox: row.firstElementChild.firstElementChild,
+            versions: row.lastElementChild.firstElementChild,
             dataset: row.dataset
         })
     }
