@@ -107,9 +107,19 @@ impl OptionDef {
         self.default.is_array() || self.default.is_object()
     }
 
+    pub fn has_int_dict_values(&self) -> bool {
+        self.default
+            .as_object()
+            .map(|obj| obj.is_empty() || obj.values().all(|v| v.is_i64() || v.is_u64()))
+            .unwrap_or(false)
+    }
+
     pub fn is_editable(&self) -> bool {
-        if self.ty == "dict" || self.ty == "unknown" {
+        if self.ty == "unknown" {
             return false;
+        }
+        if self.ty == "dict" {
+            return self.has_valid_keys() && self.has_int_dict_values();
         }
         if matches!(self.ty.as_str(), "set" | "list" | "counter") && !self.has_valid_keys() {
             return false;
@@ -129,6 +139,21 @@ impl OptionDef {
             .as_array()
             .map(|arr| arr.iter().any(|v| v.as_str() == Some(value)))
             .unwrap_or(false)
+    }
+
+    pub fn default_dict_has(&self, key: &str) -> bool {
+        self.default
+            .as_object()
+            .map(|obj| obj.contains_key(key))
+            .unwrap_or(false)
+    }
+
+    pub fn default_dict_get(&self, key: &str) -> i64 {
+        self.default
+            .as_object()
+            .and_then(|obj| obj.get(key))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0)
     }
 
     pub fn default_json(&self) -> String {

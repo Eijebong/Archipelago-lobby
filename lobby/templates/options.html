@@ -279,8 +279,45 @@
             <span class="option-not-supported">Not editable in this UI</span>
             {% endif %}
         {% when "dict" %}
+            {% if option_def.is_editable() %}
+            {% let pobj = self.prefilled_object(prefilled) %}
+            <div class="dict-picker" id="{{option_name}}_picker" data-type="dict" data-default="{{option_def.default_json()}}" {%+ if pobj.is_some() %}data-prefilled="true"{% endif %}>
+                <div class="dict-selected" id="{{option_name}}_selected">
+                    {% if let Some(obj) = pobj %}
+                        {% for (name, qty) in obj %}
+                            <div class="item-list-item" data-value="{{name}}">
+                                <span>{{name}}</span>
+                                <input type="number" value="{{qty}}" class="item-list-qty"/>
+                                <button type="button" class="item-list-remove">×</button>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        {% for value in option_def.valid_keys() %}
+                            {% if option_def.default_dict_has(value) %}
+                            <div class="item-list-item" data-value="{{value}}">
+                                <span>{{value}}</span>
+                                <input type="number" value="{{option_def.default_dict_get(value)}}" class="item-list-qty"/>
+                                <button type="button" class="item-list-remove">×</button>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <input type="text" class="dict-filter" placeholder="Filter options..." id="{{option_name}}_filter"/>
+                <select id="{{option_name}}" multiple class="dict-options">
+                {% for value in option_def.valid_keys() %}
+                    {% if let Some(obj) = pobj %}
+                    <option value="{{value}}" {%+ if obj.contains_key(*value) %}selected{% endif %}>{{value}}</option>
+                    {% else %}
+                    <option value="{{value}}" {%+ if option_def.default_dict_has(value) %}selected{% endif %}>{{value}}</option>
+                    {% endif %}
+                {% endfor %}
+                </select>
+            </div>
+            {% else %}
             <input type="hidden" id="{{option_name}}" value='{% if prefilled.is_some() %}{{self.prefilled_json(prefilled)|e}}{% else %}{{option_def.default_json()|e}}{% endif %}'/>
             <span class="option-not-supported">Not editable in this UI</span>
+            {% endif %}
         {% when "unknown" %}
             {% if prefilled.is_some() %}
                 <input type="hidden" id="{{option_name}}" value='{{self.prefilled_json(prefilled)|e}}'/>
@@ -381,11 +418,18 @@
             case 'list':
                 return Array.from(row.querySelectorAll('.item-list-item')).map(item => item.dataset.name);
             case 'counter': {
-                const counter = {};
+                const obj = {};
                 row.querySelectorAll('.item-list-item').forEach(item => {
-                    counter[item.dataset.name] = parseInt(item.querySelector('.item-list-qty').value);
+                    obj[item.dataset.name] = parseInt(item.querySelector('.item-list-qty').value);
                 });
-                return counter;
+                return obj;
+            }
+            case 'dict': {
+                const obj = {};
+                row.querySelectorAll('.dict-selected .item-list-item').forEach(item => {
+                    obj[item.dataset.value] = parseInt(item.querySelector('.item-list-qty').value);
+                });
+                return obj;
             }
             default:
                 return row.querySelector('input[type="text"]')?.value || '';
@@ -401,10 +445,10 @@
         nameSpan.textContent = name;
         item.appendChild(nameSpan);
 
-        if (type === 'counter') {
+        if (type === 'counter' || type === 'dict') {
             const qtyInput = document.createElement('input');
             qtyInput.type = 'number';
-            qtyInput.min = '1';
+            if (type === 'counter') qtyInput.min = '1';
             qtyInput.value = quantity;
             qtyInput.className = 'item-list-qty';
             item.appendChild(qtyInput);
@@ -422,7 +466,7 @@
 
     function resetToDefault(row) {
         const type = row.dataset.type;
-        if (!type || type === 'dict') return;
+        if (!type) return;
         const defaultValue = JSON.parse(row.dataset.default);
 
         // If the default is "random", activate the random button
@@ -488,6 +532,18 @@
                 }
                 break;
             }
+            case 'dict': {
+                const select = row.querySelector('select.dict-options');
+                if (!select) return; // Non-editable
+                Array.from(select.options).forEach(opt => {
+                    opt.selected = defaultValue.hasOwnProperty(opt.value);
+                    opt.style.display = '';
+                });
+                const filter = row.querySelector('.dict-filter');
+                if (filter) filter.value = '';
+                updateDictChips(select, defaultValue);
+                break;
+            }
             default: {
                 const input = row.querySelector('input[type="text"]');
                 if (input) input.value = defaultValue;
@@ -507,24 +563,44 @@
     });
 
     const MAX_CHIPS = 100;
-    function updateSetChips(select) {
-        const picker = select.closest('.set-picker');
-        const chipsContainer = picker.querySelector('.set-selected');
+
+    function updatePickerChips(select, values = null) {
+        const isDict = select.classList.contains('dict-options');
+        const picker = select.closest(isDict ? '.dict-picker' : '.set-picker');
+        const chipsContainer = picker.querySelector(isDict ? '.dict-selected' : '.set-selected');
+
+        // For dict, preserve current values if not resetting
+        const currentValues = {};
+        if (isDict && !values) {
+            chipsContainer.querySelectorAll('.item-list-item').forEach(item => {
+                currentValues[item.dataset.value] = parseInt(item.querySelector('.item-list-qty').value) || 1;
+            });
+        }
+
         chipsContainer.innerHTML = '';
         const selected = Array.from(select.selectedOptions);
-        const toShow = selected.slice(0, MAX_CHIPS);
+        const toShow = isDict ? selected : selected.slice(0, MAX_CHIPS);
+
         toShow.forEach(opt => {
             const chip = document.createElement('div');
             chip.className = 'item-list-item';
             chip.dataset.value = opt.value;
-            chip.innerHTML = `<span>${opt.value}</span><button type="button" class="item-list-remove">×</button>`;
+
+            if (isDict) {
+                const qty = values ? (values[opt.value] ?? 1) : (currentValues[opt.value] ?? 1);
+                chip.innerHTML = `<span>${opt.value}</span><input type="number" value="${qty}" class="item-list-qty"/><button type="button" class="item-list-remove">×</button>`;
+            } else {
+                chip.innerHTML = `<span>${opt.value}</span><button type="button" class="item-list-remove">×</button>`;
+            }
+
             chip.querySelector('.item-list-remove').onclick = () => {
                 opt.selected = false;
-                updateSetChips(select);
+                updatePickerChips(select);
             };
             chipsContainer.appendChild(chip);
         });
-        if (selected.length > MAX_CHIPS) {
+
+        if (!isDict && selected.length > MAX_CHIPS) {
             const more = document.createElement('div');
             more.className = 'item-list-item set-chip-more';
             more.textContent = `+${selected.length - MAX_CHIPS} more`;
@@ -532,27 +608,31 @@
         }
     }
 
-    document.querySelectorAll('.set-picker').forEach(picker => {
-        const select = picker.querySelector('select');
-        const filter = picker.querySelector('.set-filter');
+    // Keep aliases for resetToDefault compatibility
+    const updateSetChips = updatePickerChips;
+    const updateDictChips = updatePickerChips;
 
-        picker.querySelectorAll('.set-selected .item-list-remove').forEach(btn => {
+    document.querySelectorAll('.set-picker, .dict-picker').forEach(picker => {
+        const isDict = picker.classList.contains('dict-picker');
+        const select = picker.querySelector('select');
+        const filter = picker.querySelector(isDict ? '.dict-filter' : '.set-filter');
+        const chipsSelector = isDict ? '.dict-selected' : '.set-selected';
+
+        picker.querySelectorAll(`${chipsSelector} .item-list-remove`).forEach(btn => {
             btn.onclick = () => {
                 const chip = btn.closest('.item-list-item');
-                const value = chip.dataset.value;
-                const option = select.querySelector(`option[value="${CSS.escape(value)}"]`);
+                const option = select.querySelector(`option[value="${CSS.escape(chip.dataset.value)}"]`);
                 if (option) option.selected = false;
-                updateSetChips(select);
+                updatePickerChips(select);
             };
         });
 
-        select.addEventListener('change', () => updateSetChips(select));
+        select.addEventListener('change', () => updatePickerChips(select));
 
         filter.oninput = () => {
             const query = filter.value.toLowerCase();
             Array.from(select.options).forEach(opt => {
-                const matches = opt.value.toLowerCase().includes(query);
-                opt.style.display = matches ? '' : 'none';
+                opt.style.display = opt.value.toLowerCase().includes(query) ? '' : 'none';
             });
         };
     });
@@ -631,7 +711,7 @@
             const name = input.value.trim();
             if (!name) return;
 
-            if (type === 'counter') {
+            if (type === 'counter' || type === 'dict') {
                 const existing = itemsContainer.querySelector(`[data-name="${CSS.escape(name)}"]`);
                 if (existing) {
                     const qtyInput = existing.querySelector('.item-list-qty');

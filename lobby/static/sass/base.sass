@@ -1126,6 +1126,46 @@ body:has(dialog[open])
       min-height: 150px
       max-height: 250px
 
+    .dict-picker
+      grid-column: 2
+      display: flex
+      flex-direction: column
+      gap: 0.5em
+
+    .dict-selected
+      display: flex
+      flex-wrap: wrap
+      gap: 0.4em
+      min-height: 1.5em
+
+      &:empty::before
+        content: "None selected"
+        color: hsla(0, 0%, 100%, 0.4)
+        font-style: italic
+
+      .item-list-qty
+        width: 4em
+
+    .dict-chip-more
+      background: hsla(0, 0%, 100%, 0.15) !important
+      font-style: italic
+
+    .dict-filter
+      margin: 0
+      padding: 0.4em 0.6em
+      background: hsla(0, 0%, 0%, 0.2)
+      border: 1px solid hsla(0, 0%, 100%, 0.1)
+      border-radius: 3px
+      color: inherit
+
+      &:focus
+        border-color: hsla(200, 60%, 50%, 0.5)
+        outline: none
+
+    .dict-options
+      min-height: 150px
+      max-height: 250px
+
     .preset-select
       grid-column: 2
       grid-row: 1
