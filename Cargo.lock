@@ -4288,8 +4288,7 @@ dependencies = [
 [[package]]
 name = "serde-saphyr"
 version = "0.0.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be7f28bb35aab6f9cdc5f464f9bbda0b1e3908766e819557111cc13e58ce7915"
+source = "git+https://github.com/Eijebong/serde-saphyr.git?branch=fix-floats#f1e95b60658d4d355097099bccbf829855fcf058"
 dependencies = [
  "ahash",
  "annotate-snippets",
@@ -4297,11 +4296,11 @@ dependencies = [
  "encoding_rs_io",
  "nohash-hasher",
  "num-traits",
- "ryu",
  "saphyr-parser",
  "serde",
  "serde_json",
  "smallvec 2.0.0-alpha.12",
+ "zmij",
 ]
 
 [[package]]
