@@ -452,8 +452,9 @@ impl<
             .await?;
 
         if is_resolved {
-            let job_result = conn.get::<_, JobResult<R>>(result_key).await?;
-            return Ok(Some(job_result.status));
+            if let Some(job_result) = conn.get::<_, Option<JobResult<R>>>(result_key).await? {
+                return Ok(Some(job_result.status));
+            }
         }
 
         if is_claimed {
