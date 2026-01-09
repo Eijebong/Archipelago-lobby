@@ -188,7 +188,7 @@
         {% when "set" %}
             {% if option_def.has_valid_keys() %}
             {% let parr = self.prefilled_array(prefilled) %}
-            <div class="set-picker" id="{{option_name}}_picker">
+            <div class="set-picker" id="{{option_name}}_picker" {%+ if parr.is_some() %}data-prefilled="true"{% endif %}>
                 <div class="set-selected" id="{{option_name}}_selected">
                     {% if let Some(arr) = parr %}
                         {% for item in arr %}
@@ -559,8 +559,7 @@
 
     document.querySelectorAll('.option-row').forEach(row => {
         // Skip resetToDefault if items were pre-rendered server-side
-        const itemList = row.querySelector('.item-list[data-prefilled="true"]');
-        if (!itemList) {
+        if (!row.querySelector('[data-prefilled="true"]')) {
             resetToDefault(row);
         }
 
