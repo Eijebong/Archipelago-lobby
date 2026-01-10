@@ -103,7 +103,7 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
 
     let mut players_in_room = yamls_in_room
         .iter()
-        .map(|yaml| get_ap_player_name(&yaml.player_name, &mut player_counter))
+        .map(|yaml| get_ap_player_name(&yaml.player_name, &mut player_counter).to_lowercase())
         .collect::<HashSet<String>>();
 
     let mut games = Vec::with_capacity(documents.len());
@@ -126,7 +126,7 @@ pub async fn parse_and_validate_yamls_for_room<'a>(
         }
         let player_name =
             validate_player_name(&parsed.name, &players_in_room, &mut player_counter)?;
-        players_in_room.insert(player_name);
+        players_in_room.insert(player_name.to_lowercase());
 
         let game_name = validate_game(&parsed.game)?;
 
@@ -239,7 +239,7 @@ fn validate_player_name<'a>(
         ))));
     }
 
-    if players_in_room.contains(&player_name) {
+    if players_in_room.contains(&player_name.to_lowercase()) {
         return Err(Error(anyhow::anyhow!(format!(
             "Adding this yaml would duplicate a player name: {}",
             player_name
@@ -837,6 +837,30 @@ mod tests {
             &mut player_counter
         )
         .is_err());
+    }
+
+    #[test]
+    fn test_validate_player_name_case_insensitive_duplicate() {
+        use crate::yaml::validate_player_name;
+        use counter::Counter;
+        use std::collections::HashSet;
+
+        let mut players_in_room = HashSet::new();
+        let mut player_counter = Counter::new();
+
+        let name = validate_player_name(
+            &"player{NUMBER}".to_string(),
+            &players_in_room,
+            &mut player_counter,
+        );
+        assert!(name.is_ok());
+        assert_eq!(name.as_ref().unwrap(), "player");
+        players_in_room.insert(name.unwrap().to_lowercase());
+
+        assert!(
+            validate_player_name(&"Player".to_string(), &players_in_room, &mut player_counter)
+                .is_err()
+        );
     }
 
     #[test]
