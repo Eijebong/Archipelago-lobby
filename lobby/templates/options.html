@@ -127,7 +127,7 @@
     >
         {% match option_def.ty.as_str() %}
         {% when "bool" %}
-            <input type="checkbox" id="{{option_name}}" class="bool-checkbox" {%+ if self.prefilled_bool(prefilled, option_def.default_str() == "true") %}checked{% endif %}/>
+            <input type="checkbox" id="{{option_name}}" class="bool-checkbox" {%+ if prefilled.is_some() %}data-prefilled="true"{% endif %} {%+ if self.prefilled_bool(prefilled, option_def.default_str() == "true") %}checked{% endif %}/>
         {% else %}
         {% endmatch %}
         <label for="{{option_name}}">{{option_def.display_name}}{%+ if self.is_new_option(option_name) %} <span class="option-new-badge">new</span>{% endif %}{%+ if self.is_outdated(option_name) %} <span class="option-outdated-badge">invalid</span>{% endif %} <i class="fa fa-circle-question tooltip-icon" tabindex="0" data-tooltip="{{option_def.description}}"></i></label>
@@ -135,7 +135,7 @@
         {% when "bool" %}
         {% when "range" %}
             {% let (min, max) = option_def.range_bounds() %}
-            <div class="range-wrapper">
+            <div class="range-wrapper" {%+ if prefilled.is_some() %}data-prefilled="true"{% endif %}>
                 {% if let Some(v) = prefilled %}
                 <input id="{{option_name}}" type="number" value="{{v}}" min="{{min}}" max="{{max}}" required/>
                 {% else %}
@@ -148,7 +148,7 @@
             {% let pstr = self.prefilled_str(prefilled) %}
             {% let default_is_suggestion = self.default_is_suggestion(option_def) %}
             {% let default_str = self.default_str(option_def) %}
-            <select id="{{option_name}}" class="preset-select" data-target="{{option_name}}_input">
+            <select id="{{option_name}}" class="preset-select" data-target="{{option_name}}_input" {%+ if prefilled.is_some() %}data-prefilled="true"{% endif %}>
                 <option value="">Custom</option>
                 {% for suggestion in option_def.suggestions() %}
                 <option value="{{suggestion}}" {%+ if pstr == Some(*suggestion) || (pstr.is_none() && default_str == Some(*suggestion)) %}selected{% endif %}>{{suggestion}}</option>
@@ -166,7 +166,7 @@
             </div>
         {% when "text_choice" %}
             {% let pstr = self.prefilled_str(prefilled) %}
-            <select id="{{option_name}}" class="preset-select" data-target="{{option_name}}_input">
+            <select id="{{option_name}}" class="preset-select" data-target="{{option_name}}_input" {%+ if prefilled.is_some() %}data-prefilled="true"{% endif %}>
                 <option value="">Custom</option>
                 {% for suggestion in option_def.suggestions() %}
                 <option value="{{suggestion}}" {%+ if pstr == Some(*suggestion) %}selected{% endif %}>{{suggestion}}</option>
@@ -180,7 +180,7 @@
             {% endif %}
         {% when "choice" %}
             {% let pstr = self.prefilled_str(prefilled) %}
-            <select id="{{option_name}}">
+            <select id="{{option_name}}" {%+ if prefilled.is_some() %}data-prefilled="true"{% endif %}>
             {% for choice in option_def.choices() %}
                 <option value="{{choice}}" {%+ if pstr.unwrap_or(option_def.default_str()) == choice %}selected{% endif %}>{{choice}}</option>
             {% endfor %}
@@ -330,7 +330,7 @@
             <input type="hidden" id="{{option_name}}" value='{% if prefilled.is_some() %}{{self.prefilled_json(prefilled)|e}}{% else %}{{option_def.default_json()|e}}{% endif %}'/>
             <span class="option-not-supported">Not editable in this UI</span>
             {% else if let Some(v) = self.prefilled_str(prefilled) %}
-            <input id="{{option_name}}" type="text" value="{{v}}"/>
+            <input id="{{option_name}}" type="text" value="{{v}}" data-prefilled="true"/>
             {% else %}
             <input id="{{option_name}}" type="text" value="{{option_def.default_str()}}"/>
             {% endif %}
