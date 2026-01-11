@@ -278,7 +278,7 @@ async fn options_gen_api<'a>(
     redirect_to.set("/options");
     let index = index_manager.index.read().await;
     let Some(apworld) = index.worlds.get(apworld_name) else {
-        Err(anyhow!("Unkown apworld"))?
+        Err(anyhow!("Unknown apworld"))?
     };
     let mut apworlds: Vec<(String, String)> = index
         .worlds
@@ -293,7 +293,7 @@ async fn options_gen_api<'a>(
         .rev()
         .collect();
     if !versions.contains(&version.to_string()) {
-        Err(anyhow!("Unkown version for this apworld"))?
+        Err(anyhow!("Unknown version for this apworld"))?
     }
     drop(index);
 
@@ -346,7 +346,7 @@ async fn options_apworld_versions<'a>(
     redirect_to.set("/options");
     let index = index_manager.index.read().await;
     let Some(apworld) = index.worlds.get(apworld_name) else {
-        Err(anyhow!("Unkown apworld"))?
+        Err(anyhow!("Unknown apworld"))?
     };
     let versions: Vec<String> = apworld
         .versions
