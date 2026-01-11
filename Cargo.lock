@@ -4067,6 +4067,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "saphyr-parser-bw"
+version = "0.0.6"
+source = "git+https://github.com/bourumir-wyngs/saphyr?branch=dev%2Fsaphyr-parser#82b4d0530f5521c5920acc2ca5d2ffee2294a0ad"
+dependencies = [
+ "arraydeque",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "schannel"
 version = "0.1.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4287,8 +4296,8 @@ dependencies = [
 
 [[package]]
 name = "serde-saphyr"
-version = "0.0.13"
-source = "git+https://github.com/Eijebong/serde-saphyr.git?branch=fix-floats#f1e95b60658d4d355097099bccbf829855fcf058"
+version = "0.0.14"
+source = "git+https://github.com/Eijebong/serde-saphyr.git?branch=fix-numeric-map-keys#b10953dd0c39d89e1656d34fd270d05359660c95"
 dependencies = [
  "ahash",
  "annotate-snippets",
@@ -4296,7 +4305,7 @@ dependencies = [
  "encoding_rs_io",
  "nohash-hasher",
  "num-traits",
- "saphyr-parser",
+ "saphyr-parser-bw",
  "serde",
  "serde_json",
  "smallvec 2.0.0-alpha.12",

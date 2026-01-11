@@ -17,7 +17,7 @@ rocket_prometheus = { git = "https://github.com/Eijebong/rocket_prometheus.git",
 rocket_oauth2 = { git = "https://github.com/Eijebong/rocket_oauth2.git" }
 sentry-tracing = { git = "http://github.com/Eijebong/sentry-rust.git" }
 sentry = { git = "http://github.com/Eijebong/sentry-rust.git" }
-serde-saphyr = { git = "https://github.com/Eijebong/serde-saphyr.git", branch="fix-floats" }
+serde-saphyr = { git = "https://github.com/Eijebong/serde-saphyr.git", branch="fix-numeric-map-keys" }
 
 [profile.dev.package."*"]
 opt-level = 3
