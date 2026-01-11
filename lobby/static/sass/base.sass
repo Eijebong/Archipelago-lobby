@@ -995,14 +995,13 @@ body:has(dialog[open])
         display: block
         margin-bottom: 0.5em
 
-      input[type="text"], input[type="number"], select
+      input[type="text"], input[type="number"], select, select:not([multiple])
         display: block
         width: 100%
         margin-bottom: 0.5em
 
       .range-wrapper
         display: flex
-        margin-bottom: 0.5em
 
       .option-reset, .option-random, .option-weighted
         display: inline-block
@@ -1057,8 +1056,10 @@ body:has(dialog[open])
     input[type="number"],
     select:not([multiple])
       grid-column: 2
-      margin: 0
       width: 100%
+
+      @media (min-width: 701px)
+        margin: 0
 
       &:disabled
         opacity: 0.4
