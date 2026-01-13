@@ -60,6 +60,16 @@ struct ExclusionsResponse {
     excluded_slots: Vec<usize>,
 }
 
+#[derive(Deserialize, Serialize)]
+struct ProbabilityResponse {
+    probability: f64,
+}
+
+#[derive(Deserialize, Serialize)]
+struct SetProbabilityRequest {
+    probability: f64,
+}
+
 pub struct DeathlinksSlot {
     pub id: usize,
     pub name: String,
@@ -326,6 +336,58 @@ async fn proxy_remove_exclusion(
 
     Ok(rocket::http::Status::from_code(response.status().as_u16())
         .unwrap_or(rocket::http::Status::InternalServerError))
+}
+
+#[rocket::get("/api/deathlink_probability")]
+async fn get_deathlink_probability(
+    _session: LoggedInSession,
+    config: &State<Config>,
+) -> crate::error::Result<Json<ProbabilityResponse>> {
+    let apx_api_root = config
+        .apx_api_root
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API not configured"))?;
+    let apx_api_key = config
+        .apx_api_key
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API key not configured"))?;
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(format!("{}/api/deathlink_probability", apx_api_root))
+        .header("X-API-Key", apx_api_key)
+        .send()
+        .await?;
+
+    let data: ProbabilityResponse = response.json().await?;
+    Ok(Json(data))
+}
+
+#[rocket::put("/api/deathlink_probability", data = "<request>")]
+async fn set_deathlink_probability(
+    _session: LoggedInSession,
+    config: &State<Config>,
+    request: Json<SetProbabilityRequest>,
+) -> crate::error::Result<Json<ProbabilityResponse>> {
+    let apx_api_root = config
+        .apx_api_root
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API not configured"))?;
+    let apx_api_key = config
+        .apx_api_key
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API key not configured"))?;
+
+    let client = reqwest::Client::new();
+    let response = client
+        .put(format!("{}/api/deathlink_probability", apx_api_root))
+        .header("X-API-Key", apx_api_key)
+        .json(&request.into_inner())
+        .send()
+        .await?;
+
+    let data: ProbabilityResponse = response.json().await?;
+    Ok(Json(data))
 }
 
 #[rocket::get("/hint/<ty>/<slot_name>/<item_name>")]
@@ -679,6 +741,8 @@ async fn main() -> crate::error::Result<()> {
                 deathlinks,
                 proxy_add_exclusion,
                 proxy_remove_exclusion,
+                get_deathlink_probability,
+                set_deathlink_probability,
                 release,
                 hint,
                 autocompletion,
