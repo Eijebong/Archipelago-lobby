@@ -104,6 +104,8 @@ class GenerationQueue(LobbyQueue):
                         if section == "meta_description" or section in AutoWorldRegister.world_types or section is None:
                             filtered_meta[section] = content
 
+                    filtered_meta["meta_description"] = "meta file"
+
                     with open(os.path.join(players_dir, "meta.yaml"), "w") as fd:
                         fd.write(yaml.dump(filtered_meta))
 

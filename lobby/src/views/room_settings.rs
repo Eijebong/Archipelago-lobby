@@ -96,11 +96,8 @@ pub fn validate_room_form(room_form: &mut RoomSettingsForm<'_>) -> Result<()> {
             .into_iter()
             .next()
             .ok_or_else(|| anyhow!("Meta file is empty"))?;
-        if meta
-            .as_mapping_get("meta_description")
-            .is_none_or(|v| v.as_str().is_none())
-        {
-            return Err(anyhow!("Meta file must include a `meta_description` string field").into());
+        if meta.as_mapping_get("meta_description").is_none() {
+            return Err(anyhow!("Meta file must include a `meta_description` field").into());
         }
     }
 
