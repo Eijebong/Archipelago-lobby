@@ -31,6 +31,7 @@ uv pip install -r worlds/zillion/requirements.txt
 uv pip install -r WebHostLib/requirements.txt
 uv run cythonize -a -i _speedups.pyx
 uv pip install git+https://github.com/Eijebong/aplinter@${LINTER_COMMIT}
+uv pip install yappi
 git rev-parse HEAD > /ap/archipelago/version
 rm -Rf .git
 
