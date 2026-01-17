@@ -56,8 +56,8 @@ pub enum SlotStatus {
     Disconnected,
     Connected,
     Ready,
-    GoalCompleted,
     Playing,
+    GoalCompleted,
     Unknown(String),
 }
 
