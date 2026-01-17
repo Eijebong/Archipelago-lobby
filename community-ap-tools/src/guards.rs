@@ -51,7 +51,7 @@ pub struct TrackerInfo {
     pub slots: Vec<SlotInfo>,
 }
 
-#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum SlotStatus {
     Disconnected,
     Connected,
@@ -59,6 +59,29 @@ pub enum SlotStatus {
     Playing,
     GoalCompleted,
     Unknown(String),
+}
+
+impl SlotStatus {
+    fn sort_key(&self) -> u8 {
+        match self {
+            Self::Unknown(_) => 0,
+            Self::Disconnected => 1,
+            Self::Connected | Self::Ready | Self::Playing => 2,
+            Self::GoalCompleted => 3,
+        }
+    }
+}
+
+impl PartialOrd for SlotStatus {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SlotStatus {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.sort_key().cmp(&other.sort_key())
+    }
 }
 
 impl FromStr for SlotStatus {
