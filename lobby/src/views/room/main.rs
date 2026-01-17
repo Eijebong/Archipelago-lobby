@@ -523,7 +523,7 @@ pub async fn download_patch<'a>(
     };
 
     let yaml = db::get_yaml_by_id(yaml_id, &mut conn).await?;
-    let Some(patch_path) = yaml.patch else {
+    let Some(patch_path) = yaml.patch.clone() else {
         Err(anyhow::anyhow!(
             "This YAML doesn't have a patch file associated with it"
         ))?
@@ -541,12 +541,66 @@ pub async fn download_patch<'a>(
     assert!(patch_file.is_file());
     let mut buf = Vec::new();
     patch_file.read_to_end(&mut buf)?;
+    drop(patch_file);
+
+    // If room has server info, embed it in the patch file's archipelago.json
+    let room_info = db::get_room_info(room_id, &mut conn).await?;
+    let buf = if let Some(info) = room_info {
+        embed_server_info_in_patch(buf, &info)?
+    } else {
+        buf
+    };
 
     let value = format!("attachment; filename=\"{patch_path}\"");
     Ok(NamedBuf {
         content: buf,
         headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
     })
+}
+
+fn embed_server_info_in_patch(patch_data: Vec<u8>, room_info: &db::RoomInfo) -> Result<Vec<u8>> {
+    let Ok(mut archive) = zip::ZipArchive::new(Cursor::new(&patch_data)) else {
+        return Ok(patch_data);
+    };
+
+    let Ok(mut manifest_file) = archive.by_name("archipelago.json") else {
+        return Ok(patch_data);
+    };
+
+    let mut manifest_data = String::new();
+    manifest_file.read_to_string(&mut manifest_data)?;
+    drop(manifest_file);
+
+    let mut manifest: serde_json::Value = serde_json::from_str(&manifest_data)?;
+    manifest["server"] = serde_json::Value::String(format!("{}:{}", room_info.host, room_info.port));
+
+    // Rewrite the ZIP with the modified manifest
+    let mut new_zip_data = Cursor::new(Vec::new());
+    {
+        let mut new_zip = zip::ZipWriter::new(&mut new_zip_data);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+
+        for i in 0..archive.len() {
+            let (name, data) = {
+                let mut file = archive.by_index(i)?;
+                let name = file.name().to_string();
+                let mut data = Vec::new();
+                file.read_to_end(&mut data)?;
+                (name, data)
+            };
+
+            new_zip.start_file(&name, options)?;
+            if name == "archipelago.json" {
+                new_zip.write_all(serde_json::to_string(&manifest)?.as_bytes())?;
+            } else {
+                new_zip.write_all(&data)?;
+            }
+        }
+        new_zip.finish()?;
+    }
+
+    Ok(new_zip_data.into_inner())
 }
 
 pub fn routes() -> Vec<rocket::Route> {
