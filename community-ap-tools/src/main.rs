@@ -133,18 +133,30 @@ async fn root_run(
         ))?;
     }
 
-    ap_room
-        .tracker_info
-        .slots
-        .sort_by_key(|slot| slot.status.clone());
-
-    ap_room.tracker_info.slots.sort_by_key(|slot| {
-        match filters::slot_status_fn(slot).unwrap_or("green") {
+    ap_room.tracker_info.slots.sort_by(|a, b| {
+        // by slot_status_fn color
+        let color_a = match filters::slot_status_fn(a).unwrap_or("green") {
             "green" => 2,
             "yellow" => 1,
-            "red" => 0,
             _ => 0,
-        }
+        };
+        let color_b = match filters::slot_status_fn(b).unwrap_or("green") {
+            "green" => 2,
+            "yellow" => 1,
+            _ => 0,
+        };
+
+        color_a
+            .cmp(&color_b)
+            // by last_activity
+            .then_with(|| match (a.last_activity, b.last_activity) {
+                (Some(x), Some(y)) => x.total_cmp(&y),
+                (Some(_), None) => std::cmp::Ordering::Greater,
+                (None, Some(_)) => std::cmp::Ordering::Less,
+                (None, None) => std::cmp::Ordering::Equal,
+            })
+            // by status
+            .then_with(|| a.status.cmp(&b.status))
     });
 
     let unclaimed_slots = ap_room
