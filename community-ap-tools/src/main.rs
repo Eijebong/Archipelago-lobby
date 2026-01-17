@@ -148,15 +148,15 @@ async fn root_run(
 
         color_a
             .cmp(&color_b)
-            // by last_activity
-            .then_with(|| match (a.last_activity, b.last_activity) {
-                (Some(x), Some(y)) => x.total_cmp(&y),
-                (Some(_), None) => std::cmp::Ordering::Greater,
-                (None, Some(_)) => std::cmp::Ordering::Less,
-                (None, None) => std::cmp::Ordering::Equal,
-            })
             // by status
             .then_with(|| a.status.cmp(&b.status))
+            // by last_activity (descending)
+            .then_with(|| match (a.last_activity, b.last_activity) {
+                (Some(x), Some(y)) => y.total_cmp(&x),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => std::cmp::Ordering::Equal,
+            })
     });
 
     let unclaimed_slots = ap_room
