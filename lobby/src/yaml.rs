@@ -374,6 +374,26 @@ pub fn get_ap_player_name<'a>(
         .to_string()
 }
 
+pub fn compute_ap_slot_names(player_names: &[&str]) -> HashMap<String, String> {
+    let mut sorted_indices: Vec<usize> = (0..player_names.len()).collect();
+    sorted_indices.sort_by(|&a, &b| {
+        player_names[a]
+            .to_lowercase()
+            .cmp(&player_names[b].to_lowercase())
+    });
+
+    let mut result = HashMap::new();
+    let mut counter: Counter<String> = Counter::new();
+
+    for &idx in &sorted_indices {
+        let name = player_names[idx];
+        let truncated = get_ap_player_name(name, &mut counter);
+        result.insert(name.to_string(), truncated);
+    }
+
+    result
+}
+
 fn is_reserved_name(player_name: &str) -> bool {
     player_name.to_lowercase() == "meta" || player_name.to_lowercase() == "archipelago"
 }

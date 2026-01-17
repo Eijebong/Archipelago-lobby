@@ -51,7 +51,7 @@
         {% let is_my_yaml = (Some(yaml.owner_id) == base.user_id.as_ref()) %}
         {% if is_my_yaml %}
         <tr>
-            <td>{{ yaml.player_name }}</td>
+            <td>{{ self.get_truncated_name(yaml.player_name) }}</td>
             <td>{{ self.get_game_display_name(yaml.game) }}</td>
             <td>{% match yaml.password %}{% when Some with (pwd) %}{{ pwd }}{% when None %}-{% endmatch %}</td>
             <td>{% if yaml.patch.is_some() %}<a href="/room/{{room.id}}/patch/{{yaml.id}}">Download</a>{% else %}-{% endif %}</td>

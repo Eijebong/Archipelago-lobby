@@ -11,7 +11,7 @@ use crate::session::{LoggedInSession, Session};
 use crate::utils::{NamedBuf, ZipFile};
 use crate::views::api;
 use crate::views::filters;
-use crate::yaml::YamlValidationResult;
+use crate::yaml::{compute_ap_slot_names, YamlValidationResult};
 use crate::{Context, TplContext};
 use askama::Template;
 use askama_web::WebTemplate;
@@ -42,6 +42,8 @@ pub struct RoomTpl<'a> {
     room_info: Option<db::RoomInfo>,
     current_user_has_yaml_in_room: bool,
     game_display_names: HashMap<String, String>,
+    // Map from original player name to AP truncated slot name
+    truncated_names: HashMap<String, String>,
 }
 
 impl RoomTpl<'_> {
@@ -50,6 +52,13 @@ impl RoomTpl<'_> {
             .get(game)
             .map(|s| s.as_str())
             .unwrap_or(game)
+    }
+
+    fn get_truncated_name<'a>(&'a self, player_name: &'a str) -> &'a str {
+        self.truncated_names
+            .get(player_name)
+            .map(|s| s.as_str())
+            .unwrap_or(player_name)
     }
 }
 
@@ -98,6 +107,13 @@ pub async fn room<'a>(
         .any(|yaml| Some(yaml.0.owner_id) == session.user_id);
     let current_user_has_yaml_in_room = user_has_yaml || is_my_room;
 
+    let truncated_names = if room_info.is_some() {
+        let player_names: Vec<&str> = yamls.iter().map(|(yaml, _)| yaml.player_name.as_str()).collect();
+        compute_ap_slot_names(&player_names)
+    } else {
+        HashMap::new()
+    };
+
     Ok(RoomTpl {
         base: TplContext::from_session("room", session, ctx).await,
         player_count: yamls.len(),
@@ -112,6 +128,7 @@ pub async fn room<'a>(
         room_info,
         current_user_has_yaml_in_room: user_has_yaml,
         game_display_names,
+        truncated_names,
     })
 }
 
