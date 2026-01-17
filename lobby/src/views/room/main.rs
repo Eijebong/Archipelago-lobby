@@ -108,7 +108,10 @@ pub async fn room<'a>(
     let current_user_has_yaml_in_room = user_has_yaml || is_my_room;
 
     let truncated_names = if room_info.is_some() {
-        let player_names: Vec<&str> = yamls.iter().map(|(yaml, _)| yaml.player_name.as_str()).collect();
+        let player_names: Vec<&str> = yamls
+            .iter()
+            .map(|(yaml, _)| yaml.player_name.as_str())
+            .collect();
         compute_ap_slot_names(&player_names)
     } else {
         HashMap::new()
@@ -572,7 +575,8 @@ fn embed_server_info_in_patch(patch_data: Vec<u8>, room_info: &db::RoomInfo) -> 
     drop(manifest_file);
 
     let mut manifest: serde_json::Value = serde_json::from_str(&manifest_data)?;
-    manifest["server"] = serde_json::Value::String(format!("{}:{}", room_info.host, room_info.port));
+    manifest["server"] =
+        serde_json::Value::String(format!("{}:{}", room_info.host, room_info.port));
 
     // Rewrite the ZIP with the modified manifest
     let mut new_zip_data = Cursor::new(Vec::new());
