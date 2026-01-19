@@ -5,10 +5,28 @@ import tempfile
 import os
 import sys
 import zipfile
+import zipimport
 import json
+import importlib.abc
+import importlib.machinery
+from pathlib import Path
+from types import ModuleType
+from typing import Sequence
 
 ap_path = os.path.abspath(os.path.dirname(sys.argv[0]))
 sys.path.insert(0, ap_path)
+
+# Register a custom finder to allow dynamic apworld loading
+# This is needed because upstream's APWorldModuleFinder doesn't expose its spec dict
+_dynamic_apworld_specs = {}
+
+class _DynamicAPWorldFinder(importlib.abc.MetaPathFinder):
+    def find_spec(
+            self, fullname: str, _path: Sequence[str] | None, _target: ModuleType | None = None
+    ) -> importlib.machinery.ModuleSpec | None:
+        return _dynamic_apworld_specs.get(fullname)
+
+sys.meta_path.insert(0, _DynamicAPWorldFinder())
 
 from worlds import WorldSource  # noqa: E402
 from worlds.AutoWorld import AutoWorldRegister  # noqa: E402
@@ -117,6 +135,13 @@ class ApHandler:
             raise Exception("Invalid apworld: {}, version {}".format(apworld_name, apworld_version))
 
         world_game, world_version = self.read_apworld_manifest(dest_path)
+
+        # Register the module spec so WorldSource.load() can find it
+        world_name = Path(dest_path).stem
+        importer = zipimport.zipimporter(dest_path)
+        spec = importer.find_spec(f"worlds.{world_name}")
+        _dynamic_apworld_specs[f"worlds.{world_name}"] = spec
+
         WorldSource(dest_path, is_zip=True, relative=False).load()
 
         if world_game and world_game in AutoWorldRegister.world_types:
