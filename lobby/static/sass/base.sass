@@ -80,12 +80,12 @@ hr
     white-space: nowrap
 
 .yamls
-  td
+  td, th
     white-space: nowrap
 
-    &:last-child
-      width: 6em
-      text-align: center
+  td:last-child
+    width: 6em
+    text-align: center
 
 .danger-zone
   td
@@ -333,7 +333,7 @@ option
   min-width: 200px
   max-width: 200px
   height: 100%
-  overflow-y: auto
+  overflow: hidden
   position: relative
 
   a
