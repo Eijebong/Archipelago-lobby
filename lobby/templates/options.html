@@ -135,8 +135,9 @@
         {% when "bool" %}
         {% when "range" %}
             {% let (min, max) = option_def.range_bounds() %}
+            {% let pnum = self.prefilled_num(prefilled) %}
             <div class="range-wrapper" {%+ if prefilled.is_some() %}data-prefilled="true"{% endif %}>
-                {% if let Some(v) = prefilled %}
+                {% if let Some(v) = pnum %}
                 <input id="{{option_name}}" type="number" value="{{v}}" min="{{min}}" max="{{max}}" required/>
                 {% else %}
                 <input id="{{option_name}}" type="number" value="{{option_def.default}}" min="{{min}}" max="{{max}}" required/>
@@ -146,6 +147,7 @@
         {% when "named_range" %}
             {% let (min, max) = option_def.range_bounds() %}
             {% let pstr = self.prefilled_str(prefilled) %}
+            {% let pnum = self.prefilled_num(prefilled) %}
             {% let default_is_suggestion = self.default_is_suggestion(option_def) %}
             {% let default_str = self.default_str(option_def) %}
             <select id="{{option_name}}" class="preset-select" data-target="{{option_name}}_input" {%+ if prefilled.is_some() %}data-prefilled="true"{% endif %}>
@@ -155,9 +157,9 @@
                 {% endfor %}
             </select>
             <div class="range-wrapper">
-                {% if let Some(v) = prefilled %}
+                {% if let Some(v) = pnum %}
                 <input type="number" id="{{option_name}}_input" value="{{v}}" min="{{min}}" max="{{max}}" required {%+ if pstr.is_some() %}disabled{% endif %}/>
-                {% else if default_is_suggestion %}
+                {% else if pstr.is_some() || default_is_suggestion %}
                 <input type="number" id="{{option_name}}_input" value="{{min}}" min="{{min}}" max="{{max}}" required disabled/>
                 {% else %}
                 <input type="number" id="{{option_name}}_input" value="{{option_def.default}}" min="{{min}}" max="{{max}}" required/>

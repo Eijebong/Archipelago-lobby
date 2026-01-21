@@ -77,6 +77,13 @@ impl OptionsTpl<'_> {
         prefilled.and_then(|v| v.as_bool()).unwrap_or(default)
     }
 
+    fn prefilled_num(&self, prefilled: &Option<&serde_json::Value>) -> Option<i64> {
+        prefilled.and_then(|v| {
+            v.as_i64()
+                .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+        })
+    }
+
     fn prefilled_str<'a>(&self, prefilled: &'a Option<&'a serde_json::Value>) -> Option<&'a str> {
         prefilled.and_then(|v| v.as_str())
     }
