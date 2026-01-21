@@ -14,6 +14,7 @@ a:focus, a:active
 html
   height: 100%
   width: 100%
+  overflow: hidden
 
 
 body
@@ -22,11 +23,10 @@ body
   font-family: sans-serif
   background-color: #2d5373 //hsl(200, 25%, 60%)
   background-image: url("../images/background.png")
-  min-height: 100%
-  min-width: fit-content
+  height: 100%
   width: 100%
   color: white
-  align-items: stretch
+  overflow: hidden
 
 
 hr
@@ -329,12 +329,12 @@ option
 /* == NAVIGATION MENU == */
 
 #navigation
-  flex: 0 1 200px
+  flex: 0 0 200px
   min-width: 200px
   max-width: 200px
-  min-height: 100%
-  vertical-align: top
-  position: fixed
+  height: 100%
+  overflow-y: auto
+  position: relative
 
   a
     display: flex
@@ -393,18 +393,20 @@ option
 
 #main-container
   flex: 1 1 auto
-  min-height: 100%
+  min-width: 0
+  height: 100%
   border-left: 10px solid black
   background-color: #12202c
   background-image: url("../images/background.png")
   box-shadow: 0 0 5px hsla(0, 0%, 0%, 0.5), inset 0 0 0 1px hsla(0,0%,100%,0.15)
   text-shadow: 1px 1px hsla(0,0%,0%,0.25)
   padding: 0 1em
-  max-width: calc(100% - 200px)
-  margin-left: 200px
-
+  overflow: auto
 
 #main
+  width: fit-content
+  min-width: 100%
+
   section
     margin-bottom: 2em
 
@@ -523,12 +525,9 @@ h6
   #navigation
     max-width: 3em
     min-width: 3em
-    flex: 0 1 3em
+    flex: 0 0 3em
   #navigation span
     display: none
-  #main-container
-    max-width: calc(100% - 3em)
-    margin-left: 3em
 
 #messages
   position: sticky
