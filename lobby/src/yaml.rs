@@ -512,9 +512,20 @@ pub async fn queue_yaml_validation(
     conn: &mut AsyncPgConnection,
 ) -> Result<()> {
     let Ok(parsed) = serde_saphyr::from_str::<YamlFile>(&yaml.content) else {
-        Err(anyhow!(
-            "Internal error, unable to reparse a YAML that was already parsed before"
-        ))?
+        log::error!(
+            "Internal error, unable to reparse YAML {} that was already parsed before",
+            yaml.id
+        );
+        db::update_yaml_status(
+            yaml.id,
+            db::YamlValidationStatus::Failed,
+            Some("Internal error: YAML content could not be reparsed".to_string()),
+            vec![],
+            Utc::now(),
+            conn,
+        )
+        .await?;
+        return Ok(());
     };
 
     let apworlds =
