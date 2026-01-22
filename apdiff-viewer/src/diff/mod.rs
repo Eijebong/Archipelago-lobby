@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use strsim::levenshtein;
 use syntect::highlighting::{
-    FontStyle, HighlightIterator, HighlightState, Highlighter, Style as SyntectStyle,
+    Color, FontStyle, HighlightIterator, HighlightState, Highlighter, Style as SyntectStyle,
 };
 use syntect::parsing::{ParseState, ScopeStack};
 
@@ -197,6 +197,7 @@ fn process_style_text_pairs(
 }
 
 const MAX_WORD_DIFF_LINE_LENGTH: usize = 10000;
+const MAX_SYNTAX_HIGHLIGHT_LINE_LENGTH: usize = 5000;
 const MAX_LINE_SIMILARITY_LENGTH: usize = 1000;
 const LINE_SIMILARITY_THRESHOLD: f64 = 0.25;
 const MAX_BLOCK_SIZE_FOR_MATCHING: usize = 200;
@@ -378,6 +379,10 @@ impl SyntaxHighlighter {
     }
 
     fn highlight_line(&mut self, content: &str) -> Vec<SyntaxToken> {
+        if content.len() > MAX_SYNTAX_HIGHLIGHT_LINE_LENGTH {
+            return fallback_syntax_tokens(content);
+        }
+
         let previous_parse_state = self.parse_state.clone();
 
         // Parse the line to get scope operations
@@ -422,11 +427,20 @@ impl SyntaxHighlighter {
     }
 }
 
-/// Create fallback syntax tokens when parsing fails
+/// Create fallback syntax tokens when parsing fails or line is too long
 fn fallback_syntax_tokens(content: &str) -> Vec<SyntaxToken> {
+    let white_style = SyntectStyle {
+        foreground: Color {
+            r: 255,
+            g: 255,
+            b: 255,
+            a: 255,
+        },
+        ..SyntectStyle::default()
+    };
     vec![SyntaxToken {
         text: content.to_string(),
-        style: SyntectStyle::default(),
+        style: white_style,
         start_offset: 0,
         end_offset: content.len(),
     }]
