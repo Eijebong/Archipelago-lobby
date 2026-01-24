@@ -350,10 +350,11 @@ async fn test_callback_on_resolve_error() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(5)).await;
     assert_eq!(*HAS_BEEN_CALLED.lock().unwrap(), true);
 
+    // After callback error, keys should still be cleaned up to avoid leaking
     let result = conn.get::<_, Option<String>>(queue.get_result_key(&job_id))?;
     let params = conn.get::<_, Option<String>>(queue.get_job_key(&job_id))?;
-    assert!(params.is_some());
-    assert!(result.is_some());
+    assert!(params.is_none());
+    assert!(result.is_none());
 
     Ok(())
 }

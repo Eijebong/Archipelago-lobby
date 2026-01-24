@@ -404,29 +404,35 @@ impl<
         let job_key = self.get_job_key(&job_id);
         let result_key = self.get_result_key(&job_id);
 
-        // Store result and update stats, but don't publish yet
-        redis::pipe()
-            .hdel(&self.claims_key, job_id.to_string())
-            .set::<_, JobResult<R>>(&result_key, job_result.clone())
-            .incr(self.get_stats_key(status.as_stat_name()), 1)
-            .exec_async(&mut *conn)
+        // Remove claim first
+        conn.hdel::<_, _, ()>(&self.claims_key, job_id.to_string())
             .await
             .map_err(WorkQueueError::Redis)?;
 
         let mut should_cleanup = false;
+        let mut final_status = status;
         if let Some(result_callback) = &self.result_callback {
-            match result_callback(desc, job_result).await {
+            match result_callback(desc, job_result.clone()).await {
                 Ok(processed) => {
                     should_cleanup = processed;
                 }
                 Err(e) => {
                     tracing::error!("Result callback failed: {e}");
                     should_cleanup = true;
+                    final_status = JobStatus::InternalError;
                 }
             }
         }
 
-        conn.publish::<_, _, ()>(&result_key, status as u8)
+        let final_result = JobResult {
+            status: final_status,
+            result: job_result.result,
+        };
+        redis::pipe()
+            .set::<_, JobResult<R>>(&result_key, final_result)
+            .incr(self.get_stats_key(final_status.as_stat_name()), 1)
+            .publish::<_, u8>(&result_key, final_status as u8)
+            .exec_async(&mut *conn)
             .await
             .map_err(WorkQueueError::Redis)?;
 
