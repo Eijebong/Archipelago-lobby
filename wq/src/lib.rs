@@ -421,6 +421,7 @@ impl<
                 }
                 Err(e) => {
                     tracing::error!("Result callback failed: {e}");
+                    should_cleanup = true;
                 }
             }
         }
