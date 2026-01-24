@@ -401,38 +401,41 @@ impl<
         let desc: JobDesc<P> =
             serde_json::from_str(&params_str).map_err(WorkQueueError::Serialization)?;
 
+        let job_key = self.get_job_key(&job_id);
+        let result_key = self.get_result_key(&job_id);
+
+        // Store result and update stats, but don't publish yet
         redis::pipe()
             .hdel(&self.claims_key, job_id.to_string())
-            .set::<_, JobResult<R>>(self.get_result_key(&job_id), job_result.clone())
+            .set::<_, JobResult<R>>(&result_key, job_result.clone())
             .incr(self.get_stats_key(status.as_stat_name()), 1)
-            .publish::<_, u8>(self.get_result_key(&job_id), status as u8)
             .exec_async(&mut *conn)
             .await
             .map_err(WorkQueueError::Redis)?;
 
+        let mut should_cleanup = false;
         if let Some(result_callback) = &self.result_callback {
-            let callback = result_callback.clone();
-            let job_key = self.get_job_key(&job_id);
-            let result_key = self.get_result_key(&job_id);
-            let pool = self.pool.clone();
-            tokio::spawn(async move {
-                let processed = callback(desc, job_result)
-                    .await
-                    .map_err(WorkQueueError::Other)?;
-                if !processed {
-                    return Ok(());
+            match result_callback(desc, job_result).await {
+                Ok(processed) => {
+                    should_cleanup = processed;
                 }
+                Err(e) => {
+                    tracing::error!("Result callback failed: {e}");
+                }
+            }
+        }
 
-                let mut conn = pool.get().await.map_err(WorkQueueError::Pool)?;
-                conn.del::<_, i64>(job_key)
-                    .await
-                    .map_err(WorkQueueError::Redis)?;
-                conn.del::<_, i64>(result_key)
-                    .await
-                    .map_err(WorkQueueError::Redis)?;
+        conn.publish::<_, _, ()>(&result_key, status as u8)
+            .await
+            .map_err(WorkQueueError::Redis)?;
 
-                Ok::<_, WorkQueueError>(())
-            });
+        if should_cleanup {
+            redis::pipe()
+                .del(&job_key)
+                .del(&result_key)
+                .exec_async(&mut *conn)
+                .await
+                .map_err(WorkQueueError::Redis)?;
         }
 
         Ok(())
