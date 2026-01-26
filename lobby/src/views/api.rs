@@ -71,7 +71,10 @@ pub(crate) async fn room_info(
 ) -> ApiResult<Json<RoomInfo>> {
     let mut conn = ctx.db_pool.get().await?;
 
-    let (room, room_server_info) = db::get_room_with_info(room_id, &mut conn).await?;
+    let (room, room_server_info) = db::get_room_with_info(room_id, &mut conn)
+        .await
+        .context("Couldn't find the room")
+        .status(Status::NotFound)?;
 
     let yamls = db::get_yamls_for_room_with_author_names(room_id, &mut conn).await?;
     let yamls_vec = yamls.iter().map(|(y, _)| y.clone()).collect::<Vec<_>>();
