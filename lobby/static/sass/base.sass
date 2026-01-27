@@ -444,8 +444,6 @@ h6
 /* == MODULE MENU == */
 
 #module-menu
-  -moz-box-sizing: content-box
-  box-sizing: content-box
   list-style: none
   box-shadow: 0 1px 0px 0px hsla(0,0%,100%,0.15)
   background-color: black
@@ -522,6 +520,8 @@ h6
 
 
 @media screen and (max-width:768px)
+  html, body
+    overflow-y: visible
   #navigation
     max-width: 3em
     min-width: 3em
