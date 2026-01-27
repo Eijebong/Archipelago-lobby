@@ -99,7 +99,7 @@
     <div class="modal-content">
         <h3 id="weight-modal-title">Configure Weights</h3>
         <div id="weight-modal-add" class="weight-add-row hidden">
-            <input type="number" id="weight-modal-new-value" placeholder="Value">
+            <input type="text" id="weight-modal-new-value" placeholder="Value">
             <button type="button" id="weight-modal-add-btn">Add</button>
         </div>
         <form id="weight-modal-form">
@@ -346,7 +346,7 @@
         <button type="button" class="option-random" title="Randomize"><i class="fa fa-dice"></i></button>
         {% endmatch %}
         {% match option_def.ty.as_str() %}
-        {% when "choice" | "named_range" | "bool" | "text_choice" | "range" %}
+        {% when "choice" | "named_range" | "bool" | "text_choice" | "range" | "text" %}
         <button type="button" class="option-weighted {%+ if self.is_weighted(prefilled) %} active{% endif %}" title="Configure weights"><i class="fa fa-scale-balanced"></i></button>
         {% else %}
         {% endmatch %}
@@ -837,10 +837,12 @@
         if (allowCustom) {
             weightModalAdd.classList.remove('hidden');
             if (range) {
+                weightModalNewValue.type = 'number';
                 weightModalNewValue.min = range[0];
                 weightModalNewValue.max = range[1];
                 weightModalNewValue.placeholder = `Value (${range[0]}-${range[1]})`;
             } else {
+                weightModalNewValue.type = 'text';
                 weightModalNewValue.removeAttribute('min');
                 weightModalNewValue.removeAttribute('max');
                 weightModalNewValue.placeholder = 'Value';

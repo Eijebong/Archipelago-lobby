@@ -588,7 +588,14 @@ async fn edit_yaml<'a>(
     let mut yaml_option_names: HashSet<String> = HashSet::new();
     let mut outdated_values: HashSet<String> = HashSet::new();
 
-    const WEIGHTED_TYPES: &[&str] = &["bool", "choice", "named_range", "text_choice", "range"];
+    const WEIGHTED_TYPES: &[&str] = &[
+        "bool",
+        "choice",
+        "named_range",
+        "text_choice",
+        "range",
+        "text",
+    ];
 
     if let Some(game_opts) = game_options {
         for (key_str, value) in game_opts {
