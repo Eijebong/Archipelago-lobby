@@ -74,7 +74,15 @@ impl OptionsTpl<'_> {
 
     // Helper functions for template value extraction
     fn prefilled_bool(&self, prefilled: &Option<&serde_json::Value>, default: bool) -> bool {
-        prefilled.and_then(|v| v.as_bool()).unwrap_or(default)
+        prefilled
+            .and_then(|v| {
+                v.as_bool().or_else(|| match v.as_str() {
+                    Some("true") => Some(true),
+                    Some("false") => Some(false),
+                    _ => None,
+                })
+            })
+            .unwrap_or(default)
     }
 
     fn prefilled_num(&self, prefilled: &Option<&serde_json::Value>) -> Option<i64> {
