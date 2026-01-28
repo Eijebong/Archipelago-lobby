@@ -25,9 +25,9 @@
             </form>
         </div>
 
-        <div>
+        <div class="yaml-dropzone" id="yaml-dropzone">
             <h4><i class="fa fa-file-pen"></i> Edit Existing YAML</h4>
-            <p>Upload and modify an existing YAML file</p>
+            <p>Upload or drag & drop an existing YAML file</p>
             <form method="POST" action="/options/edit" id="yaml-upload-form">
                 <input type="file" name="yaml_file" id="yaml-upload" accept=".yaml,.yml" style="display:none">
                 <input type="hidden" name="yaml" id="yaml-content">
@@ -369,6 +369,32 @@
         document.getElementById('yaml-content').value = content;
         document.getElementById('yaml-upload-form').submit();
     });
+
+    const dropzone = document.getElementById('yaml-dropzone');
+    if (dropzone) {
+        ['dragenter', 'dragover'].forEach(event => {
+            dropzone.addEventListener(event, (e) => {
+                e.preventDefault();
+                dropzone.classList.add('drag-over');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(event => {
+            dropzone.addEventListener(event, () => {
+                dropzone.classList.remove('drag-over');
+            });
+        });
+
+        dropzone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            if (!file) return;
+
+            const content = await file.text();
+            document.getElementById('yaml-content').value = content;
+            document.getElementById('yaml-upload-form').submit();
+        });
+    }
 
     const apworld_input = document.getElementById("apworld");
     apworld_input.onchange = function(event) {
