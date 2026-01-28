@@ -25,14 +25,15 @@ use wq::JobStatus;
 use crate::jobs::{OptionsGenParams, OptionsGenQueue};
 
 async fn get_default_player_name(session: &Session, ctx: &Context) -> String {
-    if let Some(user_id) = session.user_id {
-        let mut conn = ctx.db_pool.get().await.unwrap();
-        if let Ok(Some(username)) = get_username(user_id, &mut conn).await {
-            let truncated = username.chars().take(14).collect::<String>();
-            return format!("{}{{NUMBER}}", truncated);
-        }
-    }
-    "Player{NUMBER}".to_string()
+    let Some(user_id) = session.user_id else {
+        return "Player{NUMBER}".to_string();
+    };
+    let mut conn = ctx.db_pool.get().await.unwrap();
+    let Ok(Some(username)) = get_username(user_id, &mut conn).await else {
+        return "Player{NUMBER}".to_string();
+    };
+    let truncated = username.chars().take(14).collect::<String>();
+    format!("{}{{NUMBER}}", truncated)
 }
 
 pub type OptionsCache = std::sync::Arc<RwLock<HashMap<(String, Version), OptionsDef>>>;
@@ -123,21 +124,23 @@ impl OptionsTpl<'_> {
         prefilled: &Option<&serde_json::Value>,
         option_def: &crate::jobs::OptionDef,
     ) -> bool {
-        if let Some(pstr) = self.prefilled_str(prefilled) {
-            if let Some(suggestions) = &option_def.suggestions {
-                return suggestions.iter().any(|s| s == pstr);
-            }
-        }
-        false
+        let Some(pstr) = self.prefilled_str(prefilled) else {
+            return false;
+        };
+        let Some(suggestions) = &option_def.suggestions else {
+            return false;
+        };
+        suggestions.iter().any(|s| s == pstr)
     }
 
     fn default_is_suggestion(&self, option_def: &crate::jobs::OptionDef) -> bool {
-        if let Some(default_str) = option_def.default.as_str() {
-            if let Some(suggestions) = &option_def.suggestions {
-                return suggestions.iter().any(|s| s == default_str);
-            }
-        }
-        false
+        let Some(default_str) = option_def.default.as_str() else {
+            return false;
+        };
+        let Some(suggestions) = &option_def.suggestions else {
+            return false;
+        };
+        suggestions.iter().any(|s| s == default_str)
     }
 
     fn default_str<'a>(&self, option_def: &'a crate::jobs::OptionDef) -> Option<&'a str> {
