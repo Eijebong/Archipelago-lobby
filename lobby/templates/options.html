@@ -150,6 +150,7 @@
             {% let pnum = self.prefilled_num(prefilled) %}
             {% let default_is_suggestion = self.default_is_suggestion(option_def) %}
             {% let default_str = self.default_str(option_def) %}
+            {% let pstr_is_suggestion = self.prefilled_is_suggestion(prefilled, option_def) %}
             <select id="{{option_name}}" class="preset-select" data-target="{{option_name}}_input" {%+ if prefilled.is_some() %}data-prefilled="true"{% endif %}>
                 <option value="">Custom</option>
                 {% for suggestion in option_def.suggestions() %}
@@ -158,8 +159,8 @@
             </select>
             <div class="range-wrapper">
                 {% if let Some(v) = pnum %}
-                <input type="number" id="{{option_name}}_input" value="{{v}}" min="{{min}}" max="{{max}}" required {%+ if pstr.is_some() %}disabled{% endif %}/>
-                {% else if pstr.is_some() || default_is_suggestion %}
+                <input type="number" id="{{option_name}}_input" value="{{v}}" min="{{min}}" max="{{max}}" required {%+ if pstr_is_suggestion %}disabled{% endif %}/>
+                {% else if pstr_is_suggestion || default_is_suggestion %}
                 <input type="number" id="{{option_name}}_input" value="{{min}}" min="{{min}}" max="{{max}}" required disabled/>
                 {% else %}
                 <input type="number" id="{{option_name}}_input" value="{{option_def.default}}" min="{{min}}" max="{{max}}" required/>

@@ -118,6 +118,19 @@ impl OptionsTpl<'_> {
         suggestions.iter().any(|sug| sug == s)
     }
 
+    fn prefilled_is_suggestion(
+        &self,
+        prefilled: &Option<&serde_json::Value>,
+        option_def: &crate::jobs::OptionDef,
+    ) -> bool {
+        if let Some(pstr) = self.prefilled_str(prefilled) {
+            if let Some(suggestions) = &option_def.suggestions {
+                return suggestions.iter().any(|s| s == pstr);
+            }
+        }
+        false
+    }
+
     fn default_is_suggestion(&self, option_def: &crate::jobs::OptionDef) -> bool {
         if let Some(default_str) = option_def.default.as_str() {
             if let Some(suggestions) = &option_def.suggestions {
