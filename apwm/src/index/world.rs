@@ -17,6 +17,31 @@ use std::{
 };
 use tempfile::{tempdir, TempDir};
 
+struct AllHosts;
+
+impl PartialEq<&str> for AllHosts {
+    fn eq(&self, _: &&str) -> bool {
+        true
+    }
+}
+
+fn retry_client() -> Client {
+    Client::builder()
+        .retry(
+            reqwest::retry::for_host(AllHosts)
+                .max_retries_per_request(3)
+                .classify_fn(|req_rep| {
+                    if req_rep.error().is_some() {
+                        req_rep.retryable()
+                    } else {
+                        req_rep.success()
+                    }
+                }),
+        )
+        .build()
+        .expect("Failed to build HTTP client")
+}
+
 #[derive(Deserialize, Debug, PartialEq, Default, Clone)]
 pub enum WorldOrigin {
     #[serde(rename = "url")]
@@ -248,7 +273,8 @@ impl World {
         mut destination: &File,
         expected_checksum: Option<String>,
     ) -> Result<String> {
-        let req = reqwest::get(uri).await?.error_for_status()?;
+        let client = retry_client();
+        let req = client.get(uri).send().await?.error_for_status()?;
         let body = req.bytes().await?;
         let checksum = format!("{:x}", Sha256::digest(&body));
         if expected_checksum.is_some() && Some(&checksum) != expected_checksum.as_ref() {
@@ -269,7 +295,7 @@ impl World {
         mut destination: &File,
     ) -> Result<String> {
         let api_key = std::env::var("LOBBY_API_KEY")?;
-        let client = Client::new();
+        let client = retry_client();
         let url = format!(
             "{}/worlds/download/{}/{}",
             lobby_url,

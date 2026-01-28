@@ -14,7 +14,7 @@ diesel = { version = "2.3.5", features = ["chrono"] }
 diesel-async = { version = "0.7", features = ["postgres", "deadpool"] }
 diesel_migrations = { version = "2.2.0", features = ["postgres"] }
 dotenvy = "0.15.7"
-reqwest = { version = "0.12.7", features = ["gzip", "json"] }
+reqwest = { version = "0.13", features = ["gzip", "json"] }
 rocket = { version = "0.5.1", features = ["json"] }
 rust-embed = { version = "8.5.0", features = ["rocket"] }
 taskcluster = "95.0.2"

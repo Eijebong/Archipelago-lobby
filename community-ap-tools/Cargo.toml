@@ -10,7 +10,7 @@ askama_web = { version = "0.15.0", features = ["rocket-0.5"] }
 chrono = { version = "0.4.40", features = ["serde"] }
 dotenvy = "0.15.7"
 htmlize = { version = "1.0.5", features = ["unescape"] }
-reqwest = { version = "0.12.15", features = ["json", "multipart"] }
+reqwest = { version = "0.13", features = ["form", "json", "multipart"] }
 rocket = { version = "0.5.1", features = ["json", "secrets"] }
 rocket_oauth2 = "0.5.0"
 rust-embed = { version = "8.6.0", features = ["rocket"] }
