@@ -106,6 +106,18 @@ async fn unauthorized<'r>(req: &'r Request<'r>) -> crate::error::Result<Redirect
     )))
 }
 
+#[catch(422)]
+async fn unprocessable_entity<'r>(req: &'r Request<'r>) -> crate::error::Result<Redirect> {
+    let ctx = req.rocket().state::<Context>().unwrap();
+    let session = Session::from_request_sync(req);
+
+    session
+        .push_error("Invalid URL: the resource identifier is malformed", ctx)
+        .await?;
+
+    Ok(Redirect::to("/"))
+}
+
 #[derive(Clone)]
 struct MetricsRoute(PrometheusMetrics, QueueCounters, RoomMetrics);
 
@@ -276,7 +288,7 @@ pub async fn main() -> crate::error::Result<()> {
             MetricsRoute(prometheus, queue_counters, room_counters),
         )
         .mount("/queues", views::queues::routes())
-        .register("/", catchers![unauthorized])
+        .register("/", catchers![unauthorized, unprocessable_entity])
         .manage(ctx)
         .manage(discord_config)
         .manage(figment)
