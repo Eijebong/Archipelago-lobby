@@ -24,6 +24,15 @@ use wq::JobStatus;
 
 use crate::jobs::{OptionsGenParams, OptionsGenQueue};
 
+const WEIGHTED_TYPES: &[&str] = &[
+    "bool",
+    "choice",
+    "named_range",
+    "text_choice",
+    "range",
+    "text",
+];
+
 async fn get_default_player_name(session: &Session, ctx: &Context) -> String {
     let Some(user_id) = session.user_id else {
         return "Player{NUMBER}".to_string();
@@ -147,8 +156,13 @@ impl OptionsTpl<'_> {
         option_def.default.as_str()
     }
 
-    fn is_weighted(&self, prefilled: &Option<&serde_json::Value>) -> bool {
-        prefilled.map(|v| v.is_object()).unwrap_or(false)
+    fn is_weighted(
+        &self,
+        option_def: &crate::jobs::OptionDef,
+        prefilled: &Option<&serde_json::Value>,
+    ) -> bool {
+        WEIGHTED_TYPES.contains(&option_def.ty.as_str())
+            && prefilled.map(|v| v.is_object()).unwrap_or(false)
     }
 
     fn weights_json(&self, prefilled: &Option<&serde_json::Value>) -> String {
@@ -603,15 +617,6 @@ async fn edit_yaml<'a>(
     let mut warnings: Vec<String> = vec![];
     let mut yaml_option_names: HashSet<String> = HashSet::new();
     let mut outdated_values: HashSet<String> = HashSet::new();
-
-    const WEIGHTED_TYPES: &[&str] = &[
-        "bool",
-        "choice",
-        "named_range",
-        "text_choice",
-        "range",
-        "text",
-    ];
 
     if let Some(game_opts) = game_options {
         for (key_str, value) in game_opts {

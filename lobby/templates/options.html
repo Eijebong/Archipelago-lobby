@@ -123,7 +123,7 @@
         {%~ when "range" %} data-range='{{option_def.range_bounds().0}},{{option_def.range_bounds().1}}'
         {%~ else ~%}
         {%~ endmatch ~%}
-        {%~ if self.is_weighted(prefilled) %} data-weights='{{self.weights_json(prefilled)}}'{% endif ~%}
+        {%~ if self.is_weighted(option_def, prefilled) %} data-weights='{{self.weights_json(prefilled)}}'{% endif ~%}
     >
         {% match option_def.ty.as_str() %}
         {% when "bool" %}
@@ -348,7 +348,7 @@
         {% endmatch %}
         {% match option_def.ty.as_str() %}
         {% when "choice" | "named_range" | "bool" | "text_choice" | "range" | "text" %}
-        <button type="button" class="option-weighted {%+ if self.is_weighted(prefilled) %} active{% endif %}" title="Configure weights"><i class="fa fa-scale-balanced"></i></button>
+        <button type="button" class="option-weighted {%+ if self.is_weighted(option_def, prefilled) %} active{% endif %}" title="Configure weights"><i class="fa fa-scale-balanced"></i></button>
         {% else %}
         {% endmatch %}
     </div>
