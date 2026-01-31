@@ -26,6 +26,7 @@
             const content = document.getElementById(fileId + '-content');
             if (checkbox.checked) {
                 content.style.display = 'none';
+                checkbox.closest('.file-diff').scrollIntoView({ block: 'nearest' });
             } else {
                 content.style.display = 'block';
             }
