@@ -25,6 +25,7 @@ use rocket::{catch, catchers, Request};
 use rocket::{Data, Route};
 use rocket_oauth2::OAuth2;
 use rocket_prometheus::PrometheusMetrics;
+use wq::rocket_routes::QueueTokens;
 
 use crate::index_manager::IndexManager;
 use crate::jobs::{
@@ -32,7 +33,6 @@ use crate::jobs::{
     GenerationOutDir, GenerationQueue, OptionsGenQueue, YamlValidationQueue,
 };
 use views::options_gen::{OptionsCache, OptionsPreloadFairing};
-use views::queues::QueueTokens;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
 

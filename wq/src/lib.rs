@@ -43,6 +43,8 @@ pub enum WorkQueueError {
 mod builder;
 mod claim;
 mod result;
+#[cfg(feature = "rocket")]
+pub mod rocket_routes;
 mod stats;
 
 pub use builder::WorkQueueBuilder;
