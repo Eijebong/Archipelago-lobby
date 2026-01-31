@@ -36,6 +36,12 @@
             if (document.querySelectorAll('.apworld-section').length > 0) {
                 showApworld(0);
             }
+
+            document.querySelectorAll('.viewed-controls input[type="checkbox"]').forEach(function(cb) {
+                if (cb.checked) {
+                    toggleViewed(cb, cb.dataset.fileId);
+                }
+            });
         });
     </script>
 </head>
@@ -93,7 +99,7 @@
                     </div>
                     <div class="viewed-controls">
                         <label>
-                            <input type="checkbox" onchange="toggleViewed(this, '{{ file_id }}')">
+                            <input type="checkbox" data-file-id="{{ file_id }}" onchange="toggleViewed(this, '{{ file_id }}')">
                             Viewed
                         </label>
                     </div>
