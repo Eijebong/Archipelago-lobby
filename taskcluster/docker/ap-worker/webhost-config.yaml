@@ -1,0 +1,9 @@
+SELFHOST: true
+SELFGEN: false
+SELFLAUNCH: true
+DEBUG: false
+PORT: 9888
+HOST_ADDRESS: localhost
+MAX_ROLL: 0
+HOSTERS: 1
+SECRET_KEY: changeme-ap-webhost-secret-key

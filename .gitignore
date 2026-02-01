@@ -1,5 +1,6 @@
 /target
 /target_apdiff
-/Rocket.toml
+/Rocket.*
 /tmp
 __pycache__/
+.env.*
