@@ -111,6 +111,7 @@ async fn refresh_worlds(
     ctx: &State<Context>,
     _session: AdminSession,
 ) -> Result<()> {
+    let old_index = index_manager.index.read().await.clone();
     index_manager.update().await?;
 
     let mut conn = ctx.db_pool.get().await?;
@@ -123,8 +124,15 @@ async fn refresh_worlds(
     .await?;
 
     for room in &open_rooms {
-        revalidate_yamls_if_necessary(room, index_manager, yaml_validation_queue, &mut conn)
-            .await?;
+        let (old_resolved, _) = room.settings.manifest.resolve_with(&old_index);
+        revalidate_yamls_if_necessary(
+            room,
+            &old_resolved,
+            index_manager,
+            yaml_validation_queue,
+            &mut conn,
+        )
+        .await?;
     }
 
     Ok(())

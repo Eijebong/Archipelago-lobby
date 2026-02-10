@@ -200,6 +200,11 @@ pub async fn edit_room_submit<'a>(
         return Err(anyhow::anyhow!("You're not allowed to edit this room").into());
     }
 
+    let old_resolved = {
+        let index = index_manager.index.read().await;
+        room.settings.manifest.resolve_with(&index).0
+    };
+
     validate_room_form(&mut room_form.room)?;
 
     let room_manifest = {
@@ -235,7 +240,14 @@ pub async fn edit_room_submit<'a>(
     };
 
     let room = db::update_room(&new_room, &mut conn).await?;
-    revalidate_yamls_if_necessary(&room, index_manager, yaml_validation_queue, &mut conn).await?;
+    revalidate_yamls_if_necessary(
+        &room,
+        &old_resolved,
+        index_manager,
+        yaml_validation_queue,
+        &mut conn,
+    )
+    .await?;
 
     Ok(Redirect::to(format!("/room/{room_id}")))
 }

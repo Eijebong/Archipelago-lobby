@@ -439,6 +439,7 @@ pub async fn get_apworlds_for_games(
 #[tracing::instrument(skip(index_manager, yaml_validation_queue, conn), fields(room_id = %room.id))]
 pub async fn revalidate_yamls_if_necessary(
     room: &Room,
+    old_resolved_index: &BTreeMap<String, (World, Version)>,
     index_manager: &State<IndexManager>,
     yaml_validation_queue: &State<YamlValidationQueue>,
     conn: &mut AsyncPgConnection,
@@ -454,10 +455,18 @@ pub async fn revalidate_yamls_if_necessary(
         room.settings.manifest.resolve_with(&index)
     };
 
+    let old_game_names: HashSet<&str> = old_resolved_index
+        .values()
+        .map(|(w, _)| w.name.as_str())
+        .collect();
+    let new_worlds_available = resolved_index
+        .values()
+        .any(|(w, _)| !old_game_names.contains(w.name.as_str()));
+
     conn.transaction::<(), Error, _>(|conn| {
         async move {
             for yaml in &yamls {
-                if should_revalidate_yaml(yaml, &resolved_index) {
+                if should_revalidate_yaml(yaml, &resolved_index, new_worlds_available) {
                     queue_yaml_validation(yaml, room, index_manager, yaml_validation_queue, conn)
                         .await?;
                 }
@@ -475,9 +484,12 @@ pub async fn revalidate_yamls_if_necessary(
 fn should_revalidate_yaml(
     yaml: &Yaml,
     resolved_index: &BTreeMap<String, (World, Version)>,
+    new_worlds_available: bool,
 ) -> bool {
-    // That YAML either never got validated or it was unsupported at the time.
     if yaml.apworlds.is_empty() {
+        if yaml.validation_status == YamlValidationStatus::Unsupported {
+            return new_worlds_available;
+        }
         return true;
     }
 
