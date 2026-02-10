@@ -544,6 +544,11 @@ pub async fn queue_yaml_validation(
         match get_apworlds_for_games(index_manager, &room.settings.manifest, &parsed.game).await {
             Ok(apworlds) => apworlds,
             Err(unsupported) => {
+                // If the apworld was already unsupported, nothing has changed
+                if yaml.validation_status == YamlValidationStatus::Unsupported {
+                    return Ok(());
+                }
+
                 let error = format!("Unsupported apworlds: {}", unsupported.join(", "));
 
                 db::update_yaml_status(
