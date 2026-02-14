@@ -1,8 +1,8 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
+    net::TcpListener,
     process::{Child, Command, Stdio},
-    sync::atomic::AtomicU16,
     time::Duration,
 };
 use uuid::Uuid;
@@ -26,10 +26,17 @@ impl ValkeyInstance {
 
 #[allow(dead_code)]
 pub const DEFAULT_DEADLINE: Duration = Duration::from_secs(30);
-static PORT: AtomicU16 = AtomicU16::new(47000);
+
+fn find_free_port() -> u16 {
+    TcpListener::bind("127.0.0.1:0")
+        .expect("Failed to bind to a free port")
+        .local_addr()
+        .expect("Failed to get local addr")
+        .port()
+}
 
 pub fn start_valkey() -> Result<ValkeyInstance> {
-    let port = PORT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let port = find_free_port();
     let process = Command::new("valkey-server")
         .arg("--port")
         .arg(port.to_string())
