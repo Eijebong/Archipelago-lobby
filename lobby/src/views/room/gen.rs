@@ -459,8 +459,8 @@ async fn get_info_for_gen(
     );
     let yaml_count = yamls.len();
     generation_checklist.insert(
-        "The room must contain between 1 and 75 YAMLs",
-        (yaml_count > 0 && yaml_count <= 75) || session.0.is_admin,
+        "The room must contain between 1 and 100 YAMLs",
+        (yaml_count > 0 && yaml_count <= 100) || session.0.is_admin,
     );
     generation_checklist.insert(
         "There must be no generation in progress",
