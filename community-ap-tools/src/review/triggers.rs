@@ -47,11 +47,7 @@ fn parse_trigger(trigger_yaml: &Value) -> Option<Trigger> {
                 for (opt_key, opt_val) in inner.iter() {
                     let raw_key = opt_key.as_str()?;
                     let is_additive = raw_key.starts_with('+');
-                    let key = if is_additive {
-                        &raw_key[1..]
-                    } else {
-                        raw_key
-                    };
+                    let key = if is_additive { &raw_key[1..] } else { raw_key };
                     options.push((
                         game_name.to_string(),
                         key.to_string(),
@@ -186,11 +182,12 @@ fn merge_additive(existing: Option<&Value>, addition: &Value) -> Value {
     let mut items = Vec::new();
 
     if let Some(existing) = existing
-        && let Some(seq) = existing.as_sequence() {
-            for item in seq {
-                items.push(format!("- {}", yaml_value_to_inline(item)));
-            }
+        && let Some(seq) = existing.as_sequence()
+    {
+        for item in seq {
+            items.push(format!("- {}", yaml_value_to_inline(item)));
         }
+    }
 
     if let Some(seq) = addition.as_sequence() {
         for item in seq {
@@ -286,7 +283,12 @@ fn serialize_yaml_entry(lines: &mut Vec<String>, key: &str, value: &Value, inden
             lines.push(format!("{}  - {}", prefix, yaml_value_to_inline(item)));
         }
     } else {
-        lines.push(format!("{}{}: {}", prefix, key, yaml_value_to_inline(value)));
+        lines.push(format!(
+            "{}{}: {}",
+            prefix,
+            key,
+            yaml_value_to_inline(value)
+        ));
     }
 }
 

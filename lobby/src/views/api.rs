@@ -348,28 +348,25 @@ pub(crate) async fn game_options(
 ) -> ApiResult<Json<Vec<OptionInfo>>> {
     let version = {
         let index = index_manager.index.read().await;
-        let world = index.worlds.get(apworld).ok_or_else(|| {
-            ApiError {
-                error: anyhow!("Unknown apworld"),
-                status: Status::NotFound,
-            }
+        let world = index.worlds.get(apworld).ok_or_else(|| ApiError {
+            error: anyhow!("Unknown apworld"),
+            status: Status::NotFound,
         })?;
-        world.versions.keys().max().cloned().ok_or_else(|| {
-            ApiError {
+        world
+            .versions
+            .keys()
+            .max()
+            .cloned()
+            .ok_or_else(|| ApiError {
                 error: anyhow!("No versions available"),
                 status: Status::NotFound,
-            }
-        })?
+            })?
     };
 
-    let options = super::options_gen::get_options_def(
-        apworld,
-        &version,
-        options_gen_queue,
-        options_cache,
-    )
-    .await
-    .status(Status::InternalServerError)?;
+    let options =
+        super::options_gen::get_options_def(apworld, &version, options_gen_queue, options_cache)
+            .await
+            .status(Status::InternalServerError)?;
 
     let result: Vec<OptionInfo> = options
         .iter()

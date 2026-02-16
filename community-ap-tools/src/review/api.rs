@@ -8,12 +8,12 @@ use saphyr::{LoadableYamlNode, YamlOwned as Value};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::Config;
-use crate::auth::LoggedInSession;
 use super::builtin::{self, RoomYaml};
 use super::db::{self, NewPreset, NewPresetRule, UpdatePreset, UpdatePresetRule};
 use super::rules::{self, Outcome, Predicate, Rule, Severity};
 use super::triggers;
+use crate::Config;
+use crate::auth::LoggedInSession;
 
 #[rocket::get("/presets")]
 async fn list_presets(
@@ -71,9 +71,7 @@ async fn delete_preset(
 }
 
 #[rocket::get("/builtin_rules")]
-async fn list_builtin_rules(
-    _session: LoggedInSession,
-) -> Json<Vec<builtin::BuiltinRuleInfo>> {
+async fn list_builtin_rules(_session: LoggedInSession) -> Json<Vec<builtin::BuiltinRuleInfo>> {
     Json(builtin::builtin_rule_info())
 }
 
@@ -168,7 +166,9 @@ async fn evaluate(
     };
 
     let client = reqwest::Client::new();
-    let room_url = config.lobby_root_url.join(&format!("/api/room/{}", room_id))?;
+    let room_url = config
+        .lobby_root_url
+        .join(&format!("/api/room/{}", room_id))?;
     let room_resp = client
         .get(room_url)
         .header("x-api-key", &config.lobby_api_key)
@@ -189,11 +189,14 @@ async fn evaluate(
             let discord_handle = yaml_info.discord_handle.clone();
             let created_at = yaml_info.created_at.clone();
             async move {
-                let url = config.lobby_root_url.join(&format!(
-                    "/api/room/{}/info/{}",
-                    room_id, yaml_id
-                ))?;
-                let resp = client.get(url).header("x-api-key", &config.lobby_api_key).send().await?;
+                let url = config
+                    .lobby_root_url
+                    .join(&format!("/api/room/{}/info/{}", room_id, yaml_id))?;
+                let resp = client
+                    .get(url)
+                    .header("x-api-key", &config.lobby_api_key)
+                    .send()
+                    .await?;
                 let detail: LobbyYamlDetail = resp.json().await?;
                 Ok::<_, anyhow::Error>((yaml_id, discord_handle, created_at, detail))
             }
@@ -358,7 +361,10 @@ fn evaluate_single_yaml(
     let display_game = if multi_game {
         format!("Random ({})", game_names.len())
     } else {
-        game_names.into_iter().next().unwrap_or_else(|| detail.game.clone())
+        game_names
+            .into_iter()
+            .next()
+            .unwrap_or_else(|| detail.game.clone())
     };
 
     YamlEvalResult {
@@ -474,8 +480,8 @@ async fn create_preset_rule(
     pool: &State<DieselPool<AsyncPgConnection>>,
 ) -> crate::error::Result<Json<db::PresetRule>> {
     let req = body.into_inner();
-    let parsed: Rule = serde_json::from_value(req.rule.clone())
-        .map_err(|e| anyhow!("Invalid rule: {}", e))?;
+    let parsed: Rule =
+        serde_json::from_value(req.rule.clone()).map_err(|e| anyhow!("Invalid rule: {}", e))?;
     parsed.validate().map_err(|e| anyhow!("{}", e))?;
     let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
     let now = Utc::now();

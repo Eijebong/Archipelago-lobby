@@ -45,4 +45,10 @@ diesel::table! {
 
 diesel::joinable!(review_preset_rules -> review_presets (preset_id));
 diesel::joinable!(room_review_config -> review_presets (preset_id));
-diesel::allow_tables_to_appear_in_same_query!(discord_users, review_presets, review_preset_rules, room_review_config, yaml_review_status);
+diesel::allow_tables_to_appear_in_same_query!(
+    discord_users,
+    review_presets,
+    review_preset_rules,
+    room_review_config,
+    yaml_review_status
+);

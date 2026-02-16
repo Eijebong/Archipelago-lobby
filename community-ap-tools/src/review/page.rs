@@ -7,9 +7,9 @@ use rocket::{State, routes};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use super::db;
 use crate::Config;
 use crate::auth::LoggedInSession;
-use super::db;
 
 #[derive(Deserialize)]
 struct LobbyRoomBasic {
@@ -128,7 +128,9 @@ async fn preset_edit(
         .into_iter()
         .map(|r| {
             let editor_name = r.last_edited_by.and_then(|id| name_map.get(&id).cloned());
-            let edited_at = r.last_edited_at.map(|dt| dt.format("%Y-%m-%d %H:%M UTC").to_string());
+            let edited_at = r
+                .last_edited_at
+                .map(|dt| dt.format("%Y-%m-%d %H:%M UTC").to_string());
             RuleForTemplate {
                 id: r.id,
                 rule: r.rule,

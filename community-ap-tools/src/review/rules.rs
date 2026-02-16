@@ -42,19 +42,10 @@ pub enum RuleCheck {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Predicate {
-    Check {
-        path: String,
-        check: RuleCheck,
-    },
-    And {
-        predicates: Vec<Predicate>,
-    },
-    Or {
-        predicates: Vec<Predicate>,
-    },
-    Not {
-        predicate: Box<Predicate>,
-    },
+    Check { path: String, check: RuleCheck },
+    And { predicates: Vec<Predicate> },
+    Or { predicates: Vec<Predicate> },
+    Not { predicate: Box<Predicate> },
 }
 
 impl Predicate {
@@ -192,9 +183,7 @@ fn check_single_value(val: &Value, check: &RuleCheck) -> Result<bool> {
         RuleCheck::Truthy => Ok(is_trueish(val)),
         RuleCheck::Equals { value } => Ok(yaml_value_as_string(val) == *value),
         RuleCheck::NotEquals { value } => Ok(yaml_value_as_string(val) != *value),
-        RuleCheck::GreaterThan { value } => {
-            Ok(yaml_value_as_i64(val).is_some_and(|v| v > *value))
-        }
+        RuleCheck::GreaterThan { value } => Ok(yaml_value_as_i64(val).is_some_and(|v| v > *value)),
         RuleCheck::LessThan { value } => Ok(yaml_value_as_i64(val).is_some_and(|v| v < *value)),
         RuleCheck::Range { min, max } => {
             Ok(yaml_value_as_i64(val).is_some_and(|v| v >= *min && v <= *max))
@@ -219,9 +208,7 @@ fn evaluate_check(val: &Value, check: &RuleCheck) -> Result<bool> {
     if val.is_mapping() {
         let map = val.as_mapping().unwrap();
         // Check if this looks like a weighted map (keys are values, values are weights)
-        let looks_like_weighted = map
-            .iter()
-            .all(|(_, v)| v.as_integer().is_some());
+        let looks_like_weighted = map.iter().all(|(_, v)| v.as_integer().is_some());
 
         if looks_like_weighted && !map.is_empty() {
             // "Can roll" semantics: check passes if ANY key with non-zero weight satisfies it
@@ -243,18 +230,16 @@ fn evaluate_check(val: &Value, check: &RuleCheck) -> Result<bool> {
 
 pub fn evaluate_predicate(predicate: &Predicate, game_yaml: &Value) -> Result<bool> {
     match predicate {
-        Predicate::Check { path, check } => {
-            match check {
-                RuleCheck::Exists => Ok(navigate_path(game_yaml, path).is_some()),
-                RuleCheck::NotExists => Ok(navigate_path(game_yaml, path).is_none()),
-                _ => {
-                    let Some(val) = navigate_path(game_yaml, path) else {
-                        return Ok(false);
-                    };
-                    evaluate_check(val, check)
-                }
+        Predicate::Check { path, check } => match check {
+            RuleCheck::Exists => Ok(navigate_path(game_yaml, path).is_some()),
+            RuleCheck::NotExists => Ok(navigate_path(game_yaml, path).is_none()),
+            _ => {
+                let Some(val) = navigate_path(game_yaml, path) else {
+                    return Ok(false);
+                };
+                evaluate_check(val, check)
             }
-        }
+        },
         Predicate::And { predicates } => {
             for p in predicates {
                 if !evaluate_predicate(p, game_yaml)? {
@@ -277,34 +262,42 @@ pub fn evaluate_predicate(predicate: &Predicate, game_yaml: &Value) -> Result<bo
 
 pub fn evaluate_rule(rule: &Rule, yaml: &Value, game_name: &str) -> RuleResult {
     if let Some(ref game_filter) = rule.game
-        && game_filter != game_name {
-            return rule.result(Outcome::Skipped, None);
-        }
+        && game_filter != game_name
+    {
+        return rule.result(Outcome::Skipped, None);
+    }
 
     let Some(game_yaml) = yaml.as_mapping_get(game_name) else {
-        return rule.result(Outcome::NotPresent, Some(format!("Game section '{}' not found", game_name)));
+        return rule.result(
+            Outcome::NotPresent,
+            Some(format!("Game section '{}' not found", game_name)),
+        );
     };
 
     if let Some(ref when) = rule.when {
         match evaluate_predicate(when, game_yaml) {
             Ok(true) => {}
             Ok(false) => return rule.result(Outcome::Skipped, None),
-            Err(e) => return rule.result(Outcome::Error, Some(format!("Error evaluating condition: {}", e))),
+            Err(e) => {
+                return rule.result(
+                    Outcome::Error,
+                    Some(format!("Error evaluating condition: {}", e)),
+                );
+            }
         }
     }
 
     match evaluate_predicate(&rule.then, game_yaml) {
         Ok(true) => rule.result(Outcome::Pass, None),
         Ok(false) => rule.result(Outcome::Fail, None),
-        Err(e) => rule.result(Outcome::Error, Some(format!("Error evaluating rule: {}", e))),
+        Err(e) => rule.result(
+            Outcome::Error,
+            Some(format!("Error evaluating rule: {}", e)),
+        ),
     }
 }
 
-pub fn evaluate_rules_for_yaml(
-    rules: &[Rule],
-    yaml: &Value,
-    game_name: &str,
-) -> Vec<RuleResult> {
+pub fn evaluate_rules_for_yaml(rules: &[Rule], yaml: &Value, game_name: &str) -> Vec<RuleResult> {
     rules
         .iter()
         .map(|rule| evaluate_rule(rule, yaml, game_name))

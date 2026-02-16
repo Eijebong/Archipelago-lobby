@@ -10,7 +10,13 @@ pub trait BuiltinRule: Send + Sync {
     fn id(&self) -> &str;
     fn name(&self) -> &str;
     fn description(&self) -> &str;
-    fn evaluate(&self, yaml: &Value, game_name: &str, player_name: &str, room_yamls: &[RoomYaml]) -> RuleResult;
+    fn evaluate(
+        &self,
+        yaml: &Value,
+        game_name: &str,
+        player_name: &str,
+        room_yamls: &[RoomYaml],
+    ) -> RuleResult;
 }
 
 pub fn builtin_rules() -> Vec<Box<dyn BuiltinRule>> {
@@ -50,7 +56,13 @@ impl BuiltinRule for NoCrossPlando {
         "Checks that plando sections don't reference other players' slot names"
     }
 
-    fn evaluate(&self, yaml: &Value, game_name: &str, player_name: &str, room_yamls: &[RoomYaml]) -> RuleResult {
+    fn evaluate(
+        &self,
+        yaml: &Value,
+        game_name: &str,
+        player_name: &str,
+        room_yamls: &[RoomYaml],
+    ) -> RuleResult {
         let other_names: Vec<&str> = room_yamls
             .iter()
             .filter(|y| y.player_name != player_name)
@@ -124,23 +136,26 @@ fn check_value_for_player_names(
     violations: &mut Vec<String>,
 ) {
     if let Some(name) = val.as_str()
-        && other_names.contains(&name) {
-            violations.push(format!("{}: {}", field_name, name));
-        }
+        && other_names.contains(&name)
+    {
+        violations.push(format!("{}: {}", field_name, name));
+    }
     if let Some(seq) = val.as_sequence() {
         for item in seq {
             if let Some(name) = item.as_str()
-                && other_names.contains(&name) {
-                    violations.push(format!("{}: {}", field_name, name));
-                }
+                && other_names.contains(&name)
+            {
+                violations.push(format!("{}: {}", field_name, name));
+            }
         }
     }
     if let Some(map) = val.as_mapping() {
         for (key, _) in map.iter() {
             if let Some(name) = key.as_str()
-                && other_names.contains(&name) {
-                    violations.push(format!("{}: {}", field_name, name));
-                }
+                && other_names.contains(&name)
+            {
+                violations.push(format!("{}: {}", field_name, name));
+            }
         }
     }
 }
@@ -185,8 +200,12 @@ Test:
 "#;
         let yaml = parse_yaml(raw);
         let room = vec![
-            RoomYaml { player_name: "Player1".into() },
-            RoomYaml { player_name: "Player2".into() },
+            RoomYaml {
+                player_name: "Player1".into(),
+            },
+            RoomYaml {
+                player_name: "Player2".into(),
+            },
         ];
         let result = NoCrossPlando.evaluate(&yaml, "Test", "Player1", &room);
         assert_eq!(result.outcome, Outcome::Pass);
@@ -203,8 +222,12 @@ Test:
 "#;
         let yaml = parse_yaml(raw);
         let room = vec![
-            RoomYaml { player_name: "Player1".into() },
-            RoomYaml { player_name: "Player2".into() },
+            RoomYaml {
+                player_name: "Player1".into(),
+            },
+            RoomYaml {
+                player_name: "Player2".into(),
+            },
         ];
         let result = NoCrossPlando.evaluate(&yaml, "Test", "Player1", &room);
         assert_eq!(result.outcome, Outcome::Fail);
@@ -222,8 +245,12 @@ Test:
 "#;
         let yaml = parse_yaml(raw);
         let room = vec![
-            RoomYaml { player_name: "Player1".into() },
-            RoomYaml { player_name: "Player2".into() },
+            RoomYaml {
+                player_name: "Player1".into(),
+            },
+            RoomYaml {
+                player_name: "Player2".into(),
+            },
         ];
         let result = NoCrossPlando.evaluate(&yaml, "Test", "Player1", &room);
         assert_eq!(result.outcome, Outcome::Fail);
@@ -240,8 +267,12 @@ Test:
 "#;
         let yaml = parse_yaml(raw);
         let room = vec![
-            RoomYaml { player_name: "Player1".into() },
-            RoomYaml { player_name: "Player2".into() },
+            RoomYaml {
+                player_name: "Player1".into(),
+            },
+            RoomYaml {
+                player_name: "Player2".into(),
+            },
         ];
         let result = NoCrossPlando.evaluate(&yaml, "Test", "Player1", &room);
         assert_eq!(result.outcome, Outcome::Pass);

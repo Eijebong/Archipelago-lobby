@@ -5,7 +5,9 @@ use uuid::Uuid;
 
 use chrono::{DateTime, Utc};
 
-use crate::schema::{discord_users, review_preset_rules, review_presets, room_review_config, yaml_review_status};
+use crate::schema::{
+    discord_users, review_preset_rules, review_presets, room_review_config, yaml_review_status,
+};
 
 #[derive(Queryable, Selectable, Serialize, Debug)]
 #[diesel(table_name = review_presets)]
@@ -65,9 +67,7 @@ pub struct UpdatePresetRule {
     pub last_edited_at: Option<DateTime<Utc>>,
 }
 
-pub async fn list_presets(
-    conn: &mut AsyncPgConnection,
-) -> anyhow::Result<Vec<PresetSummary>> {
+pub async fn list_presets(conn: &mut AsyncPgConnection) -> anyhow::Result<Vec<PresetSummary>> {
     let results = review_presets::table
         .select((review_presets::id, review_presets::name))
         .order_by(review_presets::name)
@@ -114,10 +114,7 @@ pub async fn update_preset(
         .await?)
 }
 
-pub async fn delete_preset(
-    preset_id: i32,
-    conn: &mut AsyncPgConnection,
-) -> anyhow::Result<()> {
+pub async fn delete_preset(preset_id: i32, conn: &mut AsyncPgConnection) -> anyhow::Result<()> {
     diesel::delete(review_presets::table.find(preset_id))
         .execute(conn)
         .await?;
@@ -220,10 +217,7 @@ pub async fn set_room_preset(
     Ok(())
 }
 
-pub async fn remove_room_preset(
-    room_id: Uuid,
-    conn: &mut AsyncPgConnection,
-) -> anyhow::Result<()> {
+pub async fn remove_room_preset(room_id: Uuid, conn: &mut AsyncPgConnection) -> anyhow::Result<()> {
     diesel::delete(room_review_config::table.find(room_id))
         .execute(conn)
         .await?;
