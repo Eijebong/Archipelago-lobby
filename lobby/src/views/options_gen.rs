@@ -189,7 +189,7 @@ impl OptionsTpl<'_> {
 
 /// Helper to fetch OptionsDef, using cache if available or queuing a job if not.
 #[tracing::instrument(skip(options_gen_queue, options_cache))]
-async fn get_options_def(
+pub(crate) async fn get_options_def(
     apworld_name: &str,
     version: &Version,
     options_gen_queue: &State<OptionsGenQueue>,

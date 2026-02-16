@@ -14,10 +14,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     db::{self, BundleId, RoomId, Yaml, YamlId},
-    error::{ApiResult, WithContext, WithStatus},
+    error::{ApiError, ApiResult, WithContext, WithStatus},
     index_manager::IndexManager,
-    jobs::YamlValidationQueue,
+    jobs::{OptionsGenQueue, YamlValidationQueue},
     session::LoggedInSession,
+    views::options_gen::OptionsCache,
     yaml::queue_yaml_validation,
 };
 use crate::{generation::get_slots, views::YamlContent};
@@ -302,6 +303,89 @@ pub(crate) async fn set_password(
     Ok(())
 }
 
+#[derive(Serialize)]
+pub struct GameInfo {
+    apworld_name: String,
+    game_name: String,
+}
+
+#[get("/games")]
+#[tracing::instrument(skip(_session, index_manager))]
+pub(crate) async fn list_games(
+    _session: AdminSession,
+    index_manager: &State<IndexManager>,
+) -> Json<Vec<GameInfo>> {
+    let index = index_manager.index.read().await;
+    let mut games: Vec<GameInfo> = index
+        .worlds
+        .iter()
+        .map(|(apworld_name, world)| GameInfo {
+            apworld_name: apworld_name.clone(),
+            game_name: world.name.clone(),
+        })
+        .collect();
+    games.sort_by(|a, b| a.game_name.to_lowercase().cmp(&b.game_name.to_lowercase()));
+    Json(games)
+}
+
+#[derive(Serialize)]
+pub struct OptionInfo {
+    name: String,
+    ty: String,
+    choices: Option<Vec<String>>,
+    suggestions: Option<Vec<String>>,
+    valid_keys: Option<Vec<String>>,
+}
+
+#[get("/games/<apworld>/options")]
+#[tracing::instrument(skip(_session, index_manager, options_gen_queue, options_cache))]
+pub(crate) async fn game_options(
+    _session: AdminSession,
+    apworld: &str,
+    index_manager: &State<IndexManager>,
+    options_gen_queue: &State<OptionsGenQueue>,
+    options_cache: &State<OptionsCache>,
+) -> ApiResult<Json<Vec<OptionInfo>>> {
+    let version = {
+        let index = index_manager.index.read().await;
+        let world = index.worlds.get(apworld).ok_or_else(|| {
+            ApiError {
+                error: anyhow!("Unknown apworld"),
+                status: Status::NotFound,
+            }
+        })?;
+        world.versions.keys().max().cloned().ok_or_else(|| {
+            ApiError {
+                error: anyhow!("No versions available"),
+                status: Status::NotFound,
+            }
+        })?
+    };
+
+    let options = super::options_gen::get_options_def(
+        apworld,
+        &version,
+        options_gen_queue,
+        options_cache,
+    )
+    .await
+    .status(Status::InternalServerError)?;
+
+    let result: Vec<OptionInfo> = options
+        .iter()
+        .flat_map(|(_, group)| group.iter())
+        .map(|(name, def)| OptionInfo {
+            name: name.clone(),
+            ty: def.ty.clone(),
+            choices: def.choices.clone(),
+            suggestions: def.suggestions.clone(),
+            valid_keys: def.valid_keys.clone(),
+        })
+        .collect();
+
+    Ok(Json(result))
+}
+
 pub fn routes() -> Vec<rocket::Route> {
     routes![
         download_bundle,
@@ -311,6 +395,8 @@ pub fn routes() -> Vec<rocket::Route> {
         room_info,
         refresh_patches,
         slots_passwords,
-        set_password
+        set_password,
+        list_games,
+        game_options
     ]
 }
