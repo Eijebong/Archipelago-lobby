@@ -1,0 +1,68 @@
+<html>
+<head>
+    <title>Review Presets</title>
+    <link rel="stylesheet" href="/static/review.css">
+</head>
+<body class="presets-page">
+    <h1>Review Presets</h1>
+
+    <div class="section">
+        <h2>Create New Preset</h2>
+        <form onsubmit="createPreset(event)">
+            <input type="text" id="new-preset-name" placeholder="Preset name" required size="30">
+            <button type="submit" class="primary">Create</button>
+        </form>
+    </div>
+
+    <div class="section">
+        <h2>Existing Presets</h2>
+        {% if presets.is_empty() %}
+            <p>No presets yet.</p>
+        {% else %}
+            <table>
+                <thead><tr><th>Name</th><th>Actions</th></tr></thead>
+                <tbody>
+                {% for preset in presets %}
+                    <tr>
+                        <td><a href="/presets/{{ preset.id }}">{{ preset.name }}</a></td>
+                        <td>
+                            <a href="/presets/{{ preset.id }}" class="button">Edit</a>
+                            <button class="danger" data-preset-id="{{ preset.id }}" data-preset-name="{{ preset.name }}">Delete</button>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+
+<script src="/static/review-utils.js"></script>
+<script>
+async function createPreset(e) {
+    e.preventDefault();
+    const name = document.getElementById("new-preset-name").value.trim();
+    if (!name) return;
+    const resp = await fetch("/api/presets", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ name, builtin_rules: [] }),
+    });
+    if (!resp.ok) { showToast("Failed to create preset: " + await resp.text()); return; }
+    const preset = await resp.json();
+    window.location.href = `/presets/${preset.id}`;
+}
+
+document.querySelectorAll("button[data-preset-id]").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const id = btn.dataset.presetId;
+        const name = btn.dataset.presetName;
+        confirmDelete(name, async () => {
+            const resp = await fetch(`/api/presets/${id}`, { method: "DELETE" });
+            if (!resp.ok) { showToast("Failed to delete preset"); return; }
+            window.location.reload();
+        });
+    });
+});
+</script>
+</body>
+</html>

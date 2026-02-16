@@ -1,0 +1,442 @@
+<html>
+<head>
+    <title>YAML Review - {{ room_name }}</title>
+    <link rel="stylesheet" href="/static/review.css">
+    <link rel="stylesheet" href="/static/contrib/highlight.js/monokai.min.css">
+    <script src="/static/contrib/highlight.js/highlight.min.js" defer></script>
+    <script src="/static/contrib/highlight.js/yaml.min.js" defer></script>
+</head>
+<body>
+    <h1>YAML Review: {{ room_name }}</h1>
+
+    <div class="section">
+        <h2>Preset</h2>
+        <div class="inline-form">
+            <select id="preset-select" onchange="onPresetChange()">
+                <option value="">-- No preset --</option>
+            </select>
+            <button id="edit-preset-btn" class="hidden" onclick="window.location.href=this.dataset.href">Edit preset</button>
+        </div>
+    </div>
+
+    <div class="section" id="results-area">
+        <h2>Results</h2>
+        <div id="results-content">
+            <p class="loading">Select a preset and evaluate, or wait for auto-evaluation...</p>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="detail-modal" onclick="if (event.target === this) hideModal()">
+        <div class="modal">
+
+            <div class="modal-body" id="modal-content"></div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="yaml-modal" onclick="if (event.target === this) hideYamlModal()">
+        <div class="modal">
+
+            <div class="modal-body" id="yaml-modal-content"></div>
+            <div class="button-container" id="yaml-modal-buttons"></div>
+        </div>
+    </div>
+
+<script src="/static/review-utils.js"></script>
+<script>
+const ROOM_ID = "{{ room_id }}";
+const LOBBY_ROOT_URL = "{{ lobby_root_url }}".replace(/\/$/, "");
+const ASSIGNED_PRESET_ID = {% match assigned_preset_id %}{% when Some with (id) %}{{ id }}{% when None %}null{% endmatch %};
+
+let lastEvalData = null;
+let reviewStatuses = {};
+let sortColumn = "created";
+let sortAsc = true;
+
+async function refreshPresetList() {
+    const resp = await fetch("/api/presets");
+    if (!resp.ok) { showToast("Failed to load presets"); return; }
+    const presets = await resp.json();
+    const sel = document.getElementById("preset-select");
+    sel.innerHTML = '<option value="">-- No preset --</option>';
+    for (const p of presets) {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.name;
+        sel.appendChild(opt);
+    }
+    if (ASSIGNED_PRESET_ID) {
+        sel.value = ASSIGNED_PRESET_ID;
+    }
+    updateEditLink();
+}
+
+function updateEditLink() {
+    const sel = document.getElementById("preset-select");
+    const btn = document.getElementById("edit-preset-btn");
+    const presetId = parseInt(sel.value);
+    if (presetId) {
+        btn.dataset.href = `/presets/${presetId}?from_room=${ROOM_ID}`;
+        btn.classList.remove("hidden");
+    } else {
+        btn.classList.add("hidden");
+    }
+}
+
+async function onPresetChange() {
+    const sel = document.getElementById("preset-select");
+    const presetId = parseInt(sel.value);
+    updateEditLink();
+
+    if (!presetId) {
+        await fetch(`/api/room/${ROOM_ID}/preset`, { method: "DELETE" });
+        document.getElementById("results-content").innerHTML = "<p>No preset assigned.</p>";
+        lastEvalData = null;
+        return;
+    }
+
+    const resp = await fetch(`/api/room/${ROOM_ID}/preset`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ preset_id: presetId }),
+    });
+    if (!resp.ok) { showToast("Failed to assign preset"); return; }
+    runEvaluation();
+}
+
+async function runEvaluation() {
+    const sel = document.getElementById("preset-select");
+    const presetId = parseInt(sel.value);
+    if (!presetId) {
+        document.getElementById("results-content").innerHTML = "<p>No preset assigned.</p>";
+        return;
+    }
+
+    const content = document.getElementById("results-content");
+    content.innerHTML = '<p class="loading">Evaluating...</p>';
+
+    const resp = await fetch(`/api/review/${ROOM_ID}/evaluate`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ preset_id: presetId }),
+    });
+
+    if (!resp.ok) {
+        const errMsg = await resp.text();
+        const p = document.createElement("p");
+        p.className = "error-text";
+        p.textContent = "Error: " + errMsg;
+        content.innerHTML = "";
+        content.appendChild(p);
+        return;
+    }
+
+    const data = await resp.json();
+    lastEvalData = data;
+    await fetchReviewStatuses();
+    renderResults(data);
+}
+
+function formatDate(s) {
+    if (!s) return "";
+    const d = new Date(s);
+    if (isNaN(d)) return esc(s);
+    return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+const CHECK_LABELS = {
+    truthy: "is truthy", equals: "equals", not_equals: "does not equal",
+    greater_than: "&gt;", less_than: "&lt;", range: "between",
+    regex: "matches", contains: "contains", exists: "exists", not_exists: "does not exist",
+};
+
+function renderCheck(path, check) {
+    const labels = CHECK_LABELS;
+    const p = `<span class="pred-path">${esc(path)}</span>`;
+    const v = (s) => `<span class="pred-value">${esc(s)}</span>`;
+    const op = labels[check.type] || esc(check.type);
+    switch (check.type) {
+        case "truthy": case "exists": case "not_exists":
+            return `${p} <span class="pred-op">${op}</span>`;
+        case "equals": case "not_equals": case "greater_than": case "less_than":
+        case "regex": case "contains":
+            const val = check.type === "regex" ? '/' + check.pattern + '/' : check.value;
+            return `${p} <span class="pred-op">${op}</span> ${v(val)}`;
+        case "range":
+            return `${p} <span class="pred-op">${op}</span> ${v(check.min)} <span class="pred-op">and</span> ${v(check.max)}`;
+        default:
+            return `${p} <span class="pred-op">${op}</span>`;
+    }
+}
+
+function badgeClass(r) {
+    return r.outcome === "fail" ? `fail-${r.severity}` : r.outcome;
+}
+
+function renderResultItems(results) {
+    let html = '';
+    for (const r of results) {
+        const detail = r.detail ? `<span class="result-detail">${esc(r.detail)}</span>` : '';
+        const builtin = r.builtin ? '<span class="result-builtin">[builtin]</span>' : '';
+        let ruleHtml = '';
+        if (r.predicate) {
+            ruleHtml = '<div class="predicate-view">';
+            if (r.condition) {
+                ruleHtml += `<span class="pred-logic">when</span> ${renderPredicate(r.condition)}<br>`;
+                ruleHtml += `<span class="pred-logic">then</span> ${renderPredicate(r.predicate)}`;
+            } else {
+                ruleHtml += renderPredicate(r.predicate);
+            }
+            ruleHtml += '</div>';
+        }
+        const expandable = ruleHtml ? ' expandable' : '';
+        html += `<div class="result-item${expandable}" onclick="this.classList.toggle('expanded')">
+            <span class="outcome-badge ${badgeClass(r)}">${r.outcome === "fail" ? r.severity : r.outcome}</span>
+            <span class="result-name">${esc(r.rule_name)} ${builtin}</span>
+            ${detail}
+            ${ruleHtml}
+        </div>`;
+    }
+    return html;
+}
+
+function renderPredicate(pred) {
+    switch (pred.type) {
+        case "check":
+            return renderCheck(pred.path, pred.check);
+        case "and":
+            return pred.predicates.map(renderPredicate).join(`<br><span class="pred-logic">AND </span>`);
+        case "or":
+            return pred.predicates.map(renderPredicate).join(`<br><span class="pred-logic">OR </span>`);
+        case "not":
+            return `<span class="pred-logic">NOT </span>${renderPredicate(pred.predicate)}`;
+        default:
+            return esc(JSON.stringify(pred));
+    }
+}
+
+function sortArrow(col) {
+    if (sortColumn !== col) return '';
+    return `<span class="sort-arrow">${sortAsc ? '\u25B2' : '\u25BC'}</span>`;
+}
+
+function toggleSort(col) {
+    if (sortColumn === col) {
+        sortAsc = !sortAsc;
+    } else {
+        sortColumn = col;
+        sortAsc = true;
+    }
+    if (lastEvalData) renderResults(lastEvalData);
+}
+
+function getSortValue(yaml, col) {
+    switch (col) {
+        case "player": return yaml.player_name.toLowerCase();
+        case "discord": return yaml.discord_handle.toLowerCase();
+        case "game": return yaml.game.toLowerCase();
+        case "issues": {
+            const c = countBySeverity(yaml.results);
+            return c.error * 10000 + c.warning * 100 + c.info;
+        }
+        case "status": {
+            const st = reviewStatuses[yaml.yaml_id] || { status: "unreviewed" };
+            const order = { unreviewed: 0, ok: 1, reported: 2 };
+            return order[st.status] ?? 1;
+        }
+        case "created": return yaml.created_at || "";
+        default: return 0;
+    }
+}
+
+function renderResults(data) {
+    const content = document.getElementById("results-content");
+    if (!data.yamls || data.yamls.length === 0) {
+        content.innerHTML = "<p>No YAMLs in this room.</p>";
+        return;
+    }
+
+    const sorted = [...data.yamls];
+    if (sortColumn) {
+        sorted.sort((a, b) => {
+            const va = getSortValue(a, sortColumn);
+            const vb = getSortValue(b, sortColumn);
+            let cmp = 0;
+            if (typeof va === "number") cmp = va - vb;
+            else cmp = va < vb ? -1 : va > vb ? 1 : 0;
+            return sortAsc ? cmp : -cmp;
+        });
+    }
+
+    let html = `<table>
+        <thead><tr>
+            <th class="sortable" onclick="toggleSort('player')">Player${sortArrow('player')}</th>
+            <th class="sortable" onclick="toggleSort('discord')">Discord${sortArrow('discord')}</th>
+            <th class="sortable" onclick="toggleSort('game')">Game${sortArrow('game')}</th>
+            <th class="sortable" onclick="toggleSort('issues')">Issues${sortArrow('issues')}</th>
+            <th class="sortable" onclick="toggleSort('status')">Status${sortArrow('status')}</th>
+            <th class="sortable" onclick="toggleSort('created')">Created${sortArrow('created')}</th>
+            <th>Actions</th>
+        </tr></thead><tbody>`;
+
+    for (const yaml of sorted) {
+        const counts = countBySeverity(yaml.results);
+
+        const issues = `<span class="has-errors">${counts.error}</span> / <span class="has-warnings">${counts.warning}</span> / <span class="has-info">${counts.info}</span>`;
+
+        html += `<tr data-yaml-id="${yaml.yaml_id}">
+            <td>${esc(yaml.player_name)}</td>
+            <td>@${esc(yaml.discord_handle)}</td>
+            <td>${esc(yaml.game)}</td>
+            <td class="issues">${issues}</td>
+            <td class="status-cell">${renderStatusSelect(yaml.yaml_id)}</td>
+            <td class="date-cell">${formatDate(yaml.created_at)}</td>
+            <td class="actions">
+                <button class="view-yaml-btn">View YAML</button>
+            </td>
+        </tr>`;
+    }
+
+    html += '</tbody></table>';
+    content.innerHTML = html;
+
+    content.querySelector("tbody").addEventListener("click", (e) => {
+        if (e.target.closest(".status-cell") || e.target.closest(".actions")) return;
+        const row = e.target.closest("tr[data-yaml-id]");
+        if (row) showDetailModal(row.dataset.yamlId);
+    });
+    for (const btn of content.querySelectorAll(".view-yaml-btn")) {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const row = btn.closest("tr[data-yaml-id]");
+            if (row) showYamlModal(row.dataset.yamlId);
+        });
+    }
+}
+
+function renderStatusSelect(yamlId, extraClass) {
+    const st = reviewStatuses[yamlId] || { status: "unreviewed" };
+    const title = st.changed_by_name ? `${st.changed_by_name} on ${new Date(st.changed_at).toLocaleString()}` : "";
+    const cls = `status-select status-${esc(st.status)}${extraClass ? ` ${extraClass}` : ""}`;
+    const opt = (val, label) => `<option value="${val}" ${st.status === val ? "selected" : ""}>${label}</option>`;
+    return `<select class="${cls}" title="${esc(title)}" data-yaml-id="${yamlId}" onchange="onStatusChange(this)">${opt("unreviewed", "Unreviewed")}${opt("reported", "Reported")}${opt("ok", "OK")}</select>`;
+}
+
+function countBySeverity(results) {
+    const counts = { error: 0, warning: 0, info: 0 };
+    for (const r of results) {
+        if (counts[r.severity] !== undefined) {
+            counts[r.severity]++;
+        }
+    }
+    return counts;
+}
+
+function showDetailModal(yamlId) {
+    if (!lastEvalData) return;
+    const yaml = lastEvalData.yamls.find(y => y.yaml_id === yamlId);
+    if (!yaml) return;
+
+    const mc = document.getElementById("modal-content");
+    let html = `<h3>${esc(yaml.player_name)}</h3>
+        <div class="subtitle">${esc(yaml.game)}</div>`;
+
+    if (yaml.results.length === 0) {
+        html += '<p class="muted">No failures.</p>';
+    } else {
+        html += renderResultItems(yaml.results);
+    }
+
+    mc.innerHTML = html;
+    document.getElementById("detail-modal").classList.add("open");
+}
+
+function hideModal() {
+    document.getElementById("detail-modal").classList.remove("open");
+}
+
+function showYamlModal(yamlId) {
+    if (!lastEvalData) return;
+    const yaml = lastEvalData.yamls.find(y => y.yaml_id === yamlId);
+    if (!yaml) return;
+
+    const mc = document.getElementById("yaml-modal-content");
+
+    let html = `<h3>${esc(yaml.player_name)}
+        ${renderStatusSelect(yaml.yaml_id, "status-modal")}</h3>
+        <div class="subtitle">${esc(yaml.game)}</div>`;
+
+    if (yaml.results.length > 0) {
+        html += renderResultItems(yaml.results);
+    }
+
+    const yamlUrl = `${LOBBY_ROOT_URL}/api/room/${ROOM_ID}/download/${yaml.yaml_id}`;
+    html += `<div class="yaml-viewer"><pre><code class="language-yaml">${esc(yaml.content || "")}</code></pre></div>`;
+    mc.innerHTML = html;
+    document.getElementById("yaml-modal-buttons").innerHTML = `
+        <a href="${yamlUrl}" target="_blank" class="button">Download</a>
+        <button onclick="hideYamlModal()">Close</button>`;
+    hljs.highlightElement(mc.querySelector("code"));
+    document.getElementById("yaml-modal").classList.add("open");
+}
+
+function hideYamlModal() {
+    document.getElementById("yaml-modal").classList.remove("open");
+}
+
+async function fetchReviewStatuses() {
+    try {
+        const resp = await fetch(`/api/review/${ROOM_ID}/statuses`);
+        if (!resp.ok) { showToast("Failed to load review statuses"); return; }
+        const statuses = await resp.json();
+        reviewStatuses = {};
+        for (const s of statuses) {
+            reviewStatuses[s.yaml_id] = s;
+        }
+    } catch(e) { showToast("Failed to load review statuses: " + e.message); }
+}
+
+async function onStatusChange(sel) {
+    const yamlId = sel.dataset.yamlId;
+    const status = sel.value;
+
+    const allSelects = document.querySelectorAll(`select[data-yaml-id="${yamlId}"]`);
+    for (const s of allSelects) s.disabled = true;
+
+    try {
+        const resp = await fetch(`/api/review/${ROOM_ID}/status/${yamlId}`, {
+            method: "PUT",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ status }),
+        });
+
+        if (!resp.ok) {
+            showToast("Failed to update status: " + await resp.text());
+            return;
+        }
+
+        const result = await resp.json();
+        reviewStatuses[yamlId] = result;
+
+        const title = result.changed_by_name ? `${result.changed_by_name} on ${new Date(result.changed_at).toLocaleString()}` : "";
+        for (const s of allSelects) {
+            s.value = status;
+            s.className = `status-select status-${status}`;
+            s.title = title;
+        }
+    } finally {
+        for (const s of allSelects) s.disabled = false;
+    }
+}
+
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { hideModal(); hideYamlModal(); }
+});
+
+refreshPresetList().then(() => {
+    if (ASSIGNED_PRESET_ID) {
+        runEvaluation();
+    }
+});
+</script>
+</body>
+</html>

@@ -63,8 +63,13 @@ impl Session {
     }
 }
 
-#[allow(dead_code)]
 pub struct LoggedInSession(Session);
+
+impl LoggedInSession {
+    pub fn user_id(&self) -> i64 {
+        self.0.user_id.expect("LoggedInSession must have a user_id")
+    }
+}
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for Session {

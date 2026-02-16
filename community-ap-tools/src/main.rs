@@ -15,7 +15,6 @@ use rocket::{
     Request, State, catch, http::ContentType, response::Redirect, routes, serde::json::Json,
 };
 use rocket_oauth2::OAuth2;
-use rustls::crypto::ring;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use tungstenite::{Message, connect};
@@ -26,6 +25,12 @@ mod datapackage;
 mod error;
 mod filters;
 mod guards;
+mod review;
+mod schema;
+
+use diesel_migrations::{EmbeddedMigrations, embed_migrations};
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
 
 pub struct Discord;
 
@@ -720,9 +725,8 @@ async fn main() -> crate::error::Result<()> {
         .and_then(|s| s.parse().ok());
     let apx_api_key = std::env::var("APX_API_KEY").ok();
 
-    ring::default_provider()
-        .install_default()
-        .expect("Failed to set ring as crypto provider");
+    let db_url = std::env::var("DATABASE_URL").expect("Provide a `DATABASE_URL` env variable");
+    let db_pool = common::db::get_database_pool(&db_url, MIGRATIONS).await?;
 
     let ap_room_url = ap_api_root.join(&format!("/room/{}", ap_room_id))?;
     eprintln!("[STARTUP] Constructed AP_ROOM_URL: {}", ap_room_url);
@@ -763,9 +767,12 @@ async fn main() -> crate::error::Result<()> {
             ],
         )
         .mount("/auth", auth::routes())
+        .mount("/", review::page::routes())
+        .mount("/api", review::api::routes())
         .register("/", catchers![unauthorized])
         .manage(rocket::Config::figment())
         .manage(config)
+        .manage(db_pool)
         .attach(OAuth2::<Discord>::fairing("discord"))
         .launch()
         .await

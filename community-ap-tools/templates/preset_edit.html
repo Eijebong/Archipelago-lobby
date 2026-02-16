@@ -1,0 +1,766 @@
+<html>
+<head>
+    <title>Edit Preset: {{ preset.name }}</title>
+    <link rel="stylesheet" href="/static/review.css">
+</head>
+<body>
+    <p><a href="{% match back_url %}{% when Some with (url) %}{{ url }}{% when None %}/presets{% endmatch %}">&larr; Back</a></p>
+    <h1>Edit Preset: <span id="preset-name-display">{{ preset.name }}</span></h1>
+
+    <div class="section">
+        <div class="field-group">
+            <div class="field">
+                <span>Preset name</span>
+                <input type="text" id="preset-name" value="{{ preset.name }}" size="30">
+            </div>
+            <div class="field field-end">
+                <button onclick="savePreset()" class="primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Rules</h2>
+        <div id="rules-container"></div>
+        <div class="add-rule-form">
+            <div class="field-group">
+                <div class="field">
+                    <span>Name</span>
+                    <input type="text" id="new-rule-name" placeholder="Rule name" size="25">
+                </div>
+                <div class="field">
+                    <span>Game</span>
+                    <input type="text" id="new-rule-game" placeholder="(all games)" size="15" list="dl-games">
+                </div>
+                <div class="field">
+                    <span>Severity</span>
+                    <select id="new-rule-severity">
+                        <option value="error">Error</option>
+                        <option value="warning">Warning</option>
+                        <option value="info">Info</option>
+                    </select>
+                </div>
+                <div class="field field-end">
+                    <button onclick="addNewRule()">+ Add Rule</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Built-in Rules</h2>
+        <div id="builtin-rules"></div>
+        <div class="builtin-save-wrap">
+            <button id="builtin-save-btn" class="primary small" onclick="saveBuiltins()" disabled>Save built-in rules</button>
+        </div>
+    </div>
+
+
+<div hidden id="initial-rules-data" data-json="{{ preset.rules }}"></div>
+<div hidden id="initial-builtins-data" data-json="{{ preset.builtin_rules }}"></div>
+<script src="/static/review-utils.js"></script>
+<script>
+const PRESET_ID = {{ preset.id }};
+let INITIAL_RULES = [];
+let INITIAL_BUILTINS = [];
+try {
+    INITIAL_RULES = JSON.parse(document.getElementById("initial-rules-data").dataset.json);
+    INITIAL_BUILTINS = JSON.parse(document.getElementById("initial-builtins-data").dataset.json);
+} catch(e) {
+    showToast("Failed to parse initial data: " + e.message);
+}
+const CURRENT_USERNAME = "{{ current_username }}";
+
+let gamesData = [];
+const gameToApworld = {};
+const optionsCache = {};
+
+async function loadGames() {
+    try {
+        const resp = await fetch("/api/games");
+        if (!resp.ok) { showToast("Failed to load games list"); return; }
+        gamesData = await resp.json();
+        for (const g of gamesData) gameToApworld[g.game_name] = g.apworld_name;
+    } catch(e) { showToast("Failed to load games list: " + e.message); }
+}
+
+async function getOptionsForGame(gameName) {
+    const apworld = gameToApworld[gameName];
+    if (!apworld) return [];
+    if (optionsCache[apworld]) return optionsCache[apworld];
+    try {
+        const resp = await fetch(`/api/games/${encodeURIComponent(apworld)}/options`);
+        if (!resp.ok) return [];
+        const data = await resp.json();
+        optionsCache[apworld] = data;
+        return data;
+    } catch(e) { return []; }
+}
+
+function ensureDatalist(id, values) {
+    let dl = document.getElementById(id);
+    if (dl) dl.remove();
+    if (!values || values.length === 0) return;
+    dl = document.createElement("datalist");
+    dl.id = id;
+    for (const v of values) {
+        const o = document.createElement("option");
+        o.value = v;
+        dl.appendChild(o);
+    }
+    document.body.appendChild(dl);
+}
+
+class PredicateBlock {
+    constructor(data, { onDirty, getGame }) {
+        this.onDirty = onDirty;
+        this.getGame = getGame;
+        this.children = [];
+        this.child = null;
+        this.type = (data && data.type) || "check";
+
+        this.el = document.createElement("div");
+        this.el.className = "predicate-block";
+
+        const header = document.createElement("div");
+        header.className = "predicate-header";
+
+        this.typeSelect = document.createElement("select");
+        this.typeSelect.className = "pred-type";
+        for (const [val, label] of [["check", "Check"], ["and", "AND"], ["or", "OR"], ["not", "NOT"]]) {
+            const opt = document.createElement("option");
+            opt.value = val;
+            opt.textContent = label;
+            this.typeSelect.appendChild(opt);
+        }
+        this.typeSelect.value = this.type;
+        let prevType = this.type;
+        this.typeSelect.addEventListener("focus", () => { prevType = this.typeSelect.value; });
+        this.typeSelect.addEventListener("change", () => {
+            this._onTypeChange(prevType);
+            prevType = this.typeSelect.value;
+        });
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "danger small pred-remove";
+        removeBtn.textContent = "x";
+        removeBtn.onclick = () => { this.el.remove(); this.onDirty(); };
+
+        header.append(this.typeSelect, removeBtn);
+
+        this.body = document.createElement("div");
+        this.body.className = "pred-body";
+
+        this.el.append(header, this.body);
+        this._renderBody(data);
+    }
+
+    _onTypeChange(oldType) {
+        const newType = this.typeSelect.value;
+        let existing = null;
+        if (oldType && oldType !== newType) {
+            this.typeSelect.value = oldType;
+            existing = this.gather();
+            this.typeSelect.value = newType;
+        }
+        this.type = newType;
+
+        if (existing && (newType === "and" || newType === "or")) {
+            this._renderBody({ type: newType, predicates: [existing] });
+        } else if (existing && newType === "not") {
+            this._renderBody({ type: "not", predicate: existing });
+        } else {
+            this._renderBody();
+        }
+        this.onDirty();
+    }
+
+    _renderBody(data) {
+        this.body.innerHTML = "";
+        this.children = [];
+        this.child = null;
+
+        if (this.type === "check") {
+            this._renderCheck(data);
+        } else if (this.type === "and" || this.type === "or") {
+            this._renderGroup(data);
+        } else if (this.type === "not") {
+            this._renderNot(data);
+        }
+    }
+
+    _renderCheck(data) {
+        const d = data || {};
+        this.body.innerHTML = `
+            <div class="field-group">
+                <div class="field">
+                    <span>Path</span>
+                    <input type="text" class="check-path" value="${esc(d.path || '')}" size="20">
+                </div>
+                <div class="field">
+                    <span>Check</span>
+                    <select class="check-type">
+                        <option value="truthy">Truthy</option>
+                        <option value="equals">Equals</option>
+                        <option value="not_equals">Not Equals</option>
+                        <option value="greater_than">Greater Than</option>
+                        <option value="less_than">Less Than</option>
+                        <option value="range">Range</option>
+                        <option value="regex">Regex</option>
+                        <option value="contains">Contains</option>
+                        <option value="exists">Exists</option>
+                        <option value="not_exists">Not Exists</option>
+                    </select>
+                </div>
+                <span class="check-params"></span>
+            </div>
+        `;
+        const checkTypeSel = this.body.querySelector(".check-type");
+        checkTypeSel.addEventListener("change", () => this._renderCheckParams(checkTypeSel));
+
+        const pathInput = this.body.querySelector(".check-path");
+        pathInput.addEventListener("focus", () => this._autocompletePathFor(pathInput));
+
+        if (d.check) {
+            checkTypeSel.value = d.check.type;
+            this._renderCheckParams(checkTypeSel, d.check);
+        }
+    }
+
+    _renderCheckParams(sel, data) {
+        const params = this.body.querySelector(".check-params");
+        const type = sel.value;
+        params.innerHTML = "";
+
+        if (type === "equals" || type === "not_equals" || type === "contains") {
+            const v = (data && data.value) || "";
+            params.innerHTML = `<div class="field"><span>Value</span><input type="text" class="check-value" value="${esc(v)}" size="15"></div>`;
+            params.querySelector(".check-value").addEventListener("focus", (e) => this._autocompleteValueFor(e.target));
+        } else if (type === "greater_than" || type === "less_than") {
+            const v = (data && data.value) || 0;
+            params.innerHTML = `<div class="field"><span>Value</span><input type="number" class="check-value-num" value="${v}"></div>`;
+        } else if (type === "range") {
+            const min = (data && data.min) || 0;
+            const max = (data && data.max) || 0;
+            params.innerHTML = `<div class="field"><span>Min</span><input type="number" class="check-min" value="${min}"></div>
+                                <div class="field"><span>Max</span><input type="number" class="check-max" value="${max}"></div>`;
+        } else if (type === "regex") {
+            const v = (data && data.pattern) || "";
+            params.innerHTML = `<div class="field"><span>Pattern</span><input type="text" class="check-pattern" value="${esc(v)}" size="20"></div>`;
+        }
+    }
+
+    async _autocompletePathFor(input) {
+        const game = this.getGame();
+        if (!game) return;
+        const options = await getOptionsForGame(game);
+        const dlId = `dl-path-${Date.now()}`;
+        input.setAttribute("list", dlId);
+        ensureDatalist(dlId, options.map(o => o.name));
+    }
+
+    async _autocompleteValueFor(input) {
+        const game = this.getGame();
+        if (!game) return;
+        const options = await getOptionsForGame(game);
+        const pathInput = this.body.querySelector(".check-path");
+        if (!pathInput) return;
+        const optDef = options.find(o => o.name === pathInput.value);
+        if (!optDef) return;
+        const values = optDef.choices || optDef.suggestions || optDef.valid_keys;
+        const dlId = `dl-value-${Date.now()}`;
+        input.setAttribute("list", dlId);
+        ensureDatalist(dlId, values);
+    }
+
+    _renderGroup(data) {
+        const childrenEl = document.createElement("div");
+        childrenEl.className = "pred-children";
+        const addBtn = document.createElement("button");
+        addBtn.textContent = "+ Add";
+        addBtn.onclick = () => {
+            const child = new PredicateBlock(null, { onDirty: this.onDirty, getGame: this.getGame });
+            this.children.push(child);
+            childrenEl.appendChild(child.el);
+            this.onDirty();
+        };
+        this.body.append(childrenEl, addBtn);
+
+        if (data && data.predicates) {
+            for (const p of data.predicates) {
+                const child = new PredicateBlock(p, { onDirty: this.onDirty, getGame: this.getGame });
+                this.children.push(child);
+                childrenEl.appendChild(child.el);
+            }
+        }
+    }
+
+    _renderNot(data) {
+        const inner = document.createElement("div");
+        inner.className = "pred-inner";
+        this.body.appendChild(inner);
+        this.child = new PredicateBlock(
+            data && data.predicate ? data.predicate : null,
+            { onDirty: this.onDirty, getGame: this.getGame },
+        );
+        inner.appendChild(this.child.el);
+    }
+
+    gather() {
+        if (this.type === "check") {
+            const path = this.body.querySelector(".check-path").value;
+            const checkType = this.body.querySelector(".check-type").value;
+            const check = { type: checkType };
+            if (checkType === "equals" || checkType === "not_equals" || checkType === "contains") {
+                check.value = this.body.querySelector(".check-value").value;
+            } else if (checkType === "greater_than" || checkType === "less_than") {
+                check.value = parseInt(this.body.querySelector(".check-value-num").value) || 0;
+            } else if (checkType === "range") {
+                check.min = parseInt(this.body.querySelector(".check-min").value) || 0;
+                check.max = parseInt(this.body.querySelector(".check-max").value) || 0;
+            } else if (checkType === "regex") {
+                check.pattern = this.body.querySelector(".check-pattern").value;
+            }
+            return { type: "check", path, check };
+        } else if (this.type === "and" || this.type === "or") {
+            return { type: this.type, predicates: this.children.map(c => c.gather()) };
+        } else if (this.type === "not") {
+            return { type: "not", predicate: this.child ? this.child.gather() : null };
+        }
+    }
+
+    static validate(pred) {
+        if (!pred) return null;
+        if (pred.type === "check") {
+            if (!pred.path || !pred.path.trim()) return "Check predicate has an empty path";
+        } else if (pred.type === "and" || pred.type === "or") {
+            for (const p of (pred.predicates || [])) {
+                const err = PredicateBlock.validate(p);
+                if (err) return err;
+            }
+        } else if (pred.type === "not") {
+            return PredicateBlock.validate(pred.predicate);
+        }
+        return null;
+    }
+}
+
+class RuleEditor {
+    constructor({ serverId, name, game, severity, when, then, lastEditedByName, lastEditedAt, dirty }) {
+        this.serverId = serverId;
+        this.name = name;
+        this.game = game;
+        this.severity = severity;
+        this.whenData = when;
+        this.thenData = then;
+        this.lastEditedByName = lastEditedByName || null;
+        this.lastEditedAt = lastEditedAt || null;
+        this.dirty = dirty || false;
+        this.whenPred = null;
+        this.thenPred = null;
+        this.open = false;
+
+        this.el = document.createElement("div");
+        this._build();
+    }
+
+    _build() {
+        this.el.innerHTML = "";
+
+        this.row = document.createElement("div");
+        this.row.className = "rule-row";
+        this._buildRow();
+
+        this.editor = document.createElement("div");
+        this.editor.className = "rule-editor" + (this.open ? " open" : "");
+        this._buildEditor();
+
+        this.el.append(this.row, this.editor);
+    }
+
+    _buildRow() {
+        let editTitle = "";
+        if (this.lastEditedByName) {
+            editTitle = `Last edited by ${this.lastEditedByName}`;
+            if (this.lastEditedAt) editTitle += ` on ${this.lastEditedAt}`;
+        }
+
+        this.row.innerHTML = `
+            <span class="rule-name-label" ${editTitle ? `title="${esc(editTitle)}"` : ''}>${esc(this.name)}</span>
+            <span class="severity-badge ${this.severity}">${this.severity}</span>
+            <span class="rule-actions"></span>
+        `;
+
+        const actions = this.row.querySelector(".rule-actions");
+        const cloneBtn = document.createElement("button");
+        cloneBtn.className = "small";
+        cloneBtn.textContent = "Clone";
+        cloneBtn.onclick = (e) => { e.stopPropagation(); this.onClone(); };
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "small danger";
+        deleteBtn.textContent = "x";
+        deleteBtn.onclick = (e) => { e.stopPropagation(); this.onDelete(); };
+
+        actions.append(cloneBtn, deleteBtn);
+        this.row.onclick = () => this.toggle();
+    }
+
+    _buildEditor() {
+        this.editor.innerHTML = `
+            <div class="field-group">
+                <div class="field">
+                    <span>Name</span>
+                    <input type="text" class="rule-name" value="${esc(this.name)}" size="30">
+                </div>
+                <div class="field">
+                    <span>Game</span>
+                    <input type="text" class="rule-game" value="${esc(this.game || '')}" placeholder="(all games)" size="15" list="dl-games">
+                </div>
+                <div class="field">
+                    <span>Severity</span>
+                    <select class="rule-severity">
+                        <option value="error" ${this.severity === 'error' ? 'selected' : ''}>Error</option>
+                        <option value="warning" ${this.severity === 'warning' ? 'selected' : ''}>Warning</option>
+                        <option value="info" ${this.severity === 'info' ? 'selected' : ''}>Info</option>
+                    </select>
+                </div>
+            </div>
+            <div class="rule-section">
+                <div class="rule-section-header">
+                    <strong>When</strong> <span class="hint">(optional condition)</span>
+                </div>
+                <div class="when-container"></div>
+            </div>
+            <div class="rule-section">
+                <div class="rule-section-header">
+                    <strong>Then</strong> <span class="hint">(must hold)</span>
+                </div>
+                <div class="then-container"></div>
+            </div>
+            <div class="rule-footer">
+            </div>
+        `;
+
+        const nameInput = this.editor.querySelector(".rule-name");
+        const gameInput = this.editor.querySelector(".rule-game");
+        const sevSelect = this.editor.querySelector(".rule-severity");
+
+        nameInput.addEventListener("change", () => { this._syncFromEditor(); this._rebuild(); });
+        gameInput.addEventListener("change", () => { this._syncFromEditor(); this._rebuild(); renderAll(); });
+        sevSelect.addEventListener("change", () => { this._syncFromEditor(); this._rebuild(); });
+
+        const predCallbacks = { onDirty: () => this.markDirty(), getGame: () => this.game };
+        this._initPredSection("when", "+ Set Condition", this.whenData, predCallbacks);
+        this._initPredSection("then", "+ Set Check", this.thenData, predCallbacks);
+
+        const footer = this.editor.querySelector(".rule-footer");
+        this.saveBtn = document.createElement("button");
+        this.saveBtn.className = "primary small";
+        this.saveBtn.textContent = "Save rule";
+        this.saveBtn.disabled = !this.dirty;
+        this.saveBtn.onclick = (e) => { e.stopPropagation(); this.save(); };
+        footer.appendChild(this.saveBtn);
+
+        if (this.lastEditedByName) {
+            const info = document.createElement("span");
+            info.className = "edit-info";
+            info.textContent = `Last edited by ${this.lastEditedByName}${this.lastEditedAt ? ` on ${this.lastEditedAt}` : ''}`;
+            footer.appendChild(info);
+        }
+
+        this.editor.addEventListener("input", () => this.markDirty());
+        this.editor.addEventListener("change", () => this.markDirty());
+    }
+
+    _initPredSection(which, btnText, data, callbacks) {
+        const container = this.editor.querySelector(`.${which}-container`);
+        const header = container.closest(".rule-section").querySelector(".rule-section-header");
+        const propName = which + "Pred";
+
+        const btn = document.createElement("button");
+        btn.className = "small";
+        btn.textContent = btnText;
+        header.appendChild(btn);
+        btn.onclick = () => {
+            if (this[propName]) { showToast("Already set. Remove it first or use AND/OR."); return; }
+            this[propName] = new PredicateBlock(null, callbacks);
+            container.appendChild(this[propName].el);
+            this.markDirty();
+        };
+
+        if (data) {
+            this[propName] = new PredicateBlock(data, callbacks);
+            container.appendChild(this[propName].el);
+        }
+    }
+
+    _syncFromEditor() {
+        this.whenData = this.whenPred ? this.whenPred.gather() : null;
+        this.thenData = this.thenPred ? this.thenPred.gather() : null;
+        this.name = this.editor.querySelector(".rule-name").value;
+        this.game = this.editor.querySelector(".rule-game").value || null;
+        this.severity = this.editor.querySelector(".rule-severity").value;
+        this.dirty = true;
+    }
+
+    _rebuild() {
+        const wasOpen = this.open;
+        this._build();
+        if (wasOpen) this.editor.classList.add("open");
+        this.open = wasOpen;
+    }
+
+    toggle() {
+        this.open = !this.open;
+        this.editor.classList.toggle("open", this.open);
+    }
+
+    markDirty() {
+        if (this.dirty) return;
+        this.dirty = true;
+        if (this.saveBtn) this.saveBtn.disabled = false;
+    }
+
+    gather() {
+        const when = this.whenPred ? this.whenPred.gather() : null;
+        const then = this.thenPred ? this.thenPred.gather() : null;
+        return {
+            name: this.name,
+            game: this.game,
+            severity: this.severity,
+            when,
+            then: then || { type: "check", path: "", check: { type: "truthy" } },
+        };
+    }
+
+    async save() {
+        if (!this.serverId) return;
+        this._syncFromEditor();
+        const ruleData = this.gather();
+        const err = PredicateBlock.validate(ruleData.when) || PredicateBlock.validate(ruleData.then);
+        if (err) { showToast(err); return; }
+
+        const position = editors.indexOf(this);
+        const resp = await fetch(`/api/presets/${PRESET_ID}/rules/${this.serverId}`, {
+            method: "PUT",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ rule: ruleData, position }),
+        });
+        if (!resp.ok) { showToast("Failed to save rule: " + await resp.text()); return; }
+
+        this.whenData = ruleData.when;
+        this.thenData = ruleData.then;
+        this.dirty = false;
+        this.lastEditedByName = CURRENT_USERNAME;
+        this.lastEditedAt = new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC";
+        const wasOpen = this.open;
+        this._build();
+        this.open = wasOpen;
+        if (wasOpen) this.editor.classList.add("open");
+    }
+
+    onClone() {}
+    onDelete() {}
+}
+
+let editors = [];
+
+function renderAll() {
+    const container = document.getElementById("rules-container");
+    container.innerHTML = "";
+
+    const grouped = {};
+    const globalKey = "__all_games__";
+
+    for (const ed of editors) {
+        const key = ed.game || globalKey;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(ed);
+    }
+
+    const keys = Object.keys(grouped).sort((a, b) => {
+        if (a === globalKey) return -1;
+        if (b === globalKey) return 1;
+        return a.localeCompare(b);
+    });
+
+    for (const key of keys) {
+        const label = key === globalKey ? "All Games" : key;
+        const groupEditors = grouped[key];
+
+        const group = document.createElement("div");
+        group.className = "game-group open";
+
+        const header = document.createElement("div");
+        header.className = "game-group-header";
+        header.innerHTML = `<span class="toggle"></span><span class="game-label">${esc(label)}</span><span class="rule-count">${groupEditors.length} rule${groupEditors.length !== 1 ? 's' : ''}</span>`;
+        header.onclick = () => group.classList.toggle("open");
+        group.appendChild(header);
+
+        const body = document.createElement("div");
+        body.className = "game-group-body";
+        for (const ed of groupEditors) body.appendChild(ed.el);
+        group.appendChild(body);
+
+        container.appendChild(group);
+    }
+}
+
+function wireEditor(ed) {
+    ed.onClone = () => cloneEditor(ed);
+    ed.onDelete = () => deleteEditor(ed);
+}
+
+async function addNewRule() {
+    const nameInput = document.getElementById("new-rule-name");
+    const gameInput = document.getElementById("new-rule-game");
+    const sevInput = document.getElementById("new-rule-severity");
+
+    const name = nameInput.value.trim() || "New Rule";
+    const game = gameInput.value.trim() || null;
+    const severity = sevInput.value;
+
+    const ruleData = { name, game, severity, when: null, then: { type: "check", path: "example", check: { type: "truthy" } } };
+
+    const resp = await fetch(`/api/presets/${PRESET_ID}/rules`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ rule: ruleData, position: editors.length }),
+    });
+    if (!resp.ok) { showToast("Failed to create rule: " + await resp.text()); return; }
+    const created = await resp.json();
+
+    const ed = new RuleEditor({
+        serverId: created.id, name, game, severity,
+        when: null, then: ruleData.then,
+        lastEditedByName: CURRENT_USERNAME,
+        lastEditedAt: new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC",
+    });
+    wireEditor(ed);
+    editors.push(ed);
+
+    nameInput.value = "";
+    gameInput.value = "";
+    renderAll();
+    ed.toggle();
+}
+
+function deleteEditor(ed) {
+    confirmDelete(ed.name, async () => {
+        if (ed.serverId) {
+            const resp = await fetch(`/api/presets/${PRESET_ID}/rules/${ed.serverId}`, { method: "DELETE" });
+            if (!resp.ok) { showToast("Failed to delete rule: " + await resp.text()); return; }
+        }
+        editors = editors.filter(e => e !== ed);
+        renderAll();
+    });
+}
+
+async function cloneEditor(original) {
+    original._syncFromEditor();
+    const data = original.gather();
+    const idx = editors.indexOf(original);
+
+    const resp = await fetch(`/api/presets/${PRESET_ID}/rules`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ rule: data, position: idx + 1 }),
+    });
+    if (!resp.ok) { showToast("Failed to clone rule: " + await resp.text()); return; }
+    const created = await resp.json();
+
+    const ed = new RuleEditor({
+        serverId: created.id,
+        name: data.name + " (copy)",
+        game: data.game,
+        severity: data.severity,
+        when: data.when ? JSON.parse(JSON.stringify(data.when)) : null,
+        then: data.then ? JSON.parse(JSON.stringify(data.then)) : null,
+    });
+    wireEditor(ed);
+    editors.splice(idx + 1, 0, ed);
+    renderAll();
+    ed.toggle();
+}
+
+function loadRulesFromJSON(jsonRules) {
+    editors = [];
+    for (const r of jsonRules) {
+        const ed = new RuleEditor({
+            serverId: r.id,
+            name: r.rule.name,
+            game: r.rule.game,
+            severity: r.rule.severity,
+            when: r.rule.when,
+            then: r.rule.then,
+            lastEditedByName: r.last_edited_by_name || null,
+            lastEditedAt: r.last_edited_at || null,
+        });
+        wireEditor(ed);
+        editors.push(ed);
+    }
+    renderAll();
+}
+
+async function savePreset() {
+    const name = document.getElementById("preset-name").value.trim();
+    if (!name) { showToast("Name is required"); return; }
+
+    const resp = await fetch(`/api/presets/${PRESET_ID}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ name }),
+    });
+    if (!resp.ok) { showToast("Failed to save: " + await resp.text()); return; }
+
+    document.getElementById("preset-name-display").textContent = name;
+}
+
+function gatherBuiltins() {
+    const ids = [];
+    for (const cb of document.querySelectorAll("#builtin-rules input[type=checkbox]:checked")) {
+        ids.push(cb.dataset.id);
+    }
+    return ids;
+}
+
+async function saveBuiltins() {
+    const resp = await fetch(`/api/presets/${PRESET_ID}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ builtin_rules: gatherBuiltins() }),
+    });
+    if (!resp.ok) { showToast("Failed to save: " + await resp.text()); return; }
+
+    document.getElementById("builtin-save-btn").disabled = true;
+}
+
+async function loadBuiltinRulesList() {
+    const resp = await fetch("/api/builtin_rules");
+    if (!resp.ok) return;
+    const builtinRules = await resp.json();
+    const container = document.getElementById("builtin-rules");
+    container.innerHTML = "";
+    for (const r of builtinRules) {
+        const div = document.createElement("div");
+        div.className = "builtin-toggle";
+        div.innerHTML = `<label><input type="checkbox" data-id="${r.id}"> <strong>${esc(r.name)}</strong> - ${esc(r.description)}</label>`;
+        container.appendChild(div);
+    }
+    for (const cb of container.querySelectorAll("input[type=checkbox]")) {
+        cb.checked = INITIAL_BUILTINS.includes(cb.dataset.id);
+    }
+    container.addEventListener("change", () => {
+        document.getElementById("builtin-save-btn").disabled = false;
+    });
+}
+
+loadGames().then(() => {
+    ensureDatalist("dl-games", gamesData.map(g => g.game_name));
+    loadBuiltinRulesList();
+    loadRulesFromJSON(INITIAL_RULES);
+});
+</script>
+</body>
+</html>
