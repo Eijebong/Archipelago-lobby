@@ -65,6 +65,7 @@ pub struct YamlWithoutContent {
     pub patch: Option<String>,
     pub bundle_id: BundleId,
     pub password: Option<String>,
+    pub created_at: NaiveDateTime,
 }
 
 #[derive(Deserialize, Debug)]

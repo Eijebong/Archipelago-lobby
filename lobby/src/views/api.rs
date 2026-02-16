@@ -31,6 +31,7 @@ pub struct YamlInfo {
     game: String,
     slot_number: usize,
     has_patch: bool,
+    created_at: NaiveDateTime,
 }
 
 #[derive(Serialize)]
@@ -99,6 +100,7 @@ pub(crate) async fn room_info(
                 game: yaml.game,
                 slot_number: *slot_map.get(&yaml.id).unwrap() + 1,
                 has_patch: yaml.patch.is_some(),
+                created_at: yaml.created_at,
             })
             .collect(),
         server_info: room_server_info.map(|info| RoomServerInfo {
