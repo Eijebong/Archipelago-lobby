@@ -330,12 +330,14 @@ function showYamlModal(yamlId) {
     }
 
     const yamlUrl = `${LOBBY_ROOT_URL}/api/room/${ROOM_ID}/download/${yaml.yaml_id}`;
-    html += `<div class="yaml-viewer"><pre><code class="language-yaml">${esc(yaml.content || "")}</code></pre></div>`;
+    html += `<div class="yaml-viewer"><pre><code class="language-yaml"></code></pre></div>`;
     mc.innerHTML = html;
+    const codeEl = mc.querySelector("code");
+    codeEl.textContent = yaml.content || "";
+    hljs.highlightElement(codeEl);
     document.getElementById("yaml-modal-buttons").innerHTML = `
         <a href="${yamlUrl}" target="_blank" class="button">Download</a>
         <button onclick="hideYamlModal()">Close</button>`;
-    hljs.highlightElement(mc.querySelector("code"));
     document.getElementById("yaml-modal").classList.add("open");
 }
 
