@@ -2,6 +2,7 @@ use anyhow::anyhow;
 use chrono::Utc;
 use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::deadpool::Pool as DieselPool;
+use rayon::prelude::*;
 use rocket::{State, routes, serde::json::Json};
 use saphyr::{LoadableYamlNode, YamlOwned as Value};
 use serde::{Deserialize, Serialize};
@@ -187,7 +188,7 @@ async fn evaluate(
         .collect();
 
     let results: Vec<YamlEvalResult> = bulk_yamls
-        .iter()
+        .par_iter()
         .map(|yaml| evaluate_single_yaml(yaml, &custom_rules, &active_builtins, &room_yamls))
         .collect();
 

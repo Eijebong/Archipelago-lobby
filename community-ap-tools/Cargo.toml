@@ -29,3 +29,4 @@ uuid = { version = "1.16.0", features = ["serde"] }
 itertools = "0.14.0"
 humantime = "2.2.0"
 indexmap = { version = "2.11.0", features = ["serde"] }
+rayon = "1"
