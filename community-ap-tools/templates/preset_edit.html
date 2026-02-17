@@ -570,6 +570,8 @@ class RuleEditor {
 
 let editors = [];
 
+const openGroups = new Set();
+
 function renderAll() {
     const container = document.getElementById("rules-container");
     container.innerHTML = "";
@@ -592,14 +594,19 @@ function renderAll() {
     for (const key of keys) {
         const label = key === globalKey ? "All Games" : key;
         const groupEditors = grouped[key];
+        const isOpen = openGroups.has(key);
 
         const group = document.createElement("div");
-        group.className = "game-group open";
+        group.className = "game-group" + (isOpen ? " open" : "");
 
         const header = document.createElement("div");
         header.className = "game-group-header";
         header.innerHTML = `<span class="toggle"></span><span class="game-label">${esc(label)}</span><span class="rule-count">${groupEditors.length} rule${groupEditors.length !== 1 ? 's' : ''}</span>`;
-        header.onclick = () => group.classList.toggle("open");
+        header.onclick = () => {
+            group.classList.toggle("open");
+            if (group.classList.contains("open")) openGroups.add(key);
+            else openGroups.delete(key);
+        };
         group.appendChild(header);
 
         const body = document.createElement("div");
@@ -669,6 +676,7 @@ async function addNewRule() {
     wireEditor(ed);
     editors.push(ed);
 
+    openGroups.add(game || "__all_games__");
     initAddRuleForm();
     renderAll();
     ed.toggle();
