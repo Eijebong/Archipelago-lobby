@@ -262,7 +262,10 @@ class PredicateBlock {
         const addBtn = document.createElement("button");
         addBtn.textContent = "+ Add";
         addBtn.onclick = () => {
-            const child = new PredicateBlock(null, { onDirty: this.onDirty, getGame: this.getGame });
+            const child = new PredicateBlock(null, {
+                onDirty: this.onDirty, getGame: this.getGame,
+                onRemove: () => { this.children = this.children.filter(c => c !== child); },
+            });
             this.children.push(child);
             childrenEl.appendChild(child.el);
             this.onDirty();
@@ -271,7 +274,10 @@ class PredicateBlock {
 
         if (data && data.predicates) {
             for (const p of data.predicates) {
-                const child = new PredicateBlock(p, { onDirty: this.onDirty, getGame: this.getGame });
+                const child = new PredicateBlock(p, {
+                    onDirty: this.onDirty, getGame: this.getGame,
+                    onRemove: () => { this.children = this.children.filter(c => c !== child); },
+                });
                 this.children.push(child);
                 childrenEl.appendChild(child.el);
             }
@@ -412,6 +418,8 @@ class RuleEditor {
 
     _build() {
         this.el.innerHTML = "";
+        this.whenPred = null;
+        this.thenPred = null;
 
         this.row = document.createElement("div");
         this.row.className = "rule-row";
