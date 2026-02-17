@@ -42,7 +42,7 @@ const ASSIGNED_PRESET_ID = {% match assigned_preset_id %}{% when Some with (id) 
 
 let lastEvalData = null;
 let reviewStatuses = {};
-let sortColumn = "created";
+let sortColumn = "status";
 let sortAsc = true;
 
 async function refreshPresetList() {
@@ -233,7 +233,7 @@ function getSortValue(yaml, col) {
         }
         case "status": {
             const st = reviewStatuses[yaml.yaml_id] || { status: "unreviewed" };
-            const order = { nok: 0, reported: 1, ok: 2, unreviewed: 3 };
+            const order = { nok: 0, unreviewed: 1, reported: 2, ok: 3 };
             return order[st.status] ?? 1;
         }
         case "created": return yaml.created_at || "";
