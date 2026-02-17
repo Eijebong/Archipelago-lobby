@@ -97,7 +97,6 @@ struct YamlEvalResult {
     discord_handle: String,
     game: String,
     created_at: String,
-    content: String,
     results: Vec<RuleResultResponse>,
 }
 
@@ -130,7 +129,7 @@ struct LobbyYamlInfo {
     created_at: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 struct LobbyYamlDetail {
     content: String,
     game: String,
@@ -280,7 +279,6 @@ fn evaluate_single_yaml(
             discord_handle: discord_handle.to_string(),
             game: detail.game.clone(),
             created_at: created_at.to_string(),
-            content: detail.content.clone(),
             results: vec![RuleResultResponse {
                 rule_name: "YAML Parse".into(),
                 outcome: Outcome::Error,
@@ -373,7 +371,6 @@ fn evaluate_single_yaml(
         discord_handle: discord_handle.to_string(),
         game: display_game,
         created_at: created_at.to_string(),
-        content: detail.content.clone(),
         results: all_results,
     }
 }
@@ -458,6 +455,31 @@ async fn proxy_game_options(
         return Err(anyhow!("Failed to fetch game options: {}", resp.status()).into());
     }
     let data: serde_json::Value = resp.json().await?;
+    Ok(Json(data))
+}
+
+#[rocket::get("/review/<room_id>/yaml/<yaml_id>")]
+async fn proxy_yaml_content(
+    _session: LoggedInSession,
+    room_id: &str,
+    yaml_id: &str,
+    config: &State<Config>,
+) -> crate::error::Result<Json<LobbyYamlDetail>> {
+    let room_id: Uuid = room_id.parse().map_err(|_| anyhow!("Invalid room ID"))?;
+    let yaml_id: Uuid = yaml_id.parse().map_err(|_| anyhow!("Invalid YAML ID"))?;
+    let client = reqwest::Client::new();
+    let url = config
+        .lobby_root_url
+        .join(&format!("/api/room/{}/info/{}", room_id, yaml_id))?;
+    let resp = client
+        .get(url)
+        .header("x-api-key", &config.lobby_api_key)
+        .send()
+        .await?;
+    if !resp.status().is_success() {
+        return Err(anyhow!("Failed to fetch YAML: {}", resp.status()).into());
+    }
+    let data: LobbyYamlDetail = resp.json().await?;
     Ok(Json(data))
 }
 
@@ -647,6 +669,7 @@ pub fn routes() -> Vec<rocket::Route> {
         remove_room_preset,
         proxy_games,
         proxy_game_options,
+        proxy_yaml_content,
         get_review_statuses,
         set_review_status,
     ]
