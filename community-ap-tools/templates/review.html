@@ -20,7 +20,7 @@
     </div>
 
     <div class="section" id="results-area">
-        <h2>Results</h2>
+        <div class="inline-form" style="margin-bottom:0.5em"><h2 style="margin:0">Results</h2><select id="game-filter" class="hidden" onchange="applyGameFilter(this.value)"><option value="">All games</option></select></div>
         <div id="results-content">
             <p class="loading">Select a preset and evaluate, or wait for auto-evaluation...</p>
         </div>
@@ -44,6 +44,7 @@ let lastEvalData = null;
 let reviewStatuses = {};
 let sortColumn = "status";
 let sortAsc = true;
+let gameFilter = "";
 
 async function refreshPresetList() {
     const resp = await fetch("/api/presets");
@@ -302,7 +303,7 @@ function renderResults(data) {
 
         const issues = `<span class="has-errors">${counts.error}</span> / <span class="has-warnings">${counts.warning}</span> / <span class="has-info">${counts.info}</span>`;
 
-        html += `<tr data-yaml-id="${yaml.yaml_id}">
+        html += `<tr data-yaml-id="${yaml.yaml_id}" data-game="${esc(yaml.game)}">
             <td>${esc(yaml.player_name)}</td>
             <td>@${esc(yaml.discord_handle)}</td>
             <td>${esc(yaml.game)}</td>
@@ -321,11 +322,31 @@ function renderResults(data) {
         if (row) showYamlModal(row.dataset.yamlId);
     });
 
-    // Add initial sort arrow
     for (const th of content.querySelectorAll("th.sortable")) {
         if (th.dataset.sortCol === sortColumn) {
             th.insertAdjacentHTML("beforeend", `<span class="sort-arrow">${sortAsc ? '\u25B2' : '\u25BC'}</span>`);
         }
+    }
+
+    const games = [...new Set(data.yamls.map(y => y.game))].sort();
+    const gf = document.getElementById("game-filter");
+    gf.innerHTML = '<option value="">All games</option>';
+    for (const g of games) {
+        const opt = document.createElement("option");
+        opt.value = g;
+        opt.textContent = g;
+        if (gameFilter === g) opt.selected = true;
+        gf.appendChild(opt);
+    }
+    gf.classList.remove("hidden");
+    applyGameFilter(gameFilter);
+}
+
+function applyGameFilter(game) {
+    gameFilter = game;
+    const rows = document.querySelectorAll("#results-content tbody tr[data-yaml-id]");
+    for (const row of rows) {
+        row.style.display = (!game || row.dataset.game === game) ? "" : "none";
     }
 }
 
