@@ -112,8 +112,9 @@ function ensureDatalist(id, values) {
 }
 
 class PredicateBlock {
-    constructor(data, { onDirty, getGame }) {
+    constructor(data, { onDirty, onRemove, getGame }) {
         this.onDirty = onDirty;
+        this.onRemove = onRemove || (() => {});
         this.getGame = getGame;
         this.children = [];
         this.child = null;
@@ -144,7 +145,7 @@ class PredicateBlock {
         const removeBtn = document.createElement("button");
         removeBtn.className = "danger small pred-remove";
         removeBtn.textContent = "x";
-        removeBtn.onclick = () => { this.el.remove(); this.onDirty(); };
+        removeBtn.onclick = () => { this.el.remove(); this.onRemove(); this.onDirty(); };
 
         header.append(this.typeSelect, removeBtn);
 
@@ -483,15 +484,17 @@ class RuleEditor {
         btn.className = "small";
         btn.textContent = btnText;
         header.appendChild(btn);
+        const onRemove = () => { this[propName] = null; };
+        const cbWithRemove = { ...callbacks, onRemove };
         btn.onclick = () => {
             if (this[propName]) { showToast("Already set. Remove it first or use AND/OR."); return; }
-            this[propName] = new PredicateBlock(null, callbacks);
+            this[propName] = new PredicateBlock(null, cbWithRemove);
             container.appendChild(this[propName].el);
             this.markDirty();
         };
 
         if (data) {
-            this[propName] = new PredicateBlock(data, callbacks);
+            this[propName] = new PredicateBlock(data, cbWithRemove);
             container.appendChild(this[propName].el);
         }
     }
