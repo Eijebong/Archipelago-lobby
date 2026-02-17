@@ -290,8 +290,8 @@ pub fn evaluate_rule(rule: &Rule, yaml: &Value, game_name: &str) -> RuleResult {
     }
 
     match evaluate_predicate(&rule.then, game_yaml) {
-        Ok(true) => rule.result(Outcome::Pass, None),
-        Ok(false) => rule.result(Outcome::Fail, None),
+        Ok(true) => rule.result(Outcome::Fail, None),
+        Ok(false) => rule.result(Outcome::Pass, None),
         Err(e) => rule.result(
             Outcome::Error,
             Some(format!("Error evaluating rule: {}", e)),
@@ -320,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    fn test_truthy_bool() {
+    fn test_truthy_alerts_when_true() {
         let yaml = parse_yaml("Test:\n  death_link: true\n");
         let rule = Rule {
             name: "Deathlink".into(),
@@ -333,11 +333,11 @@ mod tests {
             severity: Severity::Error,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_truthy_false() {
+    fn test_truthy_passes_when_false() {
         let yaml = parse_yaml("Test:\n  death_link: false\n");
         let rule = Rule {
             name: "Deathlink".into(),
@@ -350,11 +350,11 @@ mod tests {
             severity: Severity::Error,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Fail);
+        assert_eq!(result.outcome, Outcome::Pass);
     }
 
     #[test]
-    fn test_truthy_int() {
+    fn test_truthy_int_alerts() {
         let yaml = parse_yaml("Test:\n  death_link: 1\n");
         let rule = Rule {
             name: "Deathlink".into(),
@@ -367,29 +367,12 @@ mod tests {
             severity: Severity::Error,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_weighted_map_can_roll() {
+    fn test_weighted_map_can_roll_alerts() {
         let yaml = parse_yaml("Test:\n  death_link:\n    true: 50\n    false: 50\n");
-        let rule = Rule {
-            name: "Deathlink".into(),
-            game: None,
-            when: None,
-            then: Predicate::Check {
-                path: "death_link".into(),
-                check: RuleCheck::Truthy,
-            },
-            severity: Severity::Error,
-        };
-        let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
-    }
-
-    #[test]
-    fn test_weighted_map_cannot_roll() {
-        let yaml = parse_yaml("Test:\n  death_link:\n    true: 0\n    false: 50\n");
         let rule = Rule {
             name: "Deathlink".into(),
             game: None,
@@ -405,7 +388,24 @@ mod tests {
     }
 
     #[test]
-    fn test_equals() {
+    fn test_weighted_map_cannot_roll_passes() {
+        let yaml = parse_yaml("Test:\n  death_link:\n    true: 0\n    false: 50\n");
+        let rule = Rule {
+            name: "Deathlink".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "death_link".into(),
+                check: RuleCheck::Truthy,
+            },
+            severity: Severity::Error,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Pass);
+    }
+
+    #[test]
+    fn test_equals_alerts() {
         let yaml = parse_yaml("Test:\n  goal: ganon\n");
         let rule = Rule {
             name: "Goal check".into(),
@@ -420,11 +420,11 @@ mod tests {
             severity: Severity::Error,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_not_equals() {
+    fn test_not_equals_passes() {
         let yaml = parse_yaml("Test:\n  goal: ganon\n");
         let rule = Rule {
             name: "Goal check".into(),
@@ -439,11 +439,11 @@ mod tests {
             severity: Severity::Error,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_range() {
+    fn test_range_alerts() {
         let yaml = parse_yaml("Test:\n  starting_money: 50\n");
         let rule = Rule {
             name: "Money range".into(),
@@ -456,11 +456,11 @@ mod tests {
             severity: Severity::Warning,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_range_out() {
+    fn test_range_out_passes() {
         let yaml = parse_yaml("Test:\n  starting_money: 200\n");
         let rule = Rule {
             name: "Money range".into(),
@@ -473,11 +473,11 @@ mod tests {
             severity: Severity::Warning,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Fail);
+        assert_eq!(result.outcome, Outcome::Pass);
     }
 
     #[test]
-    fn test_greater_than() {
+    fn test_greater_than_alerts() {
         let yaml = parse_yaml("Test:\n  count: 5\n");
         let rule = Rule {
             name: "Count".into(),
@@ -490,11 +490,11 @@ mod tests {
             severity: Severity::Info,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_less_than() {
+    fn test_less_than_passes() {
         let yaml = parse_yaml("Test:\n  count: 5\n");
         let rule = Rule {
             name: "Count".into(),
@@ -507,11 +507,11 @@ mod tests {
             severity: Severity::Info,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Fail);
+        assert_eq!(result.outcome, Outcome::Pass);
     }
 
     #[test]
-    fn test_regex() {
+    fn test_regex_alerts() {
         let yaml = parse_yaml("Test:\n  mode: random_high\n");
         let rule = Rule {
             name: "Random mode".into(),
@@ -526,11 +526,11 @@ mod tests {
             severity: Severity::Info,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_contains() {
+    fn test_contains_alerts() {
         let yaml = parse_yaml("Test:\n  start_inventory:\n    - Sword\n    - Shield\n");
         let rule = Rule {
             name: "Has sword".into(),
@@ -545,11 +545,11 @@ mod tests {
             severity: Severity::Info,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_contains_missing() {
+    fn test_contains_missing_passes() {
         let yaml = parse_yaml("Test:\n  start_inventory:\n    - Sword\n    - Shield\n");
         let rule = Rule {
             name: "Has bow".into(),
@@ -564,11 +564,11 @@ mod tests {
             severity: Severity::Info,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Fail);
+        assert_eq!(result.outcome, Outcome::Pass);
     }
 
     #[test]
-    fn test_exists() {
+    fn test_exists_alerts() {
         let yaml = parse_yaml("Test:\n  death_link: true\n");
         let rule = Rule {
             name: "Has deathlink".into(),
@@ -581,11 +581,11 @@ mod tests {
             severity: Severity::Info,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_not_exists() {
+    fn test_not_exists_alerts() {
         let yaml = parse_yaml("Test:\n  death_link: true\n");
         let rule = Rule {
             name: "No plando".into(),
@@ -598,11 +598,11 @@ mod tests {
             severity: Severity::Info,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_nested_path() {
+    fn test_nested_path_alerts() {
         let yaml = parse_yaml("Test:\n  accessibility:\n    trap_fill: junk\n");
         let rule = Rule {
             name: "Trap fill".into(),
@@ -617,11 +617,11 @@ mod tests {
             severity: Severity::Info,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_and_predicate() {
+    fn test_and_predicate_alerts() {
         let yaml = parse_yaml("Test:\n  death_link: true\n  trainersanity: true\n");
         let rule = Rule {
             name: "Both on".into(),
@@ -642,11 +642,11 @@ mod tests {
             severity: Severity::Error,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_or_predicate() {
+    fn test_or_predicate_alerts() {
         let yaml = parse_yaml("Test:\n  death_link: false\n  trainersanity: true\n");
         let rule = Rule {
             name: "Either on".into(),
@@ -667,11 +667,11 @@ mod tests {
             severity: Severity::Warning,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_not_predicate() {
+    fn test_not_predicate_alerts() {
         let yaml = parse_yaml("Test:\n  death_link: false\n");
         let rule = Rule {
             name: "No deathlink".into(),
@@ -686,11 +686,11 @@ mod tests {
             severity: Severity::Info,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
-    fn test_when_condition_matches() {
+    fn test_when_condition_matches_and_then_alerts() {
         let yaml = parse_yaml("Test:\n  trainersanity: true\n  dexsanity: true\n");
         let rule = Rule {
             name: "Dex with trainers".into(),
@@ -706,7 +706,7 @@ mod tests {
             severity: Severity::Warning,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
@@ -743,7 +743,7 @@ mod tests {
             severity: Severity::Error,
         };
         let result = evaluate_rule(&rule, &yaml, "Pokemon Emerald");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 
     #[test]
@@ -764,7 +764,7 @@ mod tests {
     }
 
     #[test]
-    fn test_missing_path_returns_fail() {
+    fn test_missing_path_passes() {
         let yaml = parse_yaml("Test:\n  other: true\n");
         let rule = Rule {
             name: "Deathlink".into(),
@@ -777,7 +777,7 @@ mod tests {
             severity: Severity::Error,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Fail);
+        assert_eq!(result.outcome, Outcome::Pass);
     }
 
     #[test]
@@ -828,6 +828,6 @@ mod tests {
             severity: Severity::Info,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
-        assert_eq!(result.outcome, Outcome::Pass);
+        assert_eq!(result.outcome, Outcome::Fail);
     }
 }
