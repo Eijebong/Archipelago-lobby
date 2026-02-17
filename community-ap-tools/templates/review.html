@@ -26,13 +26,6 @@
         </div>
     </div>
 
-    <div class="modal-backdrop" id="detail-modal" onclick="if (event.target === this) hideModal()">
-        <div class="modal">
-
-            <div class="modal-body" id="modal-content"></div>
-        </div>
-    </div>
-
     <div class="modal-backdrop" id="yaml-modal" onclick="if (event.target === this) hideYamlModal()">
         <div class="modal">
 
@@ -275,7 +268,6 @@ function renderResults(data) {
             <th class="sortable" onclick="toggleSort('issues')">Issues${sortArrow('issues')}</th>
             <th class="sortable" onclick="toggleSort('status')">Status${sortArrow('status')}</th>
             <th class="sortable" onclick="toggleSort('created')">Created${sortArrow('created')}</th>
-            <th>Actions</th>
         </tr></thead><tbody>`;
 
     for (const yaml of sorted) {
@@ -290,9 +282,6 @@ function renderResults(data) {
             <td class="issues">${issues}</td>
             <td class="status-cell">${renderStatusSelect(yaml.yaml_id)}</td>
             <td class="date-cell">${formatDate(yaml.created_at)}</td>
-            <td class="actions">
-                <button class="view-yaml-btn">View YAML</button>
-            </td>
         </tr>`;
     }
 
@@ -300,17 +289,10 @@ function renderResults(data) {
     content.innerHTML = html;
 
     content.querySelector("tbody").addEventListener("click", (e) => {
-        if (e.target.closest(".status-cell") || e.target.closest(".actions")) return;
+        if (e.target.closest(".status-select")) return;
         const row = e.target.closest("tr[data-yaml-id]");
-        if (row) showDetailModal(row.dataset.yamlId);
+        if (row) showYamlModal(row.dataset.yamlId);
     });
-    for (const btn of content.querySelectorAll(".view-yaml-btn")) {
-        btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const row = btn.closest("tr[data-yaml-id]");
-            if (row) showYamlModal(row.dataset.yamlId);
-        });
-    }
 }
 
 function renderStatusSelect(yamlId, extraClass) {
@@ -331,28 +313,6 @@ function countBySeverity(results) {
     return counts;
 }
 
-function showDetailModal(yamlId) {
-    if (!lastEvalData) return;
-    const yaml = lastEvalData.yamls.find(y => y.yaml_id === yamlId);
-    if (!yaml) return;
-
-    const mc = document.getElementById("modal-content");
-    let html = `<h3>${esc(yaml.player_name)}</h3>
-        <div class="subtitle">${esc(yaml.game)}</div>`;
-
-    if (yaml.results.length === 0) {
-        html += '<p class="muted">No failures.</p>';
-    } else {
-        html += renderResultItems(yaml.results);
-    }
-
-    mc.innerHTML = html;
-    document.getElementById("detail-modal").classList.add("open");
-}
-
-function hideModal() {
-    document.getElementById("detail-modal").classList.remove("open");
-}
 
 function showYamlModal(yamlId) {
     if (!lastEvalData) return;
@@ -429,7 +389,7 @@ async function onStatusChange(sel) {
 }
 
 document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { hideModal(); hideYamlModal(); }
+    if (e.key === "Escape") { hideYamlModal(); }
 });
 
 refreshPresetList().then(() => {

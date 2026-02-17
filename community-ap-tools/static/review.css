@@ -247,14 +247,6 @@ td.issues .has-errors { color: #f66; font-weight: bold; }
 td.issues .has-warnings { color: #fc4; }
 td.issues .has-info { color: #6cf; }
 td.issues .zero { color: #555; }
-td.actions { white-space: nowrap; }
-td.actions a, td.actions button {
-    margin-right: 8px;
-    font-size: 0.9em;
-}
-td.actions button {
-    padding: 2px 8px;
-}
 td.date-cell {
     white-space: nowrap;
     color: #888;
@@ -353,6 +345,7 @@ td.date-cell {
     justify-content: flex-end;
     margin-top: 1em;
 }
+td.status-cell { width: 1%; white-space: nowrap; }
 select.status-select { font-size: 0.85em; padding: 3px 6px; }
 select.status-unreviewed { border-color: #666; }
 select.status-reported { border-color: #f66; background: #2a1a1a; }
