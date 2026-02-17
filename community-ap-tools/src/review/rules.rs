@@ -179,7 +179,53 @@ fn cached_regex(pattern: &str) -> Result<Regex> {
     })
 }
 
+fn parse_random(val: &Value) -> Option<Option<(i64, i64)>> {
+    let s = val.as_str()?;
+    match s {
+        "random" | "random-low" | "random-middle" | "random-high" => return Some(None),
+        _ => {}
+    }
+    if s.starts_with("random-range") {
+        let parts: Vec<&str> = s.split('-').collect();
+        if parts.len() >= 4 {
+            if let (Ok(a), Ok(b)) = (
+                parts[parts.len() - 2].parse::<i64>(),
+                parts[parts.len() - 1].parse::<i64>(),
+            ) {
+                return Some(Some((a.min(b), a.max(b))));
+            }
+        }
+    }
+    None
+}
+
+fn check_random(bounds: Option<(i64, i64)>, check: &RuleCheck) -> bool {
+    let Some((min, max)) = bounds else {
+        return true;
+    };
+    match check {
+        RuleCheck::Truthy => min != 0 || max != 0,
+        RuleCheck::NotTruthy => min <= 0 && max >= 0,
+        RuleCheck::Equals { value } => value.parse::<i64>().is_ok_and(|v| v >= min && v <= max),
+        RuleCheck::NotEquals { value } => {
+            value.parse::<i64>().is_ok_and(|v| min != max || v != min)
+        }
+        RuleCheck::GreaterThan { value } => max > *value,
+        RuleCheck::LessThan { value } => min < *value,
+        RuleCheck::Range {
+            min: rmin,
+            max: rmax,
+        } => max >= *rmin && min <= *rmax,
+        RuleCheck::Regex { .. } | RuleCheck::Contains { .. } => true,
+        RuleCheck::Exists | RuleCheck::NotExists => unreachable!(),
+    }
+}
+
 fn check_single_value(val: &Value, check: &RuleCheck) -> Result<bool> {
+    if let Some(bounds) = parse_random(val) {
+        return Ok(check_random(bounds, check));
+    }
+
     match check {
         RuleCheck::Truthy => Ok(is_trueish(val)),
         RuleCheck::NotTruthy => Ok(!is_trueish(val)),
@@ -209,11 +255,9 @@ fn check_single_value(val: &Value, check: &RuleCheck) -> Result<bool> {
 fn evaluate_check(val: &Value, check: &RuleCheck) -> Result<bool> {
     if val.is_mapping() {
         let map = val.as_mapping().unwrap();
-        // Check if this looks like a weighted map (keys are values, values are weights)
         let looks_like_weighted = map.iter().all(|(_, v)| v.as_integer().is_some());
 
         if looks_like_weighted && !map.is_empty() {
-            // "Can roll" semantics: check passes if ANY key with non-zero weight satisfies it
             for (key, weight) in map.iter() {
                 let w = weight.as_integer().unwrap_or(0);
                 if w == 0 {
@@ -829,5 +873,147 @@ mod tests {
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
         assert_eq!(result.outcome, Outcome::Fail);
+    }
+
+    #[test]
+    fn test_random_bare_always_alerts() {
+        for val in ["random", "random-low", "random-middle", "random-high"] {
+            let yaml = parse_yaml(&format!("Test:\n  opt: {val}\n"));
+            let rule = Rule {
+                name: "test".into(),
+                game: None,
+                when: None,
+                then: Predicate::Check {
+                    path: "opt".into(),
+                    check: RuleCheck::GreaterThan { value: 5 },
+                },
+                severity: Severity::Error,
+            };
+            let result = evaluate_rule(&rule, &yaml, "Test");
+            assert_eq!(
+                result.outcome,
+                Outcome::Fail,
+                "bare random '{val}' should alert"
+            );
+        }
+    }
+
+    #[test]
+    fn test_random_range_within_bounds_alerts() {
+        let yaml = parse_yaml("Test:\n  opt: random-range-10-20\n");
+        let rule = Rule {
+            name: "test".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "opt".into(),
+                check: RuleCheck::GreaterThan { value: 5 },
+            },
+            severity: Severity::Error,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Fail);
+    }
+
+    #[test]
+    fn test_random_range_outside_bounds_passes() {
+        let yaml = parse_yaml("Test:\n  opt: random-range-1-3\n");
+        let rule = Rule {
+            name: "test".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "opt".into(),
+                check: RuleCheck::GreaterThan { value: 5 },
+            },
+            severity: Severity::Error,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Pass);
+    }
+
+    #[test]
+    fn test_random_range_low_parses_bounds() {
+        let yaml = parse_yaml("Test:\n  opt: random-range-low-10-20\n");
+        let rule = Rule {
+            name: "test".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "opt".into(),
+                check: RuleCheck::LessThan { value: 15 },
+            },
+            severity: Severity::Error,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Fail);
+    }
+
+    #[test]
+    fn test_random_range_equals() {
+        let yaml = parse_yaml("Test:\n  opt: random-range-1-10\n");
+        let in_range = Rule {
+            name: "test".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "opt".into(),
+                check: RuleCheck::Equals { value: "5".into() },
+            },
+            severity: Severity::Error,
+        };
+        assert_eq!(
+            evaluate_rule(&in_range, &yaml, "Test").outcome,
+            Outcome::Fail
+        );
+
+        let out_of_range = Rule {
+            name: "test".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "opt".into(),
+                check: RuleCheck::Equals { value: "20".into() },
+            },
+            severity: Severity::Error,
+        };
+        assert_eq!(
+            evaluate_rule(&out_of_range, &yaml, "Test").outcome,
+            Outcome::Pass
+        );
+    }
+
+    #[test]
+    fn test_random_truthy_with_zero_in_range() {
+        let yaml = parse_yaml("Test:\n  opt: random-range-0-5\n");
+        let truthy_rule = Rule {
+            name: "test".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "opt".into(),
+                check: RuleCheck::Truthy,
+            },
+            severity: Severity::Error,
+        };
+        assert_eq!(
+            evaluate_rule(&truthy_rule, &yaml, "Test").outcome,
+            Outcome::Fail
+        );
+
+        let not_truthy_rule = Rule {
+            name: "test".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "opt".into(),
+                check: RuleCheck::NotTruthy,
+            },
+            severity: Severity::Error,
+        };
+        assert_eq!(
+            evaluate_rule(&not_truthy_rule, &yaml, "Test").outcome,
+            Outcome::Fail
+        );
     }
 }
