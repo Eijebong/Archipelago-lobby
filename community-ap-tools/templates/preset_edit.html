@@ -391,6 +391,7 @@ class RuleEditor {
         }
 
         this.row.innerHTML = `
+            <span class="unsaved-badge" style="display:none">unsaved</span>
             <span class="rule-name-label" ${editTitle ? `title="${esc(editTitle)}"` : ''}>${esc(this.name)}</span>
             <span class="severity-badge ${this.severity}">${this.severity}</span>
             <span class="rule-actions"></span>
@@ -534,6 +535,8 @@ class RuleEditor {
         if (this.dirty) return;
         this.dirty = true;
         if (this.saveBtn) this.saveBtn.disabled = false;
+        const badge = this.row.querySelector(".unsaved-badge");
+        if (badge) badge.style.display = "";
     }
 
     gather() {

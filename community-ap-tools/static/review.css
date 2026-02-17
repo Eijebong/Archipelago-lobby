@@ -152,6 +152,7 @@ body:has(dialog[open]) {
 .severity-badge.error { background: #622; color: #faa; }
 .severity-badge.warning { background: #553; color: #fda; }
 .severity-badge.info { background: #235; color: #8cf; }
+.unsaved-badge { background: #444; color: #fa4; padding: 2px 8px; border-radius: 3px; font-size: 0.75em; }
 .rule-row .rule-actions { display: flex; gap: 4px; }
 
 /* Rule editor */
