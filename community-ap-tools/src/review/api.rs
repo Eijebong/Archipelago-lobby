@@ -608,7 +608,7 @@ async fn set_review_status(
     let yaml_id: Uuid = yaml_id.parse().map_err(|_| anyhow!("Invalid YAML ID"))?;
     let req = body.into_inner();
 
-    let valid_statuses = ["unreviewed", "reported", "ok"];
+    let valid_statuses = ["unreviewed", "reported", "ok", "nok"];
     if !valid_statuses.contains(&req.status.as_str()) {
         return Err(anyhow!("Invalid status: {}", req.status).into());
     }

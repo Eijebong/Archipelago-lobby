@@ -348,7 +348,8 @@ td.date-cell {
 td.status-cell { width: 1%; white-space: nowrap; }
 select.status-select { font-size: 0.85em; padding: 3px 6px; }
 select.status-unreviewed { border-color: #666; }
-select.status-reported { border-color: #f66; background: #2a1a1a; }
+select.status-reported { border-color: #fc4; background: #2a2310; }
+select.status-nok { border-color: #f66; background: #2a1a1a; }
 select.status-ok { border-color: #4c4; background: #1a2a1a; }
 select.status-modal { margin-left: 12px; vertical-align: middle; }
 

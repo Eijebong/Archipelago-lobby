@@ -233,7 +233,7 @@ function getSortValue(yaml, col) {
         }
         case "status": {
             const st = reviewStatuses[yaml.yaml_id] || { status: "unreviewed" };
-            const order = { unreviewed: 0, ok: 1, reported: 2 };
+            const order = { nok: 0, reported: 1, ok: 2, unreviewed: 3 };
             return order[st.status] ?? 1;
         }
         case "created": return yaml.created_at || "";
@@ -300,7 +300,7 @@ function renderStatusSelect(yamlId, extraClass) {
     const title = st.changed_by_name ? `${st.changed_by_name} on ${new Date(st.changed_at).toLocaleString()}` : "";
     const cls = `status-select status-${esc(st.status)}${extraClass ? ` ${extraClass}` : ""}`;
     const opt = (val, label) => `<option value="${val}" ${st.status === val ? "selected" : ""}>${label}</option>`;
-    return `<select class="${cls}" title="${esc(title)}" data-yaml-id="${yamlId}" onchange="onStatusChange(this)">${opt("unreviewed", "Unreviewed")}${opt("reported", "Reported")}${opt("ok", "OK")}</select>`;
+    return `<select class="${cls}" title="${esc(title)}" data-yaml-id="${yamlId}" onchange="onStatusChange(this)">${opt("unreviewed", "Unreviewed")}${opt("reported", "Reported")}${opt("nok", "NOK")}${opt("ok", "OK")}</select>`;
 }
 
 function countBySeverity(results) {
