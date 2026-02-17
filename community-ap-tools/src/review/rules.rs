@@ -28,6 +28,7 @@ pub enum Outcome {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RuleCheck {
     Truthy,
+    NotTruthy,
     Equals { value: String },
     NotEquals { value: String },
     GreaterThan { value: i64 },
@@ -181,6 +182,7 @@ fn cached_regex(pattern: &str) -> Result<Regex> {
 fn check_single_value(val: &Value, check: &RuleCheck) -> Result<bool> {
     match check {
         RuleCheck::Truthy => Ok(is_trueish(val)),
+        RuleCheck::NotTruthy => Ok(!is_trueish(val)),
         RuleCheck::Equals { value } => Ok(yaml_value_as_string(val) == *value),
         RuleCheck::NotEquals { value } => Ok(yaml_value_as_string(val) != *value),
         RuleCheck::GreaterThan { value } => Ok(yaml_value_as_i64(val).is_some_and(|v| v > *value)),

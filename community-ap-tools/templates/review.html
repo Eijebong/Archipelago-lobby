@@ -144,7 +144,7 @@ function formatDate(s) {
 }
 
 const CHECK_LABELS = {
-    truthy: "is truthy", equals: "equals", not_equals: "does not equal",
+    truthy: "is truthy", not_truthy: "is not truthy", equals: "equals", not_equals: "does not equal",
     greater_than: "&gt;", less_than: "&lt;", range: "between",
     regex: "matches", contains: "contains", exists: "exists", not_exists: "does not exist",
 };
@@ -155,7 +155,7 @@ function renderCheck(path, check) {
     const v = (s) => `<span class="pred-value">${esc(s)}</span>`;
     const op = labels[check.type] || esc(check.type);
     switch (check.type) {
-        case "truthy": case "exists": case "not_exists":
+        case "truthy": case "not_truthy": case "exists": case "not_exists":
             return `${p} <span class="pred-op">${op}</span>`;
         case "equals": case "not_equals": case "greater_than": case "less_than":
         case "regex": case "contains":
