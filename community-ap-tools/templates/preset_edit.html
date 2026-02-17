@@ -446,9 +446,9 @@ class RuleEditor {
         const gameInput = this.editor.querySelector(".rule-game");
         const sevSelect = this.editor.querySelector(".rule-severity");
 
-        nameInput.addEventListener("change", () => { this._syncFromEditor(); this._rebuild(); });
-        gameInput.addEventListener("change", () => { this._syncFromEditor(); this._rebuild(); renderAll(); });
-        sevSelect.addEventListener("change", () => { this._syncFromEditor(); this._rebuild(); });
+        nameInput.addEventListener("change", () => { this._syncFromEditor(); this._updateRow(); });
+        gameInput.addEventListener("change", () => { this._syncFromEditor(); this._updateRow(); renderAll(); });
+        sevSelect.addEventListener("change", () => { this._syncFromEditor(); this._updateRow(); });
 
         const predCallbacks = { onDirty: () => this.markDirty(), getGame: () => this.game };
         this._initPredSection("when", "+ Set Condition", this.whenData, predCallbacks);
@@ -493,6 +493,13 @@ class RuleEditor {
             this[propName] = new PredicateBlock(data, callbacks);
             container.appendChild(this[propName].el);
         }
+    }
+
+    _updateRow() {
+        const label = this.row.querySelector(".rule-name-label");
+        if (label) label.textContent = this.name;
+        const badge = this.row.querySelector(".severity-badge");
+        if (badge) { badge.className = `severity-badge ${this.severity}`; badge.textContent = this.severity; }
     }
 
     _syncFromEditor() {
