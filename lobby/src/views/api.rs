@@ -383,6 +383,65 @@ pub(crate) async fn game_options(
     Ok(Json(result))
 }
 
+#[derive(Serialize)]
+pub(crate) struct BulkYamlInfo {
+    id: YamlId,
+    player_name: String,
+    discord_handle: String,
+    game: String,
+    content: String,
+    created_at: NaiveDateTime,
+}
+
+#[get("/room/<room_id>/yamls")]
+#[tracing::instrument(skip(_session, ctx))]
+pub(crate) async fn bulk_yamls(
+    room_id: RoomId,
+    _session: AdminSession,
+    ctx: &State<Context>,
+) -> ApiResult<Json<Vec<BulkYamlInfo>>> {
+    use crate::schema::{discord_users, yamls};
+    use diesel::prelude::*;
+    use diesel_async::RunQueryDsl;
+
+    let mut conn = ctx.db_pool.get().await?;
+
+    let _room = db::get_room(room_id, &mut conn)
+        .await
+        .context("Couldn't find the room")
+        .status(Status::NotFound)?;
+
+    let rows: Vec<(YamlId, String, String, String, String, NaiveDateTime)> = yamls::table
+        .filter(yamls::room_id.eq(&room_id))
+        .inner_join(discord_users::table)
+        .select((
+            yamls::id,
+            yamls::player_name,
+            discord_users::username,
+            yamls::game,
+            yamls::content,
+            yamls::created_at,
+        ))
+        .get_results(&mut conn)
+        .await?;
+
+    let result = rows
+        .into_iter()
+        .map(
+            |(id, player_name, discord_handle, game, content, created_at)| BulkYamlInfo {
+                id,
+                player_name,
+                discord_handle,
+                game,
+                content,
+                created_at,
+            },
+        )
+        .collect();
+
+    Ok(Json(result))
+}
+
 pub fn routes() -> Vec<rocket::Route> {
     routes![
         download_bundle,
@@ -390,6 +449,7 @@ pub fn routes() -> Vec<rocket::Route> {
         retry_yaml,
         yaml_info,
         room_info,
+        bulk_yamls,
         refresh_patches,
         slots_passwords,
         set_password,

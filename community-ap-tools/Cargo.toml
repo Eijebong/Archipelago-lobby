@@ -13,7 +13,6 @@ diesel = { version = "2.3.5", features = ["uuid", "chrono", "serde_json"] }
 diesel-async = { version = "0.7", features = ["postgres", "deadpool", "async-connection-wrapper"] }
 diesel_migrations = { version = "2.2.0", features = ["postgres"] }
 dotenvy = "0.15.7"
-futures = "0.3"
 htmlize = { version = "1.0.5", features = ["unescape"] }
 regex = "1"
 reqwest = { version = "0.13", features = ["form", "json", "multipart"] }

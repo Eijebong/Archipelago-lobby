@@ -2,7 +2,6 @@ use anyhow::anyhow;
 use chrono::Utc;
 use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::deadpool::Pool as DieselPool;
-use futures::future::join_all;
 use rocket::{State, routes, serde::json::Json};
 use saphyr::{LoadableYamlNode, YamlOwned as Value};
 use serde::{Deserialize, Serialize};
@@ -114,26 +113,21 @@ struct RuleResultResponse {
     predicate: Option<Predicate>,
 }
 
-#[derive(Deserialize)]
-struct LobbyRoomInfo {
-    yamls: Vec<LobbyYamlInfo>,
-}
-
-#[derive(Deserialize)]
-#[allow(dead_code)]
-struct LobbyYamlInfo {
-    id: Uuid,
-    player_name: String,
-    discord_handle: String,
-    game: String,
-    created_at: String,
-}
-
 #[derive(Deserialize, Serialize)]
 struct LobbyYamlDetail {
     content: String,
     game: String,
     player_name: String,
+}
+
+#[derive(Deserialize)]
+struct BulkYamlInfo {
+    id: Uuid,
+    player_name: String,
+    discord_handle: String,
+    game: String,
+    content: String,
+    created_at: String,
 }
 
 #[rocket::post("/review/<room_id>/evaluate", data = "<body>")]
@@ -165,52 +159,23 @@ async fn evaluate(
     };
 
     let client = reqwest::Client::new();
-    let room_url = config
+    let url = config
         .lobby_root_url
-        .join(&format!("/api/room/{}", room_id))?;
-    let room_resp = client
-        .get(room_url)
+        .join(&format!("/api/room/{}/yamls", room_id))?;
+    let resp = client
+        .get(url)
         .header("x-api-key", &config.lobby_api_key)
         .send()
         .await?;
-    if !room_resp.status().is_success() {
-        return Err(anyhow!("Failed to fetch room info: {}", room_resp.status()).into());
+    if !resp.status().is_success() {
+        return Err(anyhow!("Failed to fetch room YAMLs: {}", resp.status()).into());
     }
-    let room_info: LobbyRoomInfo = room_resp.json().await?;
+    let bulk_yamls: Vec<BulkYamlInfo> = resp.json().await?;
 
-    let yaml_futures: Vec<_> = room_info
-        .yamls
+    let room_yamls: Vec<RoomYaml> = bulk_yamls
         .iter()
-        .map(|yaml_info| {
-            let client = &client;
-            let config = config.inner();
-            let yaml_id = yaml_info.id;
-            let discord_handle = yaml_info.discord_handle.clone();
-            let created_at = yaml_info.created_at.clone();
-            async move {
-                let url = config
-                    .lobby_root_url
-                    .join(&format!("/api/room/{}/info/{}", room_id, yaml_id))?;
-                let resp = client
-                    .get(url)
-                    .header("x-api-key", &config.lobby_api_key)
-                    .send()
-                    .await?;
-                let detail: LobbyYamlDetail = resp.json().await?;
-                Ok::<_, anyhow::Error>((yaml_id, discord_handle, created_at, detail))
-            }
-        })
-        .collect();
-
-    let yaml_details: Vec<(Uuid, String, String, LobbyYamlDetail)> = join_all(yaml_futures)
-        .await
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let room_yamls: Vec<RoomYaml> = yaml_details
-        .iter()
-        .map(|(_, _, _, detail)| RoomYaml {
-            player_name: detail.player_name.clone(),
+        .map(|y| RoomYaml {
+            player_name: y.player_name.clone(),
         })
         .collect();
 
@@ -221,19 +186,9 @@ async fn evaluate(
         .map(|r| r.as_ref())
         .collect();
 
-    let results: Vec<YamlEvalResult> = yaml_details
+    let results: Vec<YamlEvalResult> = bulk_yamls
         .iter()
-        .map(|(yaml_id, discord_handle, created_at, detail)| {
-            evaluate_single_yaml(
-                *yaml_id,
-                discord_handle,
-                created_at,
-                detail,
-                &custom_rules,
-                &active_builtins,
-                &room_yamls,
-            )
-        })
+        .map(|yaml| evaluate_single_yaml(yaml, &custom_rules, &active_builtins, &room_yamls))
         .collect();
 
     Ok(Json(EvaluateResponse { yamls: results }))
@@ -260,25 +215,22 @@ fn extract_game_names(yaml: &Value) -> Vec<String> {
 }
 
 fn evaluate_single_yaml(
-    yaml_id: Uuid,
-    discord_handle: &str,
-    created_at: &str,
-    detail: &LobbyYamlDetail,
+    info: &BulkYamlInfo,
     custom_rules: &[Rule],
     active_builtins: &[&dyn builtin::BuiltinRule],
     room_yamls: &[RoomYaml],
 ) -> YamlEvalResult {
-    let parsed = Value::load_from_str(&detail.content)
+    let parsed = Value::load_from_str(&info.content)
         .ok()
         .and_then(|mut docs| docs.pop());
 
     let Some(yaml) = parsed else {
         return YamlEvalResult {
-            yaml_id,
-            player_name: detail.player_name.clone(),
-            discord_handle: discord_handle.to_string(),
-            game: detail.game.clone(),
-            created_at: created_at.to_string(),
+            yaml_id: info.id,
+            player_name: info.player_name.clone(),
+            discord_handle: info.discord_handle.clone(),
+            game: info.game.clone(),
+            created_at: info.created_at.clone(),
             results: vec![RuleResultResponse {
                 rule_name: "YAML Parse".into(),
                 outcome: Outcome::Error,
@@ -295,7 +247,7 @@ fn evaluate_single_yaml(
 
     let game_names = extract_game_names(&resolved);
     let game_names = if game_names.is_empty() {
-        vec![detail.game.clone()]
+        vec![info.game.clone()]
     } else {
         game_names
     };
@@ -335,7 +287,7 @@ fn evaluate_single_yaml(
         );
 
         for builtin_rule in active_builtins {
-            let br = builtin_rule.evaluate(&resolved, game_name, &detail.player_name, room_yamls);
+            let br = builtin_rule.evaluate(&resolved, game_name, &info.player_name, room_yamls);
             if br.outcome != Outcome::Fail && br.outcome != Outcome::Error {
                 continue;
             }
@@ -362,15 +314,15 @@ fn evaluate_single_yaml(
         game_names
             .into_iter()
             .next()
-            .unwrap_or_else(|| detail.game.clone())
+            .unwrap_or_else(|| info.game.clone())
     };
 
     YamlEvalResult {
-        yaml_id,
-        player_name: detail.player_name.clone(),
-        discord_handle: discord_handle.to_string(),
+        yaml_id: info.id,
+        player_name: info.player_name.clone(),
+        discord_handle: info.discord_handle.clone(),
         game: display_game,
-        created_at: created_at.to_string(),
+        created_at: info.created_at.clone(),
         results: all_results,
     }
 }

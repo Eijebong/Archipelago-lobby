@@ -745,7 +745,6 @@ dependencies = [
  "diesel-async",
  "diesel_migrations",
  "dotenvy",
- "futures",
  "htmlize",
  "humantime",
  "indexmap",
