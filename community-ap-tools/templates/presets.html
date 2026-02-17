@@ -1,7 +1,7 @@
 <html>
 <head>
     <title>Review Presets</title>
-    <link rel="stylesheet" href="/static/review.css">
+    <link rel="stylesheet" href="/static/review.css?{{ static_version }}">
 </head>
 <body class="presets-page">
     <h1>Review Presets</h1>
@@ -36,7 +36,7 @@
         {% endif %}
     </div>
 
-<script src="/static/review-utils.js"></script>
+<script src="/static/review-utils.js?{{ static_version }}"></script>
 <script>
 async function createPreset(e) {
     e.preventDefault();

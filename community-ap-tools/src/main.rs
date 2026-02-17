@@ -32,6 +32,8 @@ use diesel_migrations::{EmbeddedMigrations, embed_migrations};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
 
+pub const STATIC_VERSION: &str = std::env!("STATIC_VERSION");
+
 pub struct Discord;
 
 #[derive(Template, WebTemplate)]

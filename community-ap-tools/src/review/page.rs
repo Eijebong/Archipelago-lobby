@@ -25,6 +25,7 @@ pub struct ReviewTpl {
     room_name: String,
     assigned_preset_id: Option<i32>,
     lobby_root_url: String,
+    static_version: &'static str,
 }
 
 #[rocket::get("/review/<room_id>")]
@@ -58,6 +59,7 @@ async fn review_page(
         room_name: room_info.name,
         assigned_preset_id: room_config.map(|c| c.preset_id),
         lobby_root_url: config.lobby_root_url.to_string(),
+        static_version: crate::STATIC_VERSION,
     })
 }
 
@@ -67,6 +69,7 @@ async fn review_page(
 #[template(path = "presets.html")]
 pub struct PresetsListTpl {
     presets: Vec<db::PresetSummary>,
+    static_version: &'static str,
 }
 
 #[rocket::get("/presets")]
@@ -76,7 +79,10 @@ async fn presets_list(
 ) -> crate::error::Result<PresetsListTpl> {
     let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
     let presets = db::list_presets(&mut conn).await?;
-    Ok(PresetsListTpl { presets })
+    Ok(PresetsListTpl {
+        presets,
+        static_version: crate::STATIC_VERSION,
+    })
 }
 
 // -- Preset edit page --
@@ -104,6 +110,7 @@ pub struct PresetEditTpl {
     preset: PresetForTemplate,
     back_url: Option<String>,
     current_username: String,
+    static_version: &'static str,
 }
 
 #[rocket::get("/presets/<id>?<from_room>")]
@@ -145,6 +152,7 @@ async fn preset_edit(
         },
         back_url,
         current_username,
+        static_version: crate::STATIC_VERSION,
     })
 }
 

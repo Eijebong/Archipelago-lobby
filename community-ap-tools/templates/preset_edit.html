@@ -1,7 +1,7 @@
 <html>
 <head>
     <title>Edit Preset: {{ preset.name }}</title>
-    <link rel="stylesheet" href="/static/review.css">
+    <link rel="stylesheet" href="/static/review.css?{{ static_version }}">
 </head>
 <body>
     <p><a href="{% match back_url %}{% when Some with (url) %}{{ url }}{% when None %}/presets{% endmatch %}">&larr; Back</a></p>
@@ -58,7 +58,7 @@
 
 <div hidden id="initial-rules-data" data-json="{{ preset.rules }}"></div>
 <div hidden id="initial-builtins-data" data-json="{{ preset.builtin_rules }}"></div>
-<script src="/static/review-utils.js"></script>
+<script src="/static/review-utils.js?{{ static_version }}"></script>
 <script>
 const PRESET_ID = {{ preset.id }};
 let INITIAL_RULES = [];

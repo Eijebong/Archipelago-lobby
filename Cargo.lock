@@ -759,9 +759,11 @@ dependencies = [
  "scraper",
  "serde",
  "serde_json",
+ "sha2",
  "shlex",
  "tungstenite 0.28.0",
  "uuid",
+ "walkdir",
 ]
 
 [[package]]

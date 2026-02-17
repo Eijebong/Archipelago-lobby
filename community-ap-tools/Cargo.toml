@@ -30,3 +30,7 @@ itertools = "0.14.0"
 humantime = "2.2.0"
 indexmap = { version = "2.11.0", features = ["serde"] }
 rayon = "1"
+
+[build-dependencies]
+sha2 = "0.10"
+walkdir = "2"
