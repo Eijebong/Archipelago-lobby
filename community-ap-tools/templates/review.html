@@ -207,11 +207,6 @@ function renderPredicate(pred) {
     }
 }
 
-function sortArrow(col) {
-    if (sortColumn !== col) return '';
-    return `<span class="sort-arrow">${sortAsc ? '\u25B2' : '\u25BC'}</span>`;
-}
-
 function toggleSort(col) {
     if (sortColumn === col) {
         sortAsc = !sortAsc;
@@ -219,7 +214,39 @@ function toggleSort(col) {
         sortColumn = col;
         sortAsc = true;
     }
-    if (lastEvalData) renderResults(lastEvalData);
+    sortTable();
+}
+
+function sortTable() {
+    const table = document.querySelector("#results-content table");
+    if (!table || !lastEvalData) return;
+
+    const tbody = table.querySelector("tbody");
+    const yamlById = {};
+    for (const y of lastEvalData.yamls) yamlById[y.yaml_id] = y;
+
+    const rows = Array.from(tbody.querySelectorAll("tr[data-yaml-id]"));
+    rows.sort((a, b) => {
+        const ya = yamlById[a.dataset.yamlId];
+        const yb = yamlById[b.dataset.yamlId];
+        if (!ya || !yb) return 0;
+        const va = getSortValue(ya, sortColumn);
+        const vb = getSortValue(yb, sortColumn);
+        let cmp = 0;
+        if (typeof va === "number") cmp = va - vb;
+        else cmp = va < vb ? -1 : va > vb ? 1 : 0;
+        return sortAsc ? cmp : -cmp;
+    });
+    for (const row of rows) tbody.appendChild(row);
+
+    for (const th of table.querySelectorAll("th.sortable")) {
+        const arrow = th.querySelector(".sort-arrow");
+        if (arrow) arrow.remove();
+        const col = th.dataset.sortCol;
+        if (col === sortColumn) {
+            th.insertAdjacentHTML("beforeend", `<span class="sort-arrow">${sortAsc ? '\u25B2' : '\u25BC'}</span>`);
+        }
+    }
 }
 
 function getSortValue(yaml, col) {
@@ -262,12 +289,12 @@ function renderResults(data) {
 
     let html = `<table>
         <thead><tr>
-            <th class="sortable" onclick="toggleSort('player')">Player${sortArrow('player')}</th>
-            <th class="sortable" onclick="toggleSort('discord')">Discord${sortArrow('discord')}</th>
-            <th class="sortable" onclick="toggleSort('game')">Game${sortArrow('game')}</th>
-            <th class="sortable" onclick="toggleSort('issues')">Issues${sortArrow('issues')}</th>
-            <th class="sortable" onclick="toggleSort('status')">Status${sortArrow('status')}</th>
-            <th class="sortable" onclick="toggleSort('created')">Created${sortArrow('created')}</th>
+            <th class="sortable" data-sort-col="player" onclick="toggleSort('player')">Player</th>
+            <th class="sortable" data-sort-col="discord" onclick="toggleSort('discord')">Discord</th>
+            <th class="sortable" data-sort-col="game" onclick="toggleSort('game')">Game</th>
+            <th class="sortable" data-sort-col="issues" onclick="toggleSort('issues')">Issues</th>
+            <th class="sortable" data-sort-col="status" onclick="toggleSort('status')">Status</th>
+            <th class="sortable" data-sort-col="created" onclick="toggleSort('created')">Created</th>
         </tr></thead><tbody>`;
 
     for (const yaml of sorted) {
@@ -293,6 +320,13 @@ function renderResults(data) {
         const row = e.target.closest("tr[data-yaml-id]");
         if (row) showYamlModal(row.dataset.yamlId);
     });
+
+    // Add initial sort arrow
+    for (const th of content.querySelectorAll("th.sortable")) {
+        if (th.dataset.sortCol === sortColumn) {
+            th.insertAdjacentHTML("beforeend", `<span class="sort-arrow">${sortAsc ? '\u25B2' : '\u25BC'}</span>`);
+        }
+    }
 }
 
 function renderStatusSelect(yamlId, extraClass) {
