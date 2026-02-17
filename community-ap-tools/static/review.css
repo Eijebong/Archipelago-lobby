@@ -27,6 +27,8 @@ button.primary { background: #2a5; border-color: #3b6; }
 button.primary:hover { background: #3b6; }
 button.danger { background: #a33; border-color: #c44; }
 button.danger:hover { background: #c44; }
+button.accent { background: #345; border-color: #58a; }
+button.accent:hover { background: #456; }
 button.small { padding: 2px 8px; font-size: 0.85em; }
 button:disabled { opacity: 0.4; cursor: default; }
 select, input[type="text"], input[type="number"] {
@@ -210,6 +212,8 @@ body:has(dialog[open]) {
 .add-rule-form {
     padding: 10px 12px;
     border-top: 1px solid #333;
+    border-bottom: 1px solid #333;
+    margin-bottom: 16px;
 }
 
 /* Utility */

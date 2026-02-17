@@ -21,30 +21,8 @@
 
     <div class="section">
         <h2>Rules</h2>
+        <div class="add-rule-form" id="add-rule-form"></div>
         <div id="rules-container"></div>
-        <div class="add-rule-form">
-            <div class="field-group">
-                <div class="field">
-                    <span>Name</span>
-                    <input type="text" id="new-rule-name" placeholder="Rule name" size="25">
-                </div>
-                <div class="field">
-                    <span>Game</span>
-                    <input type="text" id="new-rule-game" placeholder="(all games)" size="15" list="dl-games">
-                </div>
-                <div class="field">
-                    <span>Severity</span>
-                    <select id="new-rule-severity">
-                        <option value="error">Error</option>
-                        <option value="warning">Warning</option>
-                        <option value="info">Info</option>
-                    </select>
-                </div>
-                <div class="field field-end">
-                    <button onclick="addNewRule()">+ Add Rule</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <div class="section">
@@ -350,6 +328,69 @@ class PredicateBlock {
     }
 }
 
+function buildRuleForm(container, { name, game, severity, whenData, thenData, predCallbacks, predTarget }) {
+    container.innerHTML = `
+        <div class="field-group">
+            <div class="field">
+                <span>Name</span>
+                <input type="text" class="rule-name" value="${esc(name || '')}" placeholder="Rule name" size="25" list="dl-games">
+            </div>
+            <div class="field">
+                <span>Game</span>
+                <input type="text" class="rule-game" value="${esc(game || '')}" placeholder="(all games)" size="15" list="dl-games">
+            </div>
+            <div class="field">
+                <span>Severity</span>
+                <select class="rule-severity">
+                    <option value="error" ${severity === 'error' ? 'selected' : ''}>Error</option>
+                    <option value="warning" ${severity === 'warning' ? 'selected' : ''}>Warning</option>
+                    <option value="info" ${severity === 'info' ? 'selected' : ''}>Info</option>
+                </select>
+            </div>
+        </div>
+        <div class="rule-section">
+            <div class="rule-section-header">
+                <strong>When</strong> <span class="hint">(optional condition)</span>
+            </div>
+            <div class="when-container"></div>
+        </div>
+        <div class="rule-section">
+            <div class="rule-section-header">
+                <strong>Then</strong> <span class="hint">(alerts when met)</span>
+            </div>
+            <div class="then-container"></div>
+        </div>
+    `;
+
+    const target = predTarget || { whenPred: null, thenPred: null };
+
+    for (const [which, btnText, data] of [["when", "+ Set Condition", whenData], ["then", "+ Set Check", thenData]]) {
+        const cont = container.querySelector(`.${which}-container`);
+        const header = cont.closest(".rule-section").querySelector(".rule-section-header");
+        const btn = document.createElement("button");
+        btn.className = "small";
+        btn.textContent = btnText;
+        header.appendChild(btn);
+
+        const key = which + "Pred";
+        const onRemove = () => { target[key] = null; };
+        const cb = { ...predCallbacks, onRemove };
+        btn.onclick = () => {
+            if (target[key]) { showToast("Already set. Remove it first or use AND/OR."); return; }
+            target[key] = new PredicateBlock(null, cb);
+            cont.appendChild(target[key].el);
+            if (predCallbacks.onDirty) predCallbacks.onDirty();
+        };
+
+        if (data) {
+            target[key] = new PredicateBlock(data, cb);
+            cont.appendChild(target[key].el);
+        }
+    }
+
+    return target;
+}
+
 class RuleEditor {
     constructor({ serverId, name, game, severity, when, then, lastEditedByName, lastEditedAt, dirty }) {
         this.serverId = serverId;
@@ -413,40 +454,12 @@ class RuleEditor {
     }
 
     _buildEditor() {
-        this.editor.innerHTML = `
-            <div class="field-group">
-                <div class="field">
-                    <span>Name</span>
-                    <input type="text" class="rule-name" value="${esc(this.name)}" size="30">
-                </div>
-                <div class="field">
-                    <span>Game</span>
-                    <input type="text" class="rule-game" value="${esc(this.game || '')}" placeholder="(all games)" size="15" list="dl-games">
-                </div>
-                <div class="field">
-                    <span>Severity</span>
-                    <select class="rule-severity">
-                        <option value="error" ${this.severity === 'error' ? 'selected' : ''}>Error</option>
-                        <option value="warning" ${this.severity === 'warning' ? 'selected' : ''}>Warning</option>
-                        <option value="info" ${this.severity === 'info' ? 'selected' : ''}>Info</option>
-                    </select>
-                </div>
-            </div>
-            <div class="rule-section">
-                <div class="rule-section-header">
-                    <strong>When</strong> <span class="hint">(optional condition)</span>
-                </div>
-                <div class="when-container"></div>
-            </div>
-            <div class="rule-section">
-                <div class="rule-section-header">
-                    <strong>Then</strong> <span class="hint">(alerts when met)</span>
-                </div>
-                <div class="then-container"></div>
-            </div>
-            <div class="rule-footer">
-            </div>
-        `;
+        const predCallbacks = { onDirty: () => this.markDirty(), getGame: () => this.game };
+        buildRuleForm(this.editor, {
+            name: this.name, game: this.game, severity: this.severity,
+            whenData: this.whenData, thenData: this.thenData,
+            predCallbacks, predTarget: this,
+        });
 
         const nameInput = this.editor.querySelector(".rule-name");
         const gameInput = this.editor.querySelector(".rule-game");
@@ -456,11 +469,8 @@ class RuleEditor {
         gameInput.addEventListener("change", () => { this._syncFromEditor(); this._updateRow(); renderAll(); });
         sevSelect.addEventListener("change", () => { this._syncFromEditor(); this._updateRow(); });
 
-        const predCallbacks = { onDirty: () => this.markDirty(), getGame: () => this.game };
-        this._initPredSection("when", "+ Set Condition", this.whenData, predCallbacks);
-        this._initPredSection("then", "+ Set Check", this.thenData, predCallbacks);
-
-        const footer = this.editor.querySelector(".rule-footer");
+        const footer = document.createElement("div");
+        footer.className = "rule-footer";
         this.saveBtn = document.createElement("button");
         this.saveBtn.className = "primary small";
         this.saveBtn.textContent = "Save rule";
@@ -475,32 +485,9 @@ class RuleEditor {
             footer.appendChild(info);
         }
 
+        this.editor.appendChild(footer);
         this.editor.addEventListener("input", () => this.markDirty());
         this.editor.addEventListener("change", () => this.markDirty());
-    }
-
-    _initPredSection(which, btnText, data, callbacks) {
-        const container = this.editor.querySelector(`.${which}-container`);
-        const header = container.closest(".rule-section").querySelector(".rule-section-header");
-        const propName = which + "Pred";
-
-        const btn = document.createElement("button");
-        btn.className = "small";
-        btn.textContent = btnText;
-        header.appendChild(btn);
-        const onRemove = () => { this[propName] = null; };
-        const cbWithRemove = { ...callbacks, onRemove };
-        btn.onclick = () => {
-            if (this[propName]) { showToast("Already set. Remove it first or use AND/OR."); return; }
-            this[propName] = new PredicateBlock(null, cbWithRemove);
-            container.appendChild(this[propName].el);
-            this.markDirty();
-        };
-
-        if (data) {
-            this[propName] = new PredicateBlock(data, cbWithRemove);
-            container.appendChild(this[propName].el);
-        }
     }
 
     _updateRow() {
@@ -629,16 +616,41 @@ function wireEditor(ed) {
     ed.onDelete = () => deleteEditor(ed);
 }
 
+const addFormState = { whenPred: null, thenPred: null };
+
+function initAddRuleForm() {
+    addFormState.whenPred = null;
+    addFormState.thenPred = null;
+    const form = document.getElementById("add-rule-form");
+    const gameGetter = () => form.querySelector(".rule-game").value.trim() || null;
+    buildRuleForm(form, {
+        name: "", game: null, severity: "error",
+        whenData: null, thenData: null,
+        predCallbacks: { onDirty: () => {}, getGame: gameGetter },
+        predTarget: addFormState,
+    });
+    const footer = document.createElement("div");
+    footer.className = "field field-end";
+    const btn = document.createElement("button");
+    btn.className = "accent";
+    btn.textContent = "+ Add Rule";
+    btn.onclick = addNewRule;
+    footer.appendChild(btn);
+    form.appendChild(footer);
+}
+
 async function addNewRule() {
-    const nameInput = document.getElementById("new-rule-name");
-    const gameInput = document.getElementById("new-rule-game");
-    const sevInput = document.getElementById("new-rule-severity");
+    const form = document.getElementById("add-rule-form");
+    const name = form.querySelector(".rule-name").value.trim() || "New Rule";
+    const game = form.querySelector(".rule-game").value.trim() || null;
+    const severity = form.querySelector(".rule-severity").value;
 
-    const name = nameInput.value.trim() || "New Rule";
-    const game = gameInput.value.trim() || null;
-    const severity = sevInput.value;
+    const whenData = addFormState.whenPred ? addFormState.whenPred.gather() : null;
+    const thenData = addFormState.thenPred ? addFormState.thenPred.gather() : null;
+    const ruleData = { name, game, severity, when: whenData, then: thenData || { type: "check", path: "", check: { type: "truthy" } } };
 
-    const ruleData = { name, game, severity, when: null, then: { type: "check", path: "example", check: { type: "truthy" } } };
+    const err = PredicateBlock.validate(ruleData.when) || PredicateBlock.validate(ruleData.then);
+    if (err) { showToast(err); return; }
 
     const resp = await fetch(`/api/presets/${PRESET_ID}/rules`, {
         method: "POST",
@@ -650,15 +662,14 @@ async function addNewRule() {
 
     const ed = new RuleEditor({
         serverId: created.id, name, game, severity,
-        when: null, then: ruleData.then,
+        when: whenData, then: ruleData.then,
         lastEditedByName: CURRENT_USERNAME,
         lastEditedAt: new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC",
     });
     wireEditor(ed);
     editors.push(ed);
 
-    nameInput.value = "";
-    gameInput.value = "";
+    initAddRuleForm();
     renderAll();
     ed.toggle();
 }
@@ -777,6 +788,7 @@ loadGames().then(() => {
     ensureDatalist("dl-games", gamesData.map(g => g.game_name));
     loadBuiltinRulesList();
     loadRulesFromJSON(INITIAL_RULES);
+    initAddRuleForm();
 });
 </script>
 </body>
