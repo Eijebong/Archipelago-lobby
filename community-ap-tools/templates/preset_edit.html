@@ -166,7 +166,10 @@ class PredicateBlock {
         }
         this.type = newType;
 
-        if (existing && (newType === "and" || newType === "or")) {
+        const isGroup = (t) => t === "and" || t === "or";
+        if (existing && isGroup(newType) && isGroup(oldType)) {
+            this._renderBody({ type: newType, predicates: existing.predicates });
+        } else if (existing && isGroup(newType)) {
             this._renderBody({ type: newType, predicates: [existing] });
         } else if (existing && newType === "not") {
             this._renderBody({ type: "not", predicate: existing });
