@@ -6,8 +6,7 @@ body {
     font-family: monospace;
     background: #111;
     padding: 1em;
-    max-width: 1400px;
-    margin: 0 auto;
+    margin: 0;
 }
 h1, h2, h3 { margin-top: 0; }
 a { color: #6cf; }
@@ -225,6 +224,7 @@ body:has(dialog[open]) {
 table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: auto;
 }
 th, td {
     padding: 8px 12px;
