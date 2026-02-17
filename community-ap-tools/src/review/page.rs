@@ -113,21 +113,14 @@ async fn preset_edit(
     from_room: Option<String>,
     pool: &State<DieselPool<AsyncPgConnection>>,
 ) -> crate::error::Result<PresetEditTpl> {
+    let current_username = session.username().to_string();
     let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
-    let current_username = db::get_editor_username(session.user_id(), &mut conn)
-        .await?
-        .unwrap_or_default();
     let preset = db::get_preset(id, &mut conn).await?;
     let db_rules = db::list_rules_for_preset(id, &mut conn).await?;
-
-    let editor_ids: Vec<i64> = db_rules.iter().filter_map(|r| r.last_edited_by).collect();
-    let editor_names = db::get_editor_usernames(&editor_ids, &mut conn).await?;
-    let name_map: std::collections::HashMap<i64, String> = editor_names.into_iter().collect();
 
     let rules_for_tpl: Vec<RuleForTemplate> = db_rules
         .into_iter()
         .map(|r| {
-            let editor_name = r.last_edited_by.and_then(|id| name_map.get(&id).cloned());
             let edited_at = r
                 .last_edited_at
                 .map(|dt| dt.format("%Y-%m-%d %H:%M UTC").to_string());
@@ -135,7 +128,7 @@ async fn preset_edit(
                 id: r.id,
                 rule: r.rule,
                 position: r.position,
-                last_edited_by_name: editor_name,
+                last_edited_by_name: r.last_edited_by_name,
                 last_edited_at: edited_at,
             }
         })

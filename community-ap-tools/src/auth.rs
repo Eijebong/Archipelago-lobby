@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct Session {
     pub user_id: Option<i64>,
+    pub username: Option<String>,
     pub is_logged_in: bool,
     pub redirect_on_login: Option<String>,
 }
@@ -34,6 +35,7 @@ impl Session {
                 cookies.remove_private("apsession");
                 return Session {
                     user_id: None,
+                    username: None,
                     is_logged_in: false,
                     redirect_on_login: None,
                 };
@@ -44,6 +46,7 @@ impl Session {
 
         Session {
             user_id: None,
+            username: None,
             is_logged_in: false,
             redirect_on_login: None,
         }
@@ -68,6 +71,10 @@ pub struct LoggedInSession(Session);
 impl LoggedInSession {
     pub fn user_id(&self) -> i64 {
         self.0.user_id.expect("LoggedInSession must have a user_id")
+    }
+
+    pub fn username(&self) -> &str {
+        self.0.username.as_deref().unwrap_or("Unknown")
     }
 }
 
@@ -169,6 +176,7 @@ async fn login_discord_callback(
     }
 
     session.user_id = Some(user.id.parse()?);
+    session.username = Some(user.username.clone());
     session.is_logged_in = true;
     session.save(cookies).unwrap();
 
@@ -209,6 +217,7 @@ struct DiscordMeResponse {
 #[derive(serde::Deserialize)]
 struct DiscordUser {
     pub id: String,
+    pub username: String,
 }
 
 async fn get_discord_user(client: &reqwest::Client, token: &str) -> Result<DiscordUser> {

@@ -5,9 +5,7 @@ use uuid::Uuid;
 
 use chrono::{DateTime, Utc};
 
-use crate::schema::{
-    discord_users, review_preset_rules, review_presets, room_review_config, yaml_review_status,
-};
+use crate::schema::{review_preset_rules, review_presets, room_review_config, yaml_review_status};
 
 #[derive(Queryable, Selectable, Serialize, Debug)]
 #[diesel(table_name = review_presets)]
@@ -46,6 +44,7 @@ pub struct PresetRule {
     pub position: i32,
     pub last_edited_by: Option<i64>,
     pub last_edited_at: Option<DateTime<Utc>>,
+    pub last_edited_by_name: Option<String>,
 }
 
 #[derive(Insertable, Debug)]
@@ -56,6 +55,7 @@ pub struct NewPresetRule {
     pub position: i32,
     pub last_edited_by: Option<i64>,
     pub last_edited_at: Option<DateTime<Utc>>,
+    pub last_edited_by_name: Option<String>,
 }
 
 #[derive(AsChangeset, Debug)]
@@ -65,6 +65,7 @@ pub struct UpdatePresetRule {
     pub position: Option<i32>,
     pub last_edited_by: Option<i64>,
     pub last_edited_at: Option<DateTime<Utc>>,
+    pub last_edited_by_name: Option<String>,
 }
 
 pub async fn list_presets(conn: &mut AsyncPgConnection) -> anyhow::Result<Vec<PresetSummary>> {
@@ -224,29 +225,6 @@ pub async fn remove_room_preset(room_id: Uuid, conn: &mut AsyncPgConnection) -> 
     Ok(())
 }
 
-pub async fn get_editor_username(
-    user_id: i64,
-    conn: &mut AsyncPgConnection,
-) -> anyhow::Result<Option<String>> {
-    Ok(discord_users::table
-        .find(user_id)
-        .select(discord_users::username)
-        .get_result::<String>(conn)
-        .await
-        .optional()?)
-}
-
-pub async fn get_editor_usernames(
-    user_ids: &[i64],
-    conn: &mut AsyncPgConnection,
-) -> anyhow::Result<Vec<(i64, String)>> {
-    Ok(discord_users::table
-        .filter(discord_users::id.eq_any(user_ids))
-        .select((discord_users::id, discord_users::username))
-        .load(conn)
-        .await?)
-}
-
 #[derive(Queryable, Selectable, Serialize, Debug)]
 #[diesel(table_name = yaml_review_status)]
 pub struct YamlReviewStatus {
@@ -255,6 +233,7 @@ pub struct YamlReviewStatus {
     pub status: String,
     pub changed_by: i64,
     pub changed_at: DateTime<Utc>,
+    pub changed_by_name: Option<String>,
 }
 
 #[derive(Insertable)]
@@ -264,6 +243,7 @@ struct NewYamlReviewStatus {
     yaml_id: Uuid,
     status: String,
     changed_by: i64,
+    changed_by_name: Option<String>,
 }
 
 pub async fn get_review_statuses(
@@ -282,6 +262,7 @@ pub async fn set_review_status(
     yaml_id: Uuid,
     status: &str,
     user_id: i64,
+    username: &str,
     conn: &mut AsyncPgConnection,
 ) -> anyhow::Result<YamlReviewStatus> {
     Ok(diesel::insert_into(yaml_review_status::table)
@@ -290,12 +271,14 @@ pub async fn set_review_status(
             yaml_id,
             status: status.to_string(),
             changed_by: user_id,
+            changed_by_name: Some(username.to_string()),
         })
         .on_conflict((yaml_review_status::room_id, yaml_review_status::yaml_id))
         .do_update()
         .set((
             yaml_review_status::status.eq(status),
             yaml_review_status::changed_by.eq(user_id),
+            yaml_review_status::changed_by_name.eq(username),
             yaml_review_status::changed_at.eq(diesel::dsl::now),
         ))
         .returning(YamlReviewStatus::as_returning())

@@ -1,13 +1,6 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    discord_users (id) {
-        id -> Int8,
-        username -> Varchar,
-    }
-}
-
-diesel::table! {
     review_presets (id) {
         id -> Int4,
         name -> Text,
@@ -23,6 +16,7 @@ diesel::table! {
         position -> Int4,
         last_edited_by -> Nullable<Int8>,
         last_edited_at -> Nullable<Timestamptz>,
+        last_edited_by_name -> Nullable<Text>,
     }
 }
 
@@ -40,13 +34,13 @@ diesel::table! {
         status -> Text,
         changed_by -> Int8,
         changed_at -> Timestamptz,
+        changed_by_name -> Nullable<Text>,
     }
 }
 
 diesel::joinable!(review_preset_rules -> review_presets (preset_id));
 diesel::joinable!(room_review_config -> review_presets (preset_id));
 diesel::allow_tables_to_appear_in_same_query!(
-    discord_users,
     review_presets,
     review_preset_rules,
     room_review_config,

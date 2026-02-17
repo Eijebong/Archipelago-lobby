@@ -492,6 +492,7 @@ async fn create_preset_rule(
             position: req.position,
             last_edited_by: Some(session.user_id()),
             last_edited_at: Some(now),
+            last_edited_by_name: Some(session.username().to_string()),
         },
         &mut conn,
     )
@@ -535,6 +536,7 @@ async fn update_preset_rule(
             position: req.position,
             last_edited_by: Some(session.user_id()),
             last_edited_at: Some(now),
+            last_edited_by_name: Some(session.username().to_string()),
         },
         &mut conn,
     )
@@ -574,22 +576,15 @@ async fn get_review_statuses(
     let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
     let statuses = db::get_review_statuses(room_id, &mut conn).await?;
 
-    let user_ids: Vec<i64> = statuses.iter().map(|s| s.changed_by).collect();
-    let usernames = db::get_editor_usernames(&user_ids, &mut conn).await?;
-    let username_map: std::collections::HashMap<i64, String> = usernames.into_iter().collect();
-
     let response: Vec<ReviewStatusResponse> = statuses
         .into_iter()
-        .map(|s| {
-            let name = username_map.get(&s.changed_by).cloned();
-            ReviewStatusResponse {
-                room_id: s.room_id,
-                yaml_id: s.yaml_id,
-                status: s.status,
-                changed_by: s.changed_by,
-                changed_by_name: name,
-                changed_at: s.changed_at.to_rfc3339(),
-            }
+        .map(|s| ReviewStatusResponse {
+            room_id: s.room_id,
+            yaml_id: s.yaml_id,
+            status: s.status,
+            changed_by: s.changed_by,
+            changed_by_name: s.changed_by_name,
+            changed_at: s.changed_at.to_rfc3339(),
         })
         .collect();
 
@@ -619,16 +614,17 @@ async fn set_review_status(
     }
 
     let user_id = session.user_id();
+    let username = session.username();
     let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
-    let status = db::set_review_status(room_id, yaml_id, &req.status, user_id, &mut conn).await?;
-    let username = db::get_editor_username(user_id, &mut conn).await?;
+    let status =
+        db::set_review_status(room_id, yaml_id, &req.status, user_id, username, &mut conn).await?;
 
     Ok(Json(ReviewStatusResponse {
         room_id: status.room_id,
         yaml_id: status.yaml_id,
         status: status.status,
         changed_by: status.changed_by,
-        changed_by_name: username,
+        changed_by_name: status.changed_by_name,
         changed_at: status.changed_at.to_rfc3339(),
     }))
 }
