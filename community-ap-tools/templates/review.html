@@ -40,6 +40,19 @@ const ROOM_ID = "{{ room_id }}";
 const LOBBY_ROOT_URL = "{{ lobby_root_url }}".replace(/\/$/, "");
 const ASSIGNED_PRESET_ID = {% match assigned_preset_id %}{% when Some with (id) %}{{ id }}{% when None %}null{% endmatch %};
 
+const CHECK_LABELS = {
+    truthy: "is truthy", not_truthy: "is not truthy", equals: "equals", not_equals: "does not equal",
+    greater_than: ">", less_than: "<", range: "between",
+    regex: "matches", contains: "contains", exists: "exists", not_exists: "does not exist",
+};
+
+const STATUS_TYPES = [["unreviewed", "Unreviewed"], ["reported", "Reported"], ["nok", "NOK"], ["ok", "OK"]];
+
+const SORT_COLUMNS = [
+    ["player", "Player"], ["discord", "Discord"], ["game", "Game"],
+    ["issues", "Issues"], ["status", "Status"], ["created", "Created"],
+];
+
 let lastEvalData = null;
 let reviewStatuses = {};
 let sortColumn = "status";
@@ -51,13 +64,10 @@ async function refreshPresetList() {
     if (!resp.ok) { showToast("Failed to load presets"); return; }
     const presets = await resp.json();
     const sel = document.getElementById("preset-select");
-    sel.innerHTML = '<option value="">-- No preset --</option>';
-    for (const p of presets) {
-        const opt = document.createElement("option");
-        opt.value = p.id;
-        opt.textContent = p.name;
-        sel.appendChild(opt);
-    }
+    sel.replaceChildren(
+        h("option", { value: "" }, "-- No preset --"),
+        ...presets.map(p => h("option", { value: p.id }, p.name)),
+    );
     if (ASSIGNED_PRESET_ID) {
         sel.value = ASSIGNED_PRESET_ID;
     }
@@ -83,7 +93,7 @@ async function onPresetChange() {
 
     if (!presetId) {
         await fetch(`/api/room/${ROOM_ID}/preset`, { method: "DELETE" });
-        document.getElementById("results-content").innerHTML = "<p>No preset assigned.</p>";
+        document.getElementById("results-content").replaceChildren(h("p", null, "No preset assigned."));
         lastEvalData = null;
         return;
     }
@@ -100,13 +110,13 @@ async function onPresetChange() {
 async function runEvaluation() {
     const sel = document.getElementById("preset-select");
     const presetId = parseInt(sel.value);
+    const content = document.getElementById("results-content");
     if (!presetId) {
-        document.getElementById("results-content").innerHTML = "<p>No preset assigned.</p>";
+        content.replaceChildren(h("p", null, "No preset assigned."));
         return;
     }
 
-    const content = document.getElementById("results-content");
-    content.innerHTML = '<p class="loading">Evaluating...</p>';
+    content.replaceChildren(h("p", { className: "loading" }, "Evaluating..."));
 
     const resp = await fetch(`/api/review/${ROOM_ID}/evaluate`, {
         method: "POST",
@@ -115,12 +125,7 @@ async function runEvaluation() {
     });
 
     if (!resp.ok) {
-        const errMsg = await resp.text();
-        const p = document.createElement("p");
-        p.className = "error-text";
-        p.textContent = "Error: " + errMsg;
-        content.innerHTML = "";
-        content.appendChild(p);
+        content.replaceChildren(h("p", { className: "error-text" }, "Error: " + await resp.text()));
         return;
     }
 
@@ -133,32 +138,50 @@ async function runEvaluation() {
 function formatDate(s) {
     if (!s) return "";
     const d = new Date(s);
-    if (isNaN(d)) return esc(s);
+    if (isNaN(d)) return s;
     return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-const CHECK_LABELS = {
-    truthy: "is truthy", not_truthy: "is not truthy", equals: "equals", not_equals: "does not equal",
-    greater_than: "&gt;", less_than: "&lt;", range: "between",
-    regex: "matches", contains: "contains", exists: "exists", not_exists: "does not exist",
-};
-
 function renderCheck(path, check) {
-    const labels = CHECK_LABELS;
-    const p = `<span class="pred-path">${esc(path)}</span>`;
-    const v = (s) => `<span class="pred-value">${esc(s)}</span>`;
-    const op = labels[check.type] || esc(check.type);
+    const op = CHECK_LABELS[check.type] || check.type;
+    const v = (s) => h("span", { className: "pred-value" }, String(s));
+    const frag = document.createDocumentFragment();
+    frag.append(h("span", { className: "pred-path" }, path), " ", h("span", { className: "pred-op" }, op));
+
     switch (check.type) {
-        case "truthy": case "not_truthy": case "exists": case "not_exists":
-            return `${p} <span class="pred-op">${op}</span>`;
         case "equals": case "not_equals": case "greater_than": case "less_than":
-        case "regex": case "contains":
-            const val = check.type === "regex" ? '/' + check.pattern + '/' : check.value;
-            return `${p} <span class="pred-op">${op}</span> ${v(val)}`;
+        case "regex": case "contains": {
+            const val = check.type === "regex" ? '/' + check.pattern + '/' : String(check.value);
+            frag.append(" ", v(val));
+            break;
+        }
         case "range":
-            return `${p} <span class="pred-op">${op}</span> ${v(check.min)} <span class="pred-op">and</span> ${v(check.max)}`;
+            frag.append(" ", v(check.min), " ", h("span", { className: "pred-op" }, "and"), " ", v(check.max));
+            break;
+    }
+    return frag;
+}
+
+function renderPredicate(pred) {
+    switch (pred.type) {
+        case "check":
+            return renderCheck(pred.path, pred.check);
+        case "and":
+        case "or": {
+            const frag = document.createDocumentFragment();
+            pred.predicates.forEach((p, i) => {
+                if (i > 0) frag.append(document.createElement("br"), h("span", { className: "pred-logic" }, pred.type.toUpperCase() + " "));
+                frag.append(renderPredicate(p));
+            });
+            return frag;
+        }
+        case "not": {
+            const frag = document.createDocumentFragment();
+            frag.append(h("span", { className: "pred-logic" }, "NOT "), renderPredicate(pred.predicate));
+            return frag;
+        }
         default:
-            return `${p} <span class="pred-op">${op}</span>`;
+            return document.createTextNode(JSON.stringify(pred));
     }
 }
 
@@ -167,45 +190,37 @@ function badgeClass(r) {
 }
 
 function renderResultItems(results) {
-    let html = '';
+    const items = [];
     for (const r of results) {
-        const detail = r.detail ? `<span class="result-detail">${esc(r.detail)}</span>` : '';
-        const builtin = r.builtin ? '<span class="result-builtin">[builtin]</span>' : '';
-        let ruleHtml = '';
-        if (r.predicate) {
-            ruleHtml = '<div class="predicate-view">';
-            if (r.condition) {
-                ruleHtml += `<span class="pred-logic">when</span> ${renderPredicate(r.condition)}<br>`;
-                ruleHtml += `<span class="pred-logic">then</span> ${renderPredicate(r.predicate)}`;
-            } else {
-                ruleHtml += renderPredicate(r.predicate);
-            }
-            ruleHtml += '</div>';
-        }
-        const expandable = ruleHtml ? ' expandable' : '';
-        html += `<div class="result-item${expandable}" onclick="this.classList.toggle('expanded')">
-            <span class="outcome-badge ${badgeClass(r)}">${r.outcome === "fail" ? r.severity : r.outcome}</span>
-            <span class="result-name">${esc(r.rule_name)} ${builtin}</span>
-            ${detail}
-            ${ruleHtml}
-        </div>`;
-    }
-    return html;
-}
+        const hasRule = !!r.predicate;
+        const item = h("div", {
+            className: "result-item" + (hasRule ? " expandable" : ""),
+            onclick: function() { this.classList.toggle("expanded"); },
+        },
+            h("span", { className: `outcome-badge ${badgeClass(r)}` }, r.outcome === "fail" ? r.severity : r.outcome),
+            h("span", { className: "result-name" },
+                r.rule_name + " ",
+                r.builtin ? h("span", { className: "result-builtin" }, "[builtin]") : null,
+            ),
+            r.detail ? h("span", { className: "result-detail" }, r.detail) : null,
+        );
 
-function renderPredicate(pred) {
-    switch (pred.type) {
-        case "check":
-            return renderCheck(pred.path, pred.check);
-        case "and":
-            return pred.predicates.map(renderPredicate).join(`<br><span class="pred-logic">AND </span>`);
-        case "or":
-            return pred.predicates.map(renderPredicate).join(`<br><span class="pred-logic">OR </span>`);
-        case "not":
-            return `<span class="pred-logic">NOT </span>${renderPredicate(pred.predicate)}`;
-        default:
-            return esc(JSON.stringify(pred));
+        if (hasRule) {
+            const predView = h("div", { className: "predicate-view" });
+            if (r.condition) {
+                predView.append(
+                    h("span", { className: "pred-logic" }, "when"), " ", renderPredicate(r.condition),
+                    document.createElement("br"),
+                    h("span", { className: "pred-logic" }, "then"), " ", renderPredicate(r.predicate),
+                );
+            } else {
+                predView.append(renderPredicate(r.predicate));
+            }
+            item.append(predView);
+        }
+        items.push(item);
     }
+    return items;
 }
 
 function toggleSort(col) {
@@ -231,23 +246,24 @@ function sortTable() {
         const ya = yamlById[a.dataset.yamlId];
         const yb = yamlById[b.dataset.yamlId];
         if (!ya || !yb) return 0;
-        const va = getSortValue(ya, sortColumn);
-        const vb = getSortValue(yb, sortColumn);
-        let cmp = 0;
-        if (typeof va === "number") cmp = va - vb;
-        else cmp = va < vb ? -1 : va > vb ? 1 : 0;
-        return sortAsc ? cmp : -cmp;
+        return compareYamls(ya, yb);
     });
     for (const row of rows) tbody.appendChild(row);
 
     for (const th of table.querySelectorAll("th.sortable")) {
         const arrow = th.querySelector(".sort-arrow");
         if (arrow) arrow.remove();
-        const col = th.dataset.sortCol;
-        if (col === sortColumn) {
-            th.insertAdjacentHTML("beforeend", `<span class="sort-arrow">${sortAsc ? '\u25B2' : '\u25BC'}</span>`);
+        if (th.dataset.sortCol === sortColumn) {
+            th.append(h("span", { className: "sort-arrow" }, sortAsc ? '\u25B2' : '\u25BC'));
         }
     }
+}
+
+function compareYamls(a, b) {
+    const va = getSortValue(a, sortColumn);
+    const vb = getSortValue(b, sortColumn);
+    const cmp = typeof va === "number" ? va - vb : va < vb ? -1 : va > vb ? 1 : 0;
+    return sortAsc ? cmp : -cmp;
 }
 
 function getSortValue(yaml, col) {
@@ -272,72 +288,58 @@ function getSortValue(yaml, col) {
 function renderResults(data) {
     const content = document.getElementById("results-content");
     if (!data.yamls || data.yamls.length === 0) {
-        content.innerHTML = "<p>No YAMLs in this room.</p>";
+        content.replaceChildren(h("p", null, "No YAMLs in this room."));
         return;
     }
 
     const sorted = [...data.yamls];
     if (sortColumn) {
-        sorted.sort((a, b) => {
-            const va = getSortValue(a, sortColumn);
-            const vb = getSortValue(b, sortColumn);
-            let cmp = 0;
-            if (typeof va === "number") cmp = va - vb;
-            else cmp = va < vb ? -1 : va > vb ? 1 : 0;
-            return sortAsc ? cmp : -cmp;
-        });
+        sorted.sort(compareYamls);
     }
 
-    let html = `<table>
-        <thead><tr>
-            <th class="sortable" data-sort-col="player" onclick="toggleSort('player')">Player</th>
-            <th class="sortable" data-sort-col="discord" onclick="toggleSort('discord')">Discord</th>
-            <th class="sortable" data-sort-col="game" onclick="toggleSort('game')">Game</th>
-            <th class="sortable" data-sort-col="issues" onclick="toggleSort('issues')">Issues</th>
-            <th class="sortable" data-sort-col="status" onclick="toggleSort('status')">Status</th>
-            <th class="sortable" data-sort-col="created" onclick="toggleSort('created')">Created</th>
-        </tr></thead><tbody>`;
+    const thead = h("thead", null,
+        h("tr", null, ...SORT_COLUMNS.map(([col, label]) => {
+            const th = h("th", { className: "sortable", "data-sort-col": col, onclick: () => toggleSort(col) }, label);
+            if (col === sortColumn) {
+                th.append(h("span", { className: "sort-arrow" }, sortAsc ? '\u25B2' : '\u25BC'));
+            }
+            return th;
+        })),
+    );
 
+    const tbody = h("tbody", null);
     for (const yaml of sorted) {
         const counts = countBySeverity(yaml.results);
-
-        const issues = `<span class="has-errors">${counts.error}</span> / <span class="has-warnings">${counts.warning}</span> / <span class="has-info">${counts.info}</span>`;
-
-        html += `<tr data-yaml-id="${yaml.yaml_id}" data-game="${esc(yaml.game)}">
-            <td>${esc(yaml.player_name)}</td>
-            <td>@${esc(yaml.discord_handle)}</td>
-            <td>${esc(yaml.game)}</td>
-            <td class="issues">${issues}</td>
-            <td class="status-cell">${renderStatusSelect(yaml.yaml_id)}</td>
-            <td class="date-cell">${formatDate(yaml.created_at)}</td>
-        </tr>`;
+        tbody.append(h("tr", { "data-yaml-id": yaml.yaml_id, "data-game": yaml.game },
+            h("td", null, yaml.player_name),
+            h("td", null, "@" + yaml.discord_handle),
+            h("td", null, yaml.game),
+            h("td", { className: "issues" },
+                h("span", { className: "has-errors" }, String(counts.error)),
+                " / ",
+                h("span", { className: "has-warnings" }, String(counts.warning)),
+                " / ",
+                h("span", { className: "has-info" }, String(counts.info)),
+            ),
+            h("td", { className: "status-cell" }, renderStatusSelect(yaml.yaml_id)),
+            h("td", { className: "date-cell" }, formatDate(yaml.created_at)),
+        ));
     }
 
-    html += '</tbody></table>';
-    content.innerHTML = html;
+    content.replaceChildren(h("table", null, thead, tbody));
 
-    content.querySelector("tbody").addEventListener("click", (e) => {
+    tbody.addEventListener("click", (e) => {
         if (e.target.closest(".status-select")) return;
         const row = e.target.closest("tr[data-yaml-id]");
         if (row) showYamlModal(row.dataset.yamlId);
     });
 
-    for (const th of content.querySelectorAll("th.sortable")) {
-        if (th.dataset.sortCol === sortColumn) {
-            th.insertAdjacentHTML("beforeend", `<span class="sort-arrow">${sortAsc ? '\u25B2' : '\u25BC'}</span>`);
-        }
-    }
-
     const games = [...new Set(data.yamls.map(y => y.game))].sort();
     const gf = document.getElementById("game-filter");
-    gf.innerHTML = '<option value="">All games</option>';
-    for (const g of games) {
-        const opt = document.createElement("option");
-        opt.value = g;
-        opt.textContent = g;
-        if (gameFilter === g) opt.selected = true;
-        gf.appendChild(opt);
-    }
+    gf.replaceChildren(
+        h("option", { value: "" }, "All games"),
+        ...games.map(g => h("option", { value: g, selected: gameFilter === g }, g)),
+    );
     gf.classList.remove("hidden");
     applyGameFilter(gameFilter);
 }
@@ -353,9 +355,12 @@ function applyGameFilter(game) {
 function renderStatusSelect(yamlId, extraClass) {
     const st = reviewStatuses[yamlId] || { status: "unreviewed" };
     const title = st.changed_by_name ? `${st.changed_by_name} on ${new Date(st.changed_at).toLocaleString()}` : "";
-    const cls = `status-select status-${esc(st.status)}${extraClass ? ` ${extraClass}` : ""}`;
-    const opt = (val, label) => `<option value="${val}" ${st.status === val ? "selected" : ""}>${label}</option>`;
-    return `<select class="${cls}" title="${esc(title)}" data-yaml-id="${yamlId}" onchange="onStatusChange(this)">${opt("unreviewed", "Unreviewed")}${opt("reported", "Reported")}${opt("nok", "NOK")}${opt("ok", "OK")}</select>`;
+    const cls = `status-select status-${st.status}${extraClass ? ` ${extraClass}` : ""}`;
+    const sel = selectEl(cls, STATUS_TYPES, st.status);
+    if (title) sel.title = title;
+    sel.dataset.yamlId = yamlId;
+    sel.onchange = function() { onStatusChange(this); };
+    return sel;
 }
 
 function countBySeverity(results) {
@@ -375,32 +380,30 @@ async function showYamlModal(yamlId) {
     if (!yaml) return;
 
     const mc = document.getElementById("yaml-modal-content");
+    const codeEl = h("code", { className: "language-yaml" }, "Loading...");
 
-    let html = `<h3>${esc(yaml.player_name)}
-        ${renderStatusSelect(yaml.yaml_id, "status-modal")}</h3>
-        <div class="subtitle">${esc(yaml.game)}</div>`;
-
-    if (yaml.results.length > 0) {
-        html += renderResultItems(yaml.results);
-    }
+    mc.replaceChildren(
+        h("h3", null, yaml.player_name + " ", renderStatusSelect(yaml.yaml_id, "status-modal")),
+        h("div", { className: "subtitle" }, yaml.game),
+        ...renderResultItems(yaml.results),
+        h("div", { className: "yaml-viewer" }, h("pre", null, codeEl)),
+    );
 
     const yamlUrl = `${LOBBY_ROOT_URL}/api/room/${ROOM_ID}/download/${yaml.yaml_id}`;
-    html += `<div class="yaml-viewer"><pre><code class="language-yaml">Loading...</code></pre></div>`;
-    mc.innerHTML = html;
-    document.getElementById("yaml-modal-buttons").innerHTML = `
-        <a href="${yamlUrl}" target="_blank" class="button">Download</a>
-        <button onclick="hideYamlModal()">Close</button>`;
+    document.getElementById("yaml-modal-buttons").replaceChildren(
+        h("a", { href: yamlUrl, target: "_blank", className: "button" }, "Download"),
+        h("button", { onclick: hideYamlModal }, "Close"),
+    );
     document.getElementById("yaml-modal").classList.add("open");
 
     try {
         const resp = await fetch(`/api/review/${ROOM_ID}/yaml/${yamlId}`);
         if (!resp.ok) throw new Error(resp.statusText);
         const data = await resp.json();
-        const codeEl = mc.querySelector("code");
         codeEl.textContent = data.content || "";
         hljs.highlightElement(codeEl);
     } catch (e) {
-        mc.querySelector("code").textContent = "Failed to load YAML content. Maybe it got removed?";
+        codeEl.textContent = "Failed to load YAML content. Maybe it got removed?";
     }
 }
 
@@ -445,7 +448,8 @@ async function onStatusChange(sel) {
         const title = result.changed_by_name ? `${result.changed_by_name} on ${new Date(result.changed_at).toLocaleString()}` : "";
         for (const s of allSelects) {
             s.value = status;
-            s.className = `status-select status-${status}`;
+            for (const [st] of STATUS_TYPES) s.classList.remove(`status-${st}`);
+            s.classList.add(`status-${status}`);
             s.title = title;
         }
     } finally {

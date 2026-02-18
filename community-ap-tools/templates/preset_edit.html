@@ -79,58 +79,56 @@ function ensureDatalist(id, values) {
     let dl = document.getElementById(id);
     if (dl) dl.remove();
     if (!values || values.length === 0) return;
-    dl = document.createElement("datalist");
-    dl.id = id;
-    for (const v of values) {
-        const o = document.createElement("option");
-        o.value = v;
-        dl.appendChild(o);
-    }
+    dl = h("datalist", { id }, ...values.map(v => h("option", { value: v })));
     document.body.appendChild(dl);
 }
 
+function formatEditTimestamp() {
+    return new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC";
+}
+
+function editInfoText(name, date) {
+    if (!name) return null;
+    return `Last edited by ${name}${date ? ` on ${date}` : ''}`;
+}
+
+const CHECK_TYPES = [
+    ["truthy", "Truthy"], ["not_truthy", "Not Truthy"],
+    ["equals", "Equals"], ["not_equals", "Not Equals"],
+    ["greater_than", "Greater Than"], ["less_than", "Less Than"],
+    ["range", "Range"], ["regex", "Regex"], ["contains", "Contains"],
+    ["exists", "Exists"], ["not_exists", "Not Exists"],
+];
+
+const PRED_TYPES = [["check", "Check"], ["and", "AND"], ["or", "OR"], ["not", "NOT"]];
+const SEVERITY_TYPES = [["error", "Error"], ["warning", "Warning"], ["info", "Info"]];
+
 class PredicateBlock {
-    constructor(data, { onDirty, onRemove, getGame }) {
+    constructor(data, { onDirty, getGame }) {
         this.onDirty = onDirty;
-        this.onRemove = onRemove || (() => {});
         this.getGame = getGame;
-        this.children = [];
-        this.child = null;
-        this.type = (data && data.type) || "check";
 
         this.el = document.createElement("div");
         this.el.className = "predicate-block";
+        this.el._pred = this;
 
-        const header = document.createElement("div");
-        header.className = "predicate-header";
-
-        this.typeSelect = document.createElement("select");
-        this.typeSelect.className = "pred-type";
-        for (const [val, label] of [["check", "Check"], ["and", "AND"], ["or", "OR"], ["not", "NOT"]]) {
-            const opt = document.createElement("option");
-            opt.value = val;
-            opt.textContent = label;
-            this.typeSelect.appendChild(opt);
-        }
-        this.typeSelect.value = this.type;
-        let prevType = this.type;
+        this.typeSelect = selectEl("pred-type", PRED_TYPES, (data && data.type) || "check");
+        let prevType = this.typeSelect.value;
         this.typeSelect.addEventListener("focus", () => { prevType = this.typeSelect.value; });
         this.typeSelect.addEventListener("change", () => {
             this._onTypeChange(prevType);
             prevType = this.typeSelect.value;
         });
 
-        const removeBtn = document.createElement("button");
-        removeBtn.className = "danger small pred-remove";
-        removeBtn.textContent = "x";
-        removeBtn.onclick = () => { this.el.remove(); this.onRemove(); this.onDirty(); };
-
-        header.append(this.typeSelect, removeBtn);
+        const removeBtn = h("button", { className: "danger small pred-remove", onclick: () => { this.el.remove(); this.onDirty(); } }, "x");
 
         this.body = document.createElement("div");
         this.body.className = "pred-body";
 
-        this.el.append(header, this.body);
+        this.el.append(
+            h("div", { className: "predicate-header" }, this.typeSelect, removeBtn),
+            this.body,
+        );
         this._renderBody(data);
     }
 
@@ -142,7 +140,6 @@ class PredicateBlock {
             existing = this.gather();
             this.typeSelect.value = newType;
         }
-        this.type = newType;
 
         const isGroup = (t) => t === "and" || t === "or";
         if (existing && isGroup(newType) && isGroup(oldType)) {
@@ -158,54 +155,33 @@ class PredicateBlock {
     }
 
     _renderBody(data) {
-        this.body.innerHTML = "";
-        this.children = [];
-        this.child = null;
-
-        if (this.type === "check") {
+        this.body.replaceChildren();
+        const type = this.typeSelect.value;
+        if (type === "check") {
             this._renderCheck(data);
-        } else if (this.type === "and" || this.type === "or") {
+        } else if (type === "and" || type === "or") {
             this._renderGroup(data);
-        } else if (this.type === "not") {
+        } else if (type === "not") {
             this._renderNot(data);
         }
     }
 
     _renderCheck(data) {
         const d = data || {};
-        this.body.innerHTML = `
-            <div class="field-group">
-                <div class="field">
-                    <span>Path</span>
-                    <input type="text" class="check-path" value="${esc(d.path || '')}" size="20">
-                </div>
-                <div class="field">
-                    <span>Check</span>
-                    <select class="check-type">
-                        <option value="truthy">Truthy</option>
-                        <option value="not_truthy">Not Truthy</option>
-                        <option value="equals">Equals</option>
-                        <option value="not_equals">Not Equals</option>
-                        <option value="greater_than">Greater Than</option>
-                        <option value="less_than">Less Than</option>
-                        <option value="range">Range</option>
-                        <option value="regex">Regex</option>
-                        <option value="contains">Contains</option>
-                        <option value="exists">Exists</option>
-                        <option value="not_exists">Not Exists</option>
-                    </select>
-                </div>
-                <span class="check-params"></span>
-            </div>
-        `;
-        const checkTypeSel = this.body.querySelector(".check-type");
-        checkTypeSel.addEventListener("change", () => this._renderCheckParams(checkTypeSel));
+        const pathInput = h("input", { type: "text", className: "check-path", value: d.path || "", size: "20" });
+        const checkTypeSel = selectEl("check-type", CHECK_TYPES, d.check?.type);
+        const params = h("span", { className: "check-params" });
 
-        const pathInput = this.body.querySelector(".check-path");
+        this.body.append(h("div", { className: "field-group" },
+            field("Path", pathInput),
+            field("Check", checkTypeSel),
+            params,
+        ));
+
+        checkTypeSel.addEventListener("change", () => this._renderCheckParams(checkTypeSel));
         pathInput.addEventListener("focus", () => this._autocompletePathFor(pathInput));
 
         if (d.check) {
-            checkTypeSel.value = d.check.type;
             this._renderCheckParams(checkTypeSel, d.check);
         }
     }
@@ -213,23 +189,21 @@ class PredicateBlock {
     _renderCheckParams(sel, data) {
         const params = this.body.querySelector(".check-params");
         const type = sel.value;
-        params.innerHTML = "";
+        params.replaceChildren();
 
         if (type === "equals" || type === "not_equals" || type === "contains") {
-            const v = (data && data.value) || "";
-            params.innerHTML = `<div class="field"><span>Value</span><input type="text" class="check-value" value="${esc(v)}" size="15"></div>`;
-            params.querySelector(".check-value").addEventListener("focus", (e) => this._autocompleteValueFor(e.target));
+            const inp = h("input", { type: "text", className: "check-value", value: (data && data.value) || "", size: "15" });
+            inp.addEventListener("focus", (e) => this._autocompleteValueFor(e.target));
+            params.append(field("Value", inp));
         } else if (type === "greater_than" || type === "less_than") {
-            const v = (data && data.value) || 0;
-            params.innerHTML = `<div class="field"><span>Value</span><input type="number" class="check-value-num" value="${v}"></div>`;
+            params.append(field("Value", h("input", { type: "number", className: "check-value-num", value: (data && data.value) || 0 })));
         } else if (type === "range") {
-            const min = (data && data.min) || 0;
-            const max = (data && data.max) || 0;
-            params.innerHTML = `<div class="field"><span>Min</span><input type="number" class="check-min" value="${min}"></div>
-                                <div class="field"><span>Max</span><input type="number" class="check-max" value="${max}"></div>`;
+            params.append(
+                field("Min", h("input", { type: "number", className: "check-min", value: (data && data.min) || 0 })),
+                field("Max", h("input", { type: "number", className: "check-max", value: (data && data.max) || 0 })),
+            );
         } else if (type === "regex") {
-            const v = (data && data.pattern) || "";
-            params.innerHTML = `<div class="field"><span>Pattern</span><input type="text" class="check-pattern" value="${esc(v)}" size="20"></div>`;
+            params.append(field("Pattern", h("input", { type: "text", className: "check-pattern", value: (data && data.pattern) || "", size: "20" })));
         }
     }
 
@@ -237,9 +211,8 @@ class PredicateBlock {
         const game = this.getGame();
         if (!game) return;
         const options = await getOptionsForGame(game);
-        const dlId = `dl-path-${Date.now()}`;
-        input.setAttribute("list", dlId);
-        ensureDatalist(dlId, options.map(o => o.name));
+        input.setAttribute("list", "dl-path");
+        ensureDatalist("dl-path", options.map(o => o.name));
     }
 
     async _autocompleteValueFor(input) {
@@ -251,52 +224,42 @@ class PredicateBlock {
         const optDef = options.find(o => o.name === pathInput.value);
         if (!optDef) return;
         const values = optDef.choices || optDef.suggestions || optDef.valid_keys;
-        const dlId = `dl-value-${Date.now()}`;
-        input.setAttribute("list", dlId);
-        ensureDatalist(dlId, values);
+        input.setAttribute("list", "dl-value");
+        ensureDatalist("dl-value", values);
     }
 
     _renderGroup(data) {
-        const childrenEl = document.createElement("div");
-        childrenEl.className = "pred-children";
-        const addBtn = document.createElement("button");
-        addBtn.textContent = "+ Add";
-        addBtn.onclick = () => {
-            const child = new PredicateBlock(null, {
+        const childrenEl = h("div", { className: "pred-children" });
+        const addBtn = h("button", { onclick: () => {
+            childrenEl.appendChild(new PredicateBlock(null, {
                 onDirty: this.onDirty, getGame: this.getGame,
-                onRemove: () => { this.children = this.children.filter(c => c !== child); },
-            });
-            this.children.push(child);
-            childrenEl.appendChild(child.el);
+            }).el);
             this.onDirty();
-        };
+        }}, "+ Add");
         this.body.append(childrenEl, addBtn);
 
         if (data && data.predicates) {
             for (const p of data.predicates) {
                 const child = new PredicateBlock(p, {
                     onDirty: this.onDirty, getGame: this.getGame,
-                    onRemove: () => { this.children = this.children.filter(c => c !== child); },
                 });
-                this.children.push(child);
                 childrenEl.appendChild(child.el);
             }
         }
     }
 
     _renderNot(data) {
-        const inner = document.createElement("div");
-        inner.className = "pred-inner";
-        this.body.appendChild(inner);
-        this.child = new PredicateBlock(
+        const inner = h("div", { className: "pred-inner" });
+        inner.appendChild(new PredicateBlock(
             data && data.predicate ? data.predicate : null,
             { onDirty: this.onDirty, getGame: this.getGame },
-        );
-        inner.appendChild(this.child.el);
+        ).el);
+        this.body.appendChild(inner);
     }
 
     gather() {
-        if (this.type === "check") {
+        const type = this.typeSelect.value;
+        if (type === "check") {
             const path = this.body.querySelector(".check-path").value;
             const checkType = this.body.querySelector(".check-type").value;
             const check = { type: checkType };
@@ -311,10 +274,12 @@ class PredicateBlock {
                 check.pattern = this.body.querySelector(".check-pattern").value;
             }
             return { type: "check", path, check };
-        } else if (this.type === "and" || this.type === "or") {
-            return { type: this.type, predicates: this.children.map(c => c.gather()) };
-        } else if (this.type === "not") {
-            return { type: "not", predicate: this.child ? this.child.gather() : null };
+        } else if (type === "and" || type === "or") {
+            const children = this.body.querySelectorAll(":scope > .pred-children > .predicate-block");
+            return { type, predicates: Array.from(children).map(el => el._pred.gather()) };
+        } else if (type === "not") {
+            const child = this.body.querySelector(":scope > .pred-inner > .predicate-block");
+            return { type: "not", predicate: child ? child._pred.gather() : null };
         }
     }
 
@@ -334,191 +299,123 @@ class PredicateBlock {
     }
 }
 
-function buildRuleForm(container, { name, game, severity, whenData, thenData, predCallbacks, predTarget }) {
-    container.innerHTML = `
-        <div class="field-group">
-            <div class="field">
-                <span>Name</span>
-                <input type="text" class="rule-name" value="${esc(name || '')}" placeholder="Rule name" size="25">
-            </div>
-            <div class="field">
-                <span>Game</span>
-                <input type="text" class="rule-game" value="${esc(game || '')}" placeholder="(all games)" size="15" list="dl-games">
-            </div>
-            <div class="field">
-                <span>Severity</span>
-                <select class="rule-severity">
-                    <option value="error" ${severity === 'error' ? 'selected' : ''}>Error</option>
-                    <option value="warning" ${severity === 'warning' ? 'selected' : ''}>Warning</option>
-                    <option value="info" ${severity === 'info' ? 'selected' : ''}>Info</option>
-                </select>
-            </div>
-        </div>
-        <div class="rule-section">
-            <div class="rule-section-header">
-                <strong>When</strong> <span class="hint">(optional condition)</span>
-            </div>
-            <div class="when-container"></div>
-        </div>
-        <div class="rule-section">
-            <div class="rule-section-header">
-                <strong>Then</strong> <span class="hint">(alerts when met)</span>
-            </div>
-            <div class="then-container"></div>
-        </div>
-    `;
+function buildRuleForm(container, { name, game, severity, whenData, thenData, predCallbacks }) {
+    container.replaceChildren(
+        h("div", { className: "field-group" },
+            field("Name", h("input", { type: "text", className: "rule-name", value: name || "", placeholder: "Rule name", size: "25" })),
+            field("Game", h("input", { type: "text", className: "rule-game", value: game || "", placeholder: "(all games)", size: "15", list: "dl-games" })),
+            field("Severity", selectEl("rule-severity", SEVERITY_TYPES, severity || "error")),
+        ),
+    );
 
-    const target = predTarget || { whenPred: null, thenPred: null };
-
-    for (const [which, btnText, data] of [["when", "+ Set Condition", whenData], ["then", "+ Set Check", thenData]]) {
-        const cont = container.querySelector(`.${which}-container`);
-        const header = cont.closest(".rule-section").querySelector(".rule-section-header");
-        const btn = document.createElement("button");
-        btn.className = "small";
-        btn.textContent = btnText;
-        header.appendChild(btn);
-
-        const key = which + "Pred";
-        const onRemove = () => { target[key] = null; };
-        const cb = { ...predCallbacks, onRemove };
+    for (const [which, label, hint, btnText, data] of [
+        ["when", "When", "(optional condition)", "+ Set Condition", whenData],
+        ["then", "Then", "(alerts when met)", "+ Set Check", thenData],
+    ]) {
+        const cont = h("div", { className: `${which}-container` });
+        const btn = h("button", { className: "small" }, btnText);
         btn.onclick = () => {
-            if (target[key]) { showToast("Already set. Remove it first or use AND/OR."); return; }
-            target[key] = new PredicateBlock(null, cb);
-            cont.appendChild(target[key].el);
+            if (cont.querySelector(".predicate-block")) { showToast("Already set. Remove it first or use AND/OR."); return; }
+            const pred = new PredicateBlock(null, predCallbacks);
+            cont.appendChild(pred.el);
             if (predCallbacks.onDirty) predCallbacks.onDirty();
         };
 
+        container.append(h("div", { className: "rule-section" },
+            h("div", { className: "rule-section-header" },
+                h("strong", null, label), " ", h("span", { className: "hint" }, hint), btn,
+            ),
+            cont,
+        ));
+
         if (data) {
-            target[key] = new PredicateBlock(data, cb);
-            cont.appendChild(target[key].el);
+            cont.appendChild(new PredicateBlock(data, predCallbacks).el);
         }
     }
-
-    return target;
 }
 
 class RuleEditor {
-    constructor({ serverId, name, game, severity, when, then, lastEditedByName, lastEditedAt, dirty }) {
+    constructor({ serverId, name, game, severity, when, then, lastEditedByName, lastEditedAt, dirty, onClone, onDelete }) {
         this.serverId = serverId;
-        this.name = name;
-        this.game = game;
-        this.severity = severity;
-        this.whenData = when;
-        this.thenData = then;
         this.lastEditedByName = lastEditedByName || null;
         this.lastEditedAt = lastEditedAt || null;
         this.dirty = dirty || false;
-        this.whenPred = null;
-        this.thenPred = null;
         this.open = false;
+        this.onClone = onClone || (() => {});
+        this.onDelete = onDelete || (() => {});
 
         this.el = document.createElement("div");
-        this._build();
+        this._build({ name, game, severity, when, then });
     }
 
-    _build() {
-        this.el.innerHTML = "";
-        this.whenPred = null;
-        this.thenPred = null;
+    _build({ name, game, severity, when, then }) {
+        this.el.replaceChildren();
 
         this.row = document.createElement("div");
         this.row.className = "rule-row";
-        this._buildRow();
+        this._buildRow({ name, severity });
 
         this.editor = document.createElement("div");
         this.editor.className = "rule-editor" + (this.open ? " open" : "");
-        this._buildEditor();
+        this._buildEditor({ name, game, severity, when, then });
 
         this.el.append(this.row, this.editor);
     }
 
-    _buildRow() {
-        let editTitle = "";
-        if (this.lastEditedByName) {
-            editTitle = `Last edited by ${this.lastEditedByName}`;
-            if (this.lastEditedAt) editTitle += ` on ${this.lastEditedAt}`;
-        }
-
-        this.row.innerHTML = `
-            <span class="unsaved-badge" style="display:none">unsaved</span>
-            <span class="rule-name-label" ${editTitle ? `title="${esc(editTitle)}"` : ''}>${esc(this.name)}</span>
-            <span class="severity-badge ${this.severity}">${this.severity}</span>
-            <span class="rule-actions"></span>
-        `;
-
-        const actions = this.row.querySelector(".rule-actions");
-        const cloneBtn = document.createElement("button");
-        cloneBtn.className = "small";
-        cloneBtn.textContent = "Clone";
-        cloneBtn.onclick = (e) => { e.stopPropagation(); this.onClone(); };
-
-        const deleteBtn = document.createElement("button");
-        deleteBtn.className = "small danger";
-        deleteBtn.textContent = "x";
-        deleteBtn.onclick = (e) => { e.stopPropagation(); this.onDelete(); };
-
-        actions.append(cloneBtn, deleteBtn);
+    _buildRow({ name, severity }) {
+        this.row.replaceChildren(
+            h("span", { className: "unsaved-badge", style: "display:none" }, "unsaved"),
+            h("span", { className: "rule-name-label", title: editInfoText(this.lastEditedByName, this.lastEditedAt) }, name),
+            h("span", { className: `severity-badge ${severity}` }, severity),
+            h("span", { className: "rule-actions" },
+                h("button", { className: "small", onclick: (e) => { e.stopPropagation(); this.onClone(); } }, "Clone"),
+                h("button", { className: "small danger", onclick: (e) => { e.stopPropagation(); this.onDelete(); } }, "x"),
+            ),
+        );
         this.row.onclick = () => this.toggle();
     }
 
-    _buildEditor() {
-        const predCallbacks = { onDirty: () => this.markDirty(), getGame: () => this.game };
+    _buildEditor({ name, game, severity, when, then }) {
+        const predCallbacks = {
+            onDirty: () => this.markDirty(),
+            getGame: () => this.editor.querySelector(".rule-game").value.trim() || null,
+        };
         buildRuleForm(this.editor, {
-            name: this.name, game: this.game, severity: this.severity,
-            whenData: this.whenData, thenData: this.thenData,
-            predCallbacks, predTarget: this,
+            name, game, severity,
+            whenData: when, thenData: then,
+            predCallbacks,
         });
 
         const nameInput = this.editor.querySelector(".rule-name");
         const gameInput = this.editor.querySelector(".rule-game");
         const sevSelect = this.editor.querySelector(".rule-severity");
 
-        nameInput.addEventListener("change", () => { this._syncFromEditor(); this._updateRow(); });
-        gameInput.addEventListener("change", () => { this._syncFromEditor(); this._updateRow(); renderAll(); });
-        sevSelect.addEventListener("change", () => { this._syncFromEditor(); this._updateRow(); });
+        nameInput.addEventListener("change", () => this._updateRow());
+        gameInput.addEventListener("change", () => { this._updateRow(); renderAll(); });
+        sevSelect.addEventListener("change", () => this._updateRow());
 
-        const footer = document.createElement("div");
-        footer.className = "rule-footer";
-        this.saveBtn = document.createElement("button");
-        this.saveBtn.className = "primary small";
-        this.saveBtn.textContent = "Save rule";
-        this.saveBtn.disabled = !this.dirty;
-        this.saveBtn.onclick = (e) => { e.stopPropagation(); this.save(); };
-        footer.appendChild(this.saveBtn);
+        this.saveBtn = h("button", {
+            className: "primary small",
+            disabled: !this.dirty,
+            onclick: (e) => { e.stopPropagation(); this.save(); },
+        }, "Save rule");
 
-        if (this.lastEditedByName) {
-            const info = document.createElement("span");
-            info.className = "edit-info";
-            info.textContent = `Last edited by ${this.lastEditedByName}${this.lastEditedAt ? ` on ${this.lastEditedAt}` : ''}`;
-            footer.appendChild(info);
-        }
+        const footer = h("div", { className: "rule-footer" }, this.saveBtn);
+        const info = editInfoText(this.lastEditedByName, this.lastEditedAt);
+        if (info) footer.append(h("span", { className: "edit-info" }, info));
 
-        this.editor.appendChild(footer);
+        this.editor.append(footer);
         this.editor.addEventListener("input", () => this.markDirty());
         this.editor.addEventListener("change", () => this.markDirty());
     }
 
     _updateRow() {
+        const name = this.editor.querySelector(".rule-name").value;
+        const severity = this.editor.querySelector(".rule-severity").value;
         const label = this.row.querySelector(".rule-name-label");
-        if (label) label.textContent = this.name;
+        if (label) label.textContent = name;
         const badge = this.row.querySelector(".severity-badge");
-        if (badge) { badge.className = `severity-badge ${this.severity}`; badge.textContent = this.severity; }
-    }
-
-    _syncFromEditor() {
-        this.whenData = this.whenPred ? this.whenPred.gather() : null;
-        this.thenData = this.thenPred ? this.thenPred.gather() : null;
-        this.name = this.editor.querySelector(".rule-name").value;
-        this.game = this.editor.querySelector(".rule-game").value || null;
-        this.severity = this.editor.querySelector(".rule-severity").value;
-        this.dirty = true;
-    }
-
-    _rebuild() {
-        const wasOpen = this.open;
-        this._build();
-        if (wasOpen) this.editor.classList.add("open");
-        this.open = wasOpen;
+        if (badge) { badge.className = `severity-badge ${severity}`; badge.textContent = severity; }
     }
 
     toggle() {
@@ -535,20 +432,21 @@ class RuleEditor {
     }
 
     gather() {
-        const when = this.whenPred ? this.whenPred.gather() : null;
-        const then = this.thenPred ? this.thenPred.gather() : null;
+        const name = this.editor.querySelector(".rule-name").value;
+        const game = this.editor.querySelector(".rule-game").value || null;
+        const severity = this.editor.querySelector(".rule-severity").value;
+        const whenEl = this.editor.querySelector(".when-container > .predicate-block");
+        const thenEl = this.editor.querySelector(".then-container > .predicate-block");
+        const when = whenEl ? whenEl._pred.gather() : null;
+        const then_ = thenEl ? thenEl._pred.gather() : null;
         return {
-            name: this.name,
-            game: this.game,
-            severity: this.severity,
-            when,
-            then: then || { type: "check", path: "", check: { type: "truthy" } },
+            name, game, severity, when,
+            then: then_ || { type: "check", path: "", check: { type: "truthy" } },
         };
     }
 
     async save() {
         if (!this.serverId) return;
-        this._syncFromEditor();
         const ruleData = this.gather();
         const err = PredicateBlock.validate(ruleData.when) || PredicateBlock.validate(ruleData.then);
         if (err) { showToast(err); return; }
@@ -561,19 +459,15 @@ class RuleEditor {
         });
         if (!resp.ok) { showToast("Failed to save rule: " + await resp.text()); return; }
 
-        this.whenData = ruleData.when;
-        this.thenData = ruleData.then;
         this.dirty = false;
         this.lastEditedByName = CURRENT_USERNAME;
-        this.lastEditedAt = new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC";
-        const wasOpen = this.open;
-        this._build();
-        this.open = wasOpen;
-        if (wasOpen) this.editor.classList.add("open");
+        this.lastEditedAt = formatEditTimestamp();
+        this._build({
+            name: ruleData.name, game: ruleData.game, severity: ruleData.severity,
+            when: ruleData.when, then: ruleData.then,
+        });
     }
 
-    onClone() {}
-    onDelete() {}
 }
 
 let editors = [];
@@ -582,13 +476,13 @@ const openGroups = new Set();
 
 function renderAll() {
     const container = document.getElementById("rules-container");
-    container.innerHTML = "";
+    container.replaceChildren();
 
     const grouped = {};
     const globalKey = "__all_games__";
 
     for (const ed of editors) {
-        const key = ed.game || globalKey;
+        const key = ed.editor.querySelector(".rule-game").value.trim() || globalKey;
         if (!grouped[key]) grouped[key] = [];
         grouped[key].push(ed);
     }
@@ -604,54 +498,37 @@ function renderAll() {
         const groupEditors = grouped[key];
         const isOpen = openGroups.has(key);
 
-        const group = document.createElement("div");
-        group.className = "game-group" + (isOpen ? " open" : "");
+        const group = h("div", { className: "game-group" + (isOpen ? " open" : "") });
 
-        const header = document.createElement("div");
-        header.className = "game-group-header";
-        header.innerHTML = `<span class="toggle"></span><span class="game-label">${esc(label)}</span><span class="rule-count">${groupEditors.length} rule${groupEditors.length !== 1 ? 's' : ''}</span>`;
-        header.onclick = () => {
+        const header = h("div", { className: "game-group-header", onclick: () => {
             group.classList.toggle("open");
             if (group.classList.contains("open")) openGroups.add(key);
             else openGroups.delete(key);
-        };
-        group.appendChild(header);
+        }},
+            h("span", { className: "toggle" }),
+            h("span", { className: "game-label" }, label),
+            h("span", { className: "rule-count" }, `${groupEditors.length} rule${groupEditors.length !== 1 ? 's' : ''}`),
+        );
 
-        const body = document.createElement("div");
-        body.className = "game-group-body";
+        const body = h("div", { className: "game-group-body" });
         for (const ed of groupEditors) body.appendChild(ed.el);
-        group.appendChild(body);
+        group.append(header, body);
 
         container.appendChild(group);
     }
 }
 
-function wireEditor(ed) {
-    ed.onClone = () => cloneEditor(ed);
-    ed.onDelete = () => deleteEditor(ed);
-}
-
-const addFormState = { whenPred: null, thenPred: null };
-
 function initAddRuleForm() {
-    addFormState.whenPred = null;
-    addFormState.thenPred = null;
     const form = document.getElementById("add-rule-form");
     const gameGetter = () => form.querySelector(".rule-game").value.trim() || null;
     buildRuleForm(form, {
         name: "", game: null, severity: "error",
         whenData: null, thenData: null,
         predCallbacks: { onDirty: () => {}, getGame: gameGetter },
-        predTarget: addFormState,
     });
-    const footer = document.createElement("div");
-    footer.className = "field field-end";
-    const btn = document.createElement("button");
-    btn.className = "accent";
-    btn.textContent = "+ Add Rule";
-    btn.onclick = addNewRule;
-    footer.appendChild(btn);
-    form.appendChild(footer);
+    form.append(h("div", { className: "field field-end" },
+        h("button", { className: "accent", onclick: addNewRule }, "+ Add Rule"),
+    ));
 }
 
 async function addNewRule() {
@@ -660,8 +537,10 @@ async function addNewRule() {
     const game = form.querySelector(".rule-game").value.trim() || null;
     const severity = form.querySelector(".rule-severity").value;
 
-    const whenData = addFormState.whenPred ? addFormState.whenPred.gather() : null;
-    const thenData = addFormState.thenPred ? addFormState.thenPred.gather() : null;
+    const whenEl = form.querySelector(".when-container > .predicate-block");
+    const thenEl = form.querySelector(".then-container > .predicate-block");
+    const whenData = whenEl ? whenEl._pred.gather() : null;
+    const thenData = thenEl ? thenEl._pred.gather() : null;
     const ruleData = { name, game, severity, when: whenData, then: thenData || { type: "check", path: "", check: { type: "truthy" } } };
 
     const err = PredicateBlock.validate(ruleData.when) || PredicateBlock.validate(ruleData.then);
@@ -675,13 +554,12 @@ async function addNewRule() {
     if (!resp.ok) { showToast("Failed to create rule: " + await resp.text()); return; }
     const created = await resp.json();
 
-    const ed = new RuleEditor({
+    const ed = newEditor({
         serverId: created.id, name, game, severity,
         when: whenData, then: ruleData.then,
         lastEditedByName: CURRENT_USERNAME,
-        lastEditedAt: new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC",
+        lastEditedAt: formatEditTimestamp(),
     });
-    wireEditor(ed);
     editors.push(ed);
 
     openGroups.add(game || "__all_games__");
@@ -691,7 +569,8 @@ async function addNewRule() {
 }
 
 function deleteEditor(ed) {
-    confirmDelete(ed.name, async () => {
+    const name = ed.row.querySelector(".rule-name-label").textContent;
+    confirmDelete(name, async () => {
         if (ed.serverId) {
             const resp = await fetch(`/api/presets/${PRESET_ID}/rules/${ed.serverId}`, { method: "DELETE" });
             if (!resp.ok) { showToast("Failed to delete rule: " + await resp.text()); return; }
@@ -702,7 +581,6 @@ function deleteEditor(ed) {
 }
 
 async function cloneEditor(original) {
-    original._syncFromEditor();
     const data = original.gather();
     const idx = editors.indexOf(original);
 
@@ -714,7 +592,7 @@ async function cloneEditor(original) {
     if (!resp.ok) { showToast("Failed to clone rule: " + await resp.text()); return; }
     const created = await resp.json();
 
-    const ed = new RuleEditor({
+    const ed = newEditor({
         serverId: created.id,
         name: data.name + " (copy)",
         game: data.game,
@@ -722,16 +600,24 @@ async function cloneEditor(original) {
         when: data.when ? JSON.parse(JSON.stringify(data.when)) : null,
         then: data.then ? JSON.parse(JSON.stringify(data.then)) : null,
     });
-    wireEditor(ed);
     editors.splice(idx + 1, 0, ed);
     renderAll();
     ed.toggle();
 }
 
+function newEditor(opts) {
+    const ed = new RuleEditor({
+        ...opts,
+        onClone: () => cloneEditor(ed),
+        onDelete: () => deleteEditor(ed),
+    });
+    return ed;
+}
+
 function loadRulesFromJSON(jsonRules) {
     editors = [];
     for (const r of jsonRules) {
-        const ed = new RuleEditor({
+        editors.push(newEditor({
             serverId: r.id,
             name: r.rule.name,
             game: r.rule.game,
@@ -740,9 +626,7 @@ function loadRulesFromJSON(jsonRules) {
             then: r.rule.then,
             lastEditedByName: r.last_edited_by_name || null,
             lastEditedAt: r.last_edited_at || null,
-        });
-        wireEditor(ed);
-        editors.push(ed);
+        }));
     }
     renderAll();
 }
@@ -785,15 +669,12 @@ async function loadBuiltinRulesList() {
     if (!resp.ok) return;
     const builtinRules = await resp.json();
     const container = document.getElementById("builtin-rules");
-    container.innerHTML = "";
+    container.replaceChildren();
     for (const r of builtinRules) {
-        const div = document.createElement("div");
-        div.className = "builtin-toggle";
-        div.innerHTML = `<label><input type="checkbox" data-id="${r.id}"> <strong>${esc(r.name)}</strong> - ${esc(r.description)}</label>`;
-        container.appendChild(div);
-    }
-    for (const cb of container.querySelectorAll("input[type=checkbox]")) {
-        cb.checked = INITIAL_BUILTINS.includes(cb.dataset.id);
+        const cb = h("input", { type: "checkbox", "data-id": r.id, checked: INITIAL_BUILTINS.includes(r.id) });
+        container.append(h("div", { className: "builtin-toggle" },
+            h("label", null, cb, " ", h("strong", null, r.name), " - ", r.description),
+        ));
     }
     container.addEventListener("change", () => {
         document.getElementById("builtin-save-btn").disabled = false;
