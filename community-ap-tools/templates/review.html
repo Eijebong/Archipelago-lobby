@@ -392,9 +392,19 @@ async function showYamlModal(yamlId) {
     const codeEl = h("code", { className: "language-yaml" }, "Loading...");
     const viewerDiv = h("div", { className: "yaml-viewer" }, h("pre", null, codeEl));
 
+    const titleActions = [];
+    if (IS_CLOSED) {
+        titleActions.push(h("button", { className: "small accent", onclick: () => enterEditMode(yamlId) }, "Edit"));
+        titleActions.push(h("button", { className: "small danger", onclick: () => confirmDeleteYaml(yamlId) }, "Delete"));
+    }
+
     mc.replaceChildren(
-        h("h3", null, yaml.player_name + " ", renderStatusSelect(yaml.yaml_id, "status-modal")),
-        h("div", { className: "subtitle" }, yaml.game),
+        h("h3", null,
+            yaml.player_name + " ",
+            renderStatusSelect(yaml.yaml_id, "status-modal"),
+            ...titleActions,
+        ),
+        h("div", { className: "subtitle" }, yaml.game + " - @" + yaml.discord_handle),
         ...renderResultItems(yaml.results),
         viewerDiv,
     );
@@ -403,10 +413,6 @@ async function showYamlModal(yamlId) {
     const buttons = [
         h("a", { href: yamlUrl, target: "_blank", className: "button" }, "Download"),
     ];
-    if (IS_CLOSED) {
-        buttons.push(h("button", { className: "accent", onclick: () => enterEditMode(yamlId) }, "Edit"));
-        buttons.push(h("button", { className: "danger", onclick: () => confirmDeleteYaml(yamlId) }, "Delete"));
-    }
     buttons.push(h("button", { onclick: hideYamlModal }, "Close"));
     document.getElementById("yaml-modal-buttons").replaceChildren(...buttons);
     document.getElementById("yaml-modal").classList.add("open");
