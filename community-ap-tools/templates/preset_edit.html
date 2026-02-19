@@ -113,6 +113,7 @@ class PredicateBlock {
         this.el._pred = this;
 
         this.typeSelect = selectEl("pred-type", PRED_TYPES, (data && data.type) || "check");
+        this._applyTypeClass();
         let prevType = this.typeSelect.value;
         this.typeSelect.addEventListener("focus", () => { prevType = this.typeSelect.value; });
         this.typeSelect.addEventListener("change", () => {
@@ -130,6 +131,14 @@ class PredicateBlock {
             this.body,
         );
         this._renderBody(data);
+    }
+
+    _applyTypeClass() {
+        this.el.classList.remove("pred-type-and", "pred-type-or", "pred-type-not");
+        const type = this.typeSelect.value;
+        if (type === "and" || type === "or" || type === "not") {
+            this.el.classList.add(`pred-type-${type}`);
+        }
     }
 
     _onTypeChange(oldType) {
@@ -151,6 +160,7 @@ class PredicateBlock {
         } else {
             this._renderBody();
         }
+        this._applyTypeClass();
         this.onDirty();
     }
 
@@ -230,21 +240,33 @@ class PredicateBlock {
 
     _renderGroup(data) {
         const childrenEl = h("div", { className: "pred-children" });
+
+        const refreshSeparators = () => {
+            childrenEl.querySelectorAll(":scope > .pred-separator").forEach(s => s.remove());
+            const blocks = childrenEl.querySelectorAll(":scope > .predicate-block");
+            for (let i = 1; i < blocks.length; i++) {
+                blocks[i].before(h("div", { className: "pred-separator" },
+                    h("span", null, this.typeSelect.value),
+                ));
+            }
+        };
+
+        const childCallbacks = {
+            onDirty: () => { refreshSeparators(); this.onDirty(); },
+            getGame: this.getGame,
+        };
+
         const addBtn = h("button", { onclick: () => {
-            childrenEl.appendChild(new PredicateBlock(null, {
-                onDirty: this.onDirty, getGame: this.getGame,
-            }).el);
+            childrenEl.appendChild(new PredicateBlock(null, childCallbacks).el);
             this.onDirty();
         }}, "+ Add");
         this.body.append(childrenEl, addBtn);
 
         if (data && data.predicates) {
             for (const p of data.predicates) {
-                const child = new PredicateBlock(p, {
-                    onDirty: this.onDirty, getGame: this.getGame,
-                });
-                childrenEl.appendChild(child.el);
+                childrenEl.appendChild(new PredicateBlock(p, childCallbacks).el);
             }
+            refreshSeparators();
         }
     }
 

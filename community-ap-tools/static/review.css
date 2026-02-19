@@ -196,6 +196,9 @@ body:has(dialog[open]) {
 }
 .predicate-block .predicate-block { background: #252525; }
 .predicate-block .predicate-block .predicate-block { background: #2a2a2a; }
+.predicate-block.pred-type-and { border-left: 3px solid #4a9; }
+.predicate-block.pred-type-or { border-left: 3px solid #d93; }
+.predicate-block.pred-type-not { border-left: 3px solid #c44; }
 .predicate-header {
     display: flex;
     align-items: center;
@@ -203,6 +206,27 @@ body:has(dialog[open]) {
     margin-bottom: 8px;
 }
 .pred-remove { margin-left: auto; }
+.pred-separator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 2px 0;
+    user-select: none;
+}
+.pred-separator::before,
+.pred-separator::after {
+    content: "";
+    flex: 1;
+    border-top: 1px solid #444;
+}
+.pred-separator span {
+    font-size: 0.75em;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+.pred-type-and > .pred-body > .pred-children > .pred-separator span { color: #4a9; }
+.pred-type-or > .pred-body > .pred-children > .pred-separator span { color: #d93; }
 
 /* Builtin toggles */
 .builtin-toggle { margin: 6px 0; }
