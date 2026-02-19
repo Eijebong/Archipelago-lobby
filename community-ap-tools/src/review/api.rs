@@ -3,6 +3,7 @@ use chrono::Utc;
 use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::deadpool::Pool as DieselPool;
 use rayon::prelude::*;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use rocket::{State, routes, serde::json::Json};
 use saphyr::{LoadableYamlNode, YamlOwned as Value};
 use serde::{Deserialize, Serialize};
@@ -119,9 +120,12 @@ struct LobbyYamlDetail {
     content: String,
     game: String,
     player_name: String,
+    edited_content: Option<String>,
+    last_edited_by_name: Option<String>,
+    last_edited_at: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 struct BulkYamlInfo {
     id: Uuid,
     player_name: String,
@@ -129,6 +133,8 @@ struct BulkYamlInfo {
     game: String,
     content: String,
     created_at: String,
+    last_edited_by_name: Option<String>,
+    last_edited_at: Option<String>,
 }
 
 #[rocket::post("/review/<room_id>/evaluate", data = "<body>")]
@@ -604,6 +610,69 @@ async fn set_review_status(
     }))
 }
 
+#[derive(Deserialize)]
+struct EditYamlProxyRequest {
+    content: String,
+}
+
+#[derive(Serialize)]
+struct EditYamlLobbyRequest {
+    content: String,
+    edited_by: i64,
+    edited_by_name: String,
+}
+
+#[rocket::put("/review/<room_id>/yaml/<yaml_id>/edit", data = "<body>")]
+async fn proxy_yaml_edit(
+    session: LoggedInSession,
+    room_id: &str,
+    yaml_id: &str,
+    body: Json<EditYamlProxyRequest>,
+    config: &State<Config>,
+) -> crate::error::Result<Json<serde_json::Value>> {
+    let room_id: Uuid = room_id.parse().map_err(|_| anyhow!("Invalid room ID"))?;
+    let yaml_id: Uuid = yaml_id.parse().map_err(|_| anyhow!("Invalid YAML ID"))?;
+
+    if room_id != config.lobby_room_id {
+        return Err(anyhow!("Editing YAMLs is only allowed for the configured room").into());
+    }
+
+    let req = body.into_inner();
+    let lobby_req = EditYamlLobbyRequest {
+        content: req.content,
+        edited_by: session.user_id(),
+        edited_by_name: session.username().to_string(),
+    };
+
+    let client = reqwest::Client::new();
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("x-api-key"),
+        HeaderValue::from_str(&config.lobby_api_key)?,
+    );
+
+    let url = config
+        .lobby_root_url
+        .join(&format!("/api/room/{}/yaml/{}/edit", room_id, yaml_id))?;
+
+    let response = client
+        .put(url)
+        .headers(headers)
+        .json(&lobby_req)
+        .send()
+        .await?;
+
+    let status = response.status();
+    let text = response.text().await?;
+
+    if !status.is_success() {
+        return Err(anyhow!("{}", text).into());
+    }
+
+    let data: serde_json::Value = serde_json::from_str(&text)?;
+    Ok(Json(data))
+}
+
 pub fn routes() -> Vec<rocket::Route> {
     routes![
         list_presets,
@@ -625,5 +694,6 @@ pub fn routes() -> Vec<rocket::Route> {
         proxy_yaml_content,
         get_review_statuses,
         set_review_status,
+        proxy_yaml_edit,
     ]
 }

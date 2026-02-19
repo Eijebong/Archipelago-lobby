@@ -396,7 +396,7 @@ pub async fn download_yamls<'a>(
         }
         writer.start_file(original_file_name.clone(), options)?;
         emitted_names.insert(original_file_name.to_lowercase());
-        writer.write_all(yaml.content.as_bytes())?;
+        writer.write_all(yaml.current_content().as_bytes())?;
     }
 
     let res = writer.finish()?;

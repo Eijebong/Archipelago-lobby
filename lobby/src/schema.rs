@@ -119,6 +119,10 @@ diesel::table! {
         patch -> Nullable<Varchar>,
         bundle_id -> SqlBundleId,
         password -> Nullable<Varchar>,
+        edited_content -> Nullable<Text>,
+        last_edited_by -> Nullable<Int8>,
+        last_edited_by_name -> Nullable<Varchar>,
+        last_edited_at -> Nullable<Timestamp>,
     }
 }
 

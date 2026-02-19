@@ -51,6 +51,11 @@ pub struct Yaml {
     pub bundle_id: BundleId,
     #[serde(skip)]
     pub password: Option<String>,
+    pub edited_content: Option<String>,
+    #[serde(skip)]
+    pub last_edited_by: Option<i64>,
+    pub last_edited_by_name: Option<String>,
+    pub last_edited_at: Option<NaiveDateTime>,
 }
 
 #[derive(Clone, Debug, Selectable, Queryable)]
@@ -66,6 +71,7 @@ pub struct YamlWithoutContent {
     pub bundle_id: BundleId,
     pub password: Option<String>,
     pub created_at: NaiveDateTime,
+    pub last_edited_by_name: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -284,7 +290,10 @@ pub async fn update_yaml_password(
 
 impl YamlBundle {
     pub fn as_yaml(&self) -> String {
-        self.yamls.iter().map(|yaml| &yaml.content).join("\n---\n")
+        self.yamls
+            .iter()
+            .map(|yaml| yaml.current_content())
+            .join("\n---\n")
     }
 
     pub fn file_name(&self) -> String {
@@ -300,6 +309,44 @@ impl Yaml {
     pub fn sanitized_name(&self) -> String {
         sanitize_yaml_name(&self.player_name)
     }
+
+    pub fn current_content(&self) -> &str {
+        self.edited_content.as_deref().unwrap_or(&self.content)
+    }
+}
+
+#[tracing::instrument(skip(conn))]
+pub async fn update_yaml_edited_content(
+    yaml_id: YamlId,
+    edited_content: &str,
+    game: &str,
+    player_name: &str,
+    features: Json<YamlFeatures>,
+    validation_status: YamlValidationStatus,
+    apworlds: Vec<(String, Version)>,
+    last_error: Option<String>,
+    last_edited_by: i64,
+    last_edited_by_name: &str,
+    last_edited_at: NaiveDateTime,
+    conn: &mut AsyncPgConnection,
+) -> Result<()> {
+    diesel::update(yamls::table.find(yaml_id))
+        .set((
+            yamls::edited_content.eq(Some(edited_content)),
+            yamls::game.eq(game),
+            yamls::player_name.eq(player_name),
+            yamls::features.eq(features),
+            yamls::validation_status.eq(validation_status),
+            yamls::apworlds.eq(apworlds),
+            yamls::last_error.eq(last_error),
+            yamls::last_edited_by.eq(Some(last_edited_by)),
+            yamls::last_edited_by_name.eq(Some(last_edited_by_name)),
+            yamls::last_edited_at.eq(Some(last_edited_at)),
+        ))
+        .execute(conn)
+        .await?;
+
+    Ok(())
 }
 
 impl YamlWithoutContent {

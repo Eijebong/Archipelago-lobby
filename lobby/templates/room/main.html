@@ -156,10 +156,11 @@
                     {% endif %}
                     <span class="player-name" title="@{{ discord_name }}">{{yaml.player_name}}</span>
                     {{yaml.features|yaml_features|safe}}
+                    {% match yaml.last_edited_by_name %}{% when Some with (editor) %}<i class="fa fa-pen-to-square yaml-edited-indicator" title="Edited by {{+ editor }}"></i>{% when None %}{% endmatch %}
                 </span>
             </td>
         {% else %}
-            <td><span><span class="player-name">{{yaml.player_name}}</span> {{yaml.features|yaml_features|safe}}</span></td>
+            <td><span><span class="player-name">{{yaml.player_name}}</span> {{yaml.features|yaml_features|safe}}{% match yaml.last_edited_by_name %}{% when Some with (editor) %} <i class="fa fa-pen-to-square yaml-edited-indicator" title="Edited by {{+ editor }}"></i>{% when None %}{% endmatch %}</span></td>
         {% endif %}
         <td>{{self.get_game_display_name(yaml.game)}}</td>
         <td>

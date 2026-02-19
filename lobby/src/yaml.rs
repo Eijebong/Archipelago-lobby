@@ -249,7 +249,7 @@ fn validate_player_name<'a>(
     Ok(player_name)
 }
 
-fn validate_game(game: &YamlGame) -> Result<String> {
+pub(crate) fn validate_game(game: &YamlGame) -> Result<String> {
     match game {
         YamlGame::Name(name) => Ok(name.clone()),
         YamlGame::Map(map) => {
@@ -276,7 +276,7 @@ pub enum YamlValidationJobResult {
 }
 
 #[tracing::instrument(skip_all)]
-async fn validate_yaml(
+pub(crate) async fn validate_yaml(
     yaml: &str,
     parsed: &YamlFile,
     manifest: &Manifest,
@@ -523,7 +523,8 @@ pub async fn queue_yaml_validation(
     yaml_validation_queue: &State<YamlValidationQueue>,
     conn: &mut AsyncPgConnection,
 ) -> Result<()> {
-    let Ok(parsed) = serde_saphyr::from_str::<YamlFile>(&yaml.content) else {
+    let current = yaml.current_content();
+    let Ok(parsed) = serde_saphyr::from_str::<YamlFile>(current) else {
         log::error!(
             "Internal error, unable to reparse YAML {} that was already parsed before",
             yaml.id
@@ -568,7 +569,7 @@ pub async fn queue_yaml_validation(
 
     let mut params = YamlValidationParams {
         apworlds,
-        yaml: yaml.content.clone(),
+        yaml: current.to_string(),
         otlp_context: HashMap::new(),
         yaml_id: Some(yaml.id),
     };

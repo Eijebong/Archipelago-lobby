@@ -620,6 +620,25 @@ h6
     &:not(:empty)
       padding: 1em
 
+  #yaml-edit-info
+    padding: 0.3em 1em
+    font-size: 0.85em
+    color: #888
+    text-align: center
+    border-bottom: 1px solid #333
+    button
+      background: none
+      border: none
+      box-shadow: none
+      color: hsl(200, 25%, 70%)
+      cursor: pointer
+      padding: 0
+      font-size: inherit
+      font-weight: normal
+      text-decoration: underline
+      &:hover
+        color: #fff
+
   #yaml-content
     padding: 1em
 
@@ -711,6 +730,12 @@ body:has(dialog[open])
     vertical-align: middle
     margin-left: 0.2em
 
+.yaml-edited-indicator
+  color: #6cf
+  margin-left: auto
+  font-size: 0.85em
+  align-self: center
+
 @media (min-width:768px)
   .yamls
     td
@@ -723,6 +748,9 @@ body:has(dialog[open])
 
   .yaml-features
     margin-left: auto
+
+  .yaml-features + .yaml-edited-indicator
+    margin-left: 0
 
 @media (max-width:768px)
   .yamls
@@ -742,6 +770,10 @@ body:has(dialog[open])
         text-align: center
 
       .yaml-features
+        grid-column: -2/2
+        text-align: center
+
+      .yaml-edited-indicator
         grid-column: -2/2
         text-align: center
 

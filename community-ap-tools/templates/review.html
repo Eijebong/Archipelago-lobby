@@ -39,6 +39,7 @@
 const ROOM_ID = "{{ room_id }}";
 const LOBBY_ROOT_URL = "{{ lobby_root_url }}".replace(/\/$/, "");
 const ASSIGNED_PRESET_ID = {% match assigned_preset_id %}{% when Some with (id) %}{{ id }}{% when None %}null{% endmatch %};
+const IS_CLOSED = {{ is_closed }};
 
 const CHECK_LABELS = {
     truthy: "is truthy", not_truthy: "is not truthy", equals: "equals", not_equals: "does not equal",
@@ -58,6 +59,8 @@ let reviewStatuses = {};
 let sortColumn = "status";
 let sortAsc = true;
 let gameFilter = "";
+let currentModalYamlId = null;
+let yamlDetailCache = {};
 
 async function refreshPresetList() {
     const resp = await fetch("/api/presets");
@@ -310,8 +313,12 @@ function renderResults(data) {
     const tbody = h("tbody", null);
     for (const yaml of sorted) {
         const counts = countBySeverity(yaml.results);
+        const playerCell = h("td", null, yaml.player_name);
+        if (yaml.last_edited_by_name) {
+            playerCell.append(" ", h("span", { className: "edited-badge", title: `Edited by ${yaml.last_edited_by_name}` }, "edited"));
+        }
         tbody.append(h("tr", { "data-yaml-id": yaml.yaml_id, "data-game": yaml.game },
-            h("td", null, yaml.player_name),
+            playerCell,
             h("td", null, "@" + yaml.discord_handle),
             h("td", null, yaml.game),
             h("td", { className: "issues" },
@@ -379,35 +386,138 @@ async function showYamlModal(yamlId) {
     const yaml = lastEvalData.yamls.find(y => y.yaml_id === yamlId);
     if (!yaml) return;
 
+    currentModalYamlId = yamlId;
+
     const mc = document.getElementById("yaml-modal-content");
     const codeEl = h("code", { className: "language-yaml" }, "Loading...");
+    const viewerDiv = h("div", { className: "yaml-viewer" }, h("pre", null, codeEl));
 
     mc.replaceChildren(
         h("h3", null, yaml.player_name + " ", renderStatusSelect(yaml.yaml_id, "status-modal")),
         h("div", { className: "subtitle" }, yaml.game),
         ...renderResultItems(yaml.results),
-        h("div", { className: "yaml-viewer" }, h("pre", null, codeEl)),
+        viewerDiv,
     );
 
     const yamlUrl = `${LOBBY_ROOT_URL}/api/room/${ROOM_ID}/download/${yaml.yaml_id}`;
-    document.getElementById("yaml-modal-buttons").replaceChildren(
+    const buttons = [
         h("a", { href: yamlUrl, target: "_blank", className: "button" }, "Download"),
-        h("button", { onclick: hideYamlModal }, "Close"),
-    );
+    ];
+    if (IS_CLOSED) {
+        buttons.push(h("button", { className: "accent", onclick: () => enterEditMode(yamlId) }, "Edit"));
+    }
+    buttons.push(h("button", { onclick: hideYamlModal }, "Close"));
+    document.getElementById("yaml-modal-buttons").replaceChildren(...buttons);
     document.getElementById("yaml-modal").classList.add("open");
 
     try {
         const resp = await fetch(`/api/review/${ROOM_ID}/yaml/${yamlId}`);
         if (!resp.ok) throw new Error(resp.statusText);
         const data = await resp.json();
-        codeEl.textContent = data.content || "";
+        yamlDetailCache[yamlId] = data;
+
+        const displayContent = data.edited_content || data.content || "";
+        codeEl.textContent = displayContent;
         hljs.highlightElement(codeEl);
+
+        if (data.edited_content) {
+            const editInfo = h("div", { className: "edit-info-bar" },
+                h("span", { className: "edited-badge" }, "edited"),
+                data.last_edited_by_name ? ` by ${data.last_edited_by_name}` : "",
+                data.last_edited_at ? ` on ${formatDate(data.last_edited_at)}` : "",
+                " ",
+                h("button", { className: "small", onclick: () => toggleOriginal(yamlId) }, "View original"),
+            );
+            viewerDiv.before(editInfo);
+        }
     } catch (e) {
         codeEl.textContent = "Failed to load YAML content. Maybe it got removed?";
     }
 }
 
+function toggleOriginal(yamlId) {
+    const data = yamlDetailCache[yamlId];
+    if (!data || !data.edited_content) return;
+
+    const mc = document.getElementById("yaml-modal-content");
+    const viewer = mc.querySelector(".yaml-viewer");
+    const oldCode = viewer.querySelector("code");
+    const infoBar = mc.querySelector(".edit-info-bar");
+    const toggleBtn = infoBar.querySelector("button");
+
+    const showingOriginal = toggleBtn.textContent === "View current";
+    const content = showingOriginal ? data.edited_content : data.content;
+    toggleBtn.textContent = showingOriginal ? "View original" : "View current";
+
+    const newCode = h("code", { className: "language-yaml" }, content);
+    oldCode.replaceWith(newCode);
+    hljs.highlightElement(newCode);
+}
+
+function enterEditMode(yamlId) {
+    const data = yamlDetailCache[yamlId];
+    if (!data) { showToast("YAML content not loaded yet"); return; }
+
+    const mc = document.getElementById("yaml-modal-content");
+    const viewer = mc.querySelector(".yaml-viewer");
+    const infoBar = mc.querySelector(".edit-info-bar");
+
+    const currentContent = data.edited_content || data.content || "";
+    const textarea = h("textarea", { className: "yaml-edit-textarea", spellcheck: false }, currentContent);
+    const errorDiv = h("div", { className: "edit-error hidden" });
+
+    const editContainer = h("div", { className: "yaml-edit-container" }, textarea, errorDiv);
+
+    if (infoBar) infoBar.classList.add("hidden");
+    viewer.replaceWith(editContainer);
+
+    document.getElementById("yaml-modal-buttons").replaceChildren(
+        h("button", { className: "primary", onclick: () => saveEdit(yamlId, textarea, errorDiv) }, "Save"),
+        h("button", { onclick: () => cancelEdit(yamlId) }, "Cancel"),
+    );
+}
+
+async function saveEdit(yamlId, textarea, errorDiv) {
+    const content = textarea.value;
+    const saveBtn = document.querySelector("#yaml-modal-buttons .primary");
+    if (saveBtn) saveBtn.disabled = true;
+    errorDiv.classList.add("hidden");
+
+    try {
+        const resp = await fetch(`/api/review/${ROOM_ID}/yaml/${yamlId}/edit`, {
+            method: "PUT",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ content }),
+        });
+
+        if (!resp.ok) {
+            const text = await resp.text();
+            let msg = "Save failed";
+            try { msg = JSON.parse(text)?.error || text || msg; } catch { msg = text || msg; }
+            errorDiv.textContent = msg;
+            errorDiv.classList.remove("hidden");
+            return;
+        }
+
+        showToast("YAML saved successfully", "info");
+
+        delete yamlDetailCache[yamlId];
+        runEvaluation();
+        showYamlModal(yamlId);
+    } catch (e) {
+        errorDiv.textContent = "Network error: " + e.message;
+        errorDiv.classList.remove("hidden");
+    } finally {
+        if (saveBtn) saveBtn.disabled = false;
+    }
+}
+
+function cancelEdit(yamlId) {
+    showYamlModal(yamlId);
+}
+
 function hideYamlModal() {
+    currentModalYamlId = null;
     document.getElementById("yaml-modal").classList.remove("open");
 }
 

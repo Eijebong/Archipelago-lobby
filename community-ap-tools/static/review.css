@@ -315,7 +315,7 @@ td.date-cell {
     padding: 1em;
     max-width: 1200px;
     width: 98%;
-    max-height: 96vh;
+    height: 96vh;
     display: flex;
     flex-direction: column;
 }
@@ -323,6 +323,8 @@ td.date-cell {
     overflow-y: auto;
     flex: 1;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 .modal h3 { margin-bottom: 0.3em; }
 .modal .subtitle { color: #888; margin-bottom: 1em; }
@@ -390,3 +392,41 @@ select.status-modal { margin-left: 12px; vertical-align: middle; }
 }
 .presets-page table { margin-bottom: 1em; }
 .presets-page td, .presets-page th { padding: 6px 10px; }
+
+/* YAML edit */
+.yaml-edit-textarea {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    font-family: monospace;
+    font-size: 0.9em;
+    line-height: 1.5;
+    background: #1e1e1e;
+    color: #f8f8f2;
+    border: 1px solid #555;
+    padding: 1em;
+    resize: vertical;
+    tab-size: 2;
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+}
+.yaml-edit-textarea:focus { border-color: #6cf; outline: none; }
+.yaml-edit-container { margin: 1em 0; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.edit-error { color: #f44; margin-top: 0.5em; white-space: pre-wrap; font-size: 0.9em; }
+.edited-badge {
+    background: #345;
+    color: #8cf;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.75em;
+    vertical-align: middle;
+}
+.edit-info-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #888;
+    font-size: 0.85em;
+    margin-top: 0.5em;
+}

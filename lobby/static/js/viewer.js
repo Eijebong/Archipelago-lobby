@@ -10,7 +10,10 @@ function showYaml(roomId, yamlId, expandValidation) {
         })
         .then((body) => {
             const title = body["player_name"] + " | " + body["game"]
-            openYamlPopup(title, body["content"], roomId, yamlId, body["validation_status"], body["last_error"], expandValidation)
+            const currentContent = body["edited_content"] || body["content"];
+            const originalContent = body["edited_content"] ? body["content"] : null;
+            const editedByName = body["last_edited_by_name"];
+            openYamlPopup(title, currentContent, originalContent, editedByName, roomId, yamlId, body["validation_status"], body["last_error"], expandValidation)
         })
 
     return false;
@@ -26,7 +29,7 @@ function showError(msg) {
     setTimeout(() => { error.remove() }, 5000);
 }
 
-function openYamlPopup(title, yaml, roomId, yamlId, validationStatus, error, expandValidation) {
+function openYamlPopup(title, yaml, originalContent, editedByName, roomId, yamlId, validationStatus, error, expandValidation) {
     const popup = document.createElement("dialog");
     popup.setAttribute("data-yaml-id", yamlId)
     popup.id = "yaml-content-popup"
@@ -60,6 +63,30 @@ function openYamlPopup(title, yaml, roomId, yamlId, validationStatus, error, exp
 
     if (expandValidation) {
         errorInfo.classList.toggle("visible-block")
+    }
+
+    if (originalContent) {
+        const infoBar = document.createElement("div");
+        infoBar.id = "yaml-edit-info";
+        infoBar.innerText = "Edited by " + editedByName + " — ";
+
+        let showingOriginal = false;
+        const toggleBtn = document.createElement("button");
+        toggleBtn.classList = "button-emulator";
+        toggleBtn.innerText = "View original";
+        toggleBtn.onclick = () => {
+            showingOriginal = !showingOriginal;
+            const oldPre = document.getElementById("yaml-content");
+            const newPre = document.createElement("pre");
+            newPre.id = "yaml-content";
+            newPre.classList = "language-yaml";
+            newPre.textContent = showingOriginal ? originalContent : yaml;
+            hljs.highlightElement(newPre);
+            oldPre.replaceWith(newPre);
+            toggleBtn.innerText = showingOriginal ? "View current" : "View original";
+        };
+        infoBar.appendChild(toggleBtn);
+        popup.appendChild(infoBar);
     }
 
     const popupContent = document.createElement("pre");

@@ -1,25 +1,25 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, Utc};
 use http::header::CONTENT_DISPOSITION;
 use rocket::{
     get,
     http::{Header, Status},
-    post, routes,
+    post, put, routes,
     serde::json::Json,
     State,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    db::{self, BundleId, RoomId, Yaml, YamlId},
+    db::{self, BundleId, Json as DbJson, RoomId, Yaml, YamlId},
     error::{ApiError, ApiResult, WithContext, WithStatus},
     index_manager::IndexManager,
     jobs::{OptionsGenQueue, YamlValidationQueue},
     session::LoggedInSession,
     views::options_gen::OptionsCache,
-    yaml::queue_yaml_validation,
+    yaml::{queue_yaml_validation, YamlValidationJobResult},
 };
 use crate::{generation::get_slots, views::YamlContent};
 use crate::{jobs::GenerationOutDir, session::AdminSession, Context};
@@ -133,7 +133,7 @@ pub(crate) async fn download_yaml<'a>(
     let value = format!("attachment; filename=\"{}.yaml\"", yaml.sanitized_name());
 
     Ok(YamlContent {
-        content: yaml.content,
+        content: yaml.current_content().to_string(),
         headers: Header::new(CONTENT_DISPOSITION.as_str(), value),
     })
 }
@@ -391,6 +391,8 @@ pub(crate) struct BulkYamlInfo {
     game: String,
     content: String,
     created_at: NaiveDateTime,
+    last_edited_by_name: Option<String>,
+    last_edited_at: Option<NaiveDateTime>,
 }
 
 #[get("/room/<room_id>/yamls")]
@@ -401,7 +403,9 @@ pub(crate) async fn bulk_yamls(
     ctx: &State<Context>,
 ) -> ApiResult<Json<Vec<BulkYamlInfo>>> {
     use crate::schema::{discord_users, yamls};
+    use diesel::dsl::sql;
     use diesel::prelude::*;
+    use diesel::sql_types::Text;
     use diesel_async::RunQueryDsl;
 
     let mut conn = ctx.db_pool.get().await?;
@@ -411,7 +415,16 @@ pub(crate) async fn bulk_yamls(
         .context("Couldn't find the room")
         .status(Status::NotFound)?;
 
-    let rows: Vec<(YamlId, String, String, String, String, NaiveDateTime)> = yamls::table
+    let rows: Vec<(
+        YamlId,
+        String,
+        String,
+        String,
+        String,
+        NaiveDateTime,
+        Option<String>,
+        Option<NaiveDateTime>,
+    )> = yamls::table
         .filter(yamls::room_id.eq(&room_id))
         .inner_join(discord_users::table)
         .select((
@@ -419,8 +432,10 @@ pub(crate) async fn bulk_yamls(
             yamls::player_name,
             discord_users::username,
             yamls::game,
-            yamls::content,
+            sql::<Text>("COALESCE(yamls.edited_content, yamls.content)"),
             yamls::created_at,
+            yamls::last_edited_by_name,
+            yamls::last_edited_at,
         ))
         .get_results(&mut conn)
         .await?;
@@ -428,18 +443,174 @@ pub(crate) async fn bulk_yamls(
     let result = rows
         .into_iter()
         .map(
-            |(id, player_name, discord_handle, game, content, created_at)| BulkYamlInfo {
+            |(
                 id,
                 player_name,
                 discord_handle,
                 game,
                 content,
                 created_at,
+                last_edited_by_name,
+                last_edited_at,
+            )| {
+                BulkYamlInfo {
+                    id,
+                    player_name,
+                    discord_handle,
+                    game,
+                    content,
+                    created_at,
+                    last_edited_by_name,
+                    last_edited_at,
+                }
             },
         )
         .collect();
 
     Ok(Json(result))
+}
+
+#[derive(Deserialize)]
+pub struct EditYamlRequest {
+    content: String,
+    edited_by: i64,
+    edited_by_name: String,
+}
+
+#[derive(Serialize)]
+pub struct EditYamlResponse {
+    ok: bool,
+    game: String,
+    player_name: String,
+}
+
+#[put("/room/<room_id>/yaml/<yaml_id>/edit", data = "<request>")]
+#[tracing::instrument(skip(_session, request, index_manager, yaml_validation_queue, ctx))]
+pub(crate) async fn edit_yaml(
+    _session: AdminSession,
+    room_id: RoomId,
+    yaml_id: YamlId,
+    request: Json<EditYamlRequest>,
+    index_manager: &State<IndexManager>,
+    yaml_validation_queue: &State<YamlValidationQueue>,
+    ctx: &State<Context>,
+) -> ApiResult<Json<EditYamlResponse>> {
+    let mut conn = ctx.db_pool.get().await?;
+
+    let room = db::get_room(room_id, &mut conn)
+        .await
+        .context("Couldn't find the room")
+        .status(Status::NotFound)?;
+
+    if !room.is_closed() {
+        return Err(ApiError {
+            error: anyhow!("Edits are only allowed on closed rooms"),
+            status: Status::BadRequest,
+        });
+    }
+
+    let _yaml = db::get_yaml_by_id(yaml_id, &mut conn)
+        .await
+        .context("Couldn't find the YAML file")
+        .status(Status::NotFound)?;
+
+    let req = request.into_inner();
+    let documents = crate::yaml::parse_raw_yamls(&[&req.content]).map_err(|e| ApiError {
+        error: e.0,
+        status: Status::BadRequest,
+    })?;
+
+    if documents.len() != 1 {
+        return Err(ApiError {
+            error: anyhow!("Edited content must contain exactly one YAML document"),
+            status: Status::BadRequest,
+        });
+    }
+
+    let (document, parsed) = &documents[0];
+    let game_name = crate::yaml::validate_game(&parsed.game).map_err(|e| ApiError {
+        error: e.0,
+        status: Status::BadRequest,
+    })?;
+
+    if room.settings.yaml_validation {
+        let validation_result = crate::yaml::validate_yaml(
+            document,
+            parsed,
+            &room.settings.manifest,
+            index_manager,
+            yaml_validation_queue,
+        )
+        .await
+        .map_err(|e| ApiError {
+            error: e.0,
+            status: Status::InternalServerError,
+        })?;
+
+        let (apworlds, validation_status, last_error) = match validation_result {
+            YamlValidationJobResult::Success(apworlds) => {
+                (apworlds, db::YamlValidationStatus::Validated, None)
+            }
+            YamlValidationJobResult::Failure(apworlds, error) => {
+                if room.settings.allow_invalid_yamls {
+                    (apworlds, db::YamlValidationStatus::Failed, Some(error))
+                } else {
+                    return Err(ApiError {
+                        error: anyhow!("Validation failed: {}", error),
+                        status: Status::BadRequest,
+                    });
+                }
+            }
+            YamlValidationJobResult::Unsupported(games) => {
+                let error = format!("Unsupported apworlds: {}", games.join(", "));
+                (vec![], db::YamlValidationStatus::Unsupported, Some(error))
+            }
+        };
+
+        let index = index_manager.index.read().await;
+        let features = crate::extractor::extract_features(&index, parsed, document)?;
+
+        db::update_yaml_edited_content(
+            yaml_id,
+            &req.content,
+            &game_name,
+            &parsed.name,
+            DbJson(features),
+            validation_status,
+            apworlds,
+            last_error,
+            req.edited_by,
+            &req.edited_by_name,
+            Utc::now().naive_utc(),
+            &mut conn,
+        )
+        .await?;
+    } else {
+        let index = index_manager.index.read().await;
+        let features = crate::extractor::extract_features(&index, parsed, document)?;
+
+        db::update_yaml_edited_content(
+            yaml_id,
+            &req.content,
+            &game_name,
+            &parsed.name,
+            DbJson(features),
+            db::YamlValidationStatus::Unknown,
+            vec![],
+            None,
+            req.edited_by,
+            &req.edited_by_name,
+            Utc::now().naive_utc(),
+            &mut conn,
+        )
+        .await?;
+    }
+
+    Ok(Json(EditYamlResponse {
+        ok: true,
+        game: game_name,
+        player_name: parsed.name.clone(),
+    }))
 }
 
 pub fn routes() -> Vec<rocket::Route> {
@@ -454,6 +625,7 @@ pub fn routes() -> Vec<rocket::Route> {
         slots_passwords,
         set_password,
         list_games,
-        game_options
+        game_options,
+        edit_yaml
     ]
 }
