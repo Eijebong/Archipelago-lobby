@@ -106,6 +106,7 @@ pub async fn create_room_submit<'a>(
         allow_invalid_yamls: room_form.room.allow_invalid_yamls,
         meta_file: room_form.room.meta_file.clone(),
         is_bundle_room: room_form.room.is_bundle_room,
+        locked: room_form.room.locked,
     };
 
     let mut conn = ctx.db_pool.get().await?;
@@ -237,6 +238,7 @@ pub async fn edit_room_submit<'a>(
         allow_invalid_yamls: room_form.room.allow_invalid_yamls,
         meta_file: room_form.room.meta_file.clone(),
         is_bundle_room: room_form.room.is_bundle_room,
+        locked: room_form.room.locked,
     };
 
     let room = db::update_room(&new_room, &mut conn).await?;

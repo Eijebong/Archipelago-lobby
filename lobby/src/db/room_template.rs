@@ -30,6 +30,7 @@ pub struct NewRoomTemplate<'a> {
     pub global: bool,
     pub meta_file: String,
     pub is_bundle_room: bool,
+    pub locked: bool,
 }
 
 #[tracing::instrument(skip(conn))]

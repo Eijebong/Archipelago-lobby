@@ -80,6 +80,13 @@
             <input {{ ro }} type="checkbox" name = "room.is_bundle_room" id ="is_bundle_room" {% if self.room.is_bundle_room %} checked {% endif %}>
             <label for="is_bundle_room" title="test">Keep YAMLs bundled on upload</label>
 
+            {% if base.is_admin %}
+            <input {{ ro }} type="checkbox" name="room.locked" id="locked" {% if self.room.locked %} checked {% endif %}>
+            <label for="locked">Lock room (prevent YAML edits and deletions)</label>
+            {% else %}
+            <input type="hidden" name="room.locked" value="{{ self.room.locked }}">
+            {% endif %}
+
             {% if !self.read_only %}
                 {% match self.room_id %}
                 {% when Some with (room_id) %}

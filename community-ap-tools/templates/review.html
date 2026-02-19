@@ -39,7 +39,7 @@
 const ROOM_ID = "{{ room_id }}";
 const LOBBY_ROOT_URL = "{{ lobby_root_url }}".replace(/\/$/, "");
 const ASSIGNED_PRESET_ID = {% match assigned_preset_id %}{% when Some with (id) %}{{ id }}{% when None %}null{% endmatch %};
-const IS_CLOSED = {{ is_closed }};
+const IS_LOCKED = {{ is_locked }};
 
 const CHECK_LABELS = {
     truthy: "is truthy", not_truthy: "is not truthy", equals: "equals", not_equals: "does not equal",
@@ -393,7 +393,7 @@ async function showYamlModal(yamlId) {
     const viewerDiv = h("div", { className: "yaml-viewer" }, h("pre", null, codeEl));
 
     const titleActions = [];
-    if (IS_CLOSED) {
+    if (!IS_LOCKED) {
         titleActions.push(h("button", { className: "small accent", onclick: () => enterEditMode(yamlId) }, "Edit"));
         titleActions.push(h("button", { className: "small danger", onclick: () => confirmDeleteYaml(yamlId) }, "Delete"));
     }

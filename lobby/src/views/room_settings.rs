@@ -39,6 +39,7 @@ pub struct RoomSettingsForm<'a> {
     pub me: ManifestForm<'a>,
     pub meta_file: String,
     pub is_bundle_room: bool,
+    pub locked: bool,
 }
 
 pub fn parse_date(date: &str, tz_offset: i32) -> Result<DateTime<Utc>> {

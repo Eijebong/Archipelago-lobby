@@ -1,7 +1,6 @@
 use anyhow::anyhow;
 use askama::Template;
 use askama_web::WebTemplate;
-use chrono::{NaiveDateTime, Utc};
 use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::deadpool::Pool as DieselPool;
 use rocket::{State, routes};
@@ -15,7 +14,7 @@ use crate::auth::LoggedInSession;
 #[derive(Deserialize)]
 struct LobbyRoomBasic {
     name: String,
-    close_date: NaiveDateTime,
+    locked: bool,
 }
 
 // -- Review page (results-focused) --
@@ -27,7 +26,7 @@ pub struct ReviewTpl {
     room_name: String,
     assigned_preset_id: Option<i32>,
     lobby_root_url: String,
-    is_closed: bool,
+    is_locked: bool,
     static_version: &'static str,
 }
 
@@ -57,14 +56,12 @@ async fn review_page(
     let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
     let room_config = db::get_room_config(room_uuid, &mut conn).await?;
 
-    let is_closed = room_info.close_date < Utc::now().naive_utc();
-
     Ok(ReviewTpl {
         room_id: room_uuid.to_string(),
         room_name: room_info.name,
         assigned_preset_id: room_config.map(|c| c.preset_id),
         lobby_root_url: config.lobby_root_url.to_string(),
-        is_closed,
+        is_locked: room_info.locked,
         static_version: crate::STATIC_VERSION,
     })
 }

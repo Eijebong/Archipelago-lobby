@@ -133,6 +133,7 @@ async fn create_tpl_submit<'a>(
         global: tpl_form.tpl_global && session.0.is_admin,
         meta_file: tpl_form.room.meta_file.clone(),
         is_bundle_room: tpl_form.room.is_bundle_room,
+        locked: tpl_form.room.locked,
     };
 
     let mut conn = ctx.db_pool.get().await?;
@@ -222,6 +223,7 @@ async fn edit_tpl_submit<'a>(
         global: tpl_form.tpl_global && session.0.is_admin,
         meta_file: tpl_form.room.meta_file.clone(),
         is_bundle_room: tpl_form.room.is_bundle_room,
+        locked: tpl_form.room.locked,
     };
 
     db::update_room_template(&new_tpl, &mut conn).await?;

@@ -33,6 +33,7 @@ pub struct NewRoom<'a> {
     pub allow_invalid_yamls: bool,
     pub meta_file: String,
     pub is_bundle_room: bool,
+    pub locked: bool,
 }
 
 macro_rules! define_settings_struct {
@@ -56,6 +57,7 @@ macro_rules! define_settings_struct {
             pub allow_invalid_yamls: bool,
             pub meta_file: String,
             pub is_bundle_room: bool,
+            pub locked: bool,
         }
     };
 }
@@ -101,6 +103,7 @@ impl From<RoomTemplateSettings> for RoomSettings {
             allow_invalid_yamls: settings.allow_invalid_yamls,
             meta_file: settings.meta_file,
             is_bundle_room: settings.is_bundle_room,
+            locked: settings.locked,
         }
     }
 }
@@ -124,6 +127,7 @@ impl RoomSettings {
             allow_invalid_yamls: false,
             meta_file: "".to_string(),
             is_bundle_room: false,
+            locked: false,
         })
     }
 

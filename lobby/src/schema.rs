@@ -67,6 +67,7 @@ diesel::table! {
         allow_invalid_yamls -> Bool,
         meta_file -> Text,
         is_bundle_room -> Bool,
+        locked -> Bool,
     }
 }
 
@@ -93,6 +94,7 @@ diesel::table! {
         allow_invalid_yamls -> Bool,
         meta_file -> Text,
         is_bundle_room -> Bool,
+        locked -> Bool,
     }
 }
 

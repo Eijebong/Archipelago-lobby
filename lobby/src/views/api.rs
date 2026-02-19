@@ -59,6 +59,7 @@ pub struct RoomInfo {
     name: String,
     close_date: NaiveDateTime,
     description: String,
+    locked: bool,
     yamls: Vec<YamlInfo>,
     #[serde(skip_serializing_if = "Option::is_none")]
     server_info: Option<RoomServerInfo>,
@@ -92,6 +93,7 @@ pub(crate) async fn room_info(
         name: room.settings.name,
         close_date: room.settings.close_date,
         description: room.settings.description,
+        locked: room.settings.locked,
         yamls: yamls
             .into_iter()
             .map(|(yaml, discord_handle)| YamlInfo {
@@ -502,9 +504,9 @@ pub(crate) async fn edit_yaml(
         .context("Couldn't find the room")
         .status(Status::NotFound)?;
 
-    if !room.is_closed() {
+    if room.settings.locked {
         return Err(ApiError {
-            error: anyhow!("Edits are only allowed on closed rooms"),
+            error: anyhow!("This room is locked"),
             status: Status::BadRequest,
         });
     }
@@ -628,9 +630,9 @@ pub(crate) async fn delete_yaml_api(
         .context("Couldn't find the room")
         .status(Status::NotFound)?;
 
-    if !room.is_closed() {
+    if room.settings.locked {
         return Err(ApiError {
-            error: anyhow!("Deleting YAMLs is only allowed on closed rooms"),
+            error: anyhow!("This room is locked"),
             status: Status::BadRequest,
         });
     }
