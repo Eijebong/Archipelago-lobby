@@ -4,7 +4,7 @@ use anyhow::anyhow;
 use chrono::{NaiveDateTime, Utc};
 use http::header::CONTENT_DISPOSITION;
 use rocket::{
-    get,
+    delete, get,
     http::{Header, Status},
     post, put, routes,
     serde::json::Json,
@@ -613,6 +613,38 @@ pub(crate) async fn edit_yaml(
     }))
 }
 
+#[delete("/room/<room_id>/yaml/<yaml_id>")]
+#[tracing::instrument(skip(_session, ctx))]
+pub(crate) async fn delete_yaml_api(
+    _session: AdminSession,
+    room_id: RoomId,
+    yaml_id: YamlId,
+    ctx: &State<Context>,
+) -> ApiResult<Json<serde_json::Value>> {
+    let mut conn = ctx.db_pool.get().await?;
+
+    let room = db::get_room(room_id, &mut conn)
+        .await
+        .context("Couldn't find the room")
+        .status(Status::NotFound)?;
+
+    if !room.is_closed() {
+        return Err(ApiError {
+            error: anyhow!("Deleting YAMLs is only allowed on closed rooms"),
+            status: Status::BadRequest,
+        });
+    }
+
+    let _yaml = db::get_yaml_by_id(yaml_id, &mut conn)
+        .await
+        .context("Couldn't find the YAML file in this room")
+        .status(Status::NotFound)?;
+
+    db::remove_yaml(yaml_id, &mut conn).await?;
+
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
 pub fn routes() -> Vec<rocket::Route> {
     routes![
         download_bundle,
@@ -626,6 +658,7 @@ pub fn routes() -> Vec<rocket::Route> {
         set_password,
         list_games,
         game_options,
-        edit_yaml
+        edit_yaml,
+        delete_yaml_api
     ]
 }

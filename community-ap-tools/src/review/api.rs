@@ -673,6 +673,44 @@ async fn proxy_yaml_edit(
     Ok(Json(data))
 }
 
+#[rocket::delete("/review/<room_id>/yaml/<yaml_id>")]
+async fn proxy_yaml_delete(
+    _session: LoggedInSession,
+    room_id: &str,
+    yaml_id: &str,
+    config: &State<Config>,
+) -> crate::error::Result<Json<serde_json::Value>> {
+    let room_id: Uuid = room_id.parse().map_err(|_| anyhow!("Invalid room ID"))?;
+    let yaml_id: Uuid = yaml_id.parse().map_err(|_| anyhow!("Invalid YAML ID"))?;
+
+    if room_id != config.lobby_room_id {
+        return Err(anyhow!("Deleting YAMLs is only allowed for the configured room").into());
+    }
+
+    let client = reqwest::Client::new();
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("x-api-key"),
+        HeaderValue::from_str(&config.lobby_api_key)?,
+    );
+
+    let url = config
+        .lobby_root_url
+        .join(&format!("/api/room/{}/yaml/{}", room_id, yaml_id))?;
+
+    let response = client.delete(url).headers(headers).send().await?;
+
+    let status = response.status();
+    let text = response.text().await?;
+
+    if !status.is_success() {
+        return Err(anyhow!("{}", text).into());
+    }
+
+    let data: serde_json::Value = serde_json::from_str(&text)?;
+    Ok(Json(data))
+}
+
 pub fn routes() -> Vec<rocket::Route> {
     routes![
         list_presets,
@@ -695,5 +733,6 @@ pub fn routes() -> Vec<rocket::Route> {
         get_review_statuses,
         set_review_status,
         proxy_yaml_edit,
+        proxy_yaml_delete,
     ]
 }

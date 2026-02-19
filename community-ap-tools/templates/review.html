@@ -405,6 +405,7 @@ async function showYamlModal(yamlId) {
     ];
     if (IS_CLOSED) {
         buttons.push(h("button", { className: "accent", onclick: () => enterEditMode(yamlId) }, "Edit"));
+        buttons.push(h("button", { className: "danger", onclick: () => confirmDeleteYaml(yamlId) }, "Delete"));
     }
     buttons.push(h("button", { onclick: hideYamlModal }, "Close"));
     document.getElementById("yaml-modal-buttons").replaceChildren(...buttons);
@@ -519,6 +520,55 @@ function cancelEdit(yamlId) {
 function hideYamlModal() {
     currentModalYamlId = null;
     document.getElementById("yaml-modal").classList.remove("open");
+}
+
+function confirmDeleteYaml(yamlId) {
+    const yaml = lastEvalData.yamls.find(y => y.yaml_id === yamlId);
+    if (!yaml) return;
+
+    const mc = document.getElementById("yaml-modal-content");
+    const confirmInput = h("input", { type: "text", placeholder: yaml.player_name, autocomplete: "off" });
+    const errorDiv = h("div", { className: "edit-error hidden" });
+    const deleteBtn = h("button", { className: "danger", disabled: true, onclick: () => deleteYaml(yamlId, errorDiv) }, "Confirm delete");
+
+    confirmInput.oninput = () => {
+        deleteBtn.disabled = confirmInput.value !== yaml.player_name;
+    };
+
+    mc.replaceChildren(
+        h("h3", null, "Delete YAML"),
+        h("p", null, `Type "${yaml.player_name}" to confirm deletion of this YAML.`),
+        confirmInput,
+        errorDiv,
+    );
+
+    document.getElementById("yaml-modal-buttons").replaceChildren(
+        deleteBtn,
+        h("button", { onclick: () => showYamlModal(yamlId) }, "Cancel"),
+    );
+}
+
+async function deleteYaml(yamlId, errorDiv) {
+    errorDiv.classList.add("hidden");
+    try {
+        const resp = await fetch(`/api/review/${ROOM_ID}/yaml/${yamlId}`, { method: "DELETE" });
+        const text = await resp.text();
+        if (!resp.ok) {
+            errorDiv.textContent = text;
+            errorDiv.classList.remove("hidden");
+            return;
+        }
+        hideYamlModal();
+        const row = document.querySelector(`tr[data-yaml-id="${yamlId}"]`);
+        if (row) row.remove();
+        if (lastEvalData) {
+            lastEvalData.yamls = lastEvalData.yamls.filter(y => y.yaml_id !== yamlId);
+        }
+        showToast("YAML deleted", "info");
+    } catch (e) {
+        errorDiv.textContent = "Network error: " + e.message;
+        errorDiv.classList.remove("hidden");
+    }
 }
 
 async function fetchReviewStatuses() {
