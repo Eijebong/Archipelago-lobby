@@ -659,6 +659,16 @@ pub(crate) async fn delete_yaml_api(
         });
     }
 
+    if db::get_generation_for_room(room_id, &mut conn)
+        .await?
+        .is_some()
+    {
+        return Err(ApiError {
+            error: anyhow!("Cannot delete YAMLs while a generation exists for this room"),
+            status: Status::BadRequest,
+        });
+    }
+
     let _yaml = db::get_yaml_by_id(yaml_id, &mut conn)
         .await
         .context("Couldn't find the YAML file in this room")
