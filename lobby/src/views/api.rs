@@ -22,7 +22,11 @@ use crate::{
     yaml::{queue_yaml_validation, YamlValidationJobResult},
 };
 use crate::{generation::get_slots, views::YamlContent};
-use crate::{jobs::GenerationOutDir, session::AdminSession, Context};
+use crate::{
+    jobs::GenerationOutDir,
+    session::{AdminSession, Session},
+    Context,
+};
 
 #[derive(Serialize)]
 pub struct YamlInfo {
@@ -168,10 +172,11 @@ pub(crate) async fn download_bundle<'a>(
 }
 
 #[get("/room/<room_id>/info/<yaml_id>")]
-#[tracing::instrument(skip(ctx))]
+#[tracing::instrument(skip(session, ctx))]
 pub(crate) async fn yaml_info(
     room_id: RoomId,
     yaml_id: YamlId,
+    session: Session,
     ctx: &State<Context>,
 ) -> ApiResult<Json<Yaml>> {
     let mut conn = ctx.db_pool.get().await?;
@@ -181,10 +186,14 @@ pub(crate) async fn yaml_info(
         .context("Couldn't find the room")
         .status(Status::NotFound)?;
 
-    let yaml = db::get_yaml_by_id(yaml_id, &mut conn)
+    let mut yaml = db::get_yaml_by_id(yaml_id, &mut conn)
         .await
         .context("Couldn't find the YAML file")
         .status(Status::NotFound)?;
+
+    if !session.is_logged_in {
+        yaml.last_edited_by_name = yaml.last_edited_by_name.map(|_| "a helper".to_string());
+    }
 
     Ok(Json(yaml))
 }
