@@ -511,10 +511,17 @@ pub(crate) async fn edit_yaml(
         });
     }
 
-    let _yaml = db::get_yaml_by_id(yaml_id, &mut conn)
+    let yaml = db::get_yaml_by_id(yaml_id, &mut conn)
         .await
         .context("Couldn't find the YAML file")
         .status(Status::NotFound)?;
+
+    let originals =
+        crate::yaml::parse_raw_yamls(&[&yaml.current_content()]).map_err(|e| ApiError {
+            error: e.0,
+            status: Status::InternalServerError,
+        })?;
+    let (_, original) = &originals[0];
 
     let req = request.into_inner();
     let documents = crate::yaml::parse_raw_yamls(&[&req.content]).map_err(|e| ApiError {
@@ -530,6 +537,21 @@ pub(crate) async fn edit_yaml(
     }
 
     let (document, parsed) = &documents[0];
+
+    if parsed.game != original.game {
+        return Err(ApiError {
+            error: anyhow!("Cannot change the game in an edit"),
+            status: Status::BadRequest,
+        });
+    }
+
+    if parsed.name != original.name {
+        return Err(ApiError {
+            error: anyhow!("Cannot change the slot name in an edit"),
+            status: Status::BadRequest,
+        });
+    }
+
     let game_name = crate::yaml::validate_game(&parsed.game).map_err(|e| ApiError {
         error: e.0,
         status: Status::BadRequest,

@@ -37,7 +37,7 @@ pub struct NewYaml<'a> {
 #[derive(Debug, Selectable, Queryable, Serialize)]
 pub struct Yaml {
     pub id: YamlId,
-    pub content: String,
+    content: String,
     pub game: String,
     pub player_name: String,
     #[serde(skip)]
@@ -51,7 +51,7 @@ pub struct Yaml {
     pub bundle_id: BundleId,
     #[serde(skip)]
     pub password: Option<String>,
-    pub edited_content: Option<String>,
+    edited_content: Option<String>,
     #[serde(skip)]
     pub last_edited_by: Option<i64>,
     pub last_edited_by_name: Option<String>,
@@ -74,7 +74,7 @@ pub struct YamlWithoutContent {
     pub last_edited_by_name: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq)]
 #[serde(untagged)]
 pub enum YamlGame {
     Name(String),

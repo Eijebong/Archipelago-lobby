@@ -381,7 +381,7 @@ async fn enqueue_gen_job(
     let required_worlds = yamls
         .iter()
         .map(|yaml| {
-            let Ok(parsed) = serde_saphyr::from_str::<YamlFile>(&yaml.content) else {
+            let Ok(parsed) = serde_saphyr::from_str::<YamlFile>(&yaml.current_content()) else {
                 Err(anyhow::anyhow!(
                     "Internal error, unable to reparse a YAML that was already parsed before"
                 ))?
