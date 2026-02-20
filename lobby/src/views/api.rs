@@ -126,14 +126,9 @@ pub(crate) async fn download_yaml<'a>(
 ) -> ApiResult<YamlContent<'a>> {
     let mut conn = ctx.db_pool.get().await?;
 
-    let _room = db::get_room(room_id, &mut conn)
+    let yaml = db::get_yaml_in_room(room_id, yaml_id, &mut conn)
         .await
-        .context("Couldn't find the room")
-        .status(Status::NotFound)?;
-
-    let yaml = db::get_yaml_by_id(yaml_id, &mut conn)
-        .await
-        .context("Couldn't find the YAML file")
+        .context("Couldn't find this YAML in this room")
         .status(Status::NotFound)?;
 
     let value = format!("attachment; filename=\"{}.yaml\"", yaml.sanitized_name());
@@ -181,14 +176,9 @@ pub(crate) async fn yaml_info(
 ) -> ApiResult<Json<Yaml>> {
     let mut conn = ctx.db_pool.get().await?;
 
-    let _room = db::get_room(room_id, &mut conn)
+    let mut yaml = db::get_yaml_in_room(room_id, yaml_id, &mut conn)
         .await
-        .context("Couldn't find the room")
-        .status(Status::NotFound)?;
-
-    let mut yaml = db::get_yaml_by_id(yaml_id, &mut conn)
-        .await
-        .context("Couldn't find the YAML file")
+        .context("Couldn't find this YAML in this room")
         .status(Status::NotFound)?;
 
     if !session.is_logged_in {
@@ -215,9 +205,9 @@ pub(crate) async fn retry_yaml(
         .context("Couldn't find the room")
         .status(Status::NotFound)?;
 
-    let yaml = db::get_yaml_by_id(yaml_id, &mut conn)
+    let yaml = db::get_yaml_in_room(room_id, yaml_id, &mut conn)
         .await
-        .context("Couldn't find the YAML file")
+        .context("Couldn't find this YAML in this room")
         .status(Status::NotFound)?;
 
     let is_allowed = session.0.is_admin
@@ -299,14 +289,9 @@ pub(crate) async fn set_password(
 ) -> ApiResult<()> {
     let mut conn = ctx.db_pool.get().await?;
 
-    let _room = db::get_room(room_id, &mut conn)
+    let _yaml = db::get_yaml_in_room(room_id, yaml_id, &mut conn)
         .await
-        .context("Couldn't find the room")
-        .status(Status::NotFound)?;
-
-    let _yaml = db::get_yaml_by_id(yaml_id, &mut conn)
-        .await
-        .context("Couldn't find the YAML file")
+        .context("Couldn't find this YAML in this room")
         .status(Status::NotFound)?;
 
     db::update_yaml_password(yaml_id, request.password.clone(), &mut conn).await?;
@@ -520,9 +505,9 @@ pub(crate) async fn edit_yaml(
         });
     }
 
-    let yaml = db::get_yaml_by_id(yaml_id, &mut conn)
+    let yaml = db::get_yaml_in_room(room_id, yaml_id, &mut conn)
         .await
-        .context("Couldn't find the YAML file")
+        .context("Couldn't find this YAML in this room")
         .status(Status::NotFound)?;
 
     let originals =
@@ -678,9 +663,9 @@ pub(crate) async fn delete_yaml_api(
         });
     }
 
-    let _yaml = db::get_yaml_by_id(yaml_id, &mut conn)
+    let _yaml = db::get_yaml_in_room(room_id, yaml_id, &mut conn)
         .await
-        .context("Couldn't find the YAML file in this room")
+        .context("Couldn't find this YAML in this room")
         .status(Status::NotFound)?;
 
     db::remove_yaml(yaml_id, &mut conn).await?;
@@ -705,14 +690,9 @@ async fn change_yaml_owner(
 ) -> ApiResult<()> {
     let mut conn = ctx.db_pool.get().await?;
 
-    let _room = db::get_room(room_id, &mut conn)
+    let _yaml = db::get_yaml_in_room(room_id, yaml_id, &mut conn)
         .await
-        .context("Couldn't find the room")
-        .status(Status::NotFound)?;
-
-    let _yaml = db::get_yaml_by_id(yaml_id, &mut conn)
-        .await
-        .context("Couldn't find the YAML file")
+        .context("Couldn't find this YAML in this room")
         .status(Status::NotFound)?;
 
     db::ensure_user_exists(request.new_owner_id, &mut conn).await?;

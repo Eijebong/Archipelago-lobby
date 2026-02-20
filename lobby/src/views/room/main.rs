@@ -341,7 +341,7 @@ pub async fn delete_yaml(
         return Err(anyhow::anyhow!("This room is closed, you're late").into());
     }
 
-    let yaml = db::get_yaml_by_id(yaml_id, &mut conn).await?;
+    let yaml = db::get_yaml_in_room(room_id, yaml_id, &mut conn).await?;
 
     let is_my_room =
         session.0.is_admin || session.0.user_id == Some(room_record.settings.author_id);
@@ -525,7 +525,7 @@ pub async fn download_patch<'a>(
         ))?
     };
 
-    let yaml = db::get_yaml_by_id(yaml_id, &mut conn).await?;
+    let yaml = db::get_yaml_in_room(room_id, yaml_id, &mut conn).await?;
     let Some(patch_path) = yaml.patch.clone() else {
         Err(anyhow::anyhow!(
             "This YAML doesn't have a patch file associated with it"

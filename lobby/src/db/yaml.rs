@@ -191,6 +191,20 @@ pub async fn get_yaml_by_id(yaml_id: YamlId, conn: &mut AsyncPgConnection) -> Re
 }
 
 #[tracing::instrument(skip(conn))]
+pub async fn get_yaml_in_room(
+    room_id: RoomId,
+    yaml_id: YamlId,
+    conn: &mut AsyncPgConnection,
+) -> Result<Yaml> {
+    Ok(yamls::table
+        .find(yaml_id)
+        .filter(yamls::room_id.eq(room_id))
+        .select(Yaml::as_select())
+        .first::<Yaml>(conn)
+        .await?)
+}
+
+#[tracing::instrument(skip(conn))]
 pub async fn get_bundle_by_id(
     bundle_id: BundleId,
     conn: &mut AsyncPgConnection,
