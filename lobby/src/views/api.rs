@@ -688,6 +688,46 @@ pub(crate) async fn delete_yaml_api(
     Ok(Json(serde_json::json!({ "ok": true })))
 }
 
+#[derive(Deserialize)]
+pub struct ChangeYamlOwnerRequest {
+    new_owner_id: i64,
+    new_password: Option<String>,
+}
+
+#[put("/room/<room_id>/yaml/<yaml_id>", data = "<request>")]
+#[tracing::instrument(skip(_session, request, ctx))]
+async fn change_yaml_owner(
+    _session: AdminSession,
+    room_id: RoomId,
+    yaml_id: YamlId,
+    request: Json<ChangeYamlOwnerRequest>,
+    ctx: &State<Context>,
+) -> ApiResult<()> {
+    let mut conn = ctx.db_pool.get().await?;
+
+    let _room = db::get_room(room_id, &mut conn)
+        .await
+        .context("Couldn't find the room")
+        .status(Status::NotFound)?;
+
+    let _yaml = db::get_yaml_by_id(yaml_id, &mut conn)
+        .await
+        .context("Couldn't find the YAML file")
+        .status(Status::NotFound)?;
+
+    db::ensure_user_exists(request.new_owner_id, &mut conn).await?;
+
+    db::update_yaml_owner(
+        yaml_id,
+        request.new_owner_id,
+        request.new_password.clone(),
+        &mut conn,
+    )
+    .await?;
+
+    Ok(())
+}
+
 pub fn routes() -> Vec<rocket::Route> {
     routes![
         download_bundle,
@@ -702,6 +742,7 @@ pub fn routes() -> Vec<rocket::Route> {
         list_games,
         game_options,
         edit_yaml,
-        delete_yaml_api
+        delete_yaml_api,
+        change_yaml_owner,
     ]
 }

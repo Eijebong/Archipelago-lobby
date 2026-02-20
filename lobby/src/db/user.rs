@@ -25,6 +25,23 @@ pub async fn get_username(user_id: i64, conn: &mut AsyncPgConnection) -> Result<
     Ok(username)
 }
 
+#[tracing::instrument(skip(conn))]
+pub async fn ensure_user_exists(user_id: i64, conn: &mut AsyncPgConnection) -> Result<()> {
+    let user = DiscordUser {
+        id: user_id,
+        username: "unknown".to_string(),
+    };
+
+    diesel::insert_into(discord_users::table)
+        .values(&user)
+        .on_conflict(discord_users::id)
+        .do_nothing()
+        .execute(conn)
+        .await?;
+
+    Ok(())
+}
+
 #[tracing::instrument(skip(conn, discord_id), fields(%discord_id))]
 pub async fn upsert_discord_user(
     discord_id: i64,

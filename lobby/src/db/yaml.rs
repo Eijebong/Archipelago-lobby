@@ -349,6 +349,24 @@ pub async fn update_yaml_edited_content(
     Ok(())
 }
 
+#[tracing::instrument(skip(conn, new_password))]
+pub async fn update_yaml_owner(
+    yaml_id: YamlId,
+    new_owner_id: i64,
+    new_password: Option<String>,
+    conn: &mut AsyncPgConnection,
+) -> Result<()> {
+    diesel::update(yamls::table.find(yaml_id))
+        .set((
+            yamls::owner_id.eq(new_owner_id),
+            yamls::password.eq(new_password),
+        ))
+        .execute(conn)
+        .await?;
+
+    Ok(())
+}
+
 impl YamlWithoutContent {
     pub fn sanitized_name(&self) -> String {
         sanitize_yaml_name(&self.player_name)
