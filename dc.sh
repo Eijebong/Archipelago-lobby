@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [[ -f ".env.community" ]]; then
+    set -a
+    . ./.env.community
+    set +a
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
