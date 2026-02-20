@@ -677,6 +677,48 @@ async fn set_password(
     Ok(())
 }
 
+#[derive(Deserialize, Serialize)]
+struct ChangeYamlOwnerRequest {
+    new_owner_id: i64,
+    new_password: Option<String>,
+}
+
+#[rocket::put("/change_owner/<yaml_id>", data = "<request>")]
+async fn change_yaml_owner(
+    _session: LoggedInSession,
+    yaml_id: &str,
+    request: Json<ChangeYamlOwnerRequest>,
+    config: &State<Config>,
+) -> crate::error::Result<()> {
+    let client = reqwest::Client::new();
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("x-api-key"),
+        HeaderValue::from_str(&config.lobby_api_key)?,
+    );
+
+    let url = config.lobby_root_url.join(&format!(
+        "/api/room/{}/yaml/{}",
+        config.lobby_room_id, yaml_id
+    ))?;
+
+    let response = client
+        .put(url)
+        .headers(headers)
+        .json(&request.into_inner())
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        Err(anyhow!(
+            "Failed to change YAML owner: {}",
+            response.status()
+        ))?;
+    }
+
+    Ok(())
+}
+
 pub struct Config {
     pub lobby_root_url: Url,
     pub lobby_room_id: Uuid,
@@ -765,7 +807,8 @@ async fn main() -> crate::error::Result<()> {
                 hint,
                 autocompletion,
                 give,
-                set_password
+                set_password,
+                change_yaml_owner
             ],
         )
         .mount("/auth", auth::routes())

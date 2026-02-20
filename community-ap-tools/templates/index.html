@@ -95,6 +95,11 @@ td {
                         Password
                     </a>
                 </td>
+                <td>
+                    <a onclick='openChangeOwnerPopup("{{lobby_slot.id}}", "{{slot.name}}", {% match password_info.password %}{% when Some with (pwd) %}"{{pwd}}"{% when None %}null{% endmatch %}); return false' href="#">
+                        Change Owner
+                    </a>
+                </td>
                 <td><a onclick='openRelease("{{slot.name}}", "{{slot.game}}"); return false' href="#">Release</a></td>
                 <td><a onclick='openAction("hint", "{{slot.name}}", "{{slot.game}}", "item"); return false' href="#">Hint item</a></td>
                 <td><a onclick='openAction("give", "{{slot.name}}", "{{slot.game}}", "item"); return false' href="#">Give item</a></td>
@@ -269,6 +274,84 @@ td {
             .catch((error) => {
                 alert("Error: " + error)
             })
+        }
+
+        function openChangeOwnerPopup(yamlId, slotName, currentPassword) {
+            const popup = getPopup();
+
+            const title = document.createElement("div")
+            title.innerText = "Change owner for slot: " + slotName
+            title.style.marginBottom = "10px"
+
+            const form = document.createElement("form")
+            form.action = "javascript:void(0);"
+
+            const discordIdLabel = document.createElement("div")
+            discordIdLabel.innerText = "New owner Discord ID:"
+            const discordIdInput = document.createElement("input")
+            discordIdInput.type = "text"
+            discordIdInput.required = true
+            discordIdInput.style.display = "block"
+            discordIdInput.style.marginBottom = "10px"
+
+            const confirmLabel = document.createElement("div")
+            confirmLabel.innerText = "Type the slot name to confirm:"
+            confirmLabel.style.marginTop = "10px"
+            const confirmInput = document.createElement("input")
+            confirmInput.type = "text"
+            confirmInput.required = true
+            confirmInput.style.display = "block"
+            confirmInput.style.marginBottom = "10px"
+
+            const submitButton = document.createElement("button")
+            submitButton.innerText = "Change Owner"
+            submitButton.style.display = "block"
+            submitButton.style.marginTop = "10px"
+
+            form.appendChild(discordIdLabel)
+            form.appendChild(discordIdInput)
+            form.appendChild(confirmLabel)
+            form.appendChild(confirmInput)
+            form.appendChild(submitButton)
+
+            form.addEventListener("submit", () => {
+                if (confirmInput.value !== slotName) {
+                    alert("Slot name doesn't match")
+                    return
+                }
+
+                const newOwnerId = discordIdInput.value.trim()
+                if (!newOwnerId || !/^\d+$/.test(newOwnerId)) {
+                    alert("Please enter a valid Discord ID (numeric)")
+                    return
+                }
+
+                const body = { new_owner_id: parseInt(newOwnerId) }
+                if (currentPassword) {
+                    body.new_password = generatePassword()
+                }
+
+                const url = new URL("/change_owner/" + yamlId, document.location)
+                fetch(url, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body)
+                })
+                .then((response) => {
+                    if (response.ok) {
+                        location.reload()
+                    } else {
+                        alert("Failed to change owner")
+                    }
+                })
+                .catch((error) => {
+                    alert("Error: " + error)
+                })
+            })
+
+            popup.appendChild(title)
+            popup.appendChild(form)
+            discordIdInput.focus()
         }
 
         function getPopup() {
