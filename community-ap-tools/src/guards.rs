@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display, str::FromStr, sync::OnceLock};
+use std::{collections::BTreeMap, fmt::Display, str::FromStr, sync::OnceLock, time::Duration};
 
 use reqwest::header::{HeaderName, HeaderValue};
 use rocket::{
@@ -234,11 +234,7 @@ impl<'r> FromRequest<'r> for ApRoom {
         let tracker_info = try_err_outcome!(parse_tracker(tracker_body));
         let ap_host = config.ap_room_host.clone();
         let ap_port = config.ap_room_port;
-        let ws_scheme = if config.ap_api_root.scheme() == "https" {
-            "wss"
-        } else {
-            "ws"
-        };
+        let ws_scheme = "ws";
         DATA_PACKAGE.get_or_init(move || {
             let url = format!("{}://{}:{}", ws_scheme, ap_host, ap_port);
             eprintln!("[GUARD] Connecting to WebSocket at: {}", url);
