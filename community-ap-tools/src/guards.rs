@@ -219,7 +219,7 @@ impl<'r> FromRequest<'r> for ApRoom {
             let body = try_err_outcome!(response.text().await);
             let slots = try_err_outcome!(parse_room(body));
 
-            SLOT_MAPPING.set(slots).unwrap();
+            let _ = SLOT_MAPPING.set(slots);
         }
 
         let tracker_url = try_err_outcome!(
