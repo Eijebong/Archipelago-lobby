@@ -157,6 +157,14 @@ async fn root_run(
             .cmp(&color_b)
             // by status
             .then_with(|| a.status.cmp(&b.status))
+            // by checks (0 checks first, only for disconnected slots)
+            .then_with(|| {
+                if a.status == SlotStatus::Disconnected && b.status == SlotStatus::Disconnected {
+                    a.checks.0.cmp(&b.checks.0)
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            })
             // by last_activity (descending)
             .then_with(|| match (a.last_activity, b.last_activity) {
                 (Some(x), Some(y)) => y.total_cmp(&x),
