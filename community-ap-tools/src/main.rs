@@ -593,6 +593,44 @@ async fn autocompletion(
     Ok(Json(names))
 }
 
+async fn notify_proxy_password_refresh(config: &State<Config>) {
+    let (Some(apx_root), Some(apx_key)) = (&config.apx_api_root, &config.apx_api_key) else {
+        return;
+    };
+
+    let apx_url = match apx_root.join("/api/refresh_passwords") {
+        Ok(url) => url,
+        Err(e) => {
+            eprintln!("[REFRESH_PASSWORDS] Failed to build APX URL: {}", e);
+            return;
+        }
+    };
+
+    let Ok(header_value) = HeaderValue::from_str(apx_key) else {
+        eprintln!("[REFRESH_PASSWORDS] Invalid APX API key");
+        return;
+    };
+
+    let result = reqwest::Client::new()
+        .post(apx_url)
+        .header(HeaderName::from_static("x-api-key"), header_value)
+        .send()
+        .await;
+
+    match result {
+        Ok(resp) if !resp.status().is_success() => {
+            eprintln!(
+                "[REFRESH_PASSWORDS] APX API returned error: {}",
+                resp.status()
+            );
+        }
+        Err(e) => {
+            eprintln!("[REFRESH_PASSWORDS] Failed to notify APX API: {}", e);
+        }
+        _ => {}
+    }
+}
+
 #[derive(Deserialize, Serialize)]
 struct SetPasswordRequest {
     password: Option<String>,
@@ -628,51 +666,7 @@ async fn set_password(
         Err(anyhow!("Failed to set password: {}", response.status()))?;
     }
 
-    eprintln!(
-        "[SET_PASSWORD] Password set successfully for yaml_id: {}",
-        yaml_id
-    );
-    eprintln!("[SET_PASSWORD] APX_API_ROOT: {:?}", config.apx_api_root);
-    eprintln!(
-        "[SET_PASSWORD] APX_API_KEY present: {}",
-        config.apx_api_key.is_some()
-    );
-
-    if let (Some(apx_root), Some(apx_key)) = (&config.apx_api_root, &config.apx_api_key) {
-        let apx_url = apx_root.join("/api/refresh_passwords")?;
-        eprintln!("[SET_PASSWORD] Calling APX API at: {}", apx_url);
-        let client = reqwest::Client::new();
-
-        let result = client
-            .post(apx_url.clone())
-            .header(
-                HeaderName::from_static("x-api-key"),
-                HeaderValue::from_str(apx_key)?,
-            )
-            .send()
-            .await;
-
-        match result {
-            Ok(resp) => {
-                eprintln!("[SET_PASSWORD] APX API response status: {}", resp.status());
-                if !resp.status().is_success() {
-                    let body = resp
-                        .text()
-                        .await
-                        .unwrap_or_else(|_| String::from("<failed to read body>"));
-                    eprintln!("[SET_PASSWORD] APX API error body: {}", body);
-                }
-            }
-            Err(e) => {
-                eprintln!(
-                    "[SET_PASSWORD] Failed to notify APX API about password change: {}",
-                    e
-                );
-            }
-        }
-    } else {
-        eprintln!("[SET_PASSWORD] APX API not configured, skipping notification");
-    }
+    notify_proxy_password_refresh(config).await;
 
     Ok(())
 }
@@ -724,6 +718,8 @@ async fn change_yaml_owner(
             response.status()
         ))?;
     }
+
+    notify_proxy_password_refresh(config).await;
 
     Ok(())
 }
