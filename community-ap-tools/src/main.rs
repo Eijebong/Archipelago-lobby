@@ -545,9 +545,8 @@ async fn release(
     slot_name: &str,
     config: &State<Config>,
 ) -> crate::error::Result<Redirect> {
-    let ws_scheme = "ws";
     let url = format!(
-        "{}://{}:{}",
+        "ws://{}:{}",
         ws_scheme, config.ap_room_host, config.ap_room_port
     );
     let slot = ap_room
