@@ -545,11 +545,7 @@ async fn release(
     slot_name: &str,
     config: &State<Config>,
 ) -> crate::error::Result<Redirect> {
-    let ws_scheme = if config.ap_api_root.scheme() == "https" {
-        "wss"
-    } else {
-        "ws"
-    };
+    let ws_scheme = "ws";
     let url = format!(
         "{}://{}:{}",
         ws_scheme, config.ap_room_host, config.ap_room_port
