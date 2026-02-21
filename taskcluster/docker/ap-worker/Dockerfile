@@ -31,7 +31,7 @@ RUN sh /ap/setup.sh ${BASE_COMMIT} ${FUZZER_COMMIT} ${LINTER_COMMIT} && rm /ap/s
 FROM python:${PYTHON_VERSION}-slim-trixie
 ARG DOCKER_SRC
 
-RUN apt update && apt install -y curl libtk8.6
+RUN apt update && apt install -y curl libtk8.6 libpq5
 RUN curl -fsSL https://github.com/watchexec/watchexec/releases/download/cli-v1.20.5/watchexec-1.20.5-x86_64-unknown-linux-gnu.deb -o /tmp/watchexec.deb
 RUN dpkg -i /tmp/watchexec.deb
 
