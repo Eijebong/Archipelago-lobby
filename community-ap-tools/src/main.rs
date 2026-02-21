@@ -181,7 +181,7 @@ async fn root_run(
 
             true
         })
-        .unique_by(|slot| &lobby_room.yamls.get(slot.id - 1).unwrap().discord_handle)
+        .unique_by(|slot| lobby_room.yamls.get(slot.id - 1).unwrap().discord_id)
         .cloned()
         .collect();
 

@@ -33,6 +33,7 @@ pub struct YamlInfo {
     id: YamlId,
     player_name: String,
     discord_handle: String,
+    discord_id: i64,
     game: String,
     slot_number: usize,
     has_patch: bool,
@@ -103,6 +104,7 @@ pub(crate) async fn room_info(
             .map(|(yaml, discord_handle)| YamlInfo {
                 id: yaml.id,
                 player_name: yaml.player_name,
+                discord_id: yaml.owner_id,
                 discord_handle,
                 game: yaml.game,
                 slot_number: *slot_map.get(&yaml.id).unwrap() + 1,

@@ -18,6 +18,7 @@ use crate::datapackage::DataPackage;
 pub struct YamlInfo {
     pub id: Uuid,
     pub discord_handle: String,
+    pub discord_id: i64,
     pub slot_number: usize,
     pub has_patch: bool,
 }
