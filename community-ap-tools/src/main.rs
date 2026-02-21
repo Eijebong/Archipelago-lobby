@@ -545,10 +545,7 @@ async fn release(
     slot_name: &str,
     config: &State<Config>,
 ) -> crate::error::Result<Redirect> {
-    let url = format!(
-        "ws://{}:{}",
-        config.ap_room_host, config.ap_room_port
-    );
+    let url = format!("ws://{}:{}", config.ap_room_host, config.ap_room_port);
     let slot = ap_room
         .tracker_info
         .slots
