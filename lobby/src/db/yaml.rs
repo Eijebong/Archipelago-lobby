@@ -109,6 +109,7 @@ pub async fn get_yamls_for_room_with_author_names(
     Ok(yamls::table
         .filter(yamls::room_id.eq(&room_id))
         .inner_join(discord_users::table)
+        .order_by(yamls::id.asc())
         .select((YamlWithoutContent::as_select(), discord_users::username))
         .get_results(conn)
         .await?)
@@ -130,6 +131,7 @@ pub async fn get_yamls_for_room(
 
     Ok(yamls::table
         .filter(yamls::room_id.eq(&room_id))
+        .order_by(yamls::id.asc())
         .select(Yaml::as_select())
         .get_results::<Yaml>(conn)
         .await?)
