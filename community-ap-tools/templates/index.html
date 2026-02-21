@@ -325,7 +325,7 @@ td {
                     return
                 }
 
-                const body = { new_owner_id: parseInt(newOwnerId) }
+                const body = { new_owner_id: newOwnerId }
                 if (currentPassword) {
                     body.new_password = generatePassword()
                 }

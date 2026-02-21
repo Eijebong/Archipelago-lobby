@@ -677,8 +677,17 @@ async fn set_password(
     Ok(())
 }
 
+fn deserialize_i64_from_string<'de, D>(deserializer: D) -> Result<i64, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    s.parse().map_err(serde::de::Error::custom)
+}
+
 #[derive(Deserialize, Serialize)]
 struct ChangeYamlOwnerRequest {
+    #[serde(deserialize_with = "deserialize_i64_from_string")]
     new_owner_id: i64,
     new_password: Option<String>,
 }
