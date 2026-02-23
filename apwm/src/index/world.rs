@@ -32,10 +32,12 @@ fn retry_client() -> Client {
                 .max_retries_per_request(3)
                 .classify_fn(|req_rep| {
                     if req_rep.error().is_some() {
-                        req_rep.retryable()
-                    } else {
-                        req_rep.success()
+                        return req_rep.retryable();
                     }
+                    if req_rep.status().is_some_and(|s| s.is_server_error()) {
+                        return req_rep.retryable();
+                    }
+                    req_rep.success()
                 }),
         )
         .build()
