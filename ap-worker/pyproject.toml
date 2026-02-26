@@ -9,7 +9,7 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-grpc",
     "aiohttp",
     "sentry-sdk[opentelemetry]",
-    "setuptools",
+    "setuptools<81",
     "tomlkit",
     "semver",
 ]
