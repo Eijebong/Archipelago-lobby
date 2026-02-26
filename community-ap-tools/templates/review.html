@@ -337,7 +337,8 @@ function renderResults(data) {
             playerCell.append(" ", h("span", { className: "edited-badge", title: `Edited by ${yaml.last_edited_by_name}` }, "edited"));
         }
         const failedRules = yaml.results.filter(r => r.outcome === "fail").map(r => r.rule_name);
-        tbody.append(h("tr", { "data-yaml-id": yaml.yaml_id, "data-game": yaml.game, "data-rules": failedRules.join(",") },
+        const gkeys = gameFilterKeys(yaml);
+        tbody.append(h("tr", { "data-yaml-id": yaml.yaml_id, "data-game": yaml.game, "data-games": gkeys.join("\t"), "data-rules": failedRules.join(",") },
             playerCell,
             h("td", null, "@" + yaml.discord_handle),
             h("td", null, yaml.game),
@@ -361,7 +362,7 @@ function renderResults(data) {
         if (row) showYamlModal(row.dataset.yamlId);
     });
 
-    const games = [...new Set(data.yamls.map(y => gameFilterKey(y.game)))].sort();
+    const games = [...new Set(data.yamls.flatMap(y => gameFilterKeys(y)))].sort();
     const gf = document.getElementById("game-filter");
     gf.replaceChildren(
         h("option", { value: "" }, "All games"),
@@ -386,14 +387,17 @@ function renderResults(data) {
     applyFilters();
 }
 
-function gameFilterKey(game) {
-    return game.startsWith("Random (") ? "Random" : game;
+function gameFilterKeys(yaml) {
+    if (yaml.games && yaml.games.length > 0) {
+        return ["Random", ...yaml.games];
+    }
+    return [yaml.game];
 }
 
 function applyFilters() {
     const rows = document.querySelectorAll("#results-content tbody tr[data-yaml-id]");
     for (const row of rows) {
-        const matchGame = !gameFilter || gameFilterKey(row.dataset.game) === gameFilter;
+        const matchGame = !gameFilter || row.dataset.games.split("\t").includes(gameFilter);
         const rf = ruleFilter.toLowerCase();
         const matchRule = !rf || (row.dataset.rules && row.dataset.rules.toLowerCase().split(",").some(r => r.includes(rf)));
         const matchStatus = !statusFilter || (reviewStatuses[row.dataset.yamlId] || { status: "unreviewed" }).status === statusFilter;

@@ -97,6 +97,8 @@ struct YamlEvalResult {
     player_name: String,
     discord_handle: String,
     game: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    games: Vec<String>,
     created_at: String,
     results: Vec<RuleResultResponse>,
 }
@@ -237,6 +239,7 @@ fn evaluate_single_yaml(
             player_name: info.player_name.clone(),
             discord_handle: info.discord_handle.clone(),
             game: info.game.clone(),
+            games: vec![],
             created_at: info.created_at.clone(),
             results: vec![RuleResultResponse {
                 rule_name: "YAML Parse".into(),
@@ -315,13 +318,14 @@ fn evaluate_single_yaml(
         }
     }
 
-    let display_game = if multi_game {
-        format!("Random ({})", game_names.len())
+    let (display_game, games) = if multi_game {
+        (format!("Random ({})", game_names.len()), game_names)
     } else {
-        game_names
+        let single = game_names
             .into_iter()
             .next()
-            .unwrap_or_else(|| info.game.clone())
+            .unwrap_or_else(|| info.game.clone());
+        (single, vec![])
     };
 
     YamlEvalResult {
@@ -329,6 +333,7 @@ fn evaluate_single_yaml(
         player_name: info.player_name.clone(),
         discord_handle: info.discord_handle.clone(),
         game: display_game,
+        games,
         created_at: info.created_at.clone(),
         results: all_results,
     }
