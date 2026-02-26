@@ -44,10 +44,23 @@ pub enum RuleCheck {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Predicate {
-    Check { path: String, check: RuleCheck },
-    And { predicates: Vec<Predicate> },
-    Or { predicates: Vec<Predicate> },
-    Not { predicate: Box<Predicate> },
+    Check {
+        path: String,
+        check: RuleCheck,
+    },
+    And {
+        predicates: Vec<Predicate>,
+    },
+    Or {
+        predicates: Vec<Predicate>,
+    },
+    Not {
+        predicate: Box<Predicate>,
+    },
+    AtLeast {
+        count: usize,
+        predicates: Vec<Predicate>,
+    },
 }
 
 impl Predicate {
@@ -81,6 +94,18 @@ impl Predicate {
                 Ok(())
             }
             Predicate::Not { predicate } => predicate.validate(),
+            Predicate::AtLeast { count, predicates } => {
+                if *count == 0 {
+                    return Err("AtLeast count must be greater than 0");
+                }
+                if *count > predicates.len() {
+                    return Err("AtLeast count exceeds number of predicates");
+                }
+                for p in predicates {
+                    p.validate()?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -337,6 +362,18 @@ pub fn evaluate_predicate(predicate: &Predicate, game_yaml: &Value) -> Result<bo
             Ok(false)
         }
         Predicate::Not { predicate } => Ok(!evaluate_predicate(predicate, game_yaml)?),
+        Predicate::AtLeast { count, predicates } => {
+            let mut matched = 0;
+            for p in predicates {
+                if evaluate_predicate(p, game_yaml)? {
+                    matched += 1;
+                    if matched >= *count {
+                        return Ok(true);
+                    }
+                }
+            }
+            Ok(false)
+        }
     }
 }
 
@@ -1122,6 +1159,104 @@ mod tests {
                 },
             },
             severity: Severity::Info,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Pass);
+    }
+
+    #[test]
+    fn test_at_least_2_of_3_alerts() {
+        let yaml = parse_yaml(
+            "Test:\n  randomize_badges: false\n  randomize_hms: false\n  randomize_keyitems: true\n",
+        );
+        let rule = Rule {
+            name: "Vanilla Go Mode".into(),
+            game: None,
+            when: None,
+            then: Predicate::AtLeast {
+                count: 2,
+                predicates: vec![
+                    Predicate::Check {
+                        path: "randomize_badges".into(),
+                        check: RuleCheck::NotTruthy,
+                    },
+                    Predicate::Check {
+                        path: "randomize_hms".into(),
+                        check: RuleCheck::NotTruthy,
+                    },
+                    Predicate::Check {
+                        path: "randomize_keyitems".into(),
+                        check: RuleCheck::NotTruthy,
+                    },
+                ],
+            },
+            severity: Severity::Warning,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Fail);
+    }
+
+    #[test]
+    fn test_at_least_2_of_3_passes() {
+        let yaml = parse_yaml(
+            "Test:\n  randomize_badges: true\n  randomize_hms: true\n  randomize_keyitems: false\n",
+        );
+        let rule = Rule {
+            name: "Vanilla Go Mode".into(),
+            game: None,
+            when: None,
+            then: Predicate::AtLeast {
+                count: 2,
+                predicates: vec![
+                    Predicate::Check {
+                        path: "randomize_badges".into(),
+                        check: RuleCheck::NotTruthy,
+                    },
+                    Predicate::Check {
+                        path: "randomize_hms".into(),
+                        check: RuleCheck::NotTruthy,
+                    },
+                    Predicate::Check {
+                        path: "randomize_keyitems".into(),
+                        check: RuleCheck::NotTruthy,
+                    },
+                ],
+            },
+            severity: Severity::Warning,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Pass);
+    }
+
+    #[test]
+    fn test_at_least_counts_outer_predicates_not_inner() {
+        let yaml = parse_yaml("Test:\n  a: true\n  b: true\n  c: false\n");
+        let rule = Rule {
+            name: "test".into(),
+            game: None,
+            when: None,
+            then: Predicate::AtLeast {
+                count: 2,
+                predicates: vec![
+                    Predicate::And {
+                        predicates: vec![
+                            Predicate::Check {
+                                path: "a".into(),
+                                check: RuleCheck::Truthy,
+                            },
+                            Predicate::Check {
+                                path: "b".into(),
+                                check: RuleCheck::Truthy,
+                            },
+                        ],
+                    },
+                    Predicate::Check {
+                        path: "c".into(),
+                        check: RuleCheck::Truthy,
+                    },
+                ],
+            },
+            severity: Severity::Warning,
         };
         let result = evaluate_rule(&rule, &yaml, "Test");
         assert_eq!(result.outcome, Outcome::Pass);

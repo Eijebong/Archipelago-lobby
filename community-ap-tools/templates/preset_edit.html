@@ -107,7 +107,7 @@ const COUNT_OPS = [
     ["range", "Range"],
 ];
 
-const PRED_TYPES = [["check", "Check"], ["and", "AND"], ["or", "OR"], ["not", "NOT"]];
+const PRED_TYPES = [["check", "Check"], ["and", "AND"], ["or", "OR"], ["not", "NOT"], ["at_least", "AT LEAST"]];
 const SEVERITY_TYPES = [["error", "Error"], ["warning", "Warning"], ["info", "Info"]];
 
 class PredicateBlock {
@@ -141,9 +141,9 @@ class PredicateBlock {
     }
 
     _applyTypeClass() {
-        this.el.classList.remove("pred-type-and", "pred-type-or", "pred-type-not");
+        this.el.classList.remove("pred-type-and", "pred-type-or", "pred-type-not", "pred-type-at_least");
         const type = this.typeSelect.value;
-        if (type === "and" || type === "or" || type === "not") {
+        if (type === "and" || type === "or" || type === "not" || type === "at_least") {
             this.el.classList.add(`pred-type-${type}`);
         }
     }
@@ -157,11 +157,15 @@ class PredicateBlock {
             this.typeSelect.value = newType;
         }
 
-        const isGroup = (t) => t === "and" || t === "or";
+        const isGroup = (t) => t === "and" || t === "or" || t === "at_least";
         if (existing && isGroup(newType) && isGroup(oldType)) {
-            this._renderBody({ type: newType, predicates: existing.predicates });
+            const data = { type: newType, predicates: existing.predicates };
+            if (newType === "at_least") data.count = existing.count || 1;
+            this._renderBody(data);
         } else if (existing && isGroup(newType)) {
-            this._renderBody({ type: newType, predicates: [existing] });
+            const data = { type: newType, predicates: [existing] };
+            if (newType === "at_least") data.count = 1;
+            this._renderBody(data);
         } else if (existing && newType === "not") {
             this._renderBody({ type: "not", predicate: existing });
         } else {
@@ -180,6 +184,8 @@ class PredicateBlock {
             this._renderGroup(data);
         } else if (type === "not") {
             this._renderNot(data);
+        } else if (type === "at_least") {
+            this._renderAtLeast(data);
         }
     }
 
@@ -305,6 +311,47 @@ class PredicateBlock {
         this.body.appendChild(inner);
     }
 
+    _renderAtLeast(data) {
+        const countInput = h("input", {
+            type: "number", className: "at-least-count",
+            value: (data && data.count) || 1, min: "1",
+        });
+        countInput.addEventListener("change", () => this.onDirty());
+
+        const childrenEl = h("div", { className: "pred-children" });
+
+        const refreshSeparators = () => {
+            childrenEl.querySelectorAll(":scope > .pred-separator").forEach(s => s.remove());
+            const blocks = childrenEl.querySelectorAll(":scope > .predicate-block");
+            for (let i = 1; i < blocks.length; i++) {
+                blocks[i].before(h("div", { className: "pred-separator" },
+                    h("span", null, "or"),
+                ));
+            }
+        };
+
+        const childCallbacks = {
+            onDirty: () => { refreshSeparators(); this.onDirty(); },
+            getGame: this.getGame,
+        };
+
+        const addBtn = h("button", { onclick: () => {
+            childrenEl.appendChild(new PredicateBlock(null, childCallbacks).el);
+            this.onDirty();
+        }}, "+ Add");
+        this.body.append(
+            h("div", { className: "field-group" }, field("Minimum matches", countInput)),
+            childrenEl, addBtn,
+        );
+
+        if (data && data.predicates) {
+            for (const p of data.predicates) {
+                childrenEl.appendChild(new PredicateBlock(p, childCallbacks).el);
+            }
+            refreshSeparators();
+        }
+    }
+
     gather() {
         const type = this.typeSelect.value;
         if (type === "check") {
@@ -337,6 +384,10 @@ class PredicateBlock {
         } else if (type === "and" || type === "or") {
             const children = this.body.querySelectorAll(":scope > .pred-children > .predicate-block");
             return { type, predicates: Array.from(children).map(el => el._pred.gather()) };
+        } else if (type === "at_least") {
+            const count = parseInt(this.body.querySelector(".at-least-count").value) || 1;
+            const children = this.body.querySelectorAll(":scope > .pred-children > .predicate-block");
+            return { type: "at_least", count, predicates: Array.from(children).map(el => el._pred.gather()) };
         } else if (type === "not") {
             const child = this.body.querySelector(":scope > .pred-inner > .predicate-block");
             return { type: "not", predicate: child ? child._pred.gather() : null };
@@ -347,7 +398,9 @@ class PredicateBlock {
         if (!pred) return null;
         if (pred.type === "check") {
             if (!pred.path || !pred.path.trim()) return "Check predicate has an empty path";
-        } else if (pred.type === "and" || pred.type === "or") {
+        } else if (pred.type === "and" || pred.type === "or" || pred.type === "at_least") {
+            if (pred.type === "at_least" && (!pred.count || pred.count < 1)) return "AT LEAST count must be at least 1";
+            if (pred.type === "at_least" && pred.count > (pred.predicates || []).length) return "AT LEAST count exceeds number of predicates";
             for (const p of (pred.predicates || [])) {
                 const err = PredicateBlock.validate(p);
                 if (err) return err;

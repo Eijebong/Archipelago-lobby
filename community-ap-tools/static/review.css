@@ -199,6 +199,7 @@ body:has(dialog[open]) {
 .predicate-block.pred-type-and { border-left: 3px solid #4a9; }
 .predicate-block.pred-type-or { border-left: 3px solid #d93; }
 .predicate-block.pred-type-not { border-left: 3px solid #c44; }
+.predicate-block.pred-type-at_least { border-left: 3px solid #a7d; }
 .predicate-header {
     display: flex;
     align-items: center;
@@ -227,6 +228,7 @@ body:has(dialog[open]) {
 }
 .pred-type-and > .pred-body > .pred-children > .pred-separator span { color: #4a9; }
 .pred-type-or > .pred-body > .pred-children > .pred-separator span { color: #d93; }
+.pred-type-at_least > .pred-body > .pred-children > .pred-separator span { color: #a7d; }
 
 /* Builtin toggles */
 .builtin-toggle { margin: 6px 0; }

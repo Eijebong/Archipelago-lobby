@@ -186,6 +186,15 @@ function renderPredicate(pred) {
             });
             return frag;
         }
+        case "at_least": {
+            const frag = document.createDocumentFragment();
+            frag.append(h("span", { className: "pred-logic" }, `AT LEAST ${pred.count} OF `));
+            pred.predicates.forEach((p, i) => {
+                if (i > 0) frag.append(document.createElement("br"), h("span", { className: "pred-logic" }, ", "));
+                frag.append(renderPredicate(p));
+            });
+            return frag;
+        }
         case "not": {
             const frag = document.createDocumentFragment();
             frag.append(h("span", { className: "pred-logic" }, "NOT "), renderPredicate(pred.predicate));
