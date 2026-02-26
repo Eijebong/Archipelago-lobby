@@ -312,9 +312,11 @@ dialog#yaml-modal {
     max-width: 1200px;
     width: 98%;
     height: 96vh;
-    display: flex;
     flex-direction: column;
     color: white;
+}
+dialog#yaml-modal[open] {
+    display: flex;
 }
 dialog#yaml-modal::backdrop {
     background: rgba(0, 0, 0, 0.7);
