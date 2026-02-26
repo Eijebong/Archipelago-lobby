@@ -338,7 +338,7 @@ function renderResults(data) {
         if (row) showYamlModal(row.dataset.yamlId);
     });
 
-    const games = [...new Set(data.yamls.map(y => y.game))].sort();
+    const games = [...new Set(data.yamls.map(y => gameFilterKey(y.game)))].sort();
     const gf = document.getElementById("game-filter");
     gf.replaceChildren(
         h("option", { value: "" }, "All games"),
@@ -348,11 +348,15 @@ function renderResults(data) {
     applyGameFilter(gameFilter);
 }
 
+function gameFilterKey(game) {
+    return game.startsWith("Random (") ? "Random" : game;
+}
+
 function applyGameFilter(game) {
     gameFilter = game;
     const rows = document.querySelectorAll("#results-content tbody tr[data-yaml-id]");
     for (const row of rows) {
-        row.style.display = (!game || row.dataset.game === game) ? "" : "none";
+        row.style.display = (!game || gameFilterKey(row.dataset.game) === game) ? "" : "none";
     }
 }
 
