@@ -97,7 +97,14 @@ const CHECK_TYPES = [
     ["equals", "Equals"], ["not_equals", "Not Equals"],
     ["greater_than", "Greater Than"], ["less_than", "Less Than"],
     ["range", "Range"], ["regex", "Regex"], ["contains", "Contains"],
+    ["count", "Count"],
     ["exists", "Exists"], ["not_exists", "Not Exists"],
+];
+
+const COUNT_OPS = [
+    ["greater_than", "Greater Than"], ["less_than", "Less Than"],
+    ["equals", "Equals"], ["not_equals", "Not Equals"],
+    ["range", "Range"],
 ];
 
 const PRED_TYPES = [["check", "Check"], ["and", "AND"], ["or", "OR"], ["not", "NOT"]];
@@ -214,6 +221,25 @@ class PredicateBlock {
             );
         } else if (type === "regex") {
             params.append(field("Pattern", h("input", { type: "text", className: "check-pattern", value: (data && data.pattern) || "", size: "20" })));
+        } else if (type === "count") {
+            const innerData = data && data.check;
+            const countOpSel = selectEl("check-count-op", COUNT_OPS, innerData?.type || "greater_than");
+            const countParams = h("span", { className: "check-count-params" });
+            params.append(field("Comparison", countOpSel), countParams);
+            const renderCountParams = (d) => {
+                const op = countOpSel.value;
+                countParams.replaceChildren();
+                if (op === "equals" || op === "not_equals" || op === "greater_than" || op === "less_than") {
+                    countParams.append(field("Value", h("input", { type: "number", className: "check-count-value", value: (d && d.value) || 0 })));
+                } else if (op === "range") {
+                    countParams.append(
+                        field("Min", h("input", { type: "number", className: "check-count-min", value: (d && d.min) || 0 })),
+                        field("Max", h("input", { type: "number", className: "check-count-max", value: (d && d.max) || 0 })),
+                    );
+                }
+            };
+            countOpSel.addEventListener("change", () => renderCountParams());
+            renderCountParams(innerData);
         }
     }
 
@@ -294,6 +320,18 @@ class PredicateBlock {
                 check.max = parseInt(this.body.querySelector(".check-max").value) || 0;
             } else if (checkType === "regex") {
                 check.pattern = this.body.querySelector(".check-pattern").value;
+            } else if (checkType === "count") {
+                const countOp = this.body.querySelector(".check-count-op").value;
+                const inner = { type: countOp };
+                if (countOp === "equals" || countOp === "not_equals") {
+                    inner.value = String(parseInt(this.body.querySelector(".check-count-value").value) || 0);
+                } else if (countOp === "greater_than" || countOp === "less_than") {
+                    inner.value = parseInt(this.body.querySelector(".check-count-value").value) || 0;
+                } else if (countOp === "range") {
+                    inner.min = parseInt(this.body.querySelector(".check-count-min").value) || 0;
+                    inner.max = parseInt(this.body.querySelector(".check-count-max").value) || 0;
+                }
+                check.check = inner;
             }
             return { type: "check", path, check };
         } else if (type === "and" || type === "or") {

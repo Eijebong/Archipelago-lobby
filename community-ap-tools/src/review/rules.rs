@@ -36,6 +36,7 @@ pub enum RuleCheck {
     Range { min: i64, max: i64 },
     Regex { pattern: String },
     Contains { value: String },
+    Count { check: Box<RuleCheck> },
     Exists,
     NotExists,
 }
@@ -59,6 +60,16 @@ impl Predicate {
                 if let RuleCheck::Regex { pattern } = check {
                     if Regex::new(pattern).is_err() {
                         return Err("Invalid regex pattern");
+                    }
+                }
+                if let RuleCheck::Count { check: inner } = check {
+                    match inner.as_ref() {
+                        RuleCheck::Equals { .. }
+                        | RuleCheck::NotEquals { .. }
+                        | RuleCheck::GreaterThan { .. }
+                        | RuleCheck::LessThan { .. }
+                        | RuleCheck::Range { .. } => {}
+                        _ => return Err("Count check must use a numeric comparison"),
                     }
                 }
                 Ok(())
@@ -217,7 +228,19 @@ fn check_random(bounds: Option<(i64, i64)>, check: &RuleCheck) -> bool {
             max: rmax,
         } => max >= *rmin && min <= *rmax,
         RuleCheck::Regex { .. } | RuleCheck::Contains { .. } => true,
+        RuleCheck::Count { .. } => false,
         RuleCheck::Exists | RuleCheck::NotExists => unreachable!(),
+    }
+}
+
+fn evaluate_count_check(count: i64, check: &RuleCheck) -> Result<bool> {
+    match check {
+        RuleCheck::Equals { value } => Ok(value.parse::<i64>().map_or(false, |v| count == v)),
+        RuleCheck::NotEquals { value } => Ok(value.parse::<i64>().map_or(true, |v| count != v)),
+        RuleCheck::GreaterThan { value } => Ok(count > *value),
+        RuleCheck::LessThan { value } => Ok(count < *value),
+        RuleCheck::Range { min, max } => Ok(count >= *min && count <= *max),
+        _ => Ok(false),
     }
 }
 
@@ -246,13 +269,24 @@ fn check_single_value(val: &Value, check: &RuleCheck) -> Result<bool> {
             }
             Ok(false)
         }
-        RuleCheck::Exists | RuleCheck::NotExists => {
-            unreachable!("Exists/NotExists handled before calling check_single_value")
+        RuleCheck::Count { .. } | RuleCheck::Exists | RuleCheck::NotExists => {
+            unreachable!("Count/Exists/NotExists handled before calling check_single_value")
         }
     }
 }
 
 fn evaluate_check(val: &Value, check: &RuleCheck) -> Result<bool> {
+    if let RuleCheck::Count { check: inner } = check {
+        let count = if let Some(seq) = val.as_sequence() {
+            seq.len() as i64
+        } else if let Some(map) = val.as_mapping() {
+            map.len() as i64
+        } else {
+            return Ok(false);
+        };
+        return evaluate_count_check(count, inner);
+    }
+
     if val.is_mapping() {
         let map = val.as_mapping().unwrap();
         let looks_like_weighted = map.iter().all(|(_, v)| v.as_integer().is_some());
@@ -1015,5 +1049,81 @@ mod tests {
             evaluate_rule(&not_truthy_rule, &yaml, "Test").outcome,
             Outcome::Fail
         );
+    }
+
+    #[test]
+    fn test_count_sequence_alerts() {
+        let yaml = parse_yaml("Test:\n  scores:\n    - a\n    - b\n    - c\n");
+        let rule = Rule {
+            name: "Too many scores".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "scores".into(),
+                check: RuleCheck::Count {
+                    check: Box::new(RuleCheck::GreaterThan { value: 2 }),
+                },
+            },
+            severity: Severity::Warning,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Fail);
+    }
+
+    #[test]
+    fn test_count_sequence_passes() {
+        let yaml = parse_yaml("Test:\n  scores:\n    - a\n");
+        let rule = Rule {
+            name: "Too many scores".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "scores".into(),
+                check: RuleCheck::Count {
+                    check: Box::new(RuleCheck::GreaterThan { value: 2 }),
+                },
+            },
+            severity: Severity::Warning,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Pass);
+    }
+
+    #[test]
+    fn test_count_mapping_alerts() {
+        let yaml = parse_yaml("Test:\n  inventory:\n    Sword: 1\n    Shield: 2\n");
+        let rule = Rule {
+            name: "Inventory count".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "inventory".into(),
+                check: RuleCheck::Count {
+                    check: Box::new(RuleCheck::Range { min: 1, max: 3 }),
+                },
+            },
+            severity: Severity::Info,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Fail);
+    }
+
+    #[test]
+    fn test_count_non_sequence_passes() {
+        let yaml = parse_yaml("Test:\n  mode: hard\n");
+        let rule = Rule {
+            name: "Count on string".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "mode".into(),
+                check: RuleCheck::Count {
+                    check: Box::new(RuleCheck::GreaterThan { value: 0 }),
+                },
+            },
+            severity: Severity::Info,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Pass);
     }
 }

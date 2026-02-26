@@ -41,7 +41,8 @@ const IS_LOCKED = {{ is_locked }};
 const CHECK_LABELS = {
     truthy: "is truthy", not_truthy: "is not truthy", equals: "equals", not_equals: "does not equal",
     greater_than: ">", less_than: "<", range: "between",
-    regex: "matches", contains: "contains", exists: "exists", not_exists: "does not exist",
+    regex: "matches", contains: "contains", count: "count",
+    exists: "exists", not_exists: "does not exist",
 };
 
 const STATUS_TYPES = [["unreviewed", "Unreviewed"], ["reported", "Reported"], ["nok", "NOK"], ["ok", "OK"]];
@@ -158,6 +159,16 @@ function renderCheck(path, check) {
         case "range":
             frag.append(" ", v(check.min), " ", h("span", { className: "pred-op" }, "and"), " ", v(check.max));
             break;
+        case "count": {
+            const innerOp = CHECK_LABELS[check.check.type] || check.check.type;
+            frag.append(" ", h("span", { className: "pred-op" }, innerOp));
+            if (check.check.type === "range") {
+                frag.append(" ", v(check.check.min), " ", h("span", { className: "pred-op" }, "and"), " ", v(check.check.max));
+            } else if (check.check.value !== undefined) {
+                frag.append(" ", v(String(check.check.value)));
+            }
+            break;
+        }
     }
     return frag;
 }

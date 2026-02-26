@@ -240,6 +240,8 @@ body:has(dialog[open]) {
     margin-bottom: 16px;
 }
 
+.check-params, .check-count-params { display: contents; }
+
 /* Utility */
 .field-end { justify-content: end; }
 .builtin-save-wrap { margin-top: 10px; }
