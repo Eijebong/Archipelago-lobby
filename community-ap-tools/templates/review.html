@@ -531,7 +531,7 @@ async function saveEdit(yamlId, textarea, errorDiv) {
         showToast("YAML saved successfully", "info");
 
         delete yamlDetailCache[yamlId];
-        runEvaluation();
+        await runEvaluation();
         showYamlModal(yamlId);
     } catch (e) {
         errorDiv.textContent = "Network error: " + e.message;
