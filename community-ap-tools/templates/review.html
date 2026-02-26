@@ -20,7 +20,7 @@
     </div>
 
     <div class="section" id="results-area">
-        <div class="inline-form" style="margin-bottom:0.5em"><h2 style="margin:0">Results</h2><select id="game-filter" class="hidden" onchange="applyGameFilter(this.value)"><option value="">All games</option></select></div>
+        <div class="inline-form" style="margin-bottom:0.5em"><h2 style="margin:0">Results</h2><select id="game-filter" class="hidden" onchange="gameFilter = this.value; applyFilters()"><option value="">All games</option></select><input type="text" id="rule-filter" class="hidden" list="rule-filter-list" placeholder="Filter by rule..." oninput="ruleFilter = this.value; applyFilters()"><datalist id="rule-filter-list"></datalist><select id="status-filter" class="hidden" onchange="statusFilter = this.value; applyFilters()"><option value="">All statuses</option></select></div>
         <div id="results-content">
             <p class="loading">Select a preset and evaluate, or wait for auto-evaluation...</p>
         </div>
@@ -57,6 +57,8 @@ let reviewStatuses = {};
 let sortColumn = "status";
 let sortAsc = true;
 let gameFilter = "";
+let ruleFilter = "";
+let statusFilter = "";
 let currentModalYamlId = null;
 let yamlDetailCache = {};
 
@@ -334,7 +336,8 @@ function renderResults(data) {
         if (yaml.last_edited_by_name) {
             playerCell.append(" ", h("span", { className: "edited-badge", title: `Edited by ${yaml.last_edited_by_name}` }, "edited"));
         }
-        tbody.append(h("tr", { "data-yaml-id": yaml.yaml_id, "data-game": yaml.game },
+        const failedRules = yaml.results.filter(r => r.outcome === "fail").map(r => r.rule_name);
+        tbody.append(h("tr", { "data-yaml-id": yaml.yaml_id, "data-game": yaml.game, "data-rules": failedRules.join(",") },
             playerCell,
             h("td", null, "@" + yaml.discord_handle),
             h("td", null, yaml.game),
@@ -365,18 +368,36 @@ function renderResults(data) {
         ...games.map(g => h("option", { value: g, selected: gameFilter === g }, g)),
     );
     gf.classList.remove("hidden");
-    applyGameFilter(gameFilter);
+
+    const ruleNames = [...new Set(data.yamls.flatMap(y => y.results.filter(r => r.outcome === "fail").map(r => r.rule_name)))].sort();
+    const rf = document.getElementById("rule-filter");
+    rf.value = ruleFilter;
+    rf.classList.toggle("hidden", ruleNames.length === 0);
+    const dl = document.getElementById("rule-filter-list");
+    dl.replaceChildren(...ruleNames.map(r => h("option", { value: r })));
+
+    const sf = document.getElementById("status-filter");
+    sf.replaceChildren(
+        h("option", { value: "" }, "All statuses"),
+        ...STATUS_TYPES.map(([val, label]) => h("option", { value: val, selected: statusFilter === val }, label)),
+    );
+    sf.classList.remove("hidden");
+
+    applyFilters();
 }
 
 function gameFilterKey(game) {
     return game.startsWith("Random (") ? "Random" : game;
 }
 
-function applyGameFilter(game) {
-    gameFilter = game;
+function applyFilters() {
     const rows = document.querySelectorAll("#results-content tbody tr[data-yaml-id]");
     for (const row of rows) {
-        row.style.display = (!game || gameFilterKey(row.dataset.game) === game) ? "" : "none";
+        const matchGame = !gameFilter || gameFilterKey(row.dataset.game) === gameFilter;
+        const rf = ruleFilter.toLowerCase();
+        const matchRule = !rf || (row.dataset.rules && row.dataset.rules.toLowerCase().split(",").some(r => r.includes(rf)));
+        const matchStatus = !statusFilter || (reviewStatuses[row.dataset.yamlId] || { status: "unreviewed" }).status === statusFilter;
+        row.style.display = (matchGame && matchRule && matchStatus) ? "" : "none";
     }
 }
 
@@ -639,6 +660,7 @@ async function onStatusChange(sel) {
             s.classList.add(`status-${status}`);
             s.title = title;
         }
+        applyFilters();
     } finally {
         for (const s of allSelects) s.disabled = false;
     }
