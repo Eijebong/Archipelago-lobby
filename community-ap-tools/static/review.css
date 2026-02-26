@@ -301,15 +301,7 @@ td.date-cell {
     padding: 1em;
 }
 
-.modal-backdrop {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    z-index: 100;
-}
-.modal-backdrop.open { display: flex; align-items: center; justify-content: center; }
-.modal {
+dialog#yaml-modal {
     background: #1a1a1a;
     border: 1px solid #444;
     padding: 1em;
@@ -318,6 +310,10 @@ td.date-cell {
     height: 96vh;
     display: flex;
     flex-direction: column;
+    color: white;
+}
+dialog#yaml-modal::backdrop {
+    background: rgba(0, 0, 0, 0.7);
 }
 .modal-body {
     overflow-y: auto;
@@ -326,10 +322,10 @@ td.date-cell {
     display: flex;
     flex-direction: column;
 }
-.modal h3 { margin-bottom: 0.3em; display: flex; align-items: center; gap: 0.5em; flex-wrap: wrap; }
-.modal h3 .small { margin-left: auto; }
-.modal h3 .small + .small { margin-left: 0; }
-.modal .subtitle { color: #888; margin-bottom: 1em; }
+dialog#yaml-modal h3 { margin-bottom: 0.3em; display: flex; align-items: center; gap: 0.5em; flex-wrap: wrap; }
+dialog#yaml-modal h3 .small { margin-left: auto; }
+dialog#yaml-modal h3 .small + .small { margin-left: 0; }
+dialog#yaml-modal .subtitle { color: #888; margin-bottom: 1em; }
 
 .result-item {
     display: flex;

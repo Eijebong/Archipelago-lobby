@@ -26,13 +26,10 @@
         </div>
     </div>
 
-    <div class="modal-backdrop" id="yaml-modal" onclick="if (event.target === this) hideYamlModal()">
-        <div class="modal">
-
-            <div class="modal-body" id="yaml-modal-content"></div>
-            <div class="button-container" id="yaml-modal-buttons"></div>
-        </div>
-    </div>
+    <dialog id="yaml-modal" onclick="if (event.target === this) hideYamlModal()">
+        <div class="modal-body" id="yaml-modal-content"></div>
+        <div class="button-container" id="yaml-modal-buttons"></div>
+    </dialog>
 
 <script src="/static/review-utils.js?{{ static_version }}"></script>
 <script>
@@ -415,7 +412,8 @@ async function showYamlModal(yamlId) {
     ];
     buttons.push(h("button", { onclick: hideYamlModal }, "Close"));
     document.getElementById("yaml-modal-buttons").replaceChildren(...buttons);
-    document.getElementById("yaml-modal").classList.add("open");
+    const dialog = document.getElementById("yaml-modal");
+    if (!dialog.open) dialog.showModal();
 
     try {
         const resp = await fetch(`/api/review/${ROOM_ID}/yaml/${yamlId}`);
@@ -524,8 +522,7 @@ function cancelEdit(yamlId) {
 }
 
 function hideYamlModal() {
-    currentModalYamlId = null;
-    document.getElementById("yaml-modal").classList.remove("open");
+    document.getElementById("yaml-modal").close();
 }
 
 function confirmDeleteYaml(yamlId) {
@@ -623,8 +620,8 @@ async function onStatusChange(sel) {
     }
 }
 
-document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { hideYamlModal(); }
+document.getElementById("yaml-modal").addEventListener("close", () => {
+    currentModalYamlId = null;
 });
 
 refreshPresetList().then(() => {
