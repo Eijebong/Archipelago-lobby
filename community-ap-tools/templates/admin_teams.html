@@ -112,7 +112,7 @@ async function createTeam() {
     const resp = await fetch("/api/admin/teams", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ name, guild_id: parseInt(guildId) }),
+        body: JSON.stringify({ name, guild_id: guildId }),
     });
     if (!resp.ok) { showToast("Failed to create team: " + await resp.text()); return; }
     document.getElementById("new-team-name").value = "";
@@ -186,7 +186,7 @@ async function addMember() {
     const resp = await fetch(`/api/admin/teams/${currentTeamId}/members`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ user_id: parseInt(userId), username, role }),
+        body: JSON.stringify({ user_id: userId, username, role }),
     });
     if (!resp.ok) { showToast("Failed to add member: " + await resp.text()); return; }
     document.getElementById("add-member-id").value = "";

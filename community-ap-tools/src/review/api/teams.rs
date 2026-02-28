@@ -14,6 +14,7 @@ use crate::review::db;
 #[derive(Deserialize)]
 struct CreateTeamRequest {
     name: String,
+    #[serde(deserialize_with = "crate::review::db::deserialize_i64_from_string")]
     guild_id: i64,
 }
 
@@ -86,6 +87,7 @@ async fn admin_list_members(
 
 #[derive(Deserialize)]
 struct AddMemberRequest {
+    #[serde(deserialize_with = "crate::review::db::deserialize_i64_from_string")]
     user_id: i64,
     username: Option<String>,
     role: String,

@@ -1,7 +1,18 @@
 use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use uuid::Uuid;
+
+fn serialize_i64_as_string<S: Serializer>(val: &i64, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_str(&val.to_string())
+}
+
+pub fn deserialize_i64_from_string<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<i64, D::Error> {
+    let s = String::deserialize(d)?;
+    s.parse().map_err(serde::de::Error::custom)
+}
 
 use chrono::{DateTime, Utc};
 
@@ -372,6 +383,7 @@ pub async fn delete_note(
 pub struct Team {
     pub id: i32,
     pub name: String,
+    #[serde(serialize_with = "serialize_i64_as_string")]
     pub guild_id: i64,
 }
 
@@ -386,6 +398,7 @@ pub struct NewTeam {
 #[diesel(table_name = team_members)]
 pub struct TeamMember {
     pub team_id: i32,
+    #[serde(serialize_with = "serialize_i64_as_string")]
     pub user_id: i64,
     pub username: Option<String>,
     pub role: String,
