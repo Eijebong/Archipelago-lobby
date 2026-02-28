@@ -1,0 +1,31 @@
+<html>
+<head>
+    <title>{% block title %}AP Tools{% endblock %}</title>
+    <link rel="stylesheet" href="/static/review.css?{{ base.static_version }}">
+    {% block styles %}{% endblock %}
+    <script src="/static/review-utils.js?{{ base.static_version }}" defer></script>
+    {% block head_scripts %}{% endblock %}
+</head>
+<body>
+    <nav class="org-nav">
+        <div class="nav-left">
+            <a href="/rooms" class="nav-brand">AP Tools</a>
+            <span class="nav-divider"></span>
+            {% block nav_room %}{% endblock %}
+            <a href="/presets" class="nav-link{% if base.cur_page == "presets" || base.cur_page == "preset_edit" %} active{% endif %}">Presets</a>
+            {% if base.is_team_admin %}
+            <a href="/admin/teams" class="nav-link{% if base.cur_page == "teams" %} active{% endif %}">Teams</a>
+            {% endif %}
+        </div>
+        <div class="nav-right">
+            <span class="nav-user">{{ base.username }}</span>
+        </div>
+    </nav>
+
+    <div class="org-content">
+        {% block main %}{% endblock %}
+    </div>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

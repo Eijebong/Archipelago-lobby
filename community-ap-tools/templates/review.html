@@ -1,18 +1,30 @@
-<html>
-<head>
-    <title>YAML Review - {{ room_name }}</title>
-    <link rel="stylesheet" href="/static/review.css?{{ static_version }}">
-    <link rel="stylesheet" href="/static/contrib/highlight.js/monokai.min.css?{{ static_version }}">
-    <script src="/static/contrib/highlight.js/highlight.min.js?{{ static_version }}" defer></script>
-    <script src="/static/contrib/highlight.js/yaml.min.js?{{ static_version }}" defer></script>
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}YAML Review - {{ room_name }}{% endblock %}
+
+{% block styles %}
+    <link rel="stylesheet" href="/static/contrib/highlight.js/monokai.min.css?{{ base.static_version }}">
+{% endblock %}
+
+{% block head_scripts %}
+    <script src="/static/contrib/highlight.js/highlight.min.js?{{ base.static_version }}" defer></script>
+    <script src="/static/contrib/highlight.js/yaml.min.js?{{ base.static_version }}" defer></script>
+{% endblock %}
+
+{% block nav_room %}
+    <a href="/room/{{ room_id }}/review" class="nav-room-ctx">{{ room_name }}</a>
+    <span class="nav-separator">›</span>
+    <a href="/room/{{ room_id }}/review" class="nav-link active">Review</a>
+    <span class="nav-divider"></span>
+{% endblock %}
+
+{% block main %}
     <h1>YAML Review: {{ room_name }}</h1>
 
     <div class="section">
         <h2>Preset</h2>
         <div class="inline-form">
-            <select id="preset-select" onchange="onPresetChange()" {% if !is_super_admin %}disabled{% endif %}>
+            <select id="preset-select" onchange="onPresetChange()" {% if !base.is_super_admin %}disabled{% endif %}>
                 <option value="">-- No preset --</option>
             </select>
             <button id="edit-preset-btn" class="hidden" onclick="window.location.href=this.dataset.href">Edit preset</button>
@@ -30,8 +42,9 @@
         <div class="modal-body" id="yaml-modal-content"></div>
         <div class="button-container" id="yaml-modal-buttons"></div>
     </dialog>
+{% endblock %}
 
-<script src="/static/review-utils.js?{{ static_version }}"></script>
+{% block scripts %}
 <script>
 const ROOM_ID = "{{ room_id }}";
 const LOBBY_ROOT_URL = "{{ lobby_root_url }}".replace(/\/$/, "");
@@ -39,7 +52,7 @@ const ASSIGNED_PRESET_ID = {% match assigned_preset_id %}{% when Some with (id) 
 const IS_LOCKED = {{ is_locked }};
 const CURRENT_USER_ID = {{ user_id }};
 const USER_ROLE = "{{ user_role }}";
-const IS_SUPER_ADMIN = {{ is_super_admin }};
+const IS_SUPER_ADMIN = {{ base.is_super_admin }};
 const CAN_REVIEW = USER_ROLE === "reviewer" || USER_ROLE === "rule_editor" || USER_ROLE === "editor" || IS_SUPER_ADMIN;
 const CAN_EDIT = USER_ROLE === "editor" || IS_SUPER_ADMIN;
 
@@ -811,5 +824,4 @@ refreshPresetList().then(() => {
     }
 });
 </script>
-</body>
-</html>
+{% endblock %}

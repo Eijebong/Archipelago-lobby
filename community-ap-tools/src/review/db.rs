@@ -405,6 +405,7 @@ struct NewTeamMember {
 pub struct TeamRoom {
     pub team_id: i32,
     pub room_id: Uuid,
+    pub room_name: String,
 }
 
 #[derive(Insertable, Debug)]
@@ -412,6 +413,7 @@ pub struct TeamRoom {
 struct NewTeamRoom {
     team_id: i32,
     room_id: Uuid,
+    room_name: String,
 }
 
 pub async fn list_teams(conn: &mut AsyncPgConnection) -> anyhow::Result<Vec<Team>> {
@@ -508,16 +510,37 @@ pub async fn list_team_rooms(
 pub async fn add_team_room(
     team_id: i32,
     room_id: Uuid,
+    room_name: String,
     conn: &mut AsyncPgConnection,
 ) -> anyhow::Result<TeamRoom> {
     Ok(diesel::insert_into(team_rooms::table)
-        .values(&NewTeamRoom { team_id, room_id })
+        .values(&NewTeamRoom {
+            team_id,
+            room_id,
+            room_name: room_name.clone(),
+        })
         .on_conflict((team_rooms::team_id, team_rooms::room_id))
         .do_update()
-        .set(team_rooms::team_id.eq(team_id))
+        .set(team_rooms::room_name.eq(room_name))
         .returning(TeamRoom::as_returning())
         .get_result(conn)
         .await?)
+}
+
+pub async fn update_room_name(
+    room_id: Uuid,
+    room_name: &str,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<()> {
+    diesel::update(
+        team_rooms::table
+            .filter(team_rooms::room_id.eq(room_id))
+            .filter(team_rooms::room_name.ne(room_name)),
+    )
+    .set(team_rooms::room_name.eq(room_name))
+    .execute(conn)
+    .await?;
+    Ok(())
 }
 
 pub async fn remove_team_room(
@@ -555,6 +578,38 @@ pub async fn get_user_role_for_team(
         .optional()?;
 
     Ok(role.and_then(|r| r.parse().ok()))
+}
+
+pub struct RoomSummary {
+    pub room_id: Uuid,
+    pub room_name: String,
+}
+
+pub async fn list_all_rooms(conn: &mut AsyncPgConnection) -> anyhow::Result<Vec<RoomSummary>> {
+    Ok(team_rooms::table
+        .select((team_rooms::room_id, team_rooms::room_name))
+        .distinct_on(team_rooms::room_id)
+        .load::<(Uuid, String)>(conn)
+        .await?
+        .into_iter()
+        .map(|(room_id, room_name)| RoomSummary { room_id, room_name })
+        .collect())
+}
+
+pub async fn list_user_rooms(
+    user_id: i64,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<Vec<RoomSummary>> {
+    Ok(team_members::table
+        .inner_join(team_rooms::table.on(team_rooms::team_id.eq(team_members::team_id)))
+        .filter(team_members::user_id.eq(user_id))
+        .select((team_rooms::room_id, team_rooms::room_name))
+        .distinct_on(team_rooms::room_id)
+        .load::<(Uuid, String)>(conn)
+        .await?
+        .into_iter()
+        .map(|(room_id, room_name)| RoomSummary { room_id, room_name })
+        .collect())
 }
 
 pub async fn get_user_role_for_room(

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Rooms{% endblock %}
+
+{% block main %}
+    <h1>Rooms</h1>
+
+    <div class="section">
+        {% if rooms.is_empty() %}
+            <p>No rooms available.</p>
+        {% else %}
+            <table>
+                <thead><tr><th>Room</th></tr></thead>
+                <tbody>
+                {% for room in rooms %}
+                    <tr>
+                        <td><a href="/room/{{ room.room_id }}/review">{{ room.room_name }}</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+{% endblock %}

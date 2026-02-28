@@ -1,12 +1,11 @@
-<html>
-<head>
-    <title>Team Management</title>
-    <link rel="stylesheet" href="/static/review.css?{{ static_version }}">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}Team Management{% endblock %}
+
+{% block main %}
     <h1>Team Management</h1>
 
-    {% if is_super_admin %}
+    {% if base.is_super_admin %}
     <div class="section">
         <h2>Create Team</h2>
         <div class="field-group">
@@ -51,7 +50,7 @@
                     <option value="reviewer" selected>Reviewer</option>
                     <option value="rule_editor">Rule Editor</option>
                     <option value="editor">Editor</option>
-                    {% if is_super_admin %}
+                    {% if base.is_super_admin %}
                     <option value="admin">Admin</option>
                     {% endif %}
                 </select>
@@ -73,10 +72,11 @@
             </div>
         </div>
     </div>
+{% endblock %}
 
-<script src="/static/review-utils.js?{{ static_version }}"></script>
+{% block scripts %}
 <script>
-const IS_SUPER_ADMIN = {{ is_super_admin }};
+const IS_SUPER_ADMIN = {{ base.is_super_admin }};
 let currentTeamId = null;
 
 async function loadTeams() {
@@ -236,5 +236,4 @@ async function addRoom() {
 
 loadTeams();
 </script>
-</body>
-</html>
+{% endblock %}

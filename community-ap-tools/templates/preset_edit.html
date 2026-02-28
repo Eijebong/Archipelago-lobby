@@ -1,13 +1,12 @@
-<html>
-<head>
-    <title>Edit Preset: {{ preset.name }}</title>
-    <link rel="stylesheet" href="/static/review.css?{{ static_version }}">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}Edit Preset: {{ preset.name }}{% endblock %}
+
+{% block main %}
     <p><a href="{% match back_url %}{% when Some with (url) %}{{ url }}{% when None %}/presets{% endmatch %}">&larr; Back</a></p>
     <h1>Edit Preset: <span id="preset-name-display">{{ preset.name }}</span></h1>
 
-    {% if is_super_admin %}
+    {% if base.is_super_admin %}
     <div class="section">
         <div class="field-group">
             <div class="field">
@@ -32,21 +31,21 @@
     <div class="section">
         <h2>Built-in Rules</h2>
         <div id="builtin-rules"></div>
-        {% if is_super_admin %}
+        {% if base.is_super_admin %}
         <div class="builtin-save-wrap">
             <button id="builtin-save-btn" class="primary small" onclick="saveBuiltins()" disabled>Save built-in rules</button>
         </div>
         {% endif %}
     </div>
+{% endblock %}
 
-
+{% block scripts %}
 <div hidden id="initial-rules-data" data-json="{{ preset.rules }}"></div>
 <div hidden id="initial-builtins-data" data-json="{{ preset.builtin_rules }}"></div>
-<script src="/static/review-utils.js?{{ static_version }}"></script>
 <script>
 const PRESET_ID = {{ preset.id }};
 const CAN_EDIT_RULES = {{ can_edit_rules }};
-const IS_SUPER_ADMIN = {{ is_super_admin }};
+const IS_SUPER_ADMIN = {{ base.is_super_admin }};
 let INITIAL_RULES = [];
 let INITIAL_BUILTINS = [];
 try {
@@ -55,7 +54,7 @@ try {
 } catch(e) {
     showToast("Failed to parse initial data: " + e.message);
 }
-const CURRENT_USERNAME = "{{ current_username }}";
+const CURRENT_USERNAME = "{{ base.username }}";
 
 let gamesData = [];
 const gameToApworld = {};
@@ -821,5 +820,4 @@ loadGames().then(() => {
     initAddRuleForm();
 });
 </script>
-</body>
-</html>
+{% endblock %}

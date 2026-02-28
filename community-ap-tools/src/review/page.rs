@@ -3,6 +3,7 @@ use askama::Template;
 use askama_web::WebTemplate;
 use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::deadpool::Pool as DieselPool;
+use rocket::response::Redirect;
 use rocket::{State, routes};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -12,17 +13,74 @@ use super::db;
 use crate::Config;
 use crate::auth::LoggedInSession;
 
+pub struct OrgTplContext {
+    pub is_super_admin: bool,
+    pub is_team_admin: bool,
+    pub username: String,
+    pub static_version: &'static str,
+    pub cur_page: &'static str,
+}
+
+impl OrgTplContext {
+    pub async fn new(
+        session: &LoggedInSession,
+        cur_page: &'static str,
+        pool: &DieselPool<AsyncPgConnection>,
+    ) -> anyhow::Result<Self> {
+        let is_super_admin = session.is_super_admin();
+        let is_team_admin = if is_super_admin {
+            true
+        } else {
+            let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
+            let user_teams = db::get_user_teams(session.user_id(), &mut conn).await?;
+            user_teams
+                .iter()
+                .any(|(_, m)| m.role.parse::<Role>().ok() >= Some(Role::Admin))
+        };
+
+        Ok(OrgTplContext {
+            is_super_admin,
+            is_team_admin,
+            username: session.username().to_string(),
+            static_version: crate::STATIC_VERSION,
+            cur_page,
+        })
+    }
+}
+
 #[derive(Deserialize)]
 struct LobbyRoomBasic {
     name: String,
     locked: bool,
 }
 
-// -- Review page (results-focused) --
+#[derive(Template, WebTemplate)]
+#[template(path = "rooms.html")]
+pub struct RoomsListTpl {
+    base: OrgTplContext,
+    rooms: Vec<db::RoomSummary>,
+}
+
+#[rocket::get("/rooms")]
+async fn rooms_list(
+    session: LoggedInSession,
+    pool: &State<DieselPool<AsyncPgConnection>>,
+) -> crate::error::Result<RoomsListTpl> {
+    let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
+    let rooms = if session.is_super_admin() {
+        db::list_all_rooms(&mut conn).await?
+    } else {
+        db::list_user_rooms(session.user_id(), &mut conn).await?
+    };
+
+    let base = OrgTplContext::new(&session, "rooms", pool).await?;
+    Ok(RoomsListTpl { base, rooms })
+}
 
 #[derive(Template, WebTemplate)]
 #[template(path = "review.html")]
 pub struct ReviewTpl {
+    base: OrgTplContext,
     room_id: String,
     room_name: String,
     assigned_preset_id: Option<i32>,
@@ -30,11 +88,9 @@ pub struct ReviewTpl {
     is_locked: bool,
     user_id: i64,
     user_role: String,
-    is_super_admin: bool,
-    static_version: &'static str,
 }
 
-#[rocket::get("/review/<room_id>")]
+#[rocket::get("/room/<room_id>/review")]
 async fn review_page(
     session: LoggedInSession,
     room_id: &str,
@@ -70,9 +126,13 @@ async fn review_page(
     }
     let room_info: LobbyRoomBasic = room_resp.json().await?;
 
+    db::update_room_name(room_uuid, &room_info.name, &mut conn).await?;
+
     let room_config = db::get_room_config(room_uuid, &mut conn).await?;
+    let base = OrgTplContext::new(&session, "room", pool).await?;
 
     Ok(ReviewTpl {
+        base,
         room_id: room_uuid.to_string(),
         room_name: room_info.name,
         assigned_preset_id: room_config.map(|c| c.preset_id),
@@ -80,9 +140,17 @@ async fn review_page(
         is_locked: room_info.locked,
         user_id: session.user_id(),
         user_role,
-        is_super_admin: session.is_super_admin(),
-        static_version: crate::STATIC_VERSION,
     })
+}
+
+#[rocket::get("/review/<room_id>")]
+async fn review_redirect(room_id: &str) -> Redirect {
+    Redirect::permanent(format!("/room/{}/review", room_id))
+}
+
+#[rocket::get("/room/<room_id>", rank = 10)]
+async fn room_redirect(room_id: &str) -> Redirect {
+    Redirect::to(format!("/room/{}/review", room_id))
 }
 
 // -- Preset list page --
@@ -90,9 +158,8 @@ async fn review_page(
 #[derive(Template, WebTemplate)]
 #[template(path = "presets.html")]
 pub struct PresetsListTpl {
+    base: OrgTplContext,
     presets: Vec<db::PresetSummary>,
-    is_super_admin: bool,
-    static_version: &'static str,
 }
 
 #[rocket::get("/presets")]
@@ -103,11 +170,8 @@ async fn presets_list(
     let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
     let presets =
         db::list_presets_for_user(session.user_id(), session.is_super_admin(), &mut conn).await?;
-    Ok(PresetsListTpl {
-        presets,
-        is_super_admin: session.is_super_admin(),
-        static_version: crate::STATIC_VERSION,
-    })
+    let base = OrgTplContext::new(&session, "presets", pool).await?;
+    Ok(PresetsListTpl { base, presets })
 }
 
 // -- Preset edit page --
@@ -132,12 +196,10 @@ struct RuleForTemplate {
 #[derive(Template, WebTemplate)]
 #[template(path = "preset_edit.html")]
 pub struct PresetEditTpl {
+    base: OrgTplContext,
     preset: PresetForTemplate,
     back_url: Option<String>,
-    current_username: String,
-    is_super_admin: bool,
     can_edit_rules: bool,
-    static_version: &'static str,
 }
 
 #[rocket::get("/presets/<id>?<from_room>")]
@@ -148,18 +210,17 @@ async fn preset_edit(
     pool: &State<DieselPool<AsyncPgConnection>>,
 ) -> crate::error::Result<PresetEditTpl> {
     let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
-    let (can_edit_rules, is_admin) = if session.is_super_admin() {
-        (true, true)
+    let can_edit_rules = if session.is_super_admin() {
+        true
     } else {
         let role = db::get_user_role_for_preset(session.user_id(), id, &mut conn).await?;
         match role {
-            Some(r) if r >= Role::RuleEditor => (true, false),
-            Some(_) => (false, false),
+            Some(r) if r >= Role::RuleEditor => true,
+            Some(_) => false,
             None => return Err(crate::error::forbidden("Forbidden")),
         }
     };
 
-    let current_username = session.username().to_string();
     let preset = db::get_preset(id, &mut conn).await?;
     let db_rules = db::list_rules_for_preset(id, &mut conn).await?;
 
@@ -179,9 +240,11 @@ async fn preset_edit(
         })
         .collect();
 
-    let back_url = from_room.map(|room_id| format!("/review/{}", room_id));
+    let back_url = from_room.map(|room_id| format!("/room/{}/review", room_id));
+    let base = OrgTplContext::new(&session, "preset_edit", pool).await?;
 
     Ok(PresetEditTpl {
+        base,
         preset: PresetForTemplate {
             id: preset.id,
             name: preset.name,
@@ -189,10 +252,7 @@ async fn preset_edit(
             builtin_rules: serde_json::to_string(&preset.builtin_rules)?,
         },
         back_url,
-        current_username,
-        is_super_admin: is_admin,
         can_edit_rules,
-        static_version: crate::STATIC_VERSION,
     })
 }
 
@@ -201,8 +261,7 @@ async fn preset_edit(
 #[derive(Template, WebTemplate)]
 #[template(path = "admin_teams.html")]
 pub struct AdminTeamsTpl {
-    is_super_admin: bool,
-    static_version: &'static str,
+    base: OrgTplContext,
 }
 
 #[rocket::get("/admin/teams")]
@@ -221,12 +280,18 @@ async fn admin_teams_page(
         }
     }
 
-    Ok(AdminTeamsTpl {
-        is_super_admin: session.is_super_admin(),
-        static_version: crate::STATIC_VERSION,
-    })
+    let base = OrgTplContext::new(&session, "teams", pool).await?;
+    Ok(AdminTeamsTpl { base })
 }
 
 pub fn routes() -> Vec<rocket::Route> {
-    routes![review_page, presets_list, preset_edit, admin_teams_page]
+    routes![
+        rooms_list,
+        review_page,
+        review_redirect,
+        room_redirect,
+        presets_list,
+        preset_edit,
+        admin_teams_page
+    ]
 }

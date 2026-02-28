@@ -18,7 +18,8 @@ struct CreateTeamRequest {
 }
 
 #[derive(Deserialize)]
-struct LobbyRoomOwnership {
+struct LobbyRoomInfo {
+    name: String,
     author_id: i64,
 }
 
@@ -217,28 +218,27 @@ async fn admin_add_room(
         .await?;
     let req = body.into_inner();
 
-    if !session.is_super_admin() {
-        let client = reqwest::Client::new();
-        let url = config
-            .lobby_root_url
-            .join(&format!("/api/room/{}", req.room_id))?;
-        let resp = client
-            .get(url)
-            .header("x-api-key", &config.lobby_api_key)
-            .send()
-            .await?;
-        if !resp.status().is_success() {
-            return Err(error::not_found("Room not found on the lobby"));
-        }
-        let room_info: LobbyRoomOwnership = resp.json().await?;
-        if room_info.author_id != session.user_id() {
-            return Err(error::forbidden(
-                "You can only add rooms you own on the lobby",
-            ));
-        }
+    let client = reqwest::Client::new();
+    let url = config
+        .lobby_root_url
+        .join(&format!("/api/room/{}", req.room_id))?;
+    let resp = client
+        .get(url)
+        .header("x-api-key", &config.lobby_api_key)
+        .send()
+        .await?;
+    if !resp.status().is_success() {
+        return Err(error::not_found("Room not found on the lobby"));
+    }
+    let room_info: LobbyRoomInfo = resp.json().await?;
+
+    if !session.is_super_admin() && room_info.author_id != session.user_id() {
+        return Err(error::forbidden(
+            "You can only add rooms you own on the lobby",
+        ));
     }
 
-    let room = db::add_team_room(team_id, req.room_id, &mut conn).await?;
+    let room = db::add_team_room(team_id, req.room_id, room_info.name, &mut conn).await?;
     Ok(Json(room))
 }
 

@@ -49,6 +49,7 @@ diesel::table! {
     team_rooms (team_id, room_id) {
         team_id -> Int4,
         room_id -> Uuid,
+        room_name -> Text,
     }
 }
 

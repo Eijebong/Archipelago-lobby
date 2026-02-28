@@ -1,12 +1,12 @@
-<html>
-<head>
-    <title>Review Presets</title>
-    <link rel="stylesheet" href="/static/review.css?{{ static_version }}">
-</head>
-<body class="presets-page">
+{% extends "base.html" %}
+
+{% block title %}Review Presets{% endblock %}
+
+{% block main %}
+<div class="presets-page">
     <h1>Review Presets</h1>
 
-    {% if is_super_admin %}
+    {% if base.is_super_admin %}
     <div class="section">
         <h2>Create New Preset</h2>
         <form onsubmit="createPreset(event)">
@@ -29,7 +29,7 @@
                         <td><a href="/presets/{{ preset.id }}">{{ preset.name }}</a></td>
                         <td>
                             <a href="/presets/{{ preset.id }}" class="button">Edit</a>
-                            {% if is_super_admin %}
+                            {% if base.is_super_admin %}
                             <button class="danger" data-preset-id="{{ preset.id }}" data-preset-name="{{ preset.name }}">Delete</button>
                             {% endif %}
                         </td>
@@ -39,10 +39,12 @@
             </table>
         {% endif %}
     </div>
+</div>
+{% endblock %}
 
-<script src="/static/review-utils.js?{{ static_version }}"></script>
+{% block scripts %}
 <script>
-const IS_SUPER_ADMIN = {{ is_super_admin }};
+const IS_SUPER_ADMIN = {{ base.is_super_admin }};
 
 async function createPreset(e) {
     e.preventDefault();
@@ -70,5 +72,4 @@ document.querySelectorAll("button[data-preset-id]").forEach(btn => {
     });
 });
 </script>
-</body>
-</html>
+{% endblock %}
