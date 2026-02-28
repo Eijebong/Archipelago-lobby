@@ -218,7 +218,7 @@ function renderResultItems(results) {
         const hasRule = !!r.predicate;
         const item = h("div", {
             className: "result-item" + (hasRule ? " expandable" : ""),
-            onclick: function() { this.classList.toggle("expanded"); },
+            onclick: function() { if (!window.getSelection().toString()) this.classList.toggle("expanded"); },
         },
             h("span", { className: `outcome-badge ${badgeClass(r)}` }, r.outcome === "fail" ? r.severity : r.outcome),
             h("span", { className: "result-name" },
@@ -359,6 +359,7 @@ function renderResults(data) {
 
     tbody.addEventListener("click", (e) => {
         if (e.target.closest(".status-select")) return;
+        if (window.getSelection().toString()) return;
         const row = e.target.closest("tr[data-yaml-id]");
         if (row) showYamlModal(row.dataset.yamlId);
     });
