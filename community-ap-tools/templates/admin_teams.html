@@ -1,0 +1,240 @@
+<html>
+<head>
+    <title>Team Management</title>
+    <link rel="stylesheet" href="/static/review.css?{{ static_version }}">
+</head>
+<body>
+    <h1>Team Management</h1>
+
+    {% if is_super_admin %}
+    <div class="section">
+        <h2>Create Team</h2>
+        <div class="field-group">
+            <div class="field">
+                <span>Name</span>
+                <input type="text" id="new-team-name" placeholder="Team name" size="20">
+            </div>
+            <div class="field">
+                <span>Guild ID</span>
+                <input type="text" id="new-team-guild" placeholder="Discord Guild ID" size="20">
+            </div>
+            <div class="field field-end">
+                <button class="primary" onclick="createTeam()">Create</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <h2>Teams</h2>
+        <div id="teams-list"></div>
+    </div>
+
+    <div class="section hidden" id="team-detail">
+        <h2 id="team-detail-title"></h2>
+
+        <h3>Members</h3>
+        <div id="members-list"></div>
+        <div class="field-group" style="margin-top:0.5em">
+            <div class="field">
+                <span>User ID</span>
+                <input type="text" id="add-member-id" placeholder="Discord User ID" size="20">
+            </div>
+            <div class="field">
+                <span>Username</span>
+                <input type="text" id="add-member-name" placeholder="(optional)" size="15">
+            </div>
+            <div class="field">
+                <span>Role</span>
+                <select id="add-member-role">
+                    <option value="viewer">Viewer</option>
+                    <option value="reviewer" selected>Reviewer</option>
+                    <option value="rule_editor">Rule Editor</option>
+                    <option value="editor">Editor</option>
+                    {% if is_super_admin %}
+                    <option value="admin">Admin</option>
+                    {% endif %}
+                </select>
+            </div>
+            <div class="field field-end">
+                <button class="primary" onclick="addMember()">Add</button>
+            </div>
+        </div>
+
+        <h3>Rooms</h3>
+        <div id="rooms-list"></div>
+        <div class="field-group" style="margin-top:0.5em">
+            <div class="field">
+                <span>Room UUID</span>
+                <input type="text" id="add-room-id" placeholder="Room UUID" size="36">
+            </div>
+            <div class="field field-end">
+                <button class="primary" onclick="addRoom()">Add</button>
+            </div>
+        </div>
+    </div>
+
+<script src="/static/review-utils.js?{{ static_version }}"></script>
+<script>
+const IS_SUPER_ADMIN = {{ is_super_admin }};
+let currentTeamId = null;
+
+async function loadTeams() {
+    const resp = await fetch("/api/admin/teams");
+    if (!resp.ok) { showToast("Failed to load teams"); return; }
+    const teams = await resp.json();
+    const container = document.getElementById("teams-list");
+    if (teams.length === 0) {
+        container.replaceChildren(h("p", { className: "muted" }, "No teams yet."));
+        return;
+    }
+    const table = h("table", null,
+        h("thead", null, h("tr", null, h("th", null, "Name"), h("th", null, "Guild ID"), h("th", null, "Actions"))),
+        h("tbody", null, ...teams.map(t => {
+            const actions = [h("button", { className: "small", onclick: () => selectTeam(t.id, t.name) }, "Manage")];
+            if (IS_SUPER_ADMIN) {
+                actions.push(h("button", { className: "small danger", onclick: () => confirmDelete(t.name, () => deleteTeam(t.id)) }, "Delete"));
+            }
+            return h("tr", null,
+                h("td", null, h("a", { href: "#", onclick: (e) => { e.preventDefault(); selectTeam(t.id, t.name); } }, t.name)),
+                h("td", null, String(t.guild_id)),
+                h("td", null, ...actions),
+            );
+        })),
+    );
+    container.replaceChildren(table);
+}
+
+async function createTeam() {
+    const name = document.getElementById("new-team-name").value.trim();
+    const guildId = document.getElementById("new-team-guild").value.trim();
+    if (!name || !guildId) { showToast("Name and Guild ID required"); return; }
+    const resp = await fetch("/api/admin/teams", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ name, guild_id: parseInt(guildId) }),
+    });
+    if (!resp.ok) { showToast("Failed to create team: " + await resp.text()); return; }
+    document.getElementById("new-team-name").value = "";
+    document.getElementById("new-team-guild").value = "";
+    loadTeams();
+}
+
+async function deleteTeam(id) {
+    const resp = await fetch(`/api/admin/teams/${id}`, { method: "DELETE" });
+    if (!resp.ok) { showToast("Failed to delete team"); return; }
+    if (currentTeamId === id) {
+        document.getElementById("team-detail").classList.add("hidden");
+        currentTeamId = null;
+    }
+    loadTeams();
+}
+
+async function selectTeam(id, name) {
+    currentTeamId = id;
+    document.getElementById("team-detail").classList.remove("hidden");
+    document.getElementById("team-detail-title").textContent = name;
+    loadMembers();
+    loadRooms();
+}
+
+async function loadMembers() {
+    if (!currentTeamId) return;
+    const resp = await fetch(`/api/admin/teams/${currentTeamId}/members`);
+    if (!resp.ok) return;
+    const members = await resp.json();
+    const container = document.getElementById("members-list");
+    if (members.length === 0) {
+        container.replaceChildren(h("p", { className: "muted" }, "No members."));
+        return;
+    }
+    const roleOptions = [["viewer", "Viewer"], ["reviewer", "Reviewer"], ["rule_editor", "Rule Editor"], ["editor", "Editor"]];
+    if (IS_SUPER_ADMIN) roleOptions.push(["admin", "Admin"]);
+    const rows = members.map(m => {
+        const roleSel = selectEl("", roleOptions, m.role);
+        roleSel.onchange = async () => {
+            const r = await fetch(`/api/admin/teams/${currentTeamId}/members/${m.user_id}`, {
+                method: "PUT",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ role: roleSel.value }),
+            });
+            if (!r.ok) { showToast("Failed to update role: " + await r.text()); roleSel.value = m.role; }
+        };
+        return h("tr", null,
+            h("td", null, m.username || String(m.user_id)),
+            h("td", null, String(m.user_id)),
+            h("td", null, roleSel),
+            h("td", null, h("button", { className: "small danger", onclick: async () => {
+                const r = await fetch(`/api/admin/teams/${currentTeamId}/members/${m.user_id}`, { method: "DELETE" });
+                if (!r.ok) { showToast("Failed to remove member: " + await r.text()); return; }
+                loadMembers();
+            }}, "Remove")),
+        );
+    });
+    container.replaceChildren(h("table", null,
+        h("thead", null, h("tr", null, h("th", null, "Username"), h("th", null, "User ID"), h("th", null, "Role"), h("th", null, ""))),
+        h("tbody", null, ...rows),
+    ));
+}
+
+async function addMember() {
+    if (!currentTeamId) return;
+    const userId = document.getElementById("add-member-id").value.trim();
+    const username = document.getElementById("add-member-name").value.trim() || null;
+    const role = document.getElementById("add-member-role").value;
+    if (!userId) { showToast("User ID required"); return; }
+    const resp = await fetch(`/api/admin/teams/${currentTeamId}/members`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ user_id: parseInt(userId), username, role }),
+    });
+    if (!resp.ok) { showToast("Failed to add member: " + await resp.text()); return; }
+    document.getElementById("add-member-id").value = "";
+    document.getElementById("add-member-name").value = "";
+    loadMembers();
+}
+
+async function loadRooms() {
+    if (!currentTeamId) return;
+    const resp = await fetch(`/api/admin/teams/${currentTeamId}/rooms`);
+    if (!resp.ok) return;
+    const rooms = await resp.json();
+    const container = document.getElementById("rooms-list");
+    if (rooms.length === 0) {
+        container.replaceChildren(h("p", { className: "muted" }, "No rooms."));
+        return;
+    }
+    const rows = rooms.map(r =>
+        h("tr", null,
+            h("td", null, r.room_id),
+            h("td", null, h("button", { className: "small danger", onclick: async () => {
+                const resp = await fetch(`/api/admin/teams/${currentTeamId}/rooms/${r.room_id}`, { method: "DELETE" });
+                if (!resp.ok) { showToast("Failed to remove room"); return; }
+                loadRooms();
+            }}, "Remove")),
+        )
+    );
+    container.replaceChildren(h("table", null,
+        h("thead", null, h("tr", null, h("th", null, "Room ID"), h("th", null, ""))),
+        h("tbody", null, ...rows),
+    ));
+}
+
+async function addRoom() {
+    if (!currentTeamId) return;
+    const roomId = document.getElementById("add-room-id").value.trim();
+    if (!roomId) { showToast("Room UUID required"); return; }
+    const resp = await fetch(`/api/admin/teams/${currentTeamId}/rooms`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ room_id: roomId }),
+    });
+    if (!resp.ok) { showToast("Failed to add room: " + await resp.text()); return; }
+    document.getElementById("add-room-id").value = "";
+    loadRooms();
+}
+
+loadTeams();
+</script>
+</body>
+</html>

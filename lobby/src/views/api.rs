@@ -65,6 +65,7 @@ pub struct RoomInfo {
     close_date: NaiveDateTime,
     description: String,
     locked: bool,
+    author_id: i64,
     yamls: Vec<YamlInfo>,
     #[serde(skip_serializing_if = "Option::is_none")]
     server_info: Option<RoomServerInfo>,
@@ -99,6 +100,7 @@ pub(crate) async fn room_info(
         close_date: room.settings.close_date,
         description: room.settings.description,
         locked: room.settings.locked,
+        author_id: room.settings.author_id,
         yamls: yamls
             .into_iter()
             .map(|(yaml, discord_handle)| YamlInfo {

@@ -7,6 +7,7 @@ use rocket::{State, routes};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use super::Role;
 use super::db;
 use crate::Config;
 use crate::auth::LoggedInSession;
@@ -28,6 +29,8 @@ pub struct ReviewTpl {
     lobby_root_url: String,
     is_locked: bool,
     user_id: i64,
+    user_role: String,
+    is_super_admin: bool,
     static_version: &'static str,
 }
 
@@ -38,7 +41,20 @@ async fn review_page(
     config: &State<Config>,
     pool: &State<DieselPool<AsyncPgConnection>>,
 ) -> crate::error::Result<ReviewTpl> {
-    let room_uuid: Uuid = room_id.parse().map_err(|_| anyhow!("Invalid room ID"))?;
+    let room_uuid: Uuid = room_id
+        .parse()
+        .map_err(|_| crate::error::bad_request("Invalid room ID"))?;
+
+    let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
+    let user_role = if session.is_super_admin() {
+        Role::Editor.as_str().to_string()
+    } else {
+        let role = db::get_user_role_for_room(session.user_id(), room_uuid, &mut conn).await?;
+        match role {
+            Some(r) => r.as_str().to_string(),
+            None => return Err(crate::error::forbidden("Forbidden")),
+        }
+    };
 
     let client = reqwest::Client::new();
     let room_url = config
@@ -54,7 +70,6 @@ async fn review_page(
     }
     let room_info: LobbyRoomBasic = room_resp.json().await?;
 
-    let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
     let room_config = db::get_room_config(room_uuid, &mut conn).await?;
 
     Ok(ReviewTpl {
@@ -64,6 +79,8 @@ async fn review_page(
         lobby_root_url: config.lobby_root_url.to_string(),
         is_locked: room_info.locked,
         user_id: session.user_id(),
+        user_role,
+        is_super_admin: session.is_super_admin(),
         static_version: crate::STATIC_VERSION,
     })
 }
@@ -74,18 +91,21 @@ async fn review_page(
 #[template(path = "presets.html")]
 pub struct PresetsListTpl {
     presets: Vec<db::PresetSummary>,
+    is_super_admin: bool,
     static_version: &'static str,
 }
 
 #[rocket::get("/presets")]
 async fn presets_list(
-    _session: LoggedInSession,
+    session: LoggedInSession,
     pool: &State<DieselPool<AsyncPgConnection>>,
 ) -> crate::error::Result<PresetsListTpl> {
     let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
-    let presets = db::list_presets(&mut conn).await?;
+    let presets =
+        db::list_presets_for_user(session.user_id(), session.is_super_admin(), &mut conn).await?;
     Ok(PresetsListTpl {
         presets,
+        is_super_admin: session.is_super_admin(),
         static_version: crate::STATIC_VERSION,
     })
 }
@@ -115,6 +135,8 @@ pub struct PresetEditTpl {
     preset: PresetForTemplate,
     back_url: Option<String>,
     current_username: String,
+    is_super_admin: bool,
+    can_edit_rules: bool,
     static_version: &'static str,
 }
 
@@ -125,8 +147,19 @@ async fn preset_edit(
     from_room: Option<String>,
     pool: &State<DieselPool<AsyncPgConnection>>,
 ) -> crate::error::Result<PresetEditTpl> {
-    let current_username = session.username().to_string();
     let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
+    let (can_edit_rules, is_admin) = if session.is_super_admin() {
+        (true, true)
+    } else {
+        let role = db::get_user_role_for_preset(session.user_id(), id, &mut conn).await?;
+        match role {
+            Some(r) if r >= Role::RuleEditor => (true, false),
+            Some(_) => (false, false),
+            None => return Err(crate::error::forbidden("Forbidden")),
+        }
+    };
+
+    let current_username = session.username().to_string();
     let preset = db::get_preset(id, &mut conn).await?;
     let db_rules = db::list_rules_for_preset(id, &mut conn).await?;
 
@@ -157,10 +190,43 @@ async fn preset_edit(
         },
         back_url,
         current_username,
+        is_super_admin: is_admin,
+        can_edit_rules,
+        static_version: crate::STATIC_VERSION,
+    })
+}
+
+// -- Admin teams page --
+
+#[derive(Template, WebTemplate)]
+#[template(path = "admin_teams.html")]
+pub struct AdminTeamsTpl {
+    is_super_admin: bool,
+    static_version: &'static str,
+}
+
+#[rocket::get("/admin/teams")]
+async fn admin_teams_page(
+    session: LoggedInSession,
+    pool: &State<DieselPool<AsyncPgConnection>>,
+) -> crate::error::Result<AdminTeamsTpl> {
+    if !session.is_super_admin() {
+        let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
+        let user_teams = db::get_user_teams(session.user_id(), &mut conn).await?;
+        let is_team_admin = user_teams
+            .iter()
+            .any(|(_, m)| m.role.parse::<Role>().ok() >= Some(Role::Admin));
+        if !is_team_admin {
+            return Err(anyhow!("Forbidden").into());
+        }
+    }
+
+    Ok(AdminTeamsTpl {
+        is_super_admin: session.is_super_admin(),
         static_version: crate::STATIC_VERSION,
     })
 }
 
 pub fn routes() -> Vec<rocket::Route> {
-    routes![review_page, presets_list, preset_edit]
+    routes![review_page, presets_list, preset_edit, admin_teams_page]
 }

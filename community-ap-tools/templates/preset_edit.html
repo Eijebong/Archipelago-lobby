@@ -7,6 +7,7 @@
     <p><a href="{% match back_url %}{% when Some with (url) %}{{ url }}{% when None %}/presets{% endmatch %}">&larr; Back</a></p>
     <h1>Edit Preset: <span id="preset-name-display">{{ preset.name }}</span></h1>
 
+    {% if is_super_admin %}
     <div class="section">
         <div class="field-group">
             <div class="field">
@@ -18,19 +19,24 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <div class="section">
         <h2>Rules</h2>
+        {% if can_edit_rules %}
         <div class="add-rule-form" id="add-rule-form"></div>
+        {% endif %}
         <div id="rules-container"></div>
     </div>
 
     <div class="section">
         <h2>Built-in Rules</h2>
         <div id="builtin-rules"></div>
+        {% if is_super_admin %}
         <div class="builtin-save-wrap">
             <button id="builtin-save-btn" class="primary small" onclick="saveBuiltins()" disabled>Save built-in rules</button>
         </div>
+        {% endif %}
     </div>
 
 
@@ -39,6 +45,8 @@
 <script src="/static/review-utils.js?{{ static_version }}"></script>
 <script>
 const PRESET_ID = {{ preset.id }};
+const CAN_EDIT_RULES = {{ can_edit_rules }};
+const IS_SUPER_ADMIN = {{ is_super_admin }};
 let INITIAL_RULES = [];
 let INITIAL_BUILTINS = [];
 try {
@@ -476,15 +484,18 @@ class RuleEditor {
     }
 
     _buildRow({ name, severity }) {
-        this.row.replaceChildren(
+        const children = [
             h("span", { className: "unsaved-badge", style: "display:none" }, "unsaved"),
             h("span", { className: "rule-name-label", title: editInfoText(this.lastEditedByName, this.lastEditedAt) }, name),
             h("span", { className: `severity-badge ${severity}` }, severity),
-            h("span", { className: "rule-actions" },
+        ];
+        if (CAN_EDIT_RULES) {
+            children.push(h("span", { className: "rule-actions" },
                 h("button", { className: "small", onclick: (e) => { e.stopPropagation(); this.onClone(); } }, "Clone"),
                 h("button", { className: "small danger", onclick: (e) => { e.stopPropagation(); this.onDelete(); } }, "x"),
-            ),
-        );
+            ));
+        }
+        this.row.replaceChildren(...children);
         this.row.onclick = () => this.toggle();
     }
 
@@ -507,19 +518,23 @@ class RuleEditor {
         gameInput.addEventListener("change", () => { this._updateRow(); renderAll(); });
         sevSelect.addEventListener("change", () => this._updateRow());
 
-        this.saveBtn = h("button", {
-            className: "primary small",
-            disabled: !this.dirty,
-            onclick: (e) => { e.stopPropagation(); this.save(); },
-        }, "Save rule");
-
-        const footer = h("div", { className: "rule-footer" }, this.saveBtn);
+        const footer = h("div", { className: "rule-footer" });
+        if (CAN_EDIT_RULES) {
+            this.saveBtn = h("button", {
+                className: "primary small",
+                disabled: !this.dirty,
+                onclick: (e) => { e.stopPropagation(); this.save(); },
+            }, "Save rule");
+            footer.append(this.saveBtn);
+        }
         const info = editInfoText(this.lastEditedByName, this.lastEditedAt);
         if (info) footer.append(h("span", { className: "edit-info" }, info));
 
         this.editor.append(footer);
-        this.editor.addEventListener("input", () => this.markDirty());
-        this.editor.addEventListener("change", () => this.markDirty());
+        if (CAN_EDIT_RULES) {
+            this.editor.addEventListener("input", () => this.markDirty());
+            this.editor.addEventListener("change", () => this.markDirty());
+        }
     }
 
     _updateRow() {
@@ -633,6 +648,7 @@ function renderAll() {
 
 function initAddRuleForm() {
     const form = document.getElementById("add-rule-form");
+    if (!form) return;
     const gameGetter = () => form.querySelector(".rule-game").value.trim() || null;
     buildRuleForm(form, {
         name: "", game: null, severity: "error",
@@ -785,13 +801,17 @@ async function loadBuiltinRulesList() {
     container.replaceChildren();
     for (const r of builtinRules) {
         const cb = h("input", { type: "checkbox", "data-id": r.id, checked: INITIAL_BUILTINS.includes(r.id) });
+        if (!IS_SUPER_ADMIN) cb.disabled = true;
         container.append(h("div", { className: "builtin-toggle" },
             h("label", null, cb, " ", h("strong", null, r.name), " - ", r.description),
         ));
     }
-    container.addEventListener("change", () => {
-        document.getElementById("builtin-save-btn").disabled = false;
-    });
+    const saveBtn = document.getElementById("builtin-save-btn");
+    if (saveBtn) {
+        container.addEventListener("change", () => {
+            saveBtn.disabled = false;
+        });
+    }
 }
 
 loadGames().then(() => {

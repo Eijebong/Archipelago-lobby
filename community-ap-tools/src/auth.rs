@@ -1,13 +1,14 @@
 use std::str::FromStr;
 
-use crate::{Discord, error::Result};
+use crate::{Discord, error, error::Result, review::Role, review::db as review_db};
 use anyhow::anyhow;
+use diesel_async::AsyncPgConnection;
+use diesel_async::pooled_connection::deadpool::Pool as DieselPool;
 use reqwest::{Url, header::HeaderValue};
+use rocket::figment::{Figment, Profile, Provider, value::Dict};
 use rocket::time::ext::NumericalDuration;
 use rocket::{
-    Request, State,
-    figment::{Figment, Profile, Provider},
-    get,
+    Request, State, get,
     http::{Cookie, CookieJar, SameSite, Status},
     request::{FromRequest, Outcome},
     response::Redirect,
@@ -16,6 +17,7 @@ use rocket::{
 };
 use rocket_oauth2::{OAuth2, TokenResponse};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
 pub struct Session {
@@ -23,6 +25,8 @@ pub struct Session {
     pub username: Option<String>,
     pub is_logged_in: bool,
     pub redirect_on_login: Option<String>,
+    #[serde(default)]
+    pub is_super_admin: bool,
 }
 
 impl Session {
@@ -38,6 +42,7 @@ impl Session {
                     username: None,
                     is_logged_in: false,
                     redirect_on_login: None,
+                    is_super_admin: false,
                 };
             };
 
@@ -49,6 +54,7 @@ impl Session {
             username: None,
             is_logged_in: false,
             redirect_on_login: None,
+            is_super_admin: false,
         }
     }
 
@@ -76,7 +82,61 @@ impl LoggedInSession {
     pub fn username(&self) -> &str {
         self.0.username.as_deref().unwrap_or("Unknown")
     }
+
+    pub fn is_super_admin(&self) -> bool {
+        self.0.is_super_admin
+    }
+
+    pub async fn require_room_role(
+        &self,
+        room_id: Uuid,
+        minimum: Role,
+        conn: &mut AsyncPgConnection,
+    ) -> Result<()> {
+        if self.is_super_admin() {
+            return Ok(());
+        }
+        let role = review_db::get_user_role_for_room(self.user_id(), room_id, conn).await?;
+        match role {
+            Some(r) if r >= minimum => Ok(()),
+            _ => Err(error::forbidden("Forbidden")),
+        }
+    }
+
+    pub async fn require_team_role(
+        &self,
+        team_id: i32,
+        minimum: Role,
+        conn: &mut AsyncPgConnection,
+    ) -> Result<()> {
+        if self.is_super_admin() {
+            return Ok(());
+        }
+        let role = review_db::get_user_role_for_team(self.user_id(), team_id, conn).await?;
+        match role {
+            Some(r) if r >= minimum => Ok(()),
+            _ => Err(error::forbidden("Forbidden")),
+        }
+    }
+
+    pub async fn require_preset_role(
+        &self,
+        preset_id: i32,
+        minimum: Role,
+        conn: &mut AsyncPgConnection,
+    ) -> Result<()> {
+        if self.is_super_admin() {
+            return Ok(());
+        }
+        let role = review_db::get_user_role_for_preset(self.user_id(), preset_id, conn).await?;
+        match role {
+            Some(r) if r >= minimum => Ok(()),
+            _ => Err(error::forbidden("Forbidden")),
+        }
+    }
 }
+
+pub struct AdminSession(#[allow(dead_code)] LoggedInSession);
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for Session {
@@ -100,6 +160,49 @@ impl<'r> FromRequest<'r> for LoggedInSession {
 
         Outcome::Error((Status::Unauthorized, anyhow!("Not logged in").into()))
     }
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for AdminSession {
+    type Error = crate::error::Error;
+
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let session = Session::from_request_sync(request);
+
+        if !session.is_logged_in {
+            return Outcome::Error((Status::Unauthorized, anyhow!("Not logged in").into()));
+        }
+
+        if !session.is_super_admin {
+            return Outcome::Error((Status::Forbidden, anyhow!("Forbidden").into()));
+        }
+
+        Outcome::Success(AdminSession(LoggedInSession(session)))
+    }
+}
+
+pub fn get_discord_config(figment: &Figment) -> anyhow::Result<Dict> {
+    let config = figment.data()?;
+    let discord_config = config
+        .get(&Profile::Default)
+        .ok_or(anyhow!("No default profile in config"))?
+        .get("oauth")
+        .ok_or(anyhow!("No oauth section in default profile"))?
+        .as_dict()
+        .ok_or(anyhow!("oauth section isn't a map"))?
+        .get("discord")
+        .ok_or(anyhow!("no discord section in oauth"))?
+        .as_dict()
+        .ok_or(anyhow!("discord section isn't a dict"))?
+        .clone();
+    Ok(discord_config)
+}
+
+pub fn is_super_admin(user_id: i64, discord_config: &Dict) -> bool {
+    let Some(admins) = discord_config.get("admins").and_then(|v| v.as_array()) else {
+        return false;
+    };
+    admins.contains(&user_id.into())
 }
 
 #[get("/login?<redirect>")]
@@ -132,25 +235,15 @@ async fn login_discord_callback(
     mut session: Session,
     token: TokenResponse<Discord>,
     cookies: &CookieJar<'_>,
-    config: &State<Figment>,
+    figment: &State<Figment>,
+    pool: &State<DieselPool<AsyncPgConnection>>,
 ) -> Result<Redirect> {
     let token = token.access_token();
 
     let client = reqwest::Client::new();
     let user = get_discord_user(&client, token).await?;
 
-    let config = config.data()?;
-    let discord_config = config
-        .get(&Profile::Default)
-        .ok_or(anyhow!("No default profile in config"))?
-        .get("oauth")
-        .ok_or(anyhow!("No oauth section in default profile"))?
-        .as_dict()
-        .ok_or(anyhow!("oauth section isn't a map"))?
-        .get("discord")
-        .ok_or(anyhow!("no discord section in oauth"))?
-        .as_dict()
-        .ok_or(anyhow!("discord section isn't a dict"))?;
+    let discord_config = get_discord_config(figment)?;
     let client_id = discord_config
         .get("client_id")
         .ok_or(anyhow!("client id not present in discord config"))?
@@ -164,20 +257,20 @@ async fn login_discord_callback(
     revoke_token(&client, client_id, client_secret, token).await?;
 
     let discord_id: i64 = user.id.parse()?;
+    let super_admin = is_super_admin(discord_id, &discord_config);
 
-    let admins = discord_config
-        .get("admins")
-        .ok_or(anyhow!("no admins in discord section"))?
-        .as_array()
-        .ok_or(anyhow!("admins isn't an array"))?;
-
-    if !admins.contains(&discord_id.into()) {
-        Err(anyhow::anyhow!("Not allowed"))?
+    if !super_admin {
+        let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
+        let in_team = review_db::is_user_in_any_team(discord_id, &mut conn).await?;
+        if !in_team {
+            Err(anyhow::anyhow!("Not allowed"))?
+        }
     }
 
     session.user_id = Some(user.id.parse()?);
     session.username = Some(user.username.clone());
     session.is_logged_in = true;
+    session.is_super_admin = super_admin;
     session.save(cookies).unwrap();
 
     if let Some(redirect) = session.redirect_on_login {

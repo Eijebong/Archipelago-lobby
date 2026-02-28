@@ -5,6 +5,7 @@ diesel::table! {
         id -> Int4,
         name -> Text,
         builtin_rules -> Jsonb,
+        team_id -> Nullable<Int4>,
     }
 }
 
@@ -24,6 +25,30 @@ diesel::table! {
     room_review_config (room_id) {
         room_id -> Uuid,
         preset_id -> Int4,
+    }
+}
+
+diesel::table! {
+    teams (id) {
+        id -> Int4,
+        name -> Text,
+        guild_id -> Int8,
+    }
+}
+
+diesel::table! {
+    team_members (team_id, user_id) {
+        team_id -> Int4,
+        user_id -> Int8,
+        username -> Nullable<Text>,
+        role -> Text,
+    }
+}
+
+diesel::table! {
+    team_rooms (team_id, room_id) {
+        team_id -> Int4,
+        room_id -> Uuid,
     }
 }
 
@@ -51,11 +76,17 @@ diesel::table! {
 }
 
 diesel::joinable!(review_preset_rules -> review_presets (preset_id));
+diesel::joinable!(review_presets -> teams (team_id));
 diesel::joinable!(room_review_config -> review_presets (preset_id));
+diesel::joinable!(team_members -> teams (team_id));
+diesel::joinable!(team_rooms -> teams (team_id));
 diesel::allow_tables_to_appear_in_same_query!(
     review_presets,
     review_preset_rules,
     room_review_config,
+    teams,
+    team_members,
+    team_rooms,
     yaml_review_notes,
     yaml_review_status
 );

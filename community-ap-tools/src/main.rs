@@ -819,6 +819,7 @@ async fn main() -> crate::error::Result<()> {
         .mount("/auth", auth::routes())
         .mount("/", review::page::routes())
         .mount("/api", review::api::routes())
+        .mount("/api/admin", review::api::admin_routes())
         .register("/", catchers![unauthorized])
         .manage(rocket::Config::figment())
         .manage(config)

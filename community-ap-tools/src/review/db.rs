@@ -6,7 +6,8 @@ use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
 use crate::schema::{
-    review_preset_rules, review_presets, room_review_config, yaml_review_notes, yaml_review_status,
+    review_preset_rules, review_presets, room_review_config, team_members, team_rooms, teams,
+    yaml_review_notes, yaml_review_status,
 };
 
 #[derive(Queryable, Selectable, Serialize, Debug)]
@@ -15,6 +16,7 @@ pub struct ReviewPreset {
     pub id: i32,
     pub name: String,
     pub builtin_rules: serde_json::Value,
+    pub team_id: Option<i32>,
 }
 
 #[derive(Serialize, Debug)]
@@ -28,6 +30,8 @@ pub struct PresetSummary {
 pub struct NewPreset {
     pub name: String,
     pub builtin_rules: serde_json::Value,
+    #[serde(default)]
+    pub team_id: Option<i32>,
 }
 
 #[derive(AsChangeset, Debug, Deserialize)]
@@ -359,4 +363,273 @@ pub async fn delete_note(
     )
     .execute(conn)
     .await?)
+}
+
+// --- Teams ---
+
+#[derive(Queryable, Selectable, Serialize, Debug, Clone)]
+#[diesel(table_name = teams)]
+pub struct Team {
+    pub id: i32,
+    pub name: String,
+    pub guild_id: i64,
+}
+
+#[derive(Insertable, Debug, Deserialize)]
+#[diesel(table_name = teams)]
+pub struct NewTeam {
+    pub name: String,
+    pub guild_id: i64,
+}
+
+#[derive(Queryable, Selectable, Serialize, Debug, Clone)]
+#[diesel(table_name = team_members)]
+pub struct TeamMember {
+    pub team_id: i32,
+    pub user_id: i64,
+    pub username: Option<String>,
+    pub role: String,
+}
+
+#[derive(Insertable, Debug)]
+#[diesel(table_name = team_members)]
+struct NewTeamMember {
+    team_id: i32,
+    user_id: i64,
+    username: Option<String>,
+    role: String,
+}
+
+#[derive(Queryable, Selectable, Serialize, Debug, Clone)]
+#[diesel(table_name = team_rooms)]
+pub struct TeamRoom {
+    pub team_id: i32,
+    pub room_id: Uuid,
+}
+
+#[derive(Insertable, Debug)]
+#[diesel(table_name = team_rooms)]
+struct NewTeamRoom {
+    team_id: i32,
+    room_id: Uuid,
+}
+
+pub async fn list_teams(conn: &mut AsyncPgConnection) -> anyhow::Result<Vec<Team>> {
+    Ok(teams::table
+        .select(Team::as_select())
+        .order_by(teams::name)
+        .load(conn)
+        .await?)
+}
+
+pub async fn create_team(new_team: NewTeam, conn: &mut AsyncPgConnection) -> anyhow::Result<Team> {
+    Ok(diesel::insert_into(teams::table)
+        .values(&new_team)
+        .returning(Team::as_returning())
+        .get_result(conn)
+        .await?)
+}
+
+pub async fn delete_team(id: i32, conn: &mut AsyncPgConnection) -> anyhow::Result<usize> {
+    Ok(diesel::delete(teams::table.find(id)).execute(conn).await?)
+}
+
+pub async fn list_team_members(
+    team_id: i32,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<Vec<TeamMember>> {
+    Ok(team_members::table
+        .filter(team_members::team_id.eq(team_id))
+        .select(TeamMember::as_select())
+        .order_by(team_members::username)
+        .load(conn)
+        .await?)
+}
+
+pub async fn add_team_member(
+    team_id: i32,
+    user_id: i64,
+    username: Option<&str>,
+    role: &str,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<TeamMember> {
+    Ok(diesel::insert_into(team_members::table)
+        .values(&NewTeamMember {
+            team_id,
+            user_id,
+            username: username.map(|s| s.to_string()),
+            role: role.to_string(),
+        })
+        .on_conflict((team_members::team_id, team_members::user_id))
+        .do_update()
+        .set((
+            team_members::role.eq(role),
+            team_members::username.eq(username),
+        ))
+        .returning(TeamMember::as_returning())
+        .get_result(conn)
+        .await?)
+}
+
+pub async fn remove_team_member(
+    team_id: i32,
+    user_id: i64,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<usize> {
+    Ok(diesel::delete(team_members::table.find((team_id, user_id)))
+        .execute(conn)
+        .await?)
+}
+
+pub async fn update_team_member_role(
+    team_id: i32,
+    user_id: i64,
+    role: &str,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<TeamMember> {
+    Ok(diesel::update(team_members::table.find((team_id, user_id)))
+        .set(team_members::role.eq(role))
+        .returning(TeamMember::as_returning())
+        .get_result(conn)
+        .await?)
+}
+
+pub async fn list_team_rooms(
+    team_id: i32,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<Vec<TeamRoom>> {
+    Ok(team_rooms::table
+        .filter(team_rooms::team_id.eq(team_id))
+        .select(TeamRoom::as_select())
+        .load(conn)
+        .await?)
+}
+
+pub async fn add_team_room(
+    team_id: i32,
+    room_id: Uuid,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<TeamRoom> {
+    Ok(diesel::insert_into(team_rooms::table)
+        .values(&NewTeamRoom { team_id, room_id })
+        .on_conflict((team_rooms::team_id, team_rooms::room_id))
+        .do_update()
+        .set(team_rooms::team_id.eq(team_id))
+        .returning(TeamRoom::as_returning())
+        .get_result(conn)
+        .await?)
+}
+
+pub async fn remove_team_room(
+    team_id: i32,
+    room_id: Uuid,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<usize> {
+    Ok(diesel::delete(team_rooms::table.find((team_id, room_id)))
+        .execute(conn)
+        .await?)
+}
+
+pub async fn get_user_teams(
+    user_id: i64,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<Vec<(Team, TeamMember)>> {
+    Ok(teams::table
+        .inner_join(team_members::table)
+        .filter(team_members::user_id.eq(user_id))
+        .select((Team::as_select(), TeamMember::as_select()))
+        .load(conn)
+        .await?)
+}
+
+pub async fn get_user_role_for_team(
+    user_id: i64,
+    team_id: i32,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<Option<super::Role>> {
+    let role: Option<String> = team_members::table
+        .find((team_id, user_id))
+        .select(team_members::role)
+        .get_result(conn)
+        .await
+        .optional()?;
+
+    Ok(role.and_then(|r| r.parse().ok()))
+}
+
+pub async fn get_user_role_for_room(
+    user_id: i64,
+    room_id: Uuid,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<Option<super::Role>> {
+    let roles: Vec<String> = team_members::table
+        .inner_join(team_rooms::table.on(team_rooms::team_id.eq(team_members::team_id)))
+        .filter(team_members::user_id.eq(user_id))
+        .filter(team_rooms::room_id.eq(room_id))
+        .select(team_members::role)
+        .load(conn)
+        .await?;
+
+    Ok(roles.into_iter().filter_map(|r| r.parse().ok()).max())
+}
+
+pub async fn get_user_role_for_preset(
+    user_id: i64,
+    preset_id: i32,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<Option<super::Role>> {
+    let roles: Vec<String> = team_members::table
+        .inner_join(
+            review_presets::table.on(review_presets::team_id.eq(team_members::team_id.nullable())),
+        )
+        .filter(team_members::user_id.eq(user_id))
+        .filter(review_presets::id.eq(preset_id))
+        .select(team_members::role)
+        .load(conn)
+        .await?;
+
+    Ok(roles.into_iter().filter_map(|r| r.parse().ok()).max())
+}
+
+pub async fn is_user_in_any_team(
+    user_id: i64,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<bool> {
+    use diesel::dsl::exists;
+    let result: bool = diesel::select(exists(
+        team_members::table.filter(team_members::user_id.eq(user_id)),
+    ))
+    .get_result(conn)
+    .await?;
+    Ok(result)
+}
+
+pub async fn list_presets_for_user(
+    user_id: i64,
+    is_super_admin: bool,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<Vec<PresetSummary>> {
+    if is_super_admin {
+        return list_presets(conn).await;
+    }
+    let user_teams = get_user_teams(user_id, conn).await?;
+    let team_ids: Vec<i32> = user_teams.iter().map(|(t, _)| t.id).collect();
+    list_presets_for_teams(&team_ids, conn).await
+}
+
+pub async fn list_presets_for_teams(
+    team_ids: &[i32],
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<Vec<PresetSummary>> {
+    let results = review_presets::table
+        .filter(review_presets::team_id.eq_any(team_ids))
+        .select((review_presets::id, review_presets::name))
+        .order_by(review_presets::name)
+        .load::<(i32, String)>(conn)
+        .await?;
+
+    Ok(results
+        .into_iter()
+        .map(|(id, name)| PresetSummary { id, name })
+        .collect())
 }

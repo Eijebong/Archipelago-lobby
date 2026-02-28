@@ -12,7 +12,7 @@
     <div class="section">
         <h2>Preset</h2>
         <div class="inline-form">
-            <select id="preset-select" onchange="onPresetChange()">
+            <select id="preset-select" onchange="onPresetChange()" {% if !is_super_admin %}disabled{% endif %}>
                 <option value="">-- No preset --</option>
             </select>
             <button id="edit-preset-btn" class="hidden" onclick="window.location.href=this.dataset.href">Edit preset</button>
@@ -38,6 +38,10 @@ const LOBBY_ROOT_URL = "{{ lobby_root_url }}".replace(/\/$/, "");
 const ASSIGNED_PRESET_ID = {% match assigned_preset_id %}{% when Some with (id) %}{{ id }}{% when None %}null{% endmatch %};
 const IS_LOCKED = {{ is_locked }};
 const CURRENT_USER_ID = {{ user_id }};
+const USER_ROLE = "{{ user_role }}";
+const IS_SUPER_ADMIN = {{ is_super_admin }};
+const CAN_REVIEW = USER_ROLE === "reviewer" || USER_ROLE === "rule_editor" || USER_ROLE === "editor" || IS_SUPER_ADMIN;
+const CAN_EDIT = USER_ROLE === "editor" || IS_SUPER_ADMIN;
 
 const CHECK_LABELS = {
     truthy: "is truthy", not_truthy: "is not truthy", equals: "equals", not_equals: "does not equal",
@@ -91,6 +95,7 @@ function updateEditLink() {
 }
 
 async function onPresetChange() {
+    if (!IS_SUPER_ADMIN) return;
     const sel = document.getElementById("preset-select");
     const presetId = parseInt(sel.value);
     updateEditLink();
@@ -414,7 +419,11 @@ function renderStatusSelect(yamlId, extraClass) {
     const sel = selectEl(cls, STATUS_TYPES, st.status);
     if (title) sel.title = title;
     sel.dataset.yamlId = yamlId;
-    sel.onchange = function() { onStatusChange(this); };
+    if (!CAN_REVIEW) {
+        sel.disabled = true;
+    } else {
+        sel.onchange = function() { onStatusChange(this); };
+    }
     return sel;
 }
 
@@ -441,7 +450,7 @@ async function showYamlModal(yamlId) {
     const viewerDiv = h("div", { className: "yaml-viewer" }, h("pre", null, codeEl));
 
     const titleActions = [];
-    if (!IS_LOCKED) {
+    if (!IS_LOCKED && CAN_EDIT) {
         titleActions.push(h("button", { className: "small accent", onclick: () => enterEditMode(yamlId) }, "Edit"));
         titleActions.push(h("button", { className: "small danger", onclick: () => confirmDeleteYaml(yamlId) }, "Delete"));
     }
@@ -713,32 +722,36 @@ async function renderNotes(yamlId, prefetchedNotes) {
         }
     }
 
-    const textarea = h("textarea", {
-        className: "note-form-textarea", placeholder: "Add a note...", rows: 2,
-        onkeydown: (e) => { if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); submitBtn.click(); } },
-    });
-    const submitBtn = h("button", {
-        className: "small primary",
-        onclick: async () => {
-            const content = textarea.value.trim();
-            if (!content) return;
-            submitBtn.disabled = true;
-            try {
-                const r = await fetch(`/api/review/${ROOM_ID}/notes/${yamlId}`, {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ content }),
-                });
-                if (!r.ok) { showToast("Failed to add note"); return; }
-                renderNotes(yamlId);
-            } finally {
-                submitBtn.disabled = false;
-            }
-        },
-    }, "Add note");
-    const form = h("div", { className: "note-form" }, textarea, submitBtn);
+    const children = [h("h4", null, "Notes"), noteList];
 
-    section.replaceChildren(h("h4", null, "Notes"), noteList, form);
+    if (CAN_REVIEW) {
+        const textarea = h("textarea", {
+            className: "note-form-textarea", placeholder: "Add a note...", rows: 2,
+            onkeydown: (e) => { if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); submitBtn.click(); } },
+        });
+        const submitBtn = h("button", {
+            className: "small primary",
+            onclick: async () => {
+                const content = textarea.value.trim();
+                if (!content) return;
+                submitBtn.disabled = true;
+                try {
+                    const r = await fetch(`/api/review/${ROOM_ID}/notes/${yamlId}`, {
+                        method: "POST",
+                        headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify({ content }),
+                    });
+                    if (!r.ok) { showToast("Failed to add note"); return; }
+                    renderNotes(yamlId);
+                } finally {
+                    submitBtn.disabled = false;
+                }
+            },
+        }, "Add note");
+        children.push(h("div", { className: "note-form" }, textarea, submitBtn));
+    }
+
+    section.replaceChildren(...children);
 }
 
 async function fetchReviewStatuses() {

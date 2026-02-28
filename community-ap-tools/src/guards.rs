@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display, str::FromStr, sync::OnceLock, time::Duration};
+use std::{collections::BTreeMap, fmt::Display, str::FromStr, sync::OnceLock};
 
 use reqwest::header::{HeaderName, HeaderValue};
 use rocket::{
