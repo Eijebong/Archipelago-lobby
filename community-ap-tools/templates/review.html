@@ -37,6 +37,7 @@ const ROOM_ID = "{{ room_id }}";
 const LOBBY_ROOT_URL = "{{ lobby_root_url }}".replace(/\/$/, "");
 const ASSIGNED_PRESET_ID = {% match assigned_preset_id %}{% when Some with (id) %}{{ id }}{% when None %}null{% endmatch %};
 const IS_LOCKED = {{ is_locked }};
+const CURRENT_USER_ID = {{ user_id }};
 
 const CHECK_LABELS = {
     truthy: "is truthy", not_truthy: "is not truthy", equals: "equals", not_equals: "does not equal",
@@ -443,6 +444,10 @@ async function showYamlModal(yamlId) {
         titleActions.push(h("button", { className: "small accent", onclick: () => enterEditMode(yamlId) }, "Edit"));
         titleActions.push(h("button", { className: "small danger", onclick: () => confirmDeleteYaml(yamlId) }, "Delete"));
     }
+    titleActions.push(h("button", { id: "notes-toggle-btn", className: "small", onclick: toggleNotesPanel }, "Notes"));
+
+    const notesPanel = h("div", { className: "notes-panel hidden" });
+    const mainArea = h("div", { className: "modal-main" }, viewerDiv, notesPanel);
 
     mc.replaceChildren(
         h("h3", null,
@@ -452,7 +457,7 @@ async function showYamlModal(yamlId) {
         ),
         h("div", { className: "subtitle" }, yaml.game + " - @" + yaml.discord_handle),
         ...renderResultItems(yaml.results),
-        viewerDiv,
+        mainArea,
     );
 
     const yamlUrl = `${LOBBY_ROOT_URL}/api/room/${ROOM_ID}/download/${yaml.yaml_id}`;
@@ -482,11 +487,13 @@ async function showYamlModal(yamlId) {
                 " ",
                 h("button", { className: "small", onclick: () => toggleOriginal(yamlId) }, "View original"),
             );
-            viewerDiv.before(editInfo);
+            mainArea.before(editInfo);
         }
     } catch (e) {
         codeEl.textContent = "Failed to load YAML content. Maybe it got removed?";
     }
+
+    updateNoteCount(yamlId);
 }
 
 function toggleOriginal(yamlId) {
@@ -571,7 +578,9 @@ function cancelEdit(yamlId) {
 }
 
 function hideYamlModal() {
-    document.getElementById("yaml-modal").close();
+    const dialog = document.getElementById("yaml-modal");
+    dialog.classList.remove("has-notes");
+    dialog.close();
 }
 
 function confirmDeleteYaml(yamlId) {
@@ -621,6 +630,114 @@ async function deleteYaml(yamlId, errorDiv) {
         errorDiv.textContent = "Network error: " + e.message;
         errorDiv.classList.remove("hidden");
     }
+}
+
+function toggleNotesPanel() {
+    const panel = document.querySelector(".notes-panel");
+    if (!panel) return;
+    const isNowHidden = panel.classList.toggle("hidden");
+    const nowVisible = !isNowHidden;
+    document.getElementById("yaml-modal").classList.toggle("has-notes", nowVisible);
+    if (nowVisible) {
+        renderNotes(currentModalYamlId);
+    } else {
+        panel.replaceChildren();
+    }
+}
+
+async function updateNoteCount(yamlId) {
+    const btn = document.getElementById("notes-toggle-btn");
+    if (!btn) return;
+    try {
+        const resp = await fetch(`/api/review/${ROOM_ID}/notes/${yamlId}`);
+        if (!resp.ok) return;
+        const notes = await resp.json();
+        btn.textContent = notes.length > 0 ? `Notes (${notes.length})` : "Notes";
+        if (notes.length > 0) {
+            const panel = document.querySelector(".notes-panel");
+            if (panel && panel.classList.contains("hidden")) {
+                panel.classList.remove("hidden");
+                document.getElementById("yaml-modal").classList.add("has-notes");
+                renderNotes(yamlId, notes);
+            }
+        }
+    } catch {}
+}
+
+async function renderNotes(yamlId, prefetchedNotes) {
+    const section = document.querySelector(".notes-panel");
+    if (!section || section.classList.contains("hidden")) return;
+
+    let notes;
+    if (prefetchedNotes) {
+        notes = prefetchedNotes;
+    } else {
+        section.replaceChildren(h("h4", null, "Notes"), h("p", { className: "loading" }, "Loading notes..."));
+        try {
+            const resp = await fetch(`/api/review/${ROOM_ID}/notes/${yamlId}`);
+            if (!resp.ok) throw new Error(resp.statusText);
+            notes = await resp.json();
+        } catch (e) {
+            section.replaceChildren(h("h4", null, "Notes"), h("p", { className: "error-text" }, "Failed to load notes."));
+            return;
+        }
+    }
+
+    const btn = document.getElementById("notes-toggle-btn");
+    if (btn) btn.textContent = notes.length > 0 ? `Notes (${notes.length})` : "Notes";
+
+    const noteList = h("div", { className: "notes-list" });
+    if (notes.length === 0) {
+        noteList.append(h("p", { className: "muted" }, "No notes yet."));
+    } else {
+        for (const note of notes) {
+            const meta = h("div", { className: "note-meta" },
+                h("strong", null, note.author_name || "Unknown"),
+                " \u00B7 ",
+                formatDate(note.created_at),
+            );
+            if (note.author_id === CURRENT_USER_ID) {
+                const delBtn = h("button", {
+                    className: "small danger note-delete",
+                    onclick: async (e) => {
+                        e.preventDefault();
+                        const r = await fetch(`/api/review/${ROOM_ID}/notes/${note.id}`, { method: "DELETE" });
+                        if (!r.ok) { showToast("Failed to delete note"); return; }
+                        renderNotes(yamlId);
+                    },
+                }, "Delete");
+                meta.append(delBtn);
+            }
+            noteList.append(h("div", { className: "note-item" }, meta, h("div", { className: "note-content" }, note.content)));
+        }
+    }
+
+    const textarea = h("textarea", {
+        className: "note-form-textarea", placeholder: "Add a note...", rows: 2,
+        onkeydown: (e) => { if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); submitBtn.click(); } },
+    });
+    const submitBtn = h("button", {
+        className: "small primary",
+        onclick: async () => {
+            const content = textarea.value.trim();
+            if (!content) return;
+            submitBtn.disabled = true;
+            try {
+                const r = await fetch(`/api/review/${ROOM_ID}/notes/${yamlId}`, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ content }),
+                });
+                if (!r.ok) { showToast("Failed to add note"); return; }
+                renderNotes(yamlId);
+            } finally {
+                submitBtn.disabled = false;
+            }
+        },
+    }, "Add note");
+    const form = h("div", { className: "note-form" }, textarea, submitBtn);
+
+    section.replaceChildren(h("h4", null, "Notes"), noteList, form);
 }
 
 async function fetchReviewStatuses() {

@@ -716,6 +716,65 @@ async fn proxy_yaml_delete(
     Ok(Json(data))
 }
 
+#[rocket::get("/review/<room_id>/notes/<yaml_id>")]
+async fn get_notes(
+    _session: LoggedInSession,
+    room_id: Uuid,
+    yaml_id: Uuid,
+    pool: &State<DieselPool<AsyncPgConnection>>,
+) -> crate::error::Result<Json<Vec<db::YamlReviewNote>>> {
+    let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
+    Ok(Json(db::get_notes(room_id, yaml_id, &mut conn).await?))
+}
+
+#[derive(Deserialize)]
+struct AddNoteRequest {
+    content: String,
+}
+
+#[rocket::post("/review/<room_id>/notes/<yaml_id>", data = "<body>")]
+async fn add_note(
+    session: LoggedInSession,
+    room_id: Uuid,
+    yaml_id: Uuid,
+    body: Json<AddNoteRequest>,
+    pool: &State<DieselPool<AsyncPgConnection>>,
+) -> crate::error::Result<Json<db::YamlReviewNote>> {
+    let req = body.into_inner();
+
+    if req.content.trim().is_empty() {
+        return Err(anyhow!("Note content cannot be empty").into());
+    }
+
+    let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
+    let note = db::add_note(
+        room_id,
+        yaml_id,
+        &req.content,
+        session.user_id(),
+        session.username(),
+        &mut conn,
+    )
+    .await?;
+
+    Ok(Json(note))
+}
+
+#[rocket::delete("/review/<room_id>/notes/<note_id>")]
+async fn delete_note(
+    session: LoggedInSession,
+    room_id: Uuid,
+    note_id: i32,
+    pool: &State<DieselPool<AsyncPgConnection>>,
+) -> crate::error::Result<()> {
+    let mut conn = pool.get().await.map_err(|e| anyhow!(e))?;
+    let deleted = db::delete_note(note_id, room_id, session.user_id(), &mut conn).await?;
+    if deleted == 0 {
+        return Err(anyhow!("Note not found or you are not the author").into());
+    }
+    Ok(())
+}
+
 pub fn routes() -> Vec<rocket::Route> {
     routes![
         list_presets,
@@ -739,5 +798,8 @@ pub fn routes() -> Vec<rocket::Route> {
         set_review_status,
         proxy_yaml_edit,
         proxy_yaml_delete,
+        get_notes,
+        add_note,
+        delete_note,
     ]
 }

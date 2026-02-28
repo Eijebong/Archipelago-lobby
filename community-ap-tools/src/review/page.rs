@@ -27,12 +27,13 @@ pub struct ReviewTpl {
     assigned_preset_id: Option<i32>,
     lobby_root_url: String,
     is_locked: bool,
+    user_id: i64,
     static_version: &'static str,
 }
 
 #[rocket::get("/review/<room_id>")]
 async fn review_page(
-    _session: LoggedInSession,
+    session: LoggedInSession,
     room_id: &str,
     config: &State<Config>,
     pool: &State<DieselPool<AsyncPgConnection>>,
@@ -62,6 +63,7 @@ async fn review_page(
         assigned_preset_id: room_config.map(|c| c.preset_id),
         lobby_root_url: config.lobby_root_url.to_string(),
         is_locked: room_info.locked,
+        user_id: session.user_id(),
         static_version: crate::STATIC_VERSION,
     })
 }

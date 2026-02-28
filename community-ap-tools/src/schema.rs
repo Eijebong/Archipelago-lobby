@@ -28,6 +28,18 @@ diesel::table! {
 }
 
 diesel::table! {
+    yaml_review_notes (id) {
+        id -> Int4,
+        room_id -> Uuid,
+        yaml_id -> Uuid,
+        content -> Text,
+        author_id -> Int8,
+        author_name -> Nullable<Text>,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     yaml_review_status (room_id, yaml_id) {
         room_id -> Uuid,
         yaml_id -> Uuid,
@@ -44,5 +56,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     review_presets,
     review_preset_rules,
     room_review_config,
+    yaml_review_notes,
     yaml_review_status
 );

@@ -16,7 +16,7 @@ dotenvy = "0.15.7"
 htmlize = { version = "1.0.5", features = ["unescape"] }
 regex = "1"
 reqwest = { version = "0.13", features = ["form", "json", "multipart"] }
-rocket = { version = "0.5.1", features = ["json", "secrets"] }
+rocket = { version = "0.5.1", features = ["json", "secrets", "uuid"] }
 rocket_oauth2 = "0.5.0"
 rust-embed = { version = "8.6.0", features = ["rocket"] }
 saphyr = "0.0.6"

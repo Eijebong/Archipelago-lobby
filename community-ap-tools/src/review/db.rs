@@ -5,7 +5,9 @@ use uuid::Uuid;
 
 use chrono::{DateTime, Utc};
 
-use crate::schema::{review_preset_rules, review_presets, room_review_config, yaml_review_status};
+use crate::schema::{
+    review_preset_rules, review_presets, room_review_config, yaml_review_notes, yaml_review_status,
+};
 
 #[derive(Queryable, Selectable, Serialize, Debug)]
 #[diesel(table_name = review_presets)]
@@ -284,4 +286,77 @@ pub async fn set_review_status(
         .returning(YamlReviewStatus::as_returning())
         .get_result(conn)
         .await?)
+}
+
+#[derive(Queryable, Selectable, Serialize, Debug)]
+#[diesel(table_name = yaml_review_notes)]
+pub struct YamlReviewNote {
+    pub id: i32,
+    pub room_id: Uuid,
+    pub yaml_id: Uuid,
+    pub content: String,
+    pub author_id: i64,
+    pub author_name: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = yaml_review_notes)]
+struct NewYamlReviewNote {
+    room_id: Uuid,
+    yaml_id: Uuid,
+    content: String,
+    author_id: i64,
+    author_name: Option<String>,
+}
+
+pub async fn get_notes(
+    room_id: Uuid,
+    yaml_id: Uuid,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<Vec<YamlReviewNote>> {
+    Ok(yaml_review_notes::table
+        .filter(yaml_review_notes::room_id.eq(room_id))
+        .filter(yaml_review_notes::yaml_id.eq(yaml_id))
+        .order_by(yaml_review_notes::created_at)
+        .select(YamlReviewNote::as_select())
+        .load(conn)
+        .await?)
+}
+
+pub async fn add_note(
+    room_id: Uuid,
+    yaml_id: Uuid,
+    content: &str,
+    author_id: i64,
+    author_name: &str,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<YamlReviewNote> {
+    Ok(diesel::insert_into(yaml_review_notes::table)
+        .values(&NewYamlReviewNote {
+            room_id,
+            yaml_id,
+            content: content.to_string(),
+            author_id,
+            author_name: Some(author_name.to_string()),
+        })
+        .returning(YamlReviewNote::as_returning())
+        .get_result(conn)
+        .await?)
+}
+
+pub async fn delete_note(
+    note_id: i32,
+    room_id: Uuid,
+    author_id: i64,
+    conn: &mut AsyncPgConnection,
+) -> anyhow::Result<usize> {
+    Ok(diesel::delete(
+        yaml_review_notes::table
+            .find(note_id)
+            .filter(yaml_review_notes::room_id.eq(room_id))
+            .filter(yaml_review_notes::author_id.eq(author_id)),
+    )
+    .execute(conn)
+    .await?)
 }
