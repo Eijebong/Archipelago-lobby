@@ -292,7 +292,8 @@ fn check_single_value(val: &Value, check: &RuleCheck) -> Result<bool> {
             if let Some(seq) = val.as_sequence() {
                 return Ok(seq.iter().any(|item| yaml_value_as_string(item) == *value));
             }
-            Ok(false)
+            let s = yaml_value_as_string(val);
+            Ok(s.split(',').any(|part| part.trim() == value.as_str()))
         }
         RuleCheck::Count { .. } | RuleCheck::Exists | RuleCheck::NotExists => {
             unreachable!("Count/Exists/NotExists handled before calling check_single_value")
@@ -674,6 +675,82 @@ mod tests {
                 path: "start_inventory".into(),
                 check: RuleCheck::Contains {
                     value: "Bow".into(),
+                },
+            },
+            severity: Severity::Info,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Pass);
+    }
+
+    #[test]
+    fn test_contains_string_exact_match_alerts() {
+        let yaml = parse_yaml("Test:\n  mode: hard\n");
+        let rule = Rule {
+            name: "Has hard".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "mode".into(),
+                check: RuleCheck::Contains {
+                    value: "hard".into(),
+                },
+            },
+            severity: Severity::Info,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Fail);
+    }
+
+    #[test]
+    fn test_contains_string_no_match_passes() {
+        let yaml = parse_yaml("Test:\n  mode: hard\n");
+        let rule = Rule {
+            name: "Has easy".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "mode".into(),
+                check: RuleCheck::Contains {
+                    value: "easy".into(),
+                },
+            },
+            severity: Severity::Info,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Pass);
+    }
+
+    #[test]
+    fn test_contains_comma_separated_string_alerts() {
+        let yaml = parse_yaml("Test:\n  items: \"Sword, Shield, Bow\"\n");
+        let rule = Rule {
+            name: "Has shield".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "items".into(),
+                check: RuleCheck::Contains {
+                    value: "Shield".into(),
+                },
+            },
+            severity: Severity::Info,
+        };
+        let result = evaluate_rule(&rule, &yaml, "Test");
+        assert_eq!(result.outcome, Outcome::Fail);
+    }
+
+    #[test]
+    fn test_contains_comma_separated_string_missing_passes() {
+        let yaml = parse_yaml("Test:\n  items: \"Sword, Shield, Bow\"\n");
+        let rule = Rule {
+            name: "Has axe".into(),
+            game: None,
+            when: None,
+            then: Predicate::Check {
+                path: "items".into(),
+                check: RuleCheck::Contains {
+                    value: "Axe".into(),
                 },
             },
             severity: Severity::Info,
