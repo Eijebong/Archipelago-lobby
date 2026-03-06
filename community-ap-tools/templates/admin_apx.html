@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}APX Settings{% endblock %}
+
+{% block main %}
+    <h1>APX Settings</h1>
+
+    <div class="section">
+        <h2>Deferred DataPackage Games</h2>
+        <p class="muted">Games whose DataPackage responses are deferred until after Connected.</p>
+        <div id="games-list"></div>
+        <div class="field-group" style="margin-top:0.5em">
+            <div class="field">
+                <span>Game name</span>
+                <input type="text" id="new-game-name" placeholder="e.g. A Hat in Time" size="30">
+            </div>
+            <div class="field field-end">
+                <button class="primary" onclick="addGame()">Add</button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadGames() {
+    const resp = await fetch("/api/apx/deferred_datapackage_games");
+    if (!resp.ok) { showToast("Failed to load games"); return; }
+    const data = await resp.json();
+    const container = document.getElementById("games-list");
+    if (data.games.length === 0) {
+        container.replaceChildren(h("p", { className: "muted" }, "No deferred games."));
+        return;
+    }
+    const table = h("table", null,
+        h("thead", null, h("tr", null, h("th", null, "Game"), h("th", null, "Actions"))),
+        h("tbody", null, ...data.games.map(name =>
+            h("tr", null,
+                h("td", null, name),
+                h("td", null, h("button", { className: "small danger", onclick: () => removeGame(name) }, "Remove")),
+            )
+        )),
+    );
+    container.replaceChildren(table);
+}
+
+async function addGame() {
+    const input = document.getElementById("new-game-name");
+    const name = input.value.trim();
+    if (!name) { showToast("Game name required"); return; }
+    const resp = await fetch("/api/apx/deferred_datapackage_games", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ game_name: name }),
+    });
+    if (!resp.ok) { showToast("Failed to add game: " + await resp.text()); return; }
+    input.value = "";
+    loadGames();
+}
+
+async function removeGame(name) {
+    const resp = await fetch("/api/apx/deferred_datapackage_games/" + encodeURIComponent(name), {
+        method: "DELETE",
+    });
+    if (!resp.ok) { showToast("Failed to remove game: " + await resp.text()); return; }
+    loadGames();
+}
+
+loadGames();
+</script>
+{% endblock %}

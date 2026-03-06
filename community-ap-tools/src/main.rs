@@ -417,6 +417,99 @@ async fn set_deathlink_probability(
     Ok(Json(data))
 }
 
+#[derive(Deserialize, Serialize)]
+struct DeferredGamesResponse {
+    games: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct AddDeferredGameRequest {
+    game_name: String,
+}
+
+#[rocket::get("/api/apx/deferred_datapackage_games")]
+async fn get_deferred_datapackage_games(
+    _session: auth::AdminSession,
+    config: &State<Config>,
+) -> crate::error::Result<Json<DeferredGamesResponse>> {
+    let apx_api_root = config
+        .apx_api_root
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API not configured"))?;
+    let apx_api_key = config
+        .apx_api_key
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API key not configured"))?;
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(format!("{}/api/deferred_datapackage_games", apx_api_root))
+        .header("X-API-Key", apx_api_key)
+        .send()
+        .await?;
+
+    let data: DeferredGamesResponse = response.json().await?;
+    Ok(Json(data))
+}
+
+#[rocket::post("/api/apx/deferred_datapackage_games", data = "<request>")]
+async fn add_deferred_datapackage_game(
+    _session: auth::AdminSession,
+    config: &State<Config>,
+    request: Json<AddDeferredGameRequest>,
+) -> crate::error::Result<rocket::http::Status> {
+    let apx_api_root = config
+        .apx_api_root
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API not configured"))?;
+    let apx_api_key = config
+        .apx_api_key
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API key not configured"))?;
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!("{}/api/deferred_datapackage_games", apx_api_root))
+        .header("X-API-Key", apx_api_key)
+        .json(&request.into_inner())
+        .send()
+        .await?;
+
+    Ok(rocket::http::Status::from_code(response.status().as_u16())
+        .unwrap_or(rocket::http::Status::InternalServerError))
+}
+
+#[rocket::delete("/api/apx/deferred_datapackage_games/<game_name>")]
+async fn remove_deferred_datapackage_game(
+    _session: auth::AdminSession,
+    game_name: &str,
+    config: &State<Config>,
+) -> crate::error::Result<rocket::http::Status> {
+    let apx_api_root = config
+        .apx_api_root
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API not configured"))?;
+    let apx_api_key = config
+        .apx_api_key
+        .as_ref()
+        .ok_or_else(|| anyhow!("APX API key not configured"))?;
+
+    let client = reqwest::Client::new();
+    let mut url = apx_api_root.join("/api/deferred_datapackage_games/")?;
+    url.path_segments_mut()
+        .map_err(|_| anyhow!("Invalid APX URL"))?
+        .push(game_name);
+
+    let response = client
+        .delete(url)
+        .header("X-API-Key", apx_api_key)
+        .send()
+        .await?;
+
+    Ok(rocket::http::Status::from_code(response.status().as_u16())
+        .unwrap_or(rocket::http::Status::InternalServerError))
+}
+
 #[rocket::get("/hint/<ty>/<slot_name>/<item_name>")]
 async fn hint(
     _session: LoggedInSession,
@@ -813,7 +906,10 @@ async fn main() -> crate::error::Result<()> {
                 autocompletion,
                 give,
                 set_password,
-                change_yaml_owner
+                change_yaml_owner,
+                get_deferred_datapackage_games,
+                add_deferred_datapackage_game,
+                remove_deferred_datapackage_game
             ],
         )
         .mount("/auth", auth::routes())

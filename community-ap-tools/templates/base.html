@@ -16,6 +16,9 @@
             {% if base.is_team_admin %}
             <a href="/admin/teams" class="nav-link{% if base.cur_page == "teams" %} active{% endif %}">Teams</a>
             {% endif %}
+            {% if base.is_super_admin %}
+            <a href="/admin/apx" class="nav-link{% if base.cur_page == "apx" %} active{% endif %}">APX</a>
+            {% endif %}
         </div>
         <div class="nav-right">
             <span class="nav-user">{{ base.username }}</span>

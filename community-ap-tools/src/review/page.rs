@@ -11,7 +11,7 @@ use uuid::Uuid;
 use super::Role;
 use super::db;
 use crate::Config;
-use crate::auth::LoggedInSession;
+use crate::auth::{AdminSession, LoggedInSession};
 
 pub struct OrgTplContext {
     pub is_super_admin: bool,
@@ -256,11 +256,15 @@ async fn preset_edit(
     })
 }
 
-// -- Admin teams page --
-
 #[derive(Template, WebTemplate)]
 #[template(path = "admin_teams.html")]
 pub struct AdminTeamsTpl {
+    base: OrgTplContext,
+}
+
+#[derive(Template, WebTemplate)]
+#[template(path = "admin_apx.html")]
+pub struct AdminApxTpl {
     base: OrgTplContext,
 }
 
@@ -284,6 +288,15 @@ async fn admin_teams_page(
     Ok(AdminTeamsTpl { base })
 }
 
+#[rocket::get("/admin/apx")]
+async fn admin_apx_page(
+    session: AdminSession,
+    pool: &State<DieselPool<AsyncPgConnection>>,
+) -> crate::error::Result<AdminApxTpl> {
+    let base = OrgTplContext::new(&session, "apx", pool).await?;
+    Ok(AdminApxTpl { base })
+}
+
 pub fn routes() -> Vec<rocket::Route> {
     routes![
         rooms_list,
@@ -292,6 +305,7 @@ pub fn routes() -> Vec<rocket::Route> {
         room_redirect,
         presets_list,
         preset_edit,
-        admin_teams_page
+        admin_teams_page,
+        admin_apx_page
     ]
 }

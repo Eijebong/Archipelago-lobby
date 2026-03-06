@@ -136,7 +136,14 @@ impl LoggedInSession {
     }
 }
 
-pub struct AdminSession(#[allow(dead_code)] LoggedInSession);
+pub struct AdminSession(LoggedInSession);
+
+impl std::ops::Deref for AdminSession {
+    type Target = LoggedInSession;
+    fn deref(&self) -> &LoggedInSession {
+        &self.0
+    }
+}
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for Session {
