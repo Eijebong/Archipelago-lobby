@@ -536,8 +536,9 @@
             case 'set': {
                 const select = row.querySelector('select[multiple]');
                 if (!select) return; // Non-editable
+                const defaults = Array.isArray(defaultValue) ? defaultValue : [];
                 Array.from(select.options).forEach(opt => {
-                    opt.selected = defaultValue.includes(opt.value);
+                    opt.selected = defaults.includes(opt.value);
                     opt.style.display = '';
                 });
                 const filter = row.querySelector('.set-filter');

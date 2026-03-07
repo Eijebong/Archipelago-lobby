@@ -163,6 +163,8 @@ class OptionsGenQueue(LobbyQueue):
                     display_name = getattr(option_value, "display_name", option_name)
                     description = (option_value.__doc__ or "").strip()
                     default = get_default(option_value)
+                    if ty in ("set", "list") and isinstance(default, dict):
+                        default = list(default.keys())
                     try:
                         json.dumps(default)
                     except (TypeError, ValueError):
