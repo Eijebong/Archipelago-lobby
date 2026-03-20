@@ -713,7 +713,8 @@ body:has(dialog[open])
   margin-left: 0.5em
   cursor: pointer
 
-.span-title
+td:hover span[title]::after, .show-discord-names span[title]::after
+  content: " (" attr(title) ")"
   font-size: 0.8em
   padding-left: 1em
   color: #bbb
@@ -760,13 +761,13 @@ body:has(dialog[open])
         justify-content: center
         grid-template-columns: 1em 100%
 
-      .span-title
+      .player-name
+        display: contents
+
+      span[title]::after
         grid-column: -3/3
         text-align: center
-
-      .player-name
-        grid-column: -2/2
-        width: 100%
+        padding-left: 0
         text-align: center
 
       .yaml-features

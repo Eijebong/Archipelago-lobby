@@ -278,20 +278,7 @@
     if (keepDiscordNames !== null) {
         keepDiscordNames.checked = false;
         keepDiscordNames.onchange = function() {
-            const yamlTable = document.getElementById("yamls").getElementsByTagName("tbody")[0];
-            for(let row of yamlTable.getElementsByTagName("tr")) {
-                const playerName = row.getElementsByClassName("player-name")[0]
-                if (!playerName) continue
-
-                playerName.setAttribute("data-forced-on", !!keepDiscordNames.checked)
-
-                if (keepDiscordNames.checked) {
-                    const titleElem = createTitleSpan(playerName)
-                    keepDiscordNames.addEventListener("change", function() {
-                        titleElem.remove();
-                    }, {once: true})
-                }
-            }
+            document.getElementById("yamls").classList.toggle("show-discord-names", keepDiscordNames.checked)
         }
     }
 
