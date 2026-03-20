@@ -288,7 +288,7 @@
                 if (keepDiscordNames.checked) {
                     const titleElem = createTitleSpan(playerName)
                     keepDiscordNames.addEventListener("change", function() {
-                        titleElem.parentElement.removeChild(titleElem);
+                        titleElem.remove();
                     }, {once: true})
                 }
             }

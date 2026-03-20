@@ -8,7 +8,7 @@ for (const span of spanElements) {
         continue;
     }
 
-    const parent = span.parentElement;
+    const parent = span.closest(':not(span)');
 
     parent.addEventListener('mouseover', () => {
         if (hasTitleShown || span.dataset.forcedOn === "true") {
@@ -20,7 +20,7 @@ for (const span of spanElements) {
 
         parent.addEventListener('mouseleave', () => {
             hasTitleShown = false;
-            parent.removeChild(titleElem);
+            titleElem.remove();
         }, {once: true});
     });
 
