@@ -11,7 +11,10 @@ function showYaml(roomId, yamlId, expandValidation) {
             return response.json()
         })
         .then((body) => {
-            const title = body["player_name"] + " | " + body["game"]
+            let title = body["player_name"] + " | " + body["game"]
+            if (body["discord_username"]) {
+                title += " | @" + body["discord_username"]
+            }
             const currentContent = body["edited_content"] || body["content"];
             const originalContent = body["edited_content"] ? body["content"] : null;
             const editedByName = body["last_edited_by_name"];

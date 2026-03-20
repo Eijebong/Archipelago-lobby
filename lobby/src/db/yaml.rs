@@ -207,6 +207,21 @@ pub async fn get_yaml_in_room(
 }
 
 #[tracing::instrument(skip(conn))]
+pub async fn get_yaml_in_room_with_owner_name(
+    room_id: RoomId,
+    yaml_id: YamlId,
+    conn: &mut AsyncPgConnection,
+) -> Result<(Yaml, String)> {
+    Ok(yamls::table
+        .find(yaml_id)
+        .filter(yamls::room_id.eq(room_id))
+        .inner_join(discord_users::table)
+        .select((Yaml::as_select(), discord_users::username))
+        .first(conn)
+        .await?)
+}
+
+#[tracing::instrument(skip(conn))]
 pub async fn get_bundle_by_id(
     bundle_id: BundleId,
     conn: &mut AsyncPgConnection,

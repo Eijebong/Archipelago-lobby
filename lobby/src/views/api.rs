@@ -170,6 +170,13 @@ pub(crate) async fn download_bundle<'a>(
     })
 }
 
+#[derive(Serialize)]
+pub(crate) struct YamlInfoResponse {
+    #[serde(flatten)]
+    yaml: Yaml,
+    discord_username: Option<String>,
+}
+
 #[get("/room/<room_id>/info/<yaml_id>")]
 #[tracing::instrument(skip(session, ctx))]
 pub(crate) async fn yaml_info(
@@ -177,10 +184,10 @@ pub(crate) async fn yaml_info(
     yaml_id: YamlId,
     session: Session,
     ctx: &State<Context>,
-) -> ApiResult<Json<Yaml>> {
+) -> ApiResult<Json<YamlInfoResponse>> {
     let mut conn = ctx.db_pool.get().await?;
 
-    let mut yaml = db::get_yaml_in_room(room_id, yaml_id, &mut conn)
+    let (mut yaml, discord_username) = db::get_yaml_in_room_with_owner_name(room_id, yaml_id, &mut conn)
         .await
         .context("Couldn't find this YAML in this room")
         .status(Status::NotFound)?;
@@ -189,7 +196,10 @@ pub(crate) async fn yaml_info(
         yaml.last_edited_by_name = yaml.last_edited_by_name.map(|_| "a helper".to_string());
     }
 
-    Ok(Json(yaml))
+    Ok(Json(YamlInfoResponse {
+        yaml,
+        discord_username: if session.is_logged_in { Some(discord_username) } else { None },
+    }))
 }
 
 #[get("/room/<room_id>/retry/<yaml_id>")]
