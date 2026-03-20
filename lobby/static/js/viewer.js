@@ -3,8 +3,10 @@ function showYaml(roomId, yamlId, expandValidation) {
     fetch(url)
         .then((response) => {
             if(!response.ok) {
-                showError("Error while retrieving YAML: " + response.statusText);
-                throw Error("Error while retrieving YAML: " + response.statusText);
+                return response.text().catch(() => response.status.toString()).then((text) => {
+                    showError("Error while retrieving YAML: " + text);
+                    throw Error("Error while retrieving YAML: " + text);
+                });
             }
             return response.json()
         })
