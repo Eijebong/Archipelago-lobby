@@ -187,10 +187,11 @@ pub(crate) async fn yaml_info(
 ) -> ApiResult<Json<YamlInfoResponse>> {
     let mut conn = ctx.db_pool.get().await?;
 
-    let (mut yaml, discord_username) = db::get_yaml_in_room_with_owner_name(room_id, yaml_id, &mut conn)
-        .await
-        .context("Couldn't find this YAML in this room")
-        .status(Status::NotFound)?;
+    let (mut yaml, discord_username) =
+        db::get_yaml_in_room_with_owner_name(room_id, yaml_id, &mut conn)
+            .await
+            .context("Couldn't find this YAML in this room")
+            .status(Status::NotFound)?;
 
     if !session.is_logged_in {
         yaml.last_edited_by_name = yaml.last_edited_by_name.map(|_| "a helper".to_string());
@@ -198,7 +199,11 @@ pub(crate) async fn yaml_info(
 
     Ok(Json(YamlInfoResponse {
         yaml,
-        discord_username: if session.is_logged_in { Some(discord_username) } else { None },
+        discord_username: if session.is_logged_in {
+            Some(discord_username)
+        } else {
+            None
+        },
     }))
 }
 
