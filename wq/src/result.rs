@@ -1,4 +1,4 @@
-use redis::{ErrorKind, FromRedisValue, RedisError, ToRedisArgs};
+use redis::{FromRedisValue, ParsingError, ToRedisArgs, ToSingleRedisArg};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::JobStatus;
@@ -19,14 +19,14 @@ impl<R: DeserializeOwned + Serialize + Clone> ToRedisArgs for JobResult<R> {
     }
 }
 
+impl<R: DeserializeOwned + Serialize + Clone> ToSingleRedisArg for JobResult<R> {}
+
 impl<R: DeserializeOwned + Serialize + Clone> FromRedisValue for JobResult<R> {
-    fn from_redis_value(v: &redis::Value) -> redis::RedisResult<Self> {
+    fn from_redis_value(v: redis::Value) -> Result<Self, ParsingError> {
         let s = String::from_redis_value(v)?;
         let Ok(v) = serde_json::from_str(&s) else {
-            return Err(RedisError::from((
-                ErrorKind::TypeError,
-                "Response was of incompatible type",
-                format!("JobResult (response was {s:?})"),
+            return Err(ParsingError::from(format!(
+                "Response was of incompatible type. JobResult (response was {s:?})"
             )));
         };
 

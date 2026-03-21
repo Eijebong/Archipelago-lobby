@@ -12,7 +12,7 @@ use std::{
 use anyhow::{bail, Result};
 use chrono::{DateTime, Utc};
 use deadpool_redis::Pool;
-use redis::{AsyncCommands, ErrorKind, FromRedisValue, PushKind, RedisError};
+use redis::{AsyncCommands, FromRedisValue, ParsingError, PushKind};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tokio::task::JoinHandle;
 use tracing::{error, warn};
@@ -115,17 +115,15 @@ impl TryFrom<u8> for JobStatus {
 }
 
 impl FromRedisValue for Priority {
-    fn from_redis_value(v: &redis::Value) -> redis::RedisResult<Self> {
+    fn from_redis_value(v: redis::Value) -> Result<Self, ParsingError> {
         let value = i8::from_redis_value(v)?;
         let priority = match value {
             -10 => Priority::High,
             -5 => Priority::Normal,
             -1 => Priority::Low,
             v => {
-                return Err(RedisError::from((
-                    ErrorKind::ParseError,
-                    "Invalid priority received",
-                    format!("Received priority number: {v}"),
+                return Err(ParsingError::from(format!(
+                    "Invalid priority received. Received priority number: {v}"
                 )));
             }
         };
@@ -164,13 +162,11 @@ impl Display for JobId {
 }
 
 impl FromRedisValue for JobId {
-    fn from_redis_value(v: &redis::Value) -> redis::RedisResult<Self> {
+    fn from_redis_value(v: redis::Value) -> Result<Self, ParsingError> {
         let id_str = String::from_redis_value(v)?;
         let Ok(id) = Uuid::parse_str(&id_str) else {
-            return Err(RedisError::from((
-                ErrorKind::TypeError,
-                "Response was of incompatible type",
-                format!("UUID (response was {id_str:?})"),
+            return Err(ParsingError::from(format!(
+                "Response was of incompatible type. UUID (response was {id_str:?})"
             )));
         };
 

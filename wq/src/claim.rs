@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use chrono::{DateTime, Utc};
-use redis::{ErrorKind, FromRedisValue, RedisError, ToRedisArgs};
+use redis::{FromRedisValue, ParsingError, ToRedisArgs, ToSingleRedisArg};
 use serde::{Deserialize, Serialize};
 
 use crate::{JobId, Priority};
@@ -48,14 +48,14 @@ impl ToRedisArgs for Claim {
     }
 }
 
+impl ToSingleRedisArg for Claim {}
+
 impl FromRedisValue for Claim {
-    fn from_redis_value(v: &redis::Value) -> redis::RedisResult<Self> {
+    fn from_redis_value(v: redis::Value) -> Result<Self, ParsingError> {
         let s = String::from_redis_value(v)?;
         let Ok(v) = serde_json::from_str(&s) else {
-            return Err(RedisError::from((
-                ErrorKind::TypeError,
-                "Response was of incompatible type",
-                format!("Claim (response was {s:?})"),
+            return Err(ParsingError::from(format!(
+                "Response was of incompatible type. Claim (response was {s:?})"
             )));
         };
 

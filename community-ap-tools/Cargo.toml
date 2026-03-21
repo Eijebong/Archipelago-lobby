@@ -10,7 +10,7 @@ askama_web = { version = "0.15.0", features = ["rocket-0.5"] }
 chrono = { version = "0.4.40", features = ["serde"] }
 common = { path = "../common" }
 diesel = { version = "2.3.5", features = ["uuid", "chrono", "serde_json"] }
-diesel-async = { version = "0.7", features = ["postgres", "deadpool", "async-connection-wrapper"] }
+diesel-async = { version = "0.8", features = ["postgres", "deadpool", "async-connection-wrapper"] }
 diesel_migrations = { version = "2.2.0", features = ["postgres"] }
 dotenvy = "0.15.7"
 htmlize = { version = "1.0.5", features = ["unescape"] }

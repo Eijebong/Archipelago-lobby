@@ -15,7 +15,7 @@ base64 = "0.22"
 common = { path = "../common" }
 chrono = "0.4.38"
 diesel = { version = "2.3.5", features = ["uuid", "chrono", "serde_json"] }
-diesel-async = { version = "0.7", features = ["postgres", "deadpool", "async-connection-wrapper"] }
+diesel-async = { version = "0.8", features = ["postgres", "deadpool", "async-connection-wrapper"] }
 diesel_migrations = { version = "2.2.0", features = ["postgres"] }
 dotenvy = "0.15.7"
 http = "1.1.0"
@@ -38,7 +38,7 @@ semver = "1.0.23"
 git2 = "0.20.0"
 log = "0.4.22"
 tokio = { version = "1.39.2", features = ["sync"] }
-deadpool = "0.12.1"
+deadpool = "0.13.0"
 tracing = "0.1.40"
 opentelemetry = "0.31.0"
 opentelemetry_sdk = { version = "0.31.0", features = ["rt-tokio", "tokio"] }
@@ -54,8 +54,8 @@ sentry = "0.46.0"
 sentry-tracing = "0.46.0"
 regex = "1.11.1"
 rocket_ws = "=0.1.0"
-deadpool-redis = "0.22.0"
-redis = "0.32.0"
+deadpool-redis = "0.23.0"
+redis = "1.0.5"
 indexmap = { version = "2.12.1", features = ["serde"] }
 
 [build-dependencies]
