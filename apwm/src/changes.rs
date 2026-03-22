@@ -218,9 +218,7 @@ mod tests {
     use zip::write::SimpleFileOptions;
     use zip::ZipWriter;
 
-    fn mock_world_versions(
-        versions: &[&str],
-    ) -> Result<(TempDir, BTreeMap<Version, WorldOrigin>)> {
+    fn mock_world_versions(versions: &[&str]) -> Result<(TempDir, BTreeMap<Version, WorldOrigin>)> {
         let mut result = BTreeMap::new();
         let tmpdir = tempdir()?;
 
@@ -433,10 +431,7 @@ mod tests {
         let checksums = download_changed_apworlds(&changes, &new, output_dir.path()).await?;
 
         let version = Version::from_str("0.1.0")?;
-        assert!(matches!(
-            checksums["test"][&version],
-            Checksum::Hash(_)
-        ));
+        assert!(matches!(checksums["test"][&version], Checksum::Hash(_)));
 
         let apworld_path = output_dir.path().join("apworlds/test-0.1.0.apworld");
         assert!(apworld_path.exists());
@@ -454,8 +449,7 @@ mod tests {
             .insert("test".into(), mock_world("Test", versions));
 
         let mut changes = compute_changes(&empty_index(), &new);
-        let checksums =
-            download_changed_apworlds(&changes, &new, output_dir.path()).await?;
+        let checksums = download_changed_apworlds(&changes, &new, output_dir.path()).await?;
         apply_checksums(&mut changes, checksums);
 
         // Correct checksum should succeed
@@ -468,10 +462,7 @@ mod tests {
             .get_mut("test")
             .unwrap()
             .checksums
-            .insert(
-                Version::from_str("0.1.0")?,
-                Checksum::Hash("wrong".into()),
-            );
+            .insert(Version::from_str("0.1.0")?, Checksum::Hash("wrong".into()));
 
         let result = download_from_changes(&changes, &new, download_dir.path()).await;
         assert!(result.is_err());
