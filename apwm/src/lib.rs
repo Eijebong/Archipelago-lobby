@@ -1,3 +1,4 @@
+pub mod changes;
 pub mod diff;
 mod index;
 mod manifest;
