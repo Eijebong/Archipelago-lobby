@@ -267,16 +267,23 @@ dependencies = [
  "dotenvy",
  "futures",
  "html-escape",
+ "lru",
+ "rayon",
+ "regex",
  "reqwest 0.13.2",
  "rocket",
  "rust-embed",
+ "semver",
  "serde",
  "serde_json",
  "serde_path_to_error",
+ "sha2",
  "similar",
  "strsim",
  "syntect",
  "taskcluster",
+ "tracing",
+ "zip",
 ]
 
 [[package]]
@@ -1814,6 +1821,8 @@ version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
 dependencies = [
+ "allocator-api2",
+ "equivalent",
  "foldhash 0.1.5",
 ]
 
@@ -2519,6 +2528,15 @@ dependencies = [
  "serde_json",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "lru"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f8cc7106155f10bdf99a6f379688f543ad6596a415375b36a59a054ceda1198"
+dependencies = [
+ "hashbrown 0.15.5",
 ]
 
 [[package]]

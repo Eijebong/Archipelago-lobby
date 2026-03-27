@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <title>APDIFF - {{ task_id }}</title>
-    <link rel="stylesheet" href="/static/css/main.css?=v3"/>
+    <link rel="stylesheet" href="/static/css/main.css?=v4"/>
     <script>
         function showApworld(index) {
             const sections = document.querySelectorAll('.apworld-section');
@@ -32,6 +32,17 @@
             }
         }
 
+        function expandContext(button) {
+            var row = button.closest('tr');
+            var next = row.nextElementSibling;
+            while (next && next.classList.contains('collapsed-row')) {
+                next.style.display = '';
+                next.classList.remove('collapsed-row');
+                next = next.nextElementSibling;
+            }
+            row.style.display = 'none';
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             if (document.querySelectorAll('.apworld-section').length > 0) {
                 showApworld(0);
@@ -57,8 +68,22 @@
 
     {% for apworld_diff in apworld_diffs %}
     <div class="apworld-section" id="apworld-{{ loop.index0 }}">
-        {% if apworld_diff.versions.len() > 0 %}
+        {% if apworld_diff.from_versions.len() > 0 %}
+        <div class="version-picker">
+            <label>Compare against:
+                <select name="{{ apworld_diff.apworld_name }}_from" onchange="this.form.submit()" form="version-form">
+                    <option value=""{% if apworld_diff.selected_from.is_none() %} selected{% endif %}>(none)</option>
+                    {% for vi in apworld_diff.from_versions %}
+                    {% let vi_str = vi.to_string() %}
+                    <option value="{{ vi }}"{% if apworld_diff.selected_from.as_deref() == Some(vi_str.as_str()) %} selected{% endif %}>{{ vi }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </div>
+        {% endif %}
 
+        {% if apworld_diff.versions.len() > 0 %}
+          {% if apworld_diff.versions.len() > 1 %}
           <ul class="version-list">
               {% for version in apworld_diff.versions %}
               <li>
@@ -66,8 +91,8 @@
               </li>
               {% endfor %}
           </ul>
-
-        <hr />
+          <hr />
+          {% endif %}
 
         {% for version in apworld_diff.versions %}
         <div class="version-section" id="version-{{ version.version_id }}">
@@ -112,12 +137,23 @@
                     <table class="diff-table">
                         <tbody>
                         {% for line in file.lines %}
+                            {% if line.collapsed && line.collapse_count.is_some() %}
+                            <tr class="collapsed-separator">
+                                <td colspan="2">
+                                    <button class="expand-btn" onclick="expandContext(this)">
+                                        Show {{ line.collapse_count.unwrap() }} hidden lines
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if line.collapsed %}
+                            <tr class="diff-row {{ line.line_type_str() }} collapsed-row" style="display:none">
+                            {% else %}
                             <tr class="diff-row {{ line.line_type_str() }}">
+                            {% endif %}
                                 <td class="gutter-cell">
                                     <span class="ln-before">
-                                        {% if line.is_hunk() %}
-                                        ...
-                                        {% elif line.is_add() %}
+                                        {% if line.is_add() %}
                                         {% elif line.is_delete() %}
                                         {% if line.old_line_number.is_some() %}{{ line.old_line_number.unwrap() }}{% endif %}
                                         {% else %}
@@ -125,9 +161,7 @@
                                         {% endif %}
                                     </span>
                                     <span class="ln-after">
-                                        {% if line.is_hunk() %}
-                                        ...
-                                        {% elif line.is_add() %}
+                                        {% if line.is_add() %}
                                         {% if line.new_line_number.is_some() %}{{ line.new_line_number.unwrap() }}{% endif %}
                                         {% elif line.is_delete() %}
                                         {% else %}
@@ -138,7 +172,7 @@
                                 <td class="content-cell {{ line.line_type_str() }}">{{ line.html_content()|safe }}</td>
                             </tr>
                             {% if line.annotations.len() > 0 %}
-                            <tr class="annotation-row">
+                            <tr class="annotation-row{% if line.collapsed %} collapsed-row{% endif %}"{% if line.collapsed %} style="display:none"{% endif %}>
                                 <td colspan="2" class="las">
                                     {% for annotation in line.annotations %}
                                     <div class="annotation">
@@ -167,6 +201,8 @@
         {% endif %}
     </div>
     {% endfor %}
+
+    <form id="version-form" method="get" action="/{{ task_id }}" style="display:none"></form>
     {% else %}
     <div class="no-diffs">
         <h2>No diffs found for task: {{ task_id }}</h2>

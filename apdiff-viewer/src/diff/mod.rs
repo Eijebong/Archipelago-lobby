@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use strsim::levenshtein;
 use syntect::highlighting::{
     Color, FontStyle, HighlightIterator, HighlightState, Highlighter, Style as SyntectStyle,
@@ -8,6 +7,7 @@ use syntect::parsing::{ParseState, ScopeStack};
 
 use crate::{get_syntax_set, get_theme};
 
+pub mod compute;
 mod word_diff;
 
 use word_diff::highlight_word_diff_structured;
@@ -216,8 +216,6 @@ pub enum LineType {
     Add,
     Delete,
     Context,
-    Hunk,
-    HunkSeparator,
 }
 
 impl LineType {
@@ -226,8 +224,6 @@ impl LineType {
             LineType::Add => "add",
             LineType::Delete => "del",
             LineType::Context => "ctx",
-            LineType::Hunk => "hunk",
-            LineType::HunkSeparator => "hunk-separator",
         }
     }
 }
@@ -237,19 +233,17 @@ pub struct DiffLine {
     pub line_type: LineType,
     pub old_line_number: Option<i32>,
     pub new_line_number: Option<i32>,
-    pub annotations: Vec<TemplateAnnotation>, // annotations for this specific line
-    pub raw_content: String,                  // original content without highlighting
-    pub syntax_tokens: Vec<SyntaxToken>,      // parsed syntax highlighting tokens
-    pub word_changes: Option<Vec<WordChangeSegment>>, // word-level diff changes
+    pub annotations: Vec<TemplateAnnotation>,
+    pub raw_content: String,
+    pub syntax_tokens: Vec<SyntaxToken>,
+    pub word_changes: Option<Vec<WordChangeSegment>>,
+    pub collapsed: bool,
+    pub collapse_count: Option<usize>,
 }
 
 impl DiffLine {
     pub fn line_type_str(&self) -> &'static str {
         self.line_type.as_str()
-    }
-
-    pub fn is_hunk(&self) -> bool {
-        self.line_type == LineType::Hunk
     }
 
     pub fn is_add(&self) -> bool {
@@ -260,32 +254,18 @@ impl DiffLine {
         self.line_type == LineType::Delete
     }
 
-    /// Generate HTML content by merging syntax highlighting with word diff changes
     pub fn html_content(&self) -> String {
-        match self.line_type {
-            LineType::Hunk => {
-                format!(
-                    "<span class='hunk-header'>{}</span>",
-                    html_escape::encode_text(&self.raw_content)
-                )
-            }
-            LineType::HunkSeparator => String::new(),
-            _ => {
-                if let Some(ref word_changes) = self.word_changes {
-                    // Use word changes with merged syntax highlighting
-                    merge_syntax_and_word_highlighting(&self.syntax_tokens, word_changes)
-                } else {
-                    // Use only syntax highlighting
-                    let style_text_pairs: Vec<(SyntectStyle, &str)> = self
-                        .syntax_tokens
-                        .iter()
-                        .map(|token| (token.style, token.text.as_str()))
-                        .collect();
-                    let highlighted =
-                        process_style_text_pairs(style_text_pairs, self.raw_content.len() * 2);
-                    apply_diff_styling(&highlighted, self.line_type)
-                }
-            }
+        if let Some(ref word_changes) = self.word_changes {
+            merge_syntax_and_word_highlighting(&self.syntax_tokens, word_changes)
+        } else {
+            let style_text_pairs: Vec<(SyntectStyle, &str)> = self
+                .syntax_tokens
+                .iter()
+                .map(|token| (token.style, token.text.as_str()))
+                .collect();
+            let highlighted =
+                process_style_text_pairs(style_text_pairs, self.raw_content.len() * 2);
+            apply_diff_styling(&highlighted, self.line_type)
         }
     }
 }
@@ -427,8 +407,7 @@ impl SyntaxHighlighter {
     }
 }
 
-/// Create fallback syntax tokens when parsing fails or line is too long
-fn fallback_syntax_tokens(content: &str) -> Vec<SyntaxToken> {
+pub fn fallback_syntax_tokens(content: &str) -> Vec<SyntaxToken> {
     let white_style = SyntectStyle {
         foreground: Color {
             r: 255,
@@ -493,18 +472,15 @@ fn is_invalid_scope(scope_stack: &ScopeStack) -> bool {
     })
 }
 
-/// Apply diff styling to highlighted content
 fn apply_diff_styling(highlighted_content: &str, line_type: LineType) -> String {
     match line_type {
         LineType::Add => format!("<span class='da'>{highlighted_content}</span>"),
         LineType::Delete => format!("<span class='dd'>{highlighted_content}</span>"),
-        LineType::Hunk => format!("<span class='hunk-header'>{highlighted_content}</span>"),
-        _ => highlighted_content.to_string(),
+        LineType::Context => highlighted_content.to_string(),
     }
 }
 
-/// Apply word-level highlighting to pairs of add/delete lines
-fn apply_word_highlighting(diff_lines: &mut [DiffLine]) {
+pub fn apply_word_highlighting(diff_lines: &mut [DiffLine]) {
     let change_blocks = find_change_blocks(diff_lines);
 
     // Process each change block independently
@@ -703,338 +679,6 @@ fn calculate_line_similarity(line1: &str, line2: &str) -> f64 {
         1.0
     } else {
         1.0 - (distance as f64 / max_len)
-    }
-}
-
-/// Parse hunk header
-///
-/// Parses lines like: @@ -old_start,old_count +new_start,new_count @@
-pub fn parse_hunk_header(line: &str) -> Option<(i32, i32)> {
-    let (old_start, new_start) = line
-        .split_whitespace()
-        .fold((None, None), |(old, new), part| match part {
-            p if p.starts_with('-') && p.len() > 1 => {
-                let start = p[1..].split(',').next().and_then(|s| s.parse::<i32>().ok());
-                (start.or(old), new)
-            }
-            p if p.starts_with('+') && p.len() > 1 => {
-                let start = p[1..].split(',').next().and_then(|s| s.parse::<i32>().ok());
-                (old, start.or(new))
-            }
-            _ => (old, new),
-        });
-
-    match (old_start, new_start) {
-        (Some(old), Some(new)) => Some((old, new)),
-        _ => None,
-    }
-}
-
-/// Process accumulated hunk lines and convert them to DiffLines with syntax highlighting
-fn process_hunk_lines(
-    hunk_lines: &mut Vec<(String, LineType, (i32, i32))>,
-    diff_lines: &mut Vec<DiffLine>,
-    display_filename: &str,
-    annotations: &BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
-    version_id: &str,
-) {
-    // Get annotations for this specific file
-    let file_annotations = annotations
-        .get(version_id)
-        .and_then(|version_annotations| {
-            // Try to match filename from the diff
-            version_annotations.get(display_filename)
-        })
-        .map(|anns| {
-            anns.iter()
-                .map(|a| TemplateAnnotation {
-                    desc: a.desc.clone(),
-                    line: a.line.unwrap_or(0),
-                    col_start: a.col_start.unwrap_or(0),
-                    col_end: a.col_end.unwrap_or(0),
-                })
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-
-    let syntax_tokens_per_line = highlight_hunk_lines(hunk_lines, display_filename);
-
-    for (i, (content, line_type, (old_num, new_num))) in hunk_lines.iter().enumerate() {
-        let syntax_tokens = syntax_tokens_per_line
-            .get(i)
-            .cloned()
-            .unwrap_or_else(|| fallback_syntax_tokens(content));
-
-        let line_annotations = match line_type {
-            LineType::Add | LineType::Context => {
-                if *new_num > 0 {
-                    find_line_annotations(*new_num, &file_annotations)
-                } else {
-                    Vec::new()
-                }
-            }
-            _ => Vec::new(),
-        };
-
-        diff_lines.push(DiffLine {
-            line_type: *line_type,
-            old_line_number: Some(*old_num),
-            new_line_number: Some(*new_num),
-            annotations: line_annotations,
-            raw_content: content.clone(),
-            syntax_tokens,
-            word_changes: None, // Will be populated by apply_word_highlighting
-        });
-    }
-    hunk_lines.clear();
-}
-
-/// Parse git diff with separation of concerns
-pub fn parse_git_diff(
-    git_diff: &str,
-    annotations: &BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
-    version_id: &str,
-) -> Vec<FileDiff> {
-    git_diff
-        .split("diff --git")
-        .filter(|file_diff| !file_diff.trim().is_empty())
-        .filter_map(|file_diff| parse_single_file_diff(file_diff, annotations, version_id))
-        .collect()
-}
-
-/// Parse a single file diff section
-fn parse_single_file_diff(
-    file_diff: &str,
-    annotations: &BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
-    version_id: &str,
-) -> Option<FileDiff> {
-    let lines: Vec<&str> = file_diff.split('\n').collect();
-
-    let file_metadata = parse_file_metadata(&lines)?;
-
-    // Process diff content
-    let mut diff_lines = process_diff_content(
-        &lines,
-        &file_metadata.display_filename,
-        annotations,
-        version_id,
-    );
-
-    // Apply word-level highlighting
-    apply_word_highlighting(&mut diff_lines);
-
-    Some(FileDiff {
-        filename_before: file_metadata.filename_before,
-        filename_after: file_metadata.filename_after,
-        is_binary: file_metadata.is_binary,
-        lines: diff_lines,
-    })
-}
-
-/// File metadata extracted from diff headers
-#[derive(Debug)]
-struct FileMetadata {
-    filename_before: String,
-    filename_after: String,
-    is_binary: bool,
-    display_filename: String,
-}
-
-/// Parse file metadata from diff header lines
-fn parse_file_metadata(lines: &[&str]) -> Option<FileMetadata> {
-    let mut filename_before = String::new();
-    let mut filename_after = String::new();
-    let mut is_binary = false;
-
-    for line in lines {
-        match line {
-            line if line.starts_with(" a/") && line.contains(" b/") => {
-                if let Some((before, after)) = line.split_once(" b/") {
-                    filename_before = before.trim_start_matches(" a/").to_string();
-                    filename_after = after.to_string();
-                }
-            }
-            line if line.starts_with("+++") => {
-                filename_after = line[4..].trim_start_matches("b/").to_string();
-            }
-            line if line.starts_with("---") => {
-                filename_before = line[4..].trim_start_matches("a/").to_string();
-            }
-            line if line.starts_with("deleted file mode") => {
-                filename_after = "/dev/null".to_string();
-            }
-            line if line.starts_with("new file mode") => {
-                filename_before = "/dev/null".to_string();
-            }
-            line if line.starts_with("Binary files") => {
-                is_binary = true;
-            }
-            _ => {}
-        }
-    }
-
-    // If neither filename was found, this isn't a valid file diff
-    if filename_before.is_empty() && filename_after.is_empty() {
-        return None;
-    }
-
-    let display_filename = if filename_after != "/dev/null" {
-        filename_after.clone()
-    } else {
-        filename_before.clone()
-    };
-
-    Some(FileMetadata {
-        filename_before,
-        filename_after,
-        is_binary,
-        display_filename,
-    })
-}
-
-/// Process diff content lines into structured diff lines
-fn process_diff_content(
-    lines: &[&str],
-    display_filename: &str,
-    annotations: &BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
-    version_id: &str,
-) -> Vec<DiffLine> {
-    let mut diff_lines = Vec::new();
-    let mut current_hunk_lines: Vec<(String, LineType, (i32, i32))> = Vec::new();
-    let mut line_numbers = LineNumbers::new();
-    let mut in_hunk = false;
-
-    for line in lines {
-        if line.trim() == "\\ No newline at end of file" {
-            continue;
-        }
-
-        if line.starts_with("@@") {
-            process_hunk_lines(
-                &mut current_hunk_lines,
-                &mut diff_lines,
-                display_filename,
-                annotations,
-                version_id,
-            );
-
-            add_hunk_separator_if_needed(&mut diff_lines, in_hunk);
-
-            if let Some((old_start, new_start)) = parse_hunk_header(line) {
-                line_numbers.reset(old_start as u32, new_start as u32);
-            } else {
-                line_numbers.reset(1, 1);
-            }
-
-            diff_lines.push(create_hunk_line(line));
-            in_hunk = true;
-        } else if in_hunk {
-            process_hunk_content_line(line, &mut current_hunk_lines, &mut line_numbers);
-        }
-    }
-
-    // Process final hunk
-    process_hunk_lines(
-        &mut current_hunk_lines,
-        &mut diff_lines,
-        display_filename,
-        annotations,
-        version_id,
-    );
-
-    diff_lines
-}
-
-/// Track line numbers for old and new versions
-#[derive(Debug, Default)]
-struct LineNumbers {
-    old: u32,
-    new: u32,
-}
-
-impl LineNumbers {
-    fn new() -> Self {
-        Self::default()
-    }
-
-    fn reset(&mut self, old_start: u32, new_start: u32) {
-        self.old = old_start;
-        self.new = new_start;
-    }
-}
-
-/// Process a single content line within a hunk
-fn process_hunk_content_line(
-    line: &str,
-    current_hunk_lines: &mut Vec<(String, LineType, (i32, i32))>,
-    line_numbers: &mut LineNumbers,
-) {
-    match line {
-        line if line.starts_with("+") && !line.starts_with("+++") => {
-            current_hunk_lines.push((
-                line[1..].to_string(),
-                LineType::Add,
-                (-1, line_numbers.new as i32),
-            ));
-            line_numbers.new += 1;
-        }
-        line if line.starts_with("-") && !line.starts_with("---") => {
-            current_hunk_lines.push((
-                line[1..].to_string(),
-                LineType::Delete,
-                (line_numbers.old as i32, -1),
-            ));
-            line_numbers.old += 1;
-        }
-        line if is_context_line(line) => {
-            let content = line.strip_prefix(" ").unwrap_or(line);
-            current_hunk_lines.push((
-                content.to_string(),
-                LineType::Context,
-                (line_numbers.old as i32, line_numbers.new as i32),
-            ));
-            line_numbers.old += 1;
-            line_numbers.new += 1;
-        }
-        _ => {}
-    }
-}
-
-/// Check if a line is a context line (starts with space or is other valid content)
-fn is_context_line(line: &str) -> bool {
-    line.starts_with(" ")
-        || (!line.starts_with("diff")
-            && !line.starts_with("index")
-            && !line.starts_with("+++")
-            && !line.starts_with("---")
-            && !line.is_empty())
-}
-
-/// Add hunk separator if needed
-fn add_hunk_separator_if_needed(diff_lines: &mut Vec<DiffLine>, in_hunk: bool) {
-    if in_hunk {
-        diff_lines.push(DiffLine {
-            line_type: LineType::HunkSeparator,
-            old_line_number: None,
-            new_line_number: None,
-            annotations: Vec::new(),
-            raw_content: String::new(),
-            syntax_tokens: Vec::new(),
-            word_changes: None,
-        });
-    }
-}
-
-/// Create a hunk header line
-fn create_hunk_line(line: &str) -> DiffLine {
-    DiffLine {
-        line_type: LineType::Hunk,
-        old_line_number: None,
-        new_line_number: None,
-        annotations: Vec::new(),
-        raw_content: line.to_string(),
-        syntax_tokens: fallback_syntax_tokens(line),
-        word_changes: None,
     }
 }
 

@@ -1,12 +1,6 @@
-//! APDiff Viewer - Server-side rendered git diff viewer for Archipelago World packages
-//!
-//! This application displays git diffs for APWorld packages with syntax highlighting
-//! and annotation support. It's been converted from React to server-side rendering
-//! using Askama templates for better performance and simpler deployment.
-
 use std::{borrow::Cow, collections::BTreeMap, ffi::OsStr, io::Cursor, path::PathBuf};
 
-use apwm::diff::CombinedDiff;
+use apwm::changes::Changes;
 use askama::Template;
 use askama_web::WebTemplate;
 use diesel_async::pooled_connection::deadpool::Pool;
@@ -17,23 +11,26 @@ use rocket::{
     response::{self, Responder},
     routes, Request, Response, State,
 };
-use serde::Deserialize;
-use std::sync::OnceLock;
+use semver::Version;
+use std::collections::HashMap;
+use std::num::NonZeroUsize;
+use std::sync::{Arc, Mutex, OnceLock};
 use syntect::{
     highlighting::{Theme, ThemeSet},
     parsing::SyntaxSet,
 };
-use taskcluster::{ClientBuilder, Queue};
+use taskcluster::{ClientBuilder, Credentials, Index, Queue};
 
 mod api;
+mod apworld;
 mod db;
 mod diff;
 mod guards;
 mod schema;
+mod tc;
 
-use diff::{parse_git_diff, Annotations, FileDiff};
+use diff::{Annotations, FileDiff};
 
-// Global syntax set and theme - initialized once for performance
 static SYNTAX_SET: OnceLock<SyntaxSet> = OnceLock::new();
 static THEME: OnceLock<Theme> = OnceLock::new();
 
@@ -75,16 +72,25 @@ where
     }
 }
 
+struct TcConfig {
+    index_namespace_prefix: String,
+}
+
+struct TreeCache(Mutex<lru::LruCache<String, Arc<apworld::FileTree>>>);
+
 #[derive(Template, WebTemplate)]
 #[template(path = "index.html")]
-struct Index {
+struct IndexPage {
     task_id: String,
     apworld_diffs: Vec<ApworldDiff>,
 }
 
 #[derive(Debug)]
 struct ApworldDiff {
+    apworld_name: String,
     world_name: String,
+    from_versions: Vec<Version>,
+    selected_from: Option<String>,
     versions: Vec<VersionDiff>,
 }
 
@@ -101,142 +107,18 @@ struct TestPage {
     results: TestResults,
 }
 
-#[rocket::get("/<task_id>")]
-async fn get_task_diffs(task_id: &str, queue: &State<Queue>) -> Result<Index> {
-    let artifacts = get_task_artifacts(queue, task_id).await?;
-
-    let diff_artifacts: Vec<_> = artifacts
-        .iter()
-        .filter(|path| path.starts_with("public/diffs/") && path.ends_with(".apdiff"))
-        .collect();
-
-    if diff_artifacts.is_empty() {
-        return Err(anyhow::anyhow!(
-            "This doesn't look like a supported task, it contains no apdiffs"
-        )
-        .into());
-    }
-
-    let diffs = try_join_all(
-        diff_artifacts
-            .into_iter()
-            .map(|name| process_diff_artifact(queue, task_id, name, &artifacts)),
-    )
-    .await?;
-
-    let apworld_diffs = diffs
-        .into_iter()
-        .map(|(diff, annotations)| process_apworld_diff(diff, annotations))
-        .collect();
-
-    Ok(Index {
-        task_id: task_id.to_string(),
-        apworld_diffs,
-    })
-}
-
-/// Process a single diff artifact and its annotations
-async fn process_diff_artifact(
-    queue: &Queue,
-    task_id: &str,
-    name: &str,
-    artifacts: &[String],
-) -> Result<(
-    CombinedDiff,
-    BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
-)> {
-    // Fetch and deserialize the diff
-    let diff_url = queue.getLatestArtifact_url(task_id, name)?;
-    let diff_text = reqwest::get(&diff_url).await?.text().await?;
-    let diff = deserialize_json::<CombinedDiff>(&diff_text)?;
-
-    let annotation_prefix = format!("public/diffs/{}-", diff.apworld_name);
-    let annotations = try_join_all(
-        artifacts
-            .iter()
-            .filter(|path| path.starts_with(&annotation_prefix) && path.ends_with(".aplint"))
-            .map(|file| process_annotation_file(queue, task_id, file, &annotation_prefix)),
-    )
-    .await?
-    .into_iter()
-    .collect();
-
-    Ok((diff, annotations))
-}
-
-/// Process a single annotation file
-async fn process_annotation_file(
-    queue: &Queue,
-    task_id: &str,
-    file: &str,
-    prefix: &str,
-) -> Result<(String, BTreeMap<String, Vec<Annotations>>)> {
-    let version = file
-        .strip_prefix(prefix)
-        .and_then(|s| s.strip_suffix(".aplint"))
-        .ok_or_else(|| anyhow::anyhow!("Invalid aplint filename: {}", file))?;
-
-    let aplint_url = queue.getLatestArtifact_url(task_id, file)?;
-    let aplint_text = reqwest::get(&aplint_url).await?.text().await?;
-    let annotation = deserialize_json::<BTreeMap<String, Vec<Annotations>>>(&aplint_text)?;
-
-    Ok((version.to_string(), annotation))
-}
-
-/// Transform a combined diff into an ApworldDiff structure
-fn process_apworld_diff(
-    diff: CombinedDiff,
-    annotations: BTreeMap<String, BTreeMap<String, Vec<Annotations>>>,
-) -> ApworldDiff {
-    let versions = diff
-        .diffs
-        .iter()
-        .filter_map(|(version_range, diff_content)| {
-            let git_diff = match diff_content {
-                apwm::diff::Diff::VersionAdded { content, .. } => content,
-                _ => return None,
-            };
-
-            let version_string = serde_json::to_string(version_range)
-                .expect("Version range should be serializable to JSON");
-            let version_range_clean = version_string.trim_matches('"');
-
-            let version_id = version_range_clean.split("...").nth(1).unwrap_or("HEAD");
-
-            let files = parse_git_diff(git_diff, &annotations, version_id);
-
-            Some(VersionDiff {
-                version_range: version_range_clean.to_string(),
-                version_id: version_id.to_string(),
-                files,
-            })
-        })
-        .collect();
-
-    ApworldDiff {
-        world_name: diff.world_name,
-        versions,
-    }
-}
-
-/// Helper function for JSON deserialization with better error reporting
-fn deserialize_json<T: for<'de> serde::Deserialize<'de>>(text: &str) -> Result<T> {
-    let mut deser = serde_json::Deserializer::from_str(text);
-    Ok(serde_path_to_error::deserialize(&mut deser)?)
-}
-
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 struct TestResult {
     traceback: String,
     description: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 struct UnexpectedSuccess {
     description: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 struct TestResults {
     failures: BTreeMap<String, TestResult>,
     errors: BTreeMap<String, TestResult>,
@@ -248,9 +130,267 @@ struct TestResults {
     world_name: String,
 }
 
+fn deserialize_json<T: for<'de> serde::Deserialize<'de>>(text: &str) -> Result<T> {
+    let mut deser = serde_json::Deserializer::from_str(text);
+    Ok(serde_path_to_error::deserialize(&mut deser)?)
+}
+
+#[rocket::get("/<task_id>?<params..>")]
+async fn get_task_diffs(
+    task_id: &str,
+    params: HashMap<String, String>,
+    queue: &State<Queue>,
+    index: &State<Index>,
+    tc_config: &State<TcConfig>,
+    tree_cache: &State<TreeCache>,
+) -> Result<IndexPage> {
+    let (artifacts, changes_text) = futures::try_join!(
+        tc::get_task_artifacts(queue, task_id),
+        tc::fetch_artifact_text(queue, task_id, "public/output/changes.json"),
+    )?;
+    let changes: Changes = deserialize_json(&changes_text)?;
+
+    let apworld_diffs = try_join_all(changes.worlds.into_iter().map(
+        |(apworld_name, world_changes)| {
+            let artifacts = &artifacts;
+            let queue: &Queue = queue;
+            let index: &Index = index;
+            let prefix = &tc_config.index_namespace_prefix;
+            let params = &params;
+            let tree_cache: &TreeCache = tree_cache;
+            async move {
+                let from_override = params.get(&format!("{apworld_name}_from"));
+                process_world(
+                    queue,
+                    index,
+                    prefix,
+                    task_id,
+                    artifacts,
+                    &apworld_name,
+                    world_changes,
+                    from_override.map(|s| s.as_str()),
+                    tree_cache,
+                )
+                .await
+            }
+        },
+    ))
+    .await?;
+
+    Ok(IndexPage {
+        task_id: task_id.to_string(),
+        apworld_diffs,
+    })
+}
+
+async fn process_world(
+    queue: &Queue,
+    index: &Index,
+    namespace_prefix: &str,
+    task_id: &str,
+    artifacts: &[String],
+    apworld_name: &str,
+    world_changes: apwm::changes::WorldChanges,
+    from_override: Option<&str>,
+    tree_cache: &TreeCache,
+) -> Result<ApworldDiff> {
+    let mut added_sorted = world_changes.added_versions.clone();
+    added_sorted.sort();
+
+    let (indexed, to_trees) = futures::join!(
+        async {
+            tc::list_indexed_versions(index, namespace_prefix, apworld_name)
+                .await
+                .unwrap_or_default()
+        },
+        try_join_all(added_sorted.iter().map(|v| {
+            let version = v.to_string();
+            async move {
+                let tree = cached_resolve_and_extract(
+                    queue,
+                    index,
+                    namespace_prefix,
+                    task_id,
+                    artifacts,
+                    apworld_name,
+                    &version,
+                    tree_cache,
+                )
+                .await?;
+                let annotations =
+                    fetch_annotations(queue, task_id, artifacts, apworld_name, &version).await?;
+                Ok::<_, Error>((version, tree, annotations))
+            }
+        })),
+    );
+    let to_trees = to_trees?;
+
+    let mut from_versions: Vec<Version> = indexed
+        .iter()
+        .filter(|(v, _)| !world_changes.added_versions.contains(v))
+        .map(|(v, _)| v.clone())
+        .collect();
+    from_versions.sort();
+
+    let latest_added = added_sorted
+        .last()
+        .map(|v| v.to_string())
+        .unwrap_or_default();
+    let selected_from = match from_override {
+        Some("") => None,
+        Some(v) => Some(v.to_string()),
+        None => find_previous_version(&latest_added, &indexed),
+    };
+
+    let (selected_from, from_tree) = match &selected_from {
+        Some(v) => {
+            match cached_resolve_and_extract(
+                queue,
+                index,
+                namespace_prefix,
+                task_id,
+                artifacts,
+                apworld_name,
+                v,
+                tree_cache,
+            )
+            .await
+            {
+                Ok(tree) => (selected_from, Some(tree)),
+                Err(e) => {
+                    tracing::warn!(
+                        "Error fetching from version {v} for {apworld_name}: {}",
+                        e.0
+                    );
+                    (None, None)
+                }
+            }
+        }
+        None => (None, None),
+    };
+
+    let empty_tree = apworld::FileTree::new();
+    let old_tree = from_tree.as_deref().unwrap_or(&empty_tree);
+
+    let versions: Vec<VersionDiff> = to_trees
+        .into_iter()
+        .map(|(version, new_tree, annotations)| {
+            let files = diff::compute::compute_file_tree_diff(old_tree, &new_tree, &annotations);
+            let version_range = match &selected_from {
+                Some(v) => format!("{v}...{version}"),
+                None => format!("...{version}"),
+            };
+            VersionDiff {
+                version_range,
+                version_id: version,
+                files,
+            }
+        })
+        .collect();
+
+    Ok(ApworldDiff {
+        apworld_name: apworld_name.to_string(),
+        world_name: world_changes.world_name,
+        from_versions,
+        selected_from,
+        versions,
+    })
+}
+
+fn find_previous_version(current: &str, indexed: &[(Version, String)]) -> Option<String> {
+    let current_v = Version::parse(current).ok()?;
+    indexed
+        .iter()
+        .filter(|(v, _)| v < &current_v)
+        .max_by(|a, b| a.0.cmp(&b.0))
+        .map(|(v, _)| v.to_string())
+}
+
+async fn cached_resolve_and_extract(
+    queue: &Queue,
+    index: &Index,
+    namespace_prefix: &str,
+    task_id: &str,
+    artifacts: &[String],
+    apworld_name: &str,
+    version: &str,
+    cache: &TreeCache,
+) -> Result<Arc<apworld::FileTree>> {
+    let key = format!("{apworld_name}:{version}");
+
+    if let Some(tree) = cache.0.lock().unwrap_or_else(|e| e.into_inner()).get(&key) {
+        return Ok(tree.clone());
+    }
+
+    let tree = Arc::new(
+        resolve_and_extract(
+            queue,
+            index,
+            namespace_prefix,
+            task_id,
+            artifacts,
+            apworld_name,
+            version,
+        )
+        .await?,
+    );
+
+    cache
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .put(key, tree.clone());
+    Ok(tree)
+}
+
+async fn resolve_and_extract(
+    queue: &Queue,
+    index: &Index,
+    namespace_prefix: &str,
+    task_id: &str,
+    artifacts: &[String],
+    apworld_name: &str,
+    version: &str,
+) -> Result<apworld::FileTree> {
+    let pr_artifact = format!("public/output/apworlds/{apworld_name}-{version}.apworld");
+
+    let bytes = if artifacts.contains(&pr_artifact) {
+        tc::fetch_artifact_bytes(queue, task_id, &pr_artifact).await?
+    } else {
+        let index_path = tc::index_path(namespace_prefix, apworld_name, version);
+        let indexed_task_id = tc::find_indexed_task(index, &index_path)
+            .await?
+            .ok_or_else(|| {
+                anyhow::anyhow!("Version {version} of {apworld_name} not found in index")
+            })?;
+
+        let artifact_name = format!("public/{apworld_name}-{version}.apworld");
+        tc::fetch_artifact_bytes(queue, &indexed_task_id, &artifact_name).await?
+    };
+
+    Ok(apworld::extract_apworld(&bytes)?)
+}
+
+async fn fetch_annotations(
+    queue: &Queue,
+    task_id: &str,
+    artifacts: &[String],
+    apworld_name: &str,
+    version: &str,
+) -> Result<BTreeMap<String, Vec<Annotations>>> {
+    let aplint_name = format!("public/output/{apworld_name}-{version}.aplint");
+
+    if !artifacts.iter().any(|a| a == &aplint_name) {
+        return Ok(BTreeMap::new());
+    }
+
+    let text = tc::fetch_artifact_text(queue, task_id, &aplint_name).await?;
+    Ok(deserialize_json(&text)?)
+}
+
 #[rocket::get("/tests/<task_id>")]
 async fn get_test_results(task_id: &str, queue: &State<Queue>) -> Result<TestPage> {
-    let artifacts = get_task_artifacts(queue, task_id).await?;
+    let artifacts = tc::get_task_artifacts(queue, task_id).await?;
     let Some(aptest_name) = artifacts
         .iter()
         .find(|path| path.starts_with("public/test_results/"))
@@ -260,10 +400,8 @@ async fn get_test_results(task_id: &str, queue: &State<Queue>) -> Result<TestPag
         ))?
     };
 
-    let aptest_url = queue.getLatestArtifact_url(task_id, aptest_name)?;
-    let aptest = reqwest::get(&aptest_url).await?.text().await?;
-    let mut deser = serde_json::Deserializer::from_str(&aptest);
-    let results: TestResults = serde_path_to_error::deserialize(&mut deser)?;
+    let aptest_text = tc::fetch_artifact_text(queue, task_id, aptest_name).await?;
+    let results: TestResults = deserialize_json(&aptest_text)?;
 
     Ok(TestPage { results })
 }
@@ -293,8 +431,19 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
 
-    let client_builder = ClientBuilder::new(std::env::var("TASKCLUSTER_ROOT_URL")?);
-    let queue = Queue::new(client_builder)?;
+    let mut client_builder = ClientBuilder::new(std::env::var("TASKCLUSTER_ROOT_URL")?);
+    if let (Ok(client_id), Ok(access_token)) = (
+        std::env::var("TASKCLUSTER_CLIENT_ID"),
+        std::env::var("TASKCLUSTER_ACCESS_TOKEN"),
+    ) {
+        client_builder = client_builder.credentials(Credentials {
+            client_id,
+            access_token,
+            certificate: None,
+        });
+    }
+    let queue = Queue::new(client_builder.clone())?;
+    let tc_index = Index::new(client_builder)?;
 
     let db_url = std::env::var("DATABASE_URL")?;
     let db_pool: Pool<AsyncPgConnection> =
@@ -302,8 +451,20 @@ async fn main() -> anyhow::Result<()> {
 
     let fuzz_api_key = guards::FuzzApiKeyConfig(std::env::var("FUZZ_API_KEY")?);
 
+    let tc_config = TcConfig {
+        index_namespace_prefix: std::env::var("APWORLD_INDEX_NAMESPACE")
+            .unwrap_or_else(|_| "ap.index.world".into()),
+    };
+
+    let tree_cache = TreeCache(Mutex::new(lru::LruCache::new(
+        NonZeroUsize::new(32).unwrap(),
+    )));
+
     rocket::build()
         .manage(queue)
+        .manage(tc_index)
+        .manage(tc_config)
+        .manage(tree_cache)
         .manage(db_pool)
         .manage(fuzz_api_key)
         .mount("/", routes![get_task_diffs, dist_static, get_test_results])
@@ -313,33 +474,4 @@ async fn main() -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("Rocket launch failed: {}", e))?;
 
     Ok(())
-}
-
-async fn get_task_artifacts(queue: &Queue, task_id: &str) -> anyhow::Result<Vec<String>> {
-    let mut continuation_token = None;
-    let mut all_artifacts = Vec::new();
-
-    loop {
-        let artifacts_page = queue
-            .listLatestArtifacts(task_id, continuation_token.as_deref(), None)
-            .await?;
-
-        continuation_token = artifacts_page
-            .get("continuationToken")
-            .and_then(|token| token.as_str().map(String::from));
-
-        if let Some(artifacts) = artifacts_page.get("artifacts").and_then(|v| v.as_array()) {
-            let page_artifacts: Vec<String> = artifacts
-                .iter()
-                .filter_map(|v| v.get("name")?.as_str().map(String::from))
-                .collect();
-            all_artifacts.extend(page_artifacts);
-        }
-
-        if continuation_token.is_none() {
-            break;
-        }
-    }
-
-    Ok(all_artifacts)
 }

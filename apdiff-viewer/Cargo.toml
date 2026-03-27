@@ -26,4 +26,13 @@ html-escape = "0.2.13"
 similar = "2.2"
 strsim = "0.11"
 futures = "0.3"
+zip = "7.0.0"
+sha2 = "0.10"
+rayon = "1"
+lru = "0.14"
+semver = { version = "1", features = ["serde"] }
+tracing = "0.1"
+
+[dev-dependencies]
+regex = "1"
 
