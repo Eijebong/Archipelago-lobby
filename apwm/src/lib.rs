@@ -1,5 +1,4 @@
 pub mod changes;
-pub mod diff;
 mod index;
 mod manifest;
 pub mod utils;

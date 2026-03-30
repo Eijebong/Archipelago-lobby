@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::{bail, Context, Result};
 use http::Uri;
-use reqwest::{Client, Url};
+use reqwest::Client;
 use semver::Version;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -167,7 +167,6 @@ impl World {
         ap_index_url: &str,
         ap_index_ref: &str,
         lock_file: &IndexLock,
-        lobby_url: &Option<Url>,
     ) -> Result<String> {
         let origin = self.versions.get(version).with_context(|| {
             format!("Unable to find version {} for world {}", version, self.name)
@@ -198,26 +197,9 @@ impl World {
 
         let apworld_name = self.get_ap_name()?;
         let expected_checksum = lock_file.get_checksum(&apworld_name, version);
-        let checksum = match self
+        let checksum = self
             .copy_to(version, &apworld_file, expected_checksum)
-            .await
-        {
-            Ok(checksum) => checksum,
-            Err(err) => {
-                if let Some(lobby_url) = lobby_url {
-                    apworld_file.set_len(0)?;
-                    self.download_from_lobby(lobby_url, version, &apworld_file)
-                        .await?
-                } else {
-                    bail!(
-                        "Couldn't get world for `{}`, version `{}`. {}",
-                        apworld_name,
-                        version,
-                        err
-                    );
-                }
-            }
-        };
+            .await?;
 
         let mut archive = zip::ZipArchive::new(File::open(apworld_path)?)?;
         archive.extract(destination)?;
@@ -288,31 +270,5 @@ impl World {
 
         destination.write_all(&body)?;
         Ok(checksum)
-    }
-
-    async fn download_from_lobby(
-        &self,
-        lobby_url: &Url,
-        version: &Version,
-        mut destination: &File,
-    ) -> Result<String> {
-        let api_key = std::env::var("LOBBY_API_KEY")?;
-        let client = retry_client();
-        let url = format!(
-            "{}/worlds/download/{}/{}",
-            lobby_url,
-            self.get_ap_name()?,
-            version
-        );
-        let req = client
-            .get(url.as_str())
-            .header("X-Api-Key", api_key)
-            .send()
-            .await?;
-        let body = req.bytes().await?;
-
-        destination.write_all(&body)?;
-        let checksum = Sha256::digest(&body);
-        Ok(format!("{checksum:x}"))
     }
 }

@@ -1,9 +1,7 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use apwm::changes;
-use apwm::diff::diff_world_and_write;
 use apwm::utils::git_clone_shallow;
 use clap::Parser;
-use reqwest::Url;
 use semver::Version;
 use std::path::{Path, PathBuf};
 use tempfile::tempdir;
@@ -34,18 +32,6 @@ enum Command {
         #[clap(short)]
         precise: Option<String>,
     },
-    Diff {
-        #[clap(short)]
-        index_path: PathBuf,
-        #[clap(short)]
-        from: String,
-        #[clap(short = 'r')]
-        from_ref: Option<String>,
-        #[clap(short)]
-        output: PathBuf,
-        #[clap(short)]
-        lobby_url: Option<Url>,
-    },
     Changes {
         #[clap(short)]
         index_path: PathBuf,
@@ -55,12 +41,6 @@ enum Command {
         from_ref: Option<String>,
         #[clap(short)]
         output: PathBuf,
-    },
-    ApplyDiffs {
-        #[clap(short)]
-        index_path: PathBuf,
-        #[clap(short)]
-        diffs_dir: PathBuf,
     },
 }
 
@@ -106,20 +86,6 @@ async fn main() -> Result<()> {
             )
             .await?;
         }
-        Command::Diff {
-            index_path,
-            from,
-            from_ref,
-            output,
-            lobby_url,
-        } => {
-            if lobby_url.is_some() {
-                if std::env::var("LOBBY_API_KEY").is_err() {
-                    bail!("Lobby url specified but missing `LOBBY_API_KEY` env variable");
-                }
-            }
-            diff(&index_path, &from, from_ref.as_deref(), &output, &lobby_url).await?;
-        }
         Command::Changes {
             index_path,
             from,
@@ -127,12 +93,6 @@ async fn main() -> Result<()> {
             output,
         } => {
             compute_changes(&index_path, &from, from_ref.as_deref(), &output).await?;
-        }
-        Command::ApplyDiffs {
-            index_path,
-            diffs_dir,
-        } => {
-            apply_diffs(&index_path, &diffs_dir)?;
         }
     }
 
@@ -169,96 +129,6 @@ async fn update(index_path: &Path) -> Result<()> {
     let new_lock = index.refresh_into(destination.path(), true, None).await?;
 
     new_lock.write()?;
-
-    Ok(())
-}
-
-async fn diff(
-    index_path: &Path,
-    from_git_remote: &str,
-    from_git_ref: Option<&str>,
-    output: &Path,
-    lobby_url: &Option<Url>,
-) -> Result<()> {
-    let old_index_dir = tempdir()?;
-    git_clone_shallow(
-        from_git_remote,
-        from_git_ref.unwrap_or("main"),
-        old_index_dir.path(),
-    )?;
-
-    let new_index_toml = index_path.join("index.toml");
-    let old_index_toml = old_index_dir.path().join("index.toml");
-    let old_index_lock = old_index_dir.path().join("index.lock");
-
-    let new_index = apwm::Index::new(&new_index_toml)?;
-    let old_index = apwm::Index::new(&old_index_toml)?;
-    let old_index_lock = apwm::IndexLock::new(&old_index_lock)?;
-
-    let old_worlds = old_index.worlds;
-    let new_worlds = new_index.worlds;
-
-    for (name, world) in &new_worlds {
-        match old_worlds.get(name) {
-            // This is a new world, diff from nothing
-            None => {
-                let mut from = None;
-
-                // If the new world is a manual and we're diffing it from nothing, try diffing it
-                // against an empty manual instead. This will provide a lot of relief on reviewing
-                // effort.
-                if world.name.starts_with("Manual_") {
-                    from = new_worlds.get("manual_ultimatemarvelvscapcom3_manualteam");
-                }
-                diff_world_and_write(
-                    from,
-                    Some(world),
-                    name,
-                    output,
-                    &new_index.archipelago_repo.to_string(),
-                    &new_index.archipelago_version.to_string(),
-                    &old_index_lock,
-                    lobby_url,
-                )
-                .await?
-            }
-            // The world was already there before, diff from latest version
-            Some(old_world) => {
-                if world.versions.keys().collect::<Vec<_>>()
-                    == old_world.versions.keys().collect::<Vec<_>>()
-                {
-                    continue;
-                }
-                diff_world_and_write(
-                    Some(old_world),
-                    Some(world),
-                    name,
-                    output,
-                    &new_index.archipelago_repo.to_string(),
-                    &new_index.archipelago_version.to_string(),
-                    &old_index_lock,
-                    lobby_url,
-                )
-                .await?
-            }
-        }
-    }
-
-    for (name, world) in &old_worlds {
-        if !new_worlds.contains_key(name.as_str()) {
-            diff_world_and_write(
-                Some(world),
-                None,
-                name,
-                output,
-                &new_index.archipelago_repo.to_string(),
-                &new_index.archipelago_version.to_string(),
-                &old_index_lock,
-                lobby_url,
-            )
-            .await?;
-        }
-    }
 
     Ok(())
 }
@@ -335,16 +205,6 @@ async fn compute_changes(
     let checksums = changes::download_changed_apworlds(&result, &new_index, output).await?;
     changes::apply_checksums(&mut result, checksums);
     changes::write_changes(&result, output)?;
-
-    Ok(())
-}
-
-fn apply_diffs(index_path: &Path, diffs_dir: &Path) -> Result<()> {
-    let lock_path = index_path.join("index.lock");
-    let mut lock = apwm::IndexLock::new(&lock_path)?;
-
-    lock.apply_diffs_from_dir(diffs_dir)?;
-    lock.write()?;
 
     Ok(())
 }
