@@ -33,7 +33,7 @@ pub fn extract_apworld(data: &[u8]) -> Result<FileTree> {
     let mut total_size: u64 = 0;
 
     for i in 0..archive.len() {
-        let mut entry = archive.by_index(i)?;
+        let entry = archive.by_index(i)?;
 
         if entry.is_dir() {
             continue;

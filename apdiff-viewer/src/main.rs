@@ -85,11 +85,20 @@ struct IndexPage {
     apworld_diffs: Vec<ApworldDiff>,
 }
 
+const BASE_MANUAL: &str = "manual_ultimatemarvelvscapcom3_manualteam";
+const BASE_MANUAL_PREFIX: &str = "base:";
+
+#[derive(Debug)]
+struct FromVersion {
+    label: String,
+    value: String,
+}
+
 #[derive(Debug)]
 struct ApworldDiff {
     apworld_name: String,
     world_name: String,
-    from_versions: Vec<Version>,
+    from_versions: Vec<FromVersion>,
     selected_from: Option<String>,
     versions: Vec<VersionDiff>,
 }
@@ -225,12 +234,31 @@ async fn process_world(
     );
     let to_trees = to_trees?;
 
-    let mut from_versions: Vec<Version> = indexed
+    let mut from_versions: Vec<FromVersion> = indexed
         .iter()
         .filter(|(v, _)| !world_changes.added_versions.contains(v))
-        .map(|(v, _)| v.clone())
+        .map(|(v, _)| FromVersion {
+            label: v.to_string(),
+            value: v.to_string(),
+        })
         .collect();
-    from_versions.sort();
+
+    let is_manual = apworld_name.starts_with("manual_") && apworld_name != BASE_MANUAL;
+
+    let base_indexed = if is_manual {
+        let base = tc::list_indexed_versions(index, namespace_prefix, BASE_MANUAL)
+            .await
+            .unwrap_or_default();
+        for (v, _) in &base {
+            from_versions.push(FromVersion {
+                label: format!("base manual {v}"),
+                value: format!("{BASE_MANUAL_PREFIX}{v}"),
+            });
+        }
+        base
+    } else {
+        Vec::new()
+    };
 
     let latest_added = added_sorted
         .last()
@@ -239,19 +267,29 @@ async fn process_world(
     let selected_from = match from_override {
         Some("") => None,
         Some(v) => Some(v.to_string()),
-        None => find_previous_version(&latest_added, &indexed),
+        None => find_previous_version(&latest_added, &indexed).or_else(|| {
+            base_indexed
+                .last()
+                .map(|(v, _)| format!("{BASE_MANUAL_PREFIX}{v}"))
+        }),
     };
 
     let (selected_from, from_tree) = match &selected_from {
         Some(v) => {
+            let (resolve_name, resolve_version) =
+                if let Some(base_v) = v.strip_prefix(BASE_MANUAL_PREFIX) {
+                    (BASE_MANUAL, base_v)
+                } else {
+                    (apworld_name, v.as_str())
+                };
             match cached_resolve_and_extract(
                 queue,
                 index,
                 namespace_prefix,
                 task_id,
                 artifacts,
-                apworld_name,
-                v,
+                resolve_name,
+                resolve_version,
                 tree_cache,
             )
             .await

@@ -73,9 +73,8 @@
             <label>Compare against:
                 <select name="{{ apworld_diff.apworld_name }}_from" onchange="this.form.submit()" form="version-form">
                     <option value=""{% if apworld_diff.selected_from.is_none() %} selected{% endif %}>(none)</option>
-                    {% for vi in apworld_diff.from_versions %}
-                    {% let vi_str = vi.to_string() %}
-                    <option value="{{ vi }}"{% if apworld_diff.selected_from.as_deref() == Some(vi_str.as_str()) %} selected{% endif %}>{{ vi }}</option>
+                    {% for fv in apworld_diff.from_versions %}
+                    <option value="{{ fv.value }}"{% if apworld_diff.selected_from.as_deref() == Some(fv.value.as_str()) %} selected{% endif %}>{{ fv.label }}</option>
                     {% endfor %}
                 </select>
             </label>
