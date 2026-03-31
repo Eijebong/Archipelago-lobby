@@ -468,6 +468,10 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations/");
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "debug");
+    }
+    env_logger::init();
 
     let mut client_builder = ClientBuilder::new(std::env::var("TASKCLUSTER_ROOT_URL")?);
     if let (Ok(client_id), Ok(access_token)) = (
