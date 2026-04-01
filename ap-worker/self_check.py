@@ -26,18 +26,25 @@ def world_from_apworld_name(apworld_name):
 
 # In Options.py
 def generate_template(world_name, expected_world_name):
-    def dictify_range(option):
-        data = {option.default: 50}
-        for sub_option in ["random", "random-low", "random-high"]:
-            if sub_option != option.default:
+    def dictify_range(option, option_val):
+        data = {option_val: 50}
+        for sub_option in ["random", "random-low", "random-high",
+                           f"random-range-{option.range_start}-{option.range_end}"]:
+            if sub_option != option_val:
                 data[sub_option] = 0
-
-        notes = {}
+        notes = {
+            "random-low": "random value weighted towards lower values",
+            "random-high": "random value weighted towards higher values",
+            f"random-range-{option.range_start}-{option.range_end}": f"random value between "
+                                                                     f"{option.range_start} and {option.range_end}"
+        }
         for name, number in getattr(option, "special_range_names", {}).items():
             notes[name] = f"equivalent to {number}"
             if number in data:
                 data[name] = data[number]
                 del data[number]
+            elif name in data:
+                pass
             else:
                 data[name] = 0
 
