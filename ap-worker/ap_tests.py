@@ -206,8 +206,8 @@ if __name__ == "__main__":
     # Unload as many worlds as possible before running tests
     loaded_worlds = list(AutoWorldRegister.world_types.keys())
     for loaded_world in loaded_worlds:
-        # Those 2 worlds are essential to testing (who could've seen this coming, yet another dependency on ALTTP)
-        if loaded_world in ("Test Game", "APQuest"):
+        # Those worlds are essential to testing
+        if loaded_world in ("Test Game", "APQuest", "Archipelago"):
             continue
 
         if loaded_world != world_name:
