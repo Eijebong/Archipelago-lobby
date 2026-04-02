@@ -103,6 +103,10 @@ pub async fn download_changed_apworlds(
     let mut checksums: BTreeMap<String, BTreeMap<Version, Checksum>> = BTreeMap::new();
 
     for (apworld_name, world_changes) in &changes.worlds {
+        if world_changes.added_versions.is_empty() {
+            continue;
+        }
+
         let world = index.worlds.get(apworld_name).with_context(|| {
             format!("World {apworld_name} listed in changes but not found in index")
         })?;
@@ -160,6 +164,10 @@ pub async fn download_from_changes(
     std::fs::create_dir_all(destination)?;
 
     for (apworld_name, world_changes) in &changes.worlds {
+        if world_changes.added_versions.is_empty() {
+            continue;
+        }
+
         let world = index.worlds.get(apworld_name).with_context(|| {
             format!("World {apworld_name} listed in changes but not found in index")
         })?;
@@ -299,6 +307,24 @@ mod tests {
         assert!(wc.added_versions.is_empty());
         assert_eq!(wc.removed_versions.len(), 1);
         assert_eq!(wc.removed_versions[0], Version::from_str("0.1.0")?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_download_skips_removed_only_worlds() -> Result<()> {
+        let mut old = empty_index();
+        let new = empty_index();
+        let output_dir = tempdir()?;
+
+        let (_tmp, versions) = mock_world_versions(&["0.1.0"])?;
+        old.worlds
+            .insert("test".into(), mock_world("Test World", versions));
+
+        let changes = compute_changes(&old, &new);
+        assert_eq!(changes.worlds.len(), 1);
+
+        let checksums = download_changed_apworlds(&changes, &new, output_dir.path()).await?;
+        assert!(checksums.is_empty());
         Ok(())
     }
 
