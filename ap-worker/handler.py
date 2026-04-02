@@ -30,8 +30,6 @@ from worlds.Files import APWorldContainer, InvalidDataError  # noqa: E402
 from Utils import tuplize_version, init_logging  # noqa: E402
 import worlds  # noqa: E402
 
-# Init AP logging once on start
-init_logging("archipelago")
 
 # Some **supported** apworlds try to get stuff from external APIs. We do not want that as it currently times out in prod
 # Until I have a better solution, just return an error immediately when someone tries to use requests

@@ -83,6 +83,7 @@ class GenerationQueue(LobbyQueue):
 
 
             Utils.user_path = my_user_path
+            Utils.init_logging("archipelago")
 
             try:
                 room_id = job.params["room_id"]
