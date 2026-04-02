@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::BTreeMap, ffi::OsStr, io::Cursor, path::PathBuf};
 
-use apwm::changes::Changes;
+use apwm::changes::{Changes, Checksum};
 use askama::Template;
 use askama_web::WebTemplate;
 use diesel_async::pooled_connection::deadpool::Pool;
@@ -159,31 +159,39 @@ async fn get_task_diffs(
     )?;
     let changes: Changes = deserialize_json(&changes_text)?;
 
-    let apworld_diffs = try_join_all(changes.worlds.into_iter().map(
-        |(apworld_name, world_changes)| {
-            let artifacts = &artifacts;
-            let queue: &Queue = queue;
-            let index: &Index = index;
-            let prefix = &tc_config.index_namespace_prefix;
-            let params = &params;
-            let tree_cache: &TreeCache = tree_cache;
-            async move {
-                let from_override = params.get(&format!("{apworld_name}_from"));
-                process_world(
-                    queue,
-                    index,
-                    prefix,
-                    task_id,
-                    artifacts,
-                    &apworld_name,
-                    world_changes,
-                    from_override.map(|s| s.as_str()),
-                    tree_cache,
-                )
-                .await
-            }
-        },
-    ))
+    let apworld_diffs = try_join_all(
+        changes
+            .worlds
+            .into_iter()
+            .filter(|(_, wc)| {
+                wc.added_versions
+                    .iter()
+                    .any(|v| !matches!(wc.checksums.get(v), Some(Checksum::Supported)))
+            })
+            .map(|(apworld_name, world_changes)| {
+                let artifacts = &artifacts;
+                let queue: &Queue = queue;
+                let index: &Index = index;
+                let prefix = &tc_config.index_namespace_prefix;
+                let params = &params;
+                let tree_cache: &TreeCache = tree_cache;
+                async move {
+                    let from_override = params.get(&format!("{apworld_name}_from"));
+                    process_world(
+                        queue,
+                        index,
+                        prefix,
+                        task_id,
+                        artifacts,
+                        &apworld_name,
+                        world_changes,
+                        from_override.map(|s| s.as_str()),
+                        tree_cache,
+                    )
+                    .await
+                }
+            }),
+    )
     .await?;
 
     Ok(IndexPage {
@@ -204,6 +212,7 @@ async fn process_world(
     tree_cache: &TreeCache,
 ) -> Result<ApworldDiff> {
     let mut added_sorted = world_changes.added_versions.clone();
+    added_sorted.retain(|v| !matches!(world_changes.checksums.get(v), Some(Checksum::Supported)));
     added_sorted.sort();
 
     let (indexed, to_trees) = futures::join!(
