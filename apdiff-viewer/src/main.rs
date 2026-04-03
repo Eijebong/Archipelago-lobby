@@ -285,6 +285,7 @@ async fn process_world(
 
     let (selected_from, from_tree) = match &selected_from {
         Some(v) => {
+            let is_base_manual = v.starts_with(BASE_MANUAL_PREFIX);
             let (resolve_name, resolve_version) =
                 if let Some(base_v) = v.strip_prefix(BASE_MANUAL_PREFIX) {
                     (BASE_MANUAL, base_v)
@@ -303,7 +304,14 @@ async fn process_world(
             )
             .await
             {
-                Ok(tree) => (selected_from, Some(tree)),
+                Ok(tree) => {
+                    let tree = if is_base_manual {
+                        Arc::new(apworld::rekey_tree(&tree, apworld_name))
+                    } else {
+                        tree
+                    };
+                    (selected_from, Some(tree))
+                }
                 Err(e) => {
                     tracing::warn!(
                         "Error fetching from version {v} for {apworld_name}: {}",

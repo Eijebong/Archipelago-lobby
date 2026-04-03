@@ -5,7 +5,7 @@ use anyhow::{bail, Context, Result};
 use sha2::{Digest, Sha256};
 use zip::ZipArchive;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum FileContent {
     Text(String),
     Binary([u8; 32]),
@@ -16,6 +16,17 @@ pub type FileTree = BTreeMap<PathBuf, FileContent>;
 const MAX_ENTRY_SIZE: u64 = 10 * 1024 * 1024;
 const MAX_TOTAL_SIZE: u64 = 100 * 1024 * 1024;
 const MAX_ENTRY_COUNT: usize = 10_000;
+
+pub fn rekey_tree(tree: &FileTree, new_prefix: &str) -> FileTree {
+    tree.iter()
+        .map(|(path, content)| {
+            let mut components = path.components();
+            components.next();
+            let rest = components.as_path();
+            (PathBuf::from(new_prefix).join(rest), content.clone())
+        })
+        .collect()
+}
 
 pub fn extract_apworld(data: &[u8]) -> Result<FileTree> {
     let cursor = std::io::Cursor::new(data);
