@@ -198,10 +198,10 @@ pub async fn edit_room_submit<'a>(
 
 pub fn routes() -> Vec<rocket::Route> {
     rocket::routes![
-        create_room,
+        //create_room,
+        //create_room_submit,
         edit_room,
         delete_room,
-        create_room_submit,
         edit_room_submit
     ]
 }

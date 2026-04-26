@@ -293,7 +293,7 @@ pub async fn main() -> crate::error::Result<()> {
         .attach(TracingFairing)
         .attach(prometheus.clone())
         .mount("/", views::routes())
-        .mount("/", views::room_templates::routes())
+        //.mount("/", views::room_templates::routes())
         .mount("/", views::apworlds::routes())
         .mount("/", views::options_gen::routes())
         .mount("/", rocket::routes![goodbye])
